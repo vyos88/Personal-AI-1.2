@@ -38,6 +38,32 @@ const capabilities = (process.env.ALPHA_AGENT_CAPABILITIES ?? '')
 
 const handlers = new HandlerRegistry();
 
+// Opt-in handlers, by module name from ./handlers. Kept out of the default set
+// because some of them (alpha-coordination) run an external program, and that
+// should be a deliberate per-machine decision — but a deployment shouldn't
+// have to hand-edit source to make it, so it is configuration rather than a
+// code change.
+const extraHandlers = (process.env.ALPHA_EXTRA_HANDLERS ?? '')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+
+for (const name of extraHandlers) {
+  // Restricted charset: this becomes an import specifier, so no traversal,
+  // no absolute paths, no reaching outside the handlers directory.
+  if (!/^[a-z][a-z0-9-]*$/.test(name)) {
+    log.error(`invalid handler name ${JSON.stringify(name)} in ALPHA_EXTRA_HANDLERS`);
+    process.exit(1);
+  }
+  try {
+    handlers.register(await import(`./handlers/${name}.js`));
+    log.info('registered extra handler', { handler: name });
+  } catch (error) {
+    log.error(`could not load handler "${name}"`, { message: error.message });
+    process.exit(1);
+  }
+}
+
 let agent;
 try {
   agent = new TunnelAgent({

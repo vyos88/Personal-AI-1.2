@@ -284,13 +284,16 @@ claim paths, post receipts and release through an agent running on the Alpha
 host.
 
 It is **not registered by default** — it is the one handler that runs an
-external program. Add it to `BUILTIN` in `src/agent/handlers/index.js` on the
-host agent only:
+external program, so enabling it is a deliberate per-machine decision. Turn it
+on with configuration rather than a code edit:
 
-```js
-import * as alphaCoordination from './alpha-coordination.js';
-const BUILTIN = [echo, sysinfo, alphaCoordination];
+```bash
+ALPHA_EXTRA_HANDLERS=alpha-coordination
 ```
+
+Handler names there are restricted to a simple charset, so the value cannot
+reach outside `src/agent/handlers/`, and an unknown or malformed name stops the
+agent rather than letting it start silently missing a capability.
 
 Configure the host agent:
 
@@ -300,6 +303,10 @@ Configure the host agent:
 | `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
 | `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
 | `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
+| `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
+
+Full walkthrough for the Windows host, including running both processes as
+services: **[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
 
 Then coordinate by queueing tasks:
 
@@ -370,7 +377,7 @@ contract differs, adjust `buildArgs` and the expectation moves with it.
 npm test
 ```
 
-63 tests across three suites, booting a real host and a real agent over
+66 tests across three suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
 `test/tunnel.test.js` (19) — registration, dispatch, long-poll handoff, lease
@@ -386,10 +393,11 @@ behaviour, session revocation on password change, persistence across restart,
 refusal to start on a corrupt store, and assertions that no plaintext secret
 ever reaches disk.
 
-`test/alpha-coordination.test.js` (13) — action allowlisting, actor and path
-validation (traversal, drive letters, commas), and argv construction asserted
-against a stub interpreter that records exactly what it was handed, including
-a message full of shell metacharacters.
+`test/alpha-coordination.test.js` (16) — action allowlisting, actor and path
+validation (traversal, drive letters, commas), argv construction asserted
+against a stub interpreter that records exactly what it was handed (including a
+message full of shell metacharacters), and the opt-in mechanism refusing
+handler names that could escape the handlers directory.
 
 ## Layout
 
@@ -401,4 +409,5 @@ src/agent/       run loop, handler registry, handlers, entrypoint
 src/admin/       alpha-admin CLI
 bin/             alpha-host, alpha-agent, alpha-admin
 test/            integration + unit tests
+docs/            host setup walkthrough
 ```

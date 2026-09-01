@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawn } from 'node:child_process';
 
 import {
   ALLOWED_ACTIONS,
@@ -235,4 +236,69 @@ test('the handler is not registered by default', async () => {
   // Running an external program must be opted into explicitly on the host.
   assert.equal(registry.has('alpha.coordination'), false);
   assert.deepEqual(registry.types(), ['echo', 'sysinfo']);
+});
+
+// ------------------------------------------------- opt-in via configuration
+
+/** Runs the agent entrypoint as a subprocess and collects its output. */
+function spawnAgent(env, { waitFor, timeoutMs = 15_000 } = {}) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(process.execPath, ['src/agent/index.js'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ALPHA_AGENT_KEY: 'irrelevant-but-present',
+        // Port 1 refuses instantly, so the agent never actually attaches.
+        ALPHA_HOST_URL: 'http://127.0.0.1:1',
+        ALPHA_LOG_LEVEL: 'info',
+        ...env,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let output = '';
+    const done = (exitCode) => {
+      child.kill('SIGKILL');
+      clearTimeout(timer);
+      resolvePromise({ output, exitCode });
+    };
+    const onChunk = (chunk) => {
+      output += chunk;
+      if (waitFor && output.includes(waitFor)) done(null);
+    };
+
+    child.stdout.on('data', onChunk);
+    child.stderr.on('data', onChunk);
+    child.on('exit', (code) => done(code));
+    const timer = setTimeout(() => done(null), timeoutMs);
+  });
+}
+
+test('ALPHA_EXTRA_HANDLERS registers the handler without editing source', async () => {
+  const { root, stub } = await fixture();
+  const { output } = await spawnAgent(
+    {
+      ALPHA_EXTRA_HANDLERS: 'alpha-coordination',
+      ALPHA_REPO_ROOT: root,
+      ALPHA_POWERSHELL: stub,
+    },
+    { waitFor: 'handlers available' },
+  );
+
+  assert.match(output, /registered extra handler/);
+  assert.match(output, /alpha\.coordination/);
+});
+
+test('a handler name that could escape the handlers directory is refused', async () => {
+  for (const name of ['../../etc/passwd', '/abs/path', 'Bad_Name', './nested']) {
+    const { output, exitCode } = await spawnAgent({ ALPHA_EXTRA_HANDLERS: name });
+    assert.equal(exitCode, 1, `expected "${name}" to be refused`);
+    assert.match(output, /invalid handler name/);
+  }
+});
+
+test('an unknown handler name fails fast rather than starting degraded', async () => {
+  const { output, exitCode } = await spawnAgent({ ALPHA_EXTRA_HANDLERS: 'does-not-exist' });
+  assert.equal(exitCode, 1);
+  assert.match(output, /could not load handler/);
 });
