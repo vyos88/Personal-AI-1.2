@@ -160,7 +160,7 @@ out of the store — there are tests asserting exactly that.
 | Variable | Side | Default | Meaning |
 |---|---|---|---|
 | `ALPHA_HOST_PORT` | host | `8787` | Listen port. |
-| `ALPHA_HOST_BIND` | host | `127.0.0.1` | Listen address. |
+| `ALPHA_HOST_BIND` | host | `127.0.0.1` | Comma-separated listen addresses. |
 | `ALPHA_AUTH_STORE` | host | `./data/auth.json` | Where users/keys/invites persist. |
 | `ALPHA_BOOTSTRAP_TOKEN` | host | — | Break-glass admin credential. Remove after setup. |
 | `ALPHA_INVITE_BASE_URL` | host | request `Host` | Base for the printed redeem link. |

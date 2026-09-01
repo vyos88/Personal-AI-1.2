@@ -249,14 +249,33 @@ output. If a task sits in `queued`, no attached agent offers that type — check
 
 ## 8. Reach it from the laptop and cloud sessions
 
-Only after step 7 passes locally. Bind the coordinator to the host's Tailscale
-address rather than `0.0.0.0`:
+Only after step 7 passes locally. Find this machine's tailnet address:
 
-```ini
-ALPHA_HOST_BIND=100.x.y.z
+```powershell
+tailscale ip -4
 ```
 
-Restart the coordinator, then from the other machine:
+Then in `.env`, **keep loopback and add it**:
+
+```ini
+ALPHA_HOST_BIND=127.0.0.1,100.x.y.z
+```
+
+Both, not just the tailnet address. `ALPHA_HOST_BIND` is a comma-separated
+list, and the coordinator opens one listener per address sharing a single queue
+and account store. Keeping `127.0.0.1` means the agent on this machine goes on
+looping over loopback and is unaffected if Tailscale drops; replacing it would
+couple a same-machine connection to the tailnet for no reason, and would break
+the agent immediately, since `.env.agent` points at `http://127.0.0.1:8787`.
+
+Prefer listing addresses over `0.0.0.0`, which puts the coordinator on every
+interface including any public one. The host logs a warning if you do that.
+
+Restart the coordinator. It logs the addresses it bound. If it exits with
+`cannot bind ... it is not an address on this machine`, the tailnet address was
+mistyped — re-check `tailscale ip -4`.
+
+From the laptop:
 
 ```bash
 export ALPHA_HOST_URL=http://100.x.y.z:8787

@@ -322,3 +322,54 @@ test('agent refuses to advertise a capability it cannot run', () => {
     /no handler registered/,
   );
 });
+
+test('the coordinator can serve several addresses at once', async (t) => {
+  const host = createHost({ token: TOKEN });
+  // 127.0.0.1 and 127.0.0.2 stand in for loopback and a tailnet address:
+  // two distinct addresses on this machine, one shared coordinator.
+  const addresses = await host.listen({ port: 0, binds: ['127.0.0.1', '127.0.0.2'] });
+  t.after(() => host.close());
+
+  const [primary, secondary] = addresses;
+  assert.equal(primary.address, '127.0.0.1');
+  assert.equal(secondary.address, '127.0.0.2');
+
+  const urls = addresses.map((entry) => `http://${entry.address}:${entry.port}`);
+  for (const url of urls) {
+    const { body } = await fetchJson(`${url}/healthz`);
+    assert.equal(body.ok, true);
+  }
+
+  // Same coordinator, not two: a task queued on one address is visible on the
+  // other, and auth is shared.
+  const { body: created } = await enqueue(urls[0], { type: 'echo' });
+  const { body: seen } = await fetchJson(`${urls[1]}/tasks/${created.id}`, { token: TOKEN });
+  assert.equal(seen.id, created.id);
+
+  await assert.rejects(
+    () => fetchJson(`${urls[1]}/tasks`, { token: 'wrong-token-entirely-here' }),
+    (error) => error instanceof HttpError && error.status === 401,
+  );
+});
+
+test('closing drains every listener, not just the first', async () => {
+  const host = createHost({ token: TOKEN });
+  const addresses = await host.listen({ port: 0, binds: ['127.0.0.1', '127.0.0.2'] });
+  const urls = addresses.map((entry) => `http://${entry.address}:${entry.port}`);
+
+  await host.close();
+
+  // Both should now refuse connections rather than one lingering.
+  for (const url of urls) {
+    await assert.rejects(() => fetchJson(`${url}/healthz`, { timeoutMs: 2_000 }));
+  }
+});
+
+test('binding an address this machine does not have fails clearly', async () => {
+  const host = createHost({ token: TOKEN });
+  await assert.rejects(
+    () => host.listen({ port: 0, binds: ['203.0.113.99'] }),
+    (error) => error.code === 'EADDRNOTAVAIL' || error.code === 'EINVAL',
+  );
+  await host.close();
+});
