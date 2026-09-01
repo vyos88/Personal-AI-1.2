@@ -263,6 +263,23 @@ The laptop's spare memory is the thing the host most often runs out of, so it
 is lent in both directions: work that needs RAM is **placed** here, and data
 that needs to be resident is **parked** here.
 
+### Setting up a machine to lend
+
+On the machine doing the lending — the laptop — once someone on the host has
+issued it a key (`npm run admin -- issue-key --user <userId> --scopes agent
+--name laptop`):
+
+```bash
+npm run setup:agent -- --host http://100.x.y.z:8787 --key alpha_key_... --memstore
+```
+
+That checks the host is reachable and the key really is an `agent:connect`
+key, works out how much RAM to offer (a quarter of the machine by default,
+floored at 512 MB and capped at 4 GB — override with `--reserve-mb`), writes
+`.env.agent`, then attaches for a moment to prove the whole loop before saying
+it worked. `npm run agent` from then on. It prints the service command for the
+platform it ran on, so the laptop keeps lending across reboots.
+
 ### Placing work by free memory
 
 The agent reports its memory on registration and on every heartbeat: total,
@@ -436,126 +453,6 @@ binds as intended.
 The tests pin the exact argv, so if the script's contract ever changes, adjust
 `buildArgs` and the expectation moves with it.
 
-## Task lifecycle
-
-```
-queued ──lease──▶ leased ──ok───────▶ succeeded
-   ▲                 │
-   │                 ├──error, attempts left──┐
-   └─────────────────┴──lease expired─────────┘
-                     │
-                     └──error, no attempts left──▶ failed
-```
-
-A task is **leased**, not pushed. If the agent dies mid-task, its lease expires
-(`leaseMs`, default 60s), the host reclaims the task and the next capable agent
-picks it up, up to `maxAttempts` (default 3). Results from an agent that no
-longer holds the lease are rejected with `409`, so a slow straggler can't
-overwrite the answer from the agent that actually owns the work.
-
-The task queue is in memory and clears on restart. Accounts and credentials are
-not — they persist to `ALPHA_AUTH_STORE`.
-
-## Adding a handler
-
-A handler is a module exporting `type`, `run`, and optionally `description`:
-
-```js
-// src/agent/handlers/disk-free.js
-import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
-
-export const type = 'disk-free';
-export const description = 'Reports df -h for the root filesystem.';
-
-export async function run(payload, { signal }) {
-  const { stdout } = await promisify(execFile)('df', ['-h', '/'], { signal });
-  return { output: stdout };
-}
-```
-
-Register it in `src/agent/handlers/index.js` by adding it to `BUILTIN`. The
-agent advertises exactly the types it has handlers for, and refuses to start if
-`ALPHA_AGENT_CAPABILITIES` names one it cannot run.
-
-`run` receives `(payload, { signal, taskId, attempt, log })`. The `signal`
-aborts shortly before the lease expires — honour it for anything long-running
-so the failure is reported by the agent rather than showing up as an
-unexplained lease expiry.
-
-## Wiring into Alpha's coordination tunnel
-
-`src/agent/handlers/alpha-coordination.js` drives Alpha's
-`scripts/alpha_coordination_tunnel.ps1` from a task, so a remote actor can
-claim paths, post receipts and release through an agent running on the Alpha
-host.
-
-It is **not registered by default** — it is the one handler that runs an
-external program, so enabling it is a deliberate per-machine decision. Turn it
-on with configuration rather than a code edit:
-
-```bash
-ALPHA_EXTRA_HANDLERS=alpha-coordination
-```
-
-Handler names there are restricted to a simple charset, so the value cannot
-reach outside `src/agent/handlers/`, and an unknown or malformed name stops the
-agent rather than letting it start silently missing a capability.
-
-Configure the host agent:
-
-| Variable | Meaning |
-|---|---|
-| `ALPHA_REPO_ROOT` | Alpha working copy. Required. |
-| `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
-| `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
-| `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
-| `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
-
-On the Alpha host, `npm run setup:host -- --email you@example.com --alpha-root
-C:\path\to\alpha` does the whole provisioning in one command: config, admin
-account, a key scoped to `agent:connect`, a verified round-trip task, and it
-removes the bootstrap token when it is done.
-
-Full walkthrough, including Tailscale and running both processes as services:
-**[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
-
-Then coordinate from the CLI:
-
-```bash
-npm run admin -- coord --action Status --actor alpha-host
-
-npm run admin -- coord --action Post --actor claude-cowork \
-  --message "Receipt: wired the interaction pack into Alpha." \
-  --paths "software/backend/main.py,memory/knowledge/pack.json"
-```
-
-Or as a plain task, which is what `coord` builds:
-
-```bash
-npm run admin -- task --type alpha.coordination \
-  --payload '{"action":"Init","actor":"claude-cowork"}'
-```
-
-The result carries `exitCode`, `stdout` and `stderr`. A non-zero exit — a
-refused claim, say — is returned as data rather than thrown, because that is a
-real answer from the tunnel and not a failure of the task.
-
-**How it stays safe.** Arguments go to `execFile` as an argv array, so nothing
-is ever interpolated into a command line: a message containing `;`, `&&` or
-backticks is data. The executable and script are both pinned, the script must
-live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
-are constrained, and paths must be repo-relative with no `..` traversal, no
-drive letters and no commas (the argv joins on commas).
-
-**Unverified against the real script.** The Alpha working copy is not in any
-repository this was developed against, so the handler was built from the
-tunnel's observed call shape. `Init` and `Post` are confirmed; `Claim`,
-`Release` and `Status` are inferred from the tunnel's own vocabulary and should
-be checked before you rely on them. Confirm too that your script binds `-Paths`
-from a comma-joined token — the tests pin the exact argv, so if the real
-contract differs, adjust `buildArgs` and the expectation moves with it.
-
 ## Security
 
 - **Keep the host bound to `127.0.0.1` or a Tailscale address.** `0.0.0.0` puts
@@ -588,7 +485,7 @@ npm test
 node --test test/*.test.js
 ```
 
-101 tests across four suites, booting a real host and a real agent over
+107 tests across five suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
 `test/tunnel.test.js` (22) — registration, dispatch, long-poll handoff, lease
@@ -611,6 +508,10 @@ the store's LRU eviction, TTL expiry, per-entry limit, byte accounting and
 action dispatch — ending with a host that parks a value in an agent's RAM over
 the tunnel and reads it back.
 
+`test/setup-agent.test.js` (6) — the worker-provisioning decisions: the default
+reserve's floor and cap, host URLs that are not URLs, the configuration it
+writes, and that the store and a capability list appear only when asked for.
+
 `test/alpha-coordination.test.js` (16) — action allowlisting, actor and path
 validation (traversal, drive letters, commas), argv construction asserted
 against a stub interpreter that records exactly what it was handed (including a
@@ -626,6 +527,7 @@ src/host/auth/   scopes, scrypt passwords, token minting, store, auth service
 src/agent/       run loop, handler registry, handlers, memory report + store
 src/admin/       alpha-admin CLI
 bin/             alpha-host, alpha-agent, alpha-admin
+scripts/         one-command setup for the host and for a worker
 test/            integration + unit tests
 docs/            host setup walkthrough
 ```
