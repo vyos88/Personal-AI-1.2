@@ -300,21 +300,43 @@ revocation do nothing about a token read off the wire.
 ### Lending the laptop's RAM
 
 The laptop attaches as an agent of its own, and the value of doing that is
-usually its spare memory. On the laptop:
+usually its spare memory.
+
+**On the host**, issue the laptop its own key:
+
+```powershell
+node src/admin/run.js issue-key --user <yourUserId> --scopes agent --name laptop
+```
+
+**On the laptop**, with this repository checked out, one command does the rest:
 
 ```bash
-export ALPHA_HOST_URL=http://100.x.y.z:8787
-export ALPHA_AGENT_KEY=alpha_key_...              # scoped to agent:connect
-export ALPHA_AGENT_NAME=laptop
+node scripts/setup-agent.mjs --host http://100.x.y.z:8787 --key alpha_key_... --memstore
+```
 
-# Keep 2 GB for the laptop's own work; offer the rest to the host.
-export ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+It checks the host is reachable and that the key really is an `agent:connect`
+key, decides how much RAM to offer (a quarter of the machine, floored at 512 MB
+and capped at 4 GB — override with `--reserve-mb 2048`), writes `.env.agent`,
+and then attaches for a moment to prove the loop before telling you it worked.
+Add `--memstore` to let the host park data in the laptop's RAM as well;
+`--capabilities echo,sysinfo` narrows what it will accept. It finishes by
+printing the service command for whichever platform it ran on, so the laptop
+keeps lending across reboots.
 
-# Optional: let the host park data in this machine's RAM by key.
-export ALPHA_EXTRA_HANDLERS=memstore
-export ALPHA_MEMSTORE_LIMIT_MB=2048
+From then on, on the laptop:
 
+```bash
 node src/agent/index.js
+```
+
+To do it by hand instead, `.env.agent` is just:
+
+```ini
+ALPHA_HOST_URL=http://100.x.y.z:8787
+ALPHA_AGENT_KEY=alpha_key_...
+ALPHA_AGENT_NAME=laptop
+ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+ALPHA_EXTRA_HANDLERS=memstore
 ```
 
 The agent logs what it is offering on start, and the host shows it:
@@ -435,3 +457,6 @@ node --test test/alpha-coordination.test.js
 | `ALPHA_POWERSHELL` | agent | Defaults to `powershell.exe` |
 | `ALPHA_COORDINATION_ACTOR` | agent | Default actor when a task omits one |
 | `ALPHA_ADMIN_TOKEN` | CLI | Credential the CLI uses |
+
+On a worker machine, `node scripts/setup-agent.mjs --host <url> --key <key>`
+writes the agent rows of this table for you, and proves them by attaching.
