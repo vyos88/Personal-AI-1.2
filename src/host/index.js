@@ -9,9 +9,21 @@ const log = createLogger('host');
 loadEnv();
 
 const port = Number.parseInt(process.env.ALPHA_HOST_PORT ?? '8787', 10);
-// Default to loopback. Binding 0.0.0.0 puts the coordinator on every
-// interface, so that has to be a deliberate choice, not a default.
-const bind = process.env.ALPHA_HOST_BIND ?? '127.0.0.1';
+// Comma-separated. Default to loopback only; 0.0.0.0 puts the coordinator on
+// every interface, so that has to be a deliberate choice rather than a default.
+//
+// Listing several specific addresses is the safe way to be reachable over a
+// tailnet: keep 127.0.0.1 so an agent on this machine works even when Tailscale
+// is down, and add the tailnet address for everyone else.
+const binds = (process.env.ALPHA_HOST_BIND ?? '127.0.0.1')
+  .split(',')
+  .map((entry) => entry.trim())
+  .filter(Boolean);
+
+if (binds.length === 0) {
+  log.error('ALPHA_HOST_BIND is set but empty');
+  process.exit(1);
+}
 
 // The break-glass credential. It exists so there is a way to create the first
 // real admin on a fresh install; once that admin exists it should be removed
@@ -43,22 +55,38 @@ if (auth.userCount() === 0 && !bootstrapToken) {
   process.exit(1);
 }
 
-const { server, close } = createHost({ auth });
+const { servers, listen, close } = createHost({ auth });
 
-server.listen(port, bind, () => {
-  log.info('coordinator listening', { bind, port, users: auth.userCount() });
-  if (bind === '0.0.0.0' || bind === '::') {
-    log.warn('bound to all interfaces — make sure this port is not exposed beyond your tunnel');
+try {
+  await listen({ port, binds });
+} catch (error) {
+  if (error.code === 'EADDRINUSE') {
+    log.error(`port ${port} is already in use — is a coordinator already running?`);
+  } else if (error.code === 'EADDRNOTAVAIL') {
+    log.error(
+      `cannot bind ${error.address ?? 'that address'} — it is not an address on this machine. ` +
+        'Check the Tailscale address with: tailscale ip -4',
+    );
+  } else {
+    log.error('could not listen', { message: error.message, code: error.code });
   }
-  if (bootstrapToken && auth.userCount() > 0) {
-    log.warn('bootstrap token is still active alongside real users — unset it when you are done');
-  }
-});
-
-server.on('error', (error) => {
-  log.error('server error', { message: error.message, code: error.code });
   process.exit(1);
-});
+}
+
+log.info('coordinator listening', { binds, port, users: auth.userCount() });
+if (binds.some((address) => address === '0.0.0.0' || address === '::')) {
+  log.warn('bound to all interfaces — make sure this port is not exposed beyond your tunnel');
+}
+if (bootstrapToken && auth.userCount() > 0) {
+  log.warn('bootstrap token is still active alongside real users — unset it when you are done');
+}
+
+for (const entry of servers) {
+  entry.on('error', (error) => {
+    log.error('server error', { message: error.message, code: error.code });
+    process.exit(1);
+  });
+}
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {

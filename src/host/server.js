@@ -40,21 +40,31 @@ export function createHost({
 
   const ready = auth ? Promise.resolve(authService) : authService.load();
 
-  const server = http.createServer((req, res) => {
-    ready
-      .then(() => handle(req, res, { auth: authService, queue, registry }))
-      .catch((error) => {
-        log.error('unhandled request error', { message: error.message, url: req.url });
-        if (!res.headersSent) sendJson(res, 500, { error: 'internal_error' });
-        else res.end();
-      });
-  });
+  /**
+   * Every listener shares one queue, registry and auth service — they are the
+   * same coordinator reachable at more than one address, not separate hosts.
+   */
+  function makeServer() {
+    const created = http.createServer((req, res) => {
+      ready
+        .then(() => handle(req, res, { auth: authService, queue, registry }))
+        .catch((error) => {
+          log.error('unhandled request error', { message: error.message, url: req.url });
+          if (!res.headersSent) sendJson(res, 500, { error: 'internal_error' });
+          else res.end();
+        });
+    });
 
-  // Long polls hold a socket open for up to MAX_POLL_WAIT_MS; the default
-  // request timeout would cut them off mid-wait.
-  server.requestTimeout = MAX_POLL_WAIT_MS + 15_000;
-  server.headersTimeout = MAX_POLL_WAIT_MS + 20_000;
-  server.keepAliveTimeout = MAX_POLL_WAIT_MS + 10_000;
+    // Long polls hold a socket open for up to MAX_POLL_WAIT_MS; the default
+    // request timeout would cut them off mid-wait.
+    created.requestTimeout = MAX_POLL_WAIT_MS + 15_000;
+    created.headersTimeout = MAX_POLL_WAIT_MS + 20_000;
+    created.keepAliveTimeout = MAX_POLL_WAIT_MS + 10_000;
+    return created;
+  }
+
+  const server = makeServer();
+  const servers = [server];
 
   const pruner = setInterval(() => registry.prune(), 15_000);
   pruner.unref?.();
@@ -62,29 +72,65 @@ export function createHost({
   queue.start();
 
   /**
-   * Ordered shutdown. The queue has to be stopped *before* server.close(),
-   * not from its 'close' event: parked long polls are live requests, so
-   * server.close() waits on them, while the thing that releases them is
-   * queue.stop(). Draining from the close event deadlocks the two against
-   * each other and the process hangs until every poll times out.
+   * Binds the coordinator to every address in `binds`. The first uses the
+   * server created up front; each additional address gets its own listener
+   * sharing the same state.
+   *
+   * Binding to several specific addresses is how you reach the coordinator
+   * over Tailscale without also putting it on 0.0.0.0: loopback keeps working
+   * for an agent on this machine — including when Tailscale is down — while
+   * the tailnet address serves everyone else.
+   */
+  async function listen({ port, binds = ['127.0.0.1'] }) {
+    const addresses = Array.isArray(binds) ? binds : [binds];
+    if (addresses.length === 0) throw new Error('listen requires at least one bind address');
+
+    while (servers.length < addresses.length) servers.push(makeServer());
+
+    await Promise.all(
+      addresses.map(
+        (address, index) =>
+          new Promise((resolve, reject) => {
+            const target = servers[index];
+            target.once('error', reject);
+            target.listen(port, address, () => {
+              target.off('error', reject);
+              resolve();
+            });
+          }),
+      ),
+    );
+    return servers.map((entry) => entry.address());
+  }
+
+  /**
+   * Ordered shutdown. The queue has to be stopped *before* closing the
+   * listeners, not from a 'close' event: parked long polls are live requests,
+   * so close() waits on them, while the thing that releases them is
+   * queue.stop(). Draining from the close event deadlocks the two against each
+   * other and the process hangs until every poll times out.
    */
   async function close({ graceMs = 2_000 } = {}) {
     clearInterval(pruner);
 
-    // Hand server.close() its completion callback up front. With nothing
+    // Hand each close() its completion callback up front. With nothing
     // connected it finishes immediately, and a 'close' listener attached
     // afterwards would miss the event and wait for one that never comes.
-    const closed = new Promise((resolve) => server.close(() => resolve()));
+    const closed = Promise.all(
+      servers.map((entry) => new Promise((resolve) => entry.close(() => resolve()))),
+    );
 
     // Releases every parked waiter, so each handler resumes and answers 204.
     queue.stop();
     // Give those responses a turn of the loop to flush before reaping sockets.
     await new Promise((resolve) => setImmediate(resolve));
-    server.closeIdleConnections();
+    for (const entry of servers) entry.closeIdleConnections();
 
     // Deliberately left ref'd: it keeps the loop alive long enough to force
     // the last sockets shut rather than letting the process drain mid-close.
-    const forced = setTimeout(() => server.closeAllConnections(), graceMs);
+    const forced = setTimeout(() => {
+      for (const entry of servers) entry.closeAllConnections();
+    }, graceMs);
     try {
       await closed;
     } finally {
@@ -92,7 +138,7 @@ export function createHost({
     }
   }
 
-  return { server, queue, registry, auth: authService, ready, close };
+  return { server, servers, listen, queue, registry, auth: authService, ready, close };
 }
 
 async function handle(req, res, ctx) {
