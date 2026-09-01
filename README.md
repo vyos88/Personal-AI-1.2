@@ -133,6 +133,18 @@ Two rules keep grants from drifting upward:
 | Change what someone can do | `npm run admin -- set-scopes <userId> --scopes viewer` |
 | Withdraw an unredeemed invite | `npm run admin -- revoke-invite <inviteId>` |
 
+For another **device of your own**, issue a second key rather than creating a
+second account — no extra password to manage, and it revokes independently:
+
+```bash
+npm run admin -- issue-key --user <yourUserId> --scopes operator --name laptop
+```
+
+A key is capped by its owner's scopes but does not inherit them, so an
+`operator` key issued by an admin is operator-only. Use an invitation instead
+when the other party is a different **person**, who should have their own
+account and password.
+
 Disabling is checked when a credential is verified, so every key the user holds
 stops working on the very next request — there is no key sweep to wait for and
 nothing to miss. It is a switch, not a delete: re-enabling restores the same
@@ -502,7 +514,7 @@ npm test
 node --test test/*.test.js
 ```
 
-66 tests across three suites, booting a real host and a real agent over
+70 tests across three suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
 `test/tunnel.test.js` (19) — registration, dispatch, long-poll handoff, lease

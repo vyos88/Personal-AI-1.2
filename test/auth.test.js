@@ -649,3 +649,54 @@ test('unauthenticated and malformed credentials are refused', async (t) => {
     await assert.rejects(() => call(host.url, '/tasks', { token }), rejectsWith(401));
   }
 });
+
+test('a narrow key issued under an admin user is still narrow', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  // An admin, exactly as the host's own account is after setup.
+  const { user, key: adminKey } = await inviteAndRedeem(host.url, {
+    email: 'owner@example.com',
+    scopes: 'admin',
+  });
+
+  // A second key for another device, deliberately capped at operator. This is
+  // the property a per-device key depends on: `admin` implying every scope
+  // must not mean an admin's keys all inherit admin.
+  const { body: laptop } = await call(host.url, '/keys', {
+    method: 'POST',
+    token: adminKey,
+    body: { userId: user.id, name: 'laptop', scopes: 'operator' },
+  });
+
+  const { body: me } = await call(host.url, '/me', { token: laptop.token });
+  assert.ok(!me.scopes.includes('admin'), 'laptop key must not carry admin');
+  assert.deepEqual(me.scopes, ['agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
+
+  // It can do the operator things.
+  const { status: queued } = await call(host.url, '/tasks', {
+    method: 'POST',
+    token: laptop.token,
+    body: { type: 'echo' },
+  });
+  assert.equal(queued, 202);
+
+  // And none of the administrative ones, even though its owner is an admin.
+  for (const attempt of [
+    ['/users', {}],
+    ['/invites', { method: 'POST', body: { email: 'x@example.com', scopes: 'viewer' } }],
+    [`/users/${user.id}/status`, { method: 'POST', body: { status: 'disabled' } }],
+  ]) {
+    await assert.rejects(
+      () => call(host.url, attempt[0], { token: laptop.token, ...attempt[1] }),
+      rejectsWith(403),
+      `${attempt[0]} should be refused`,
+    );
+  }
+
+  // Revoking the device key leaves the owner's own key working.
+  await call(host.url, `/keys/${laptop.key.id}`, { method: 'DELETE', token: adminKey });
+  await assert.rejects(() => call(host.url, '/me', { token: laptop.token }), rejectsWith(401));
+  const { status } = await call(host.url, '/me', { token: adminKey });
+  assert.equal(status, 200);
+});
