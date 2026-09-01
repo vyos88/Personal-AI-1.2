@@ -588,13 +588,13 @@ npm test
 node --test test/*.test.js
 ```
 
-98 tests across four suites, booting a real host and a real agent over
+101 tests across four suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
-`test/tunnel.test.js` (19) — registration, dispatch, long-poll handoff, lease
+`test/tunnel.test.js` (22) — registration, dispatch, long-poll handoff, lease
 expiry and requeue, retry exhaustion, capability matching, protocol version
-mismatch, stale-holder result rejection, and reconnecting when an agent starts
-before its host.
+mismatch, stale-holder result rejection, reconnecting when an agent starts
+before its host, and serving several bind addresses from one coordinator.
 
 `test/auth.test.js` (31) — password hashing and salting, token parsing and
 forgery, scope normalization and escalation refusal, the full invite lifecycle
