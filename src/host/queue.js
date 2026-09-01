@@ -8,12 +8,26 @@ import { createLogger } from '../common/log.js';
 
 const log = createLogger('host:queue');
 
+// What a queue with no memory accounting behind it does: take everything,
+// remember nothing. Keeps the queue usable on its own, in tests and anywhere
+// the registry is not in play.
+const OPEN_ADMISSION = {
+  canAdmit: () => true,
+  admit: () => {},
+  release: () => {},
+};
+
 /**
  * In-memory task queue with capability-matched long-poll leasing.
  *
  * Work is pulled, never pushed: the agent dials out and holds a request open
  * until a task it can run appears. That is what lets the laptop sit behind NAT
  * with no inbound port and still act as a worker for the host.
+ *
+ * Matching is by capability and, for tasks that name a `minMemoryMB`, by the
+ * agent's free RAM. The queue does not track memory itself: it asks the
+ * `admission` controller (the agent registry, in a live host) whether a given
+ * agent can take a task, and tells it when a lease starts and ends.
  */
 export class TaskQueue {
   #tasks = new Map();
@@ -21,9 +35,10 @@ export class TaskQueue {
   #waiters = new Set();
   #sweeper = null;
 
-  constructor({ sweepIntervalMs = 5_000, now = () => Date.now() } = {}) {
+  constructor({ sweepIntervalMs = 5_000, now = () => Date.now(), admission = OPEN_ADMISSION } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
     this.now = now;
+    this.admission = admission;
   }
 
   start() {
@@ -43,13 +58,14 @@ export class TaskQueue {
     }
   }
 
-  enqueue({ type, payload, leaseMs, maxAttempts }) {
+  enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0 }) {
     const task = {
       id: newId('task'),
       type,
       payload,
       leaseMs,
       maxAttempts,
+      minMemoryMB,
       status: TaskStatus.QUEUED,
       attempts: 0,
       agentId: null,
@@ -62,9 +78,10 @@ export class TaskQueue {
     };
     this.#tasks.set(task.id, task);
 
-    // Hand it straight to a waiting agent when one can run this type; only
-    // park it in `pending` if nobody is listening for it right now.
-    const waiter = this.#findWaiterFor(task.type);
+    // Hand it straight to a waiting agent when one can run this type and has
+    // the RAM for it; only park it in `pending` if nobody is listening for it
+    // right now.
+    const waiter = this.#findWaiterFor(task);
     if (waiter) {
       this.#assign(task, waiter.agentId);
       this.#resolveWaiter(waiter, task);
@@ -83,7 +100,9 @@ export class TaskQueue {
   lease({ agentId, capabilities, waitMs, signal }) {
     const wanted = new Set(capabilities);
 
-    const index = this.#pending.findIndex((task) => wanted.has(task.type));
+    const index = this.#pending.findIndex(
+      (task) => wanted.has(task.type) && this.admission.canAdmit(agentId, task),
+    );
     if (index !== -1) {
       const [task] = this.#pending.splice(index, 1);
       this.#assign(task, agentId);
@@ -115,6 +134,7 @@ export class TaskQueue {
 
   complete(taskId, agentId, result) {
     const task = this.#requireLeasedBy(taskId, agentId);
+    this.admission.release(agentId, task);
     task.status = TaskStatus.SUCCEEDED;
     task.result = result ?? null;
     task.error = null;
@@ -127,6 +147,7 @@ export class TaskQueue {
   fail(taskId, agentId, error) {
     const task = this.#requireLeasedBy(taskId, agentId);
     const normalized = normalizeError(error);
+    this.admission.release(agentId, task);
 
     if (task.attempts >= task.maxAttempts) {
       task.status = TaskStatus.FAILED;
@@ -148,6 +169,7 @@ export class TaskQueue {
 
     const index = this.#pending.indexOf(task);
     if (index !== -1) this.#pending.splice(index, 1);
+    if (task.status === TaskStatus.LEASED) this.admission.release(task.agentId, task);
 
     task.status = TaskStatus.CANCELLED;
     task.finishedAt = this.now();
@@ -162,6 +184,10 @@ export class TaskQueue {
     for (const task of this.#tasks.values()) {
       if (task.status !== TaskStatus.LEASED) continue;
       if (task.leaseExpiresAt === null || task.leaseExpiresAt > now) continue;
+
+      // Whatever the agent promised this task is no longer promised: it is
+      // either dead or about to be handed to somebody else.
+      this.admission.release(task.agentId, task);
 
       if (task.attempts >= task.maxAttempts) {
         task.status = TaskStatus.FAILED;
@@ -185,6 +211,11 @@ export class TaskQueue {
     return filtered.slice(0, limit);
   }
 
+  /** Queued tasks nothing can run yet because no agent has the RAM they ask for. */
+  memoryBlocked() {
+    return this.#pending.filter((task) => task.minMemoryMB > 0);
+  }
+
   stats() {
     const byStatus = {};
     for (const task of this.#tasks.values()) {
@@ -194,6 +225,7 @@ export class TaskQueue {
   }
 
   #assign(task, agentId) {
+    this.admission.admit(agentId, task);
     task.status = TaskStatus.LEASED;
     task.agentId = agentId;
     task.attempts += 1;
@@ -207,7 +239,7 @@ export class TaskQueue {
     task.leasedAt = null;
     task.leaseExpiresAt = null;
 
-    const waiter = this.#findWaiterFor(task.type);
+    const waiter = this.#findWaiterFor(task);
     if (waiter) {
       this.#assign(task, waiter.agentId);
       this.#resolveWaiter(waiter, task);
@@ -217,9 +249,11 @@ export class TaskQueue {
     log.info('task requeued', { taskId: task.id, reason, attempts: task.attempts });
   }
 
-  #findWaiterFor(type) {
+  #findWaiterFor(task) {
     for (const waiter of this.#waiters) {
-      if (waiter.capabilities.has(type)) return waiter;
+      if (waiter.capabilities.has(task.type) && this.admission.canAdmit(waiter.agentId, task)) {
+        return waiter;
+      }
     }
     return null;
   }

@@ -9,6 +9,10 @@ from the agent**, so the laptop needs no open port, no public hostname and no
 inbound firewall rule — it only has to be able to reach the host over whatever
 link you already have (Tailscale, an SSH tunnel, a plain LAN address).
 
+It also lends the host its spare RAM two ways: the host places memory-hungry
+tasks on it by free memory, and can park data in it by key. See
+**[Lending the host RAM](#lending-the-host-ram)**.
+
 ```
   ┌────────────────────────┐                      ┌──────────────────────┐
   │  HOST  (Alpha)         │                      │  AGENT  (laptop)     │
@@ -168,6 +172,10 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_KEY` | agent | — | This agent's API key. |
 | `ALPHA_AGENT_NAME` | agent | machine hostname | Name shown in `/agents`. |
 | `ALPHA_AGENT_CAPABILITIES` | agent | all handlers | Subset of task types to accept. |
+| `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | `512` | RAM kept for this machine; the rest is offered to the host. |
+| `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`. |
+| `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. |
+| `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
@@ -219,10 +227,10 @@ needs `Authorization: Bearer <token>` and the scope listed.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/agent/register` | Announce name + capabilities, receive an agent id. |
+| `POST` | `/agent/register` | Announce name, capabilities and free RAM; receive an agent id. |
 | `GET` | `/agent/:id/tasks/next?wait=ms` | Long-poll for work. `204` when nothing matches. |
 | `POST` | `/agent/:id/tasks/:taskId/result` | Report `{ok, result?, error?}`. |
-| `POST` | `/agent/:id/heartbeat` | Liveness. |
+| `POST` | `/agent/:id/heartbeat` | Liveness, and a fresh `{memory}` reading. |
 | `DELETE` | `/agent/:id` | Detach cleanly. |
 
 A `410` on any `/agent/:id/...` call means the host has forgotten this agent
@@ -248,6 +256,84 @@ overwrite the answer from the agent that actually owns the work.
 
 The task queue is in memory and clears on restart. Accounts and credentials are
 not — they persist to `ALPHA_AUTH_STORE`.
+
+## Lending the host RAM
+
+The laptop's spare memory is the thing the host most often runs out of, so it
+is lent in both directions: work that needs RAM is **placed** here, and data
+that needs to be resident is **parked** here.
+
+### Placing work by free memory
+
+The agent reports its memory on registration and on every heartbeat: total,
+what is actually available, and what it is willing to offer — available minus
+`ALPHA_AGENT_MEMORY_RESERVE_MB`, held back so lending memory never pushes this
+machine into swap. On Linux the "available" figure comes from `MemAvailable` in
+`/proc/meminfo` rather than `os.freemem()`, which counts reclaimable page cache
+as used and would make a busy laptop look full.
+
+A task may then ask for a slice of it:
+
+```bash
+npm run admin -- task --type crunch --min-memory-mb 4096
+```
+
+Such a task is only leased to an agent whose latest report shows that much
+free, and the host **holds** those bytes against the agent for the life of the
+lease. Without the hold, three 4 GB tasks would all be placed on the same 8 GB
+laptop in the same instant — none of them has allocated anything yet at the
+moment the next one is matched. The reservation is released when the task
+succeeds, fails, is cancelled, or its lease expires.
+
+A report older than two minutes is treated as unknown rather than trusted, and
+an agent with unknown memory is never given a task that names a requirement. So
+is an agent that reports nothing at all — an older agent keeps working, it just
+never wins memory-tagged work.
+
+`agentAvailable: false` on a queued task now has two causes, and the response
+separates them: `memoryAvailable: false` means somebody runs that type but
+nobody has the RAM right now. The CLI says which:
+
+```
+$ npm run admin -- agents
+NAME     PRINCIPAL  CAPABILITIES        RAM     FREE   HELD   IDLE
+laptop   viorel     echo,sysinfo,...    15866M  9184M  4096M  3s
+```
+
+`FREE` is what is left to place work against — offered, minus what its
+in-flight tasks already claimed. `HELD` is that claim.
+
+### Parking data in the laptop's RAM
+
+The `memstore` handler turns the laptop into a keyed, in-memory store the host
+can address over the tunnel: a cache, an embedding batch, an intermediate
+result the host would rather not keep resident. It is **not registered by
+default** — holding data costs the RAM it costs — so turn it on per machine:
+
+```bash
+ALPHA_EXTRA_HANDLERS=memstore
+```
+
+One task type, `memory.store`, with an action:
+
+```bash
+npm run admin -- mem --action put --key embeddings/batch-1 --value '[0.1,0.2]'
+npm run admin -- mem --action get --key embeddings/batch-1
+npm run admin -- mem --action keys --prefix embeddings/
+npm run admin -- mem --action delete --key embeddings/batch-1
+npm run admin -- mem --action stats     # usage here, and the machine's own RAM
+npm run admin -- mem --action clear
+```
+
+`--ttl-ms` puts an expiry on an entry. The store is bounded by
+`ALPHA_MEMSTORE_LIMIT_MB` and evicts least-recently-used entries to stay inside
+it — an unbounded cache on the machine whose spare RAM is the whole point is a
+memory leak with a nicer name. Values are held as their serialized JSON, so the
+byte counts in `stats` are real rather than an estimate of an object graph, and
+a value larger than the per-entry limit is refused rather than allowed to evict
+everything else.
+
+Nothing here survives a restart of the agent. It is a cache, not a database.
 
 ## Adding a handler
 
@@ -502,13 +588,13 @@ npm test
 node --test test/*.test.js
 ```
 
-66 tests across three suites, booting a real host and a real agent over
+101 tests across four suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
-`test/tunnel.test.js` (19) — registration, dispatch, long-poll handoff, lease
+`test/tunnel.test.js` (22) — registration, dispatch, long-poll handoff, lease
 expiry and requeue, retry exhaustion, capability matching, protocol version
-mismatch, stale-holder result rejection, and reconnecting when an agent starts
-before its host.
+mismatch, stale-holder result rejection, reconnecting when an agent starts
+before its host, and serving several bind addresses from one coordinator.
 
 `test/auth.test.js` (31) — password hashing and salting, token parsing and
 forgery, scope normalization and escalation refusal, the full invite lifecycle
@@ -517,6 +603,13 @@ scope narrowing, disable-kills-everything, key expiry, login and lockout
 behaviour, session revocation on password change, persistence across restart,
 refusal to start on a corrupt store, and assertions that no plaintext secret
 ever reaches disk.
+
+`test/memory.test.js` (32) — memory reporting and its validation, placement by
+free RAM, reservations held for the life of a lease and handed back on
+completion, cancellation and lease expiry, staleness treated as unknown, and
+the store's LRU eviction, TTL expiry, per-entry limit, byte accounting and
+action dispatch — ending with a host that parks a value in an agent's RAM over
+the tunnel and reads it back.
 
 `test/alpha-coordination.test.js` (16) — action allowlisting, actor and path
 validation (traversal, drive letters, commas), argv construction asserted
@@ -530,7 +623,7 @@ handler names that could escape the handlers directory.
 src/common/      protocol, HTTP client, backoff, logging, env
 src/host/        queue, agent registry, HTTP server, entrypoint
 src/host/auth/   scopes, scrypt passwords, token minting, store, auth service
-src/agent/       run loop, handler registry, handlers, entrypoint
+src/agent/       run loop, handler registry, handlers, memory report + store
 src/admin/       alpha-admin CLI
 bin/             alpha-host, alpha-agent, alpha-admin
 test/            integration + unit tests
