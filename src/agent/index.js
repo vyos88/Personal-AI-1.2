@@ -2,6 +2,8 @@ import os from 'node:os';
 
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
+import { reserveFromEnv, memorySnapshot } from './memory.js';
+import { MB } from '../common/protocol.js';
 import { loadEnv } from '../common/env.js';
 import { createLogger } from '../common/log.js';
 
@@ -68,6 +70,16 @@ for (const name of extraHandlers) {
   }
 }
 
+// How much RAM this machine keeps for itself. Everything above it is offered
+// to the host, which uses it to decide what work can be placed here.
+let memoryReserveBytes;
+try {
+  memoryReserveBytes = reserveFromEnv(process.env.ALPHA_AGENT_MEMORY_RESERVE_MB);
+} catch (error) {
+  log.error(`ALPHA_AGENT_MEMORY_RESERVE_MB: ${error.message}`);
+  process.exit(1);
+}
+
 let agent;
 try {
   agent = new TunnelAgent({
@@ -76,6 +88,7 @@ try {
     name: process.env.ALPHA_AGENT_NAME || os.hostname(),
     capabilities: capabilities.length ? capabilities : undefined,
     handlers,
+    memoryReserveBytes,
   });
 } catch (error) {
   log.error(error.message);
@@ -83,6 +96,14 @@ try {
 }
 
 log.info('handlers available', { handlers: handlers.describe() });
+
+const snapshot = memorySnapshot({ reserveBytes: memoryReserveBytes });
+log.info('memory offered to the host', {
+  totalMB: Math.round(snapshot.totalBytes / MB),
+  availableMB: Math.round(snapshot.freeBytes / MB),
+  reservedMB: Math.round(memoryReserveBytes / MB),
+  offerableMB: Math.round(snapshot.offerableBytes / MB),
+});
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => {

@@ -36,12 +36,20 @@ Keys
   revoke-key <keyId>                                     Revoke one credential
 
 Tasks
-  task --type <t> [--payload <json>] [--no-wait]         Queue a task, await result
+  task --type <t> [--payload <json>] [--min-memory-mb <n>] [--no-wait]
+                                                         Queue a task, await result
   coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
                                                          Drive the coordination tunnel
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
-  agents                                                 List attached agents
+  agents                                                 List attached agents and their free RAM
+
+Borrowed memory
+  mem --action stats                                     Store usage on the agent
+  mem --action put --key <k> --value <json> [--ttl-ms <n>]
+  mem --action get|delete --key <k>
+  mem --action keys [--prefix <p>]
+  mem --action clear
 
 Session
   login --email <e>                                      Prompts for password
@@ -143,6 +151,8 @@ function table(rows, columns) {
   for (const row of rows) process.stdout.write(line(columns.map((c) => c.value(row))) + '\n');
 }
 
+const mb = (bytes) => (Number.isFinite(bytes) ? `${Math.round(bytes / (1024 * 1024))}M` : '-');
+
 const when = (ms) => (ms ? new Date(ms).toISOString().replace('T', ' ').slice(0, 19) : '-');
 const days = (value) => (value === undefined ? undefined : Number(value) * 24 * 60 * 60 * 1_000);
 
@@ -161,6 +171,11 @@ const OPTIONS = {
   message: { type: 'string' },
   paths: { type: 'string' },
   'lease-ms': { type: 'string' },
+  'min-memory-mb': { type: 'string' },
+  key: { type: 'string' },
+  value: { type: 'string' },
+  prefix: { type: 'string' },
+  'ttl-ms': { type: 'string' },
   'no-wait': { type: 'boolean' },
   timeout: { type: 'string' },
   json: { type: 'boolean' },
@@ -275,11 +290,30 @@ export async function main(argv = process.argv.slice(2)) {
     }
 
     case 'task':
-    case 'coord': {
+    case 'coord':
+    case 'mem': {
       let type;
       let payload;
 
-      if (command === 'coord') {
+      if (command === 'mem') {
+        // The laptop's RAM, addressed by key. `stats` is the harmless default,
+        // so `mem` on its own answers "how much is being held over there?".
+        type = flags.type ?? 'memory.store';
+        payload = { action: flags.action ?? 'stats' };
+        if (flags.key) payload.key = flags.key;
+        if (flags.prefix) payload.prefix = flags.prefix;
+        if (flags['ttl-ms']) payload.ttlMs = Number.parseInt(flags['ttl-ms'], 10);
+        if (flags.value !== undefined) {
+          try {
+            payload.value = JSON.parse(flags.value);
+          } catch (error) {
+            fail(`--value is not valid JSON: ${error.message}`);
+          }
+        }
+        if (payload.action === 'put' && payload.value === undefined) {
+          fail('mem --action put requires --value <json>');
+        }
+      } else if (command === 'coord') {
         if (!flags.action) fail('coord requires --action (Init, Claim, Post, Release or Status)');
         type = flags.type ?? 'alpha.coordination';
         payload = {
@@ -303,6 +337,7 @@ export async function main(argv = process.argv.slice(2)) {
 
       const body = { type, payload };
       if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
+      if (flags['min-memory-mb']) body.minMemoryMB = Number.parseInt(flags['min-memory-mb'], 10);
 
       const queued = await api('/tasks', { method: 'POST', body });
 
@@ -310,7 +345,10 @@ export async function main(argv = process.argv.slice(2)) {
         // Not fatal — it runs as soon as a capable agent attaches — but silence
         // here is how you end up staring at a task that never moves.
         process.stderr.write(
-          `warning: no attached agent currently offers "${type}". The task is queued.\n`,
+          queued.memoryAvailable === false
+            ? `warning: an agent offers "${type}", but none has ${body.minMemoryMB} MB free ` +
+              'right now. The task is queued until one does.\n'
+            : `warning: no attached agent currently offers "${type}". The task is queued.\n`,
         );
       }
       if (flags['no-wait']) {
@@ -345,6 +383,11 @@ export async function main(argv = process.argv.slice(2)) {
         { header: 'NAME', value: (a) => a.name },
         { header: 'PRINCIPAL', value: (a) => a.principal ?? '-' },
         { header: 'CAPABILITIES', value: (a) => a.capabilities.join(',') },
+        { header: 'RAM', value: (a) => mb(a.memory?.totalBytes) },
+        // What is left to place work against: offered, minus what the tasks
+        // this agent is already holding have claimed.
+        { header: 'FREE', value: (a) => mb(a.availableBytes) },
+        { header: 'HELD', value: (a) => mb(a.reservedBytes) },
         { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
       ]);
       return;

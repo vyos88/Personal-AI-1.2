@@ -297,6 +297,66 @@ Traffic still crosses the network in plain HTTP. Tailscale encrypts the link;
 if you are not on Tailscale, put this behind an SSH tunnel. Scopes and
 revocation do nothing about a token read off the wire.
 
+### Lending the laptop's RAM
+
+The laptop attaches as an agent of its own, and the value of doing that is
+usually its spare memory.
+
+**On the host**, issue the laptop its own key:
+
+```powershell
+node src/admin/run.js issue-key --user <yourUserId> --scopes agent --name laptop
+```
+
+**On the laptop**, with this repository checked out, one command does the rest:
+
+```bash
+node scripts/setup-agent.mjs --host http://100.x.y.z:8787 --key alpha_key_... --memstore
+```
+
+It checks the host is reachable and that the key really is an `agent:connect`
+key, decides how much RAM to offer (a quarter of the machine, floored at 512 MB
+and capped at 4 GB — override with `--reserve-mb 2048`), writes `.env.agent`,
+and then attaches for a moment to prove the loop before telling you it worked.
+Add `--memstore` to let the host park data in the laptop's RAM as well;
+`--capabilities echo,sysinfo` narrows what it will accept. It finishes by
+printing the service command for whichever platform it ran on, so the laptop
+keeps lending across reboots.
+
+From then on, on the laptop:
+
+```bash
+node src/agent/index.js
+```
+
+To do it by hand instead, `.env.agent` is just:
+
+```ini
+ALPHA_HOST_URL=http://100.x.y.z:8787
+ALPHA_AGENT_KEY=alpha_key_...
+ALPHA_AGENT_NAME=laptop
+ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+ALPHA_EXTRA_HANDLERS=memstore
+```
+
+The agent logs what it is offering on start, and the host shows it:
+
+```bash
+node src/admin/run.js agents      # RAM / FREE / HELD columns
+node src/admin/run.js mem --action stats
+```
+
+From then on, work queued with `--min-memory-mb` lands on whichever attached
+agent actually has the memory:
+
+```bash
+node src/admin/run.js task --type sysinfo --min-memory-mb 2048
+```
+
+A laptop that sleeps or leaves the network is pruned as stale like any other
+agent, and its share of the memory simply stops being on offer; tasks that
+needed it wait for it to come back rather than failing.
+
 ## 9. Survive a reboot
 
 Run both processes as services so they come back on their own. With
@@ -389,9 +449,14 @@ node --test test/alpha-coordination.test.js
 | `ALPHA_HOST_URL` | agent, CLI | Where the coordinator is |
 | `ALPHA_AGENT_KEY` | agent | This agent's credential |
 | `ALPHA_AGENT_NAME` | agent | Name in `/agents` |
-| `ALPHA_EXTRA_HANDLERS` | agent | `alpha-coordination` to enable the tunnel |
+| `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | RAM kept back; the rest is offered to the host |
+| `ALPHA_EXTRA_HANDLERS` | agent | `alpha-coordination`, `memstore` |
+| `ALPHA_MEMSTORE_LIMIT_MB` | agent | Budget for data the host parks here |
 | `ALPHA_REPO_ROOT` | agent | Alpha working copy |
 | `ALPHA_COORDINATION_SCRIPT` | agent | Defaults to `scripts/alpha_coordination_tunnel.ps1` |
 | `ALPHA_POWERSHELL` | agent | Defaults to `powershell.exe` |
 | `ALPHA_COORDINATION_ACTOR` | agent | Default actor when a task omits one |
 | `ALPHA_ADMIN_TOKEN` | CLI | Credential the CLI uses |
+
+On a worker machine, `node scripts/setup-agent.mjs --host <url> --key <key>`
+writes the agent rows of this table for you, and proves them by attaching.

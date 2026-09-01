@@ -17,7 +17,8 @@
     "agent": "node src/agent/index.js",
     "test": "node --test test/*.test.js",
     "admin": "node src/admin/run.js",
-    "setup:host": "node scripts/setup-host.mjs"
+    "setup:host": "node scripts/setup-host.mjs",
+    "setup:agent": "node scripts/setup-agent.mjs"
   },
   "dependencies": {},
   "devDependencies": {}

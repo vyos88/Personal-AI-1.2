@@ -13,13 +13,22 @@ import {
   MAX_POLL_WAIT_MS,
   validateRegistration,
   validateTaskInput,
+  validateMemoryReport,
 } from '../common/protocol.js';
 
 const log = createLogger('host:server');
 
 const MAX_BODY_BYTES = 1_000_000;
 
-export function createHost({ auth, token, queue = new TaskQueue(), registry = new AgentRegistry() } = {}) {
+// `registry` is destructured before `queue` on purpose: the default queue is
+// built with the registry as its admission controller, which is what makes
+// memory-aware placement work without the caller having to wire it up.
+export function createHost({
+  auth,
+  token,
+  registry = new AgentRegistry(),
+  queue = new TaskQueue({ admission: registry }),
+} = {}) {
   // `token` is the convenience path: it builds an ephemeral auth service whose
   // only credential is that bootstrap token. Real deployments pass `auth` so
   // users and keys persist.
@@ -330,10 +339,11 @@ async function handle(req, res, ctx) {
     if (method === 'POST' && url.pathname === '/agent/register') {
       require(SCOPES.AGENT_CONNECT);
       const body = await readJson(req);
-      const { name, capabilities } = validateRegistration(body);
+      const { name, capabilities, memory } = validateRegistration(body);
       const agent = ctx.registry.register({
         name,
         capabilities,
+        memory,
         remoteAddress: req.socket.remoteAddress,
         principal: principal.label,
         userId: principal.userId,
@@ -361,7 +371,16 @@ async function handle(req, res, ctx) {
       }
 
       if (method === 'POST' && segments[2] === 'heartbeat' && segments.length === 3) {
-        return sendJson(res, 200, { ok: true, queue: ctx.queue.stats() });
+        // The heartbeat carries the agent's current memory reading. Free RAM
+        // moves under the agent's own workload, so a report is only good
+        // until the next beat — see MEMORY_REPORT_STALE_MS.
+        const body = await readJson(req);
+        ctx.registry.reportMemory(agentId, validateMemoryReport(body?.memory));
+        return sendJson(res, 200, {
+          ok: true,
+          queue: ctx.queue.stats(),
+          availableBytes: ctx.registry.offerableBytes(agentId),
+        });
       }
 
       if (method === 'DELETE' && segments.length === 2) {
@@ -424,14 +443,21 @@ async function handle(req, res, ctx) {
       require(SCOPES.TASKS_WRITE);
       const body = await readJson(req);
       const input = validateTaskInput(body);
-      const covered = ctx.registry.coveredCapabilities();
+      // Sampled before enqueueing: enqueue may place the task immediately, and
+      // a task holding its own reservation would then report itself unplaceable.
+      const typeCovered = ctx.registry.coveredCapabilities().includes(input.type);
+      const placeable = ctx.registry.candidatesFor(input).length > 0;
       const task = ctx.queue.enqueue(input);
       return sendJson(res, 202, {
         id: task.id,
         status: task.status,
+        minMemoryMB: task.minMemoryMB,
         // Not an error: the task waits until a capable agent attaches. Surfaced
         // so a caller can tell "queued and running" from "queued forever".
-        agentAvailable: covered.includes(task.type),
+        agentAvailable: placeable,
+        // Distinguishes the two ways a task can sit there: nobody runs this
+        // type at all, or somebody does but has no RAM to spare for it.
+        memoryAvailable: !typeCovered || placeable,
       });
     }
 
@@ -475,6 +501,10 @@ async function handle(req, res, ctx) {
         queue: ctx.queue.stats(),
         agents: ctx.registry.list().length,
         capabilities: ctx.registry.coveredCapabilities(),
+        memory: {
+          offeredBytes: ctx.registry.offeredBytes(),
+          blockedTasks: ctx.queue.memoryBlocked().length,
+        },
       });
     }
 

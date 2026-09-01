@@ -4,7 +4,13 @@ import { HandlerRegistry } from './handlers/index.js';
 import { fetchJson, HttpError } from '../common/http.js';
 import { backoffDelay, sleep } from '../common/backoff.js';
 import { createLogger } from '../common/log.js';
-import { PROTOCOL_VERSION, MAX_POLL_WAIT_MS } from '../common/protocol.js';
+import { memorySnapshot } from './memory.js';
+import {
+  PROTOCOL_VERSION,
+  MAX_POLL_WAIT_MS,
+  DEFAULT_MEMORY_RESERVE_BYTES,
+  MB,
+} from '../common/protocol.js';
 
 const log = createLogger('agent');
 
@@ -14,6 +20,10 @@ const log = createLogger('agent');
  * Every connection is outbound, so this side needs no open port, no public
  * hostname and no inbound firewall rule — it only needs to be able to reach
  * `hostUrl` (over Tailscale, an SSH tunnel, or a plain LAN address).
+ *
+ * It also tells the host how much RAM it has to spare, on registration and on
+ * every heartbeat, so the host can send memory-hungry work here instead of
+ * running it on itself.
  */
 export class TunnelAgent {
   #agentId = null;
@@ -28,6 +38,7 @@ export class TunnelAgent {
     capabilities,
     handlers = new HandlerRegistry(),
     pollWaitMs = MAX_POLL_WAIT_MS,
+    memoryReserveBytes = DEFAULT_MEMORY_RESERVE_BYTES,
   }) {
     if (!hostUrl) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
@@ -37,6 +48,8 @@ export class TunnelAgent {
     this.name = name;
     this.handlers = handlers;
     this.pollWaitMs = pollWaitMs;
+    // Held back for this machine's own use and never offered to the host.
+    this.memoryReserveBytes = memoryReserveBytes;
 
     // An explicit capability list may only narrow what this agent advertises;
     // claiming a type with no handler would strand every task of that type.
@@ -58,6 +71,11 @@ export class TunnelAgent {
 
   get agentId() {
     return this.#agentId;
+  }
+
+  /** What this machine is currently willing to lend, read fresh each time. */
+  memory() {
+    return memorySnapshot({ reserveBytes: this.memoryReserveBytes });
   }
 
   /** Runs until stop() is called. Reconnects on its own across host restarts. */
@@ -127,6 +145,7 @@ export class TunnelAgent {
   }
 
   async #register() {
+    const memory = this.memory();
     const { body } = await fetchJson(`${this.hostUrl}/agent/register`, {
       method: 'POST',
       token: this.token,
@@ -135,11 +154,16 @@ export class TunnelAgent {
         protocolVersion: PROTOCOL_VERSION,
         name: this.name,
         capabilities: this.capabilities,
+        memory,
       },
     });
 
     this.#agentId = body.agentId;
-    log.info('registered with host', { agentId: this.#agentId, capabilities: this.capabilities });
+    log.info('registered with host', {
+      agentId: this.#agentId,
+      capabilities: this.capabilities,
+      offerableMB: Math.round(memory.offerableBytes / MB),
+    });
     this.#startHeartbeat(body.heartbeatIntervalMs ?? 20_000);
   }
 
@@ -227,6 +251,9 @@ export class TunnelAgent {
           method: 'POST',
           token: this.token,
           timeoutMs: 10_000,
+          // Free memory moves as this machine gets on with its own work, so
+          // the host's picture of it is only as good as the last beat.
+          body: { memory: this.memory() },
         });
       } catch (error) {
         if (error instanceof HttpError && error.status === 410) this.#agentId = null;
