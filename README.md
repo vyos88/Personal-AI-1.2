@@ -313,24 +313,21 @@ removes the bootstrap token when it is done.
 Full walkthrough, including Tailscale and running both processes as services:
 **[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
 
-Then coordinate by queueing tasks:
+Then coordinate from the CLI:
 
 ```bash
-curl -s -X POST "$ALPHA_HOST_URL/tasks" \
-  -H "Authorization: Bearer $ALPHA_ADMIN_TOKEN" -H 'content-type: application/json' \
-  -d '{"type":"alpha.coordination","payload":{"action":"Init","actor":"claude-cowork"}}'
+npm run admin -- coord --action Status --actor alpha-host
 
-curl -s -X POST "$ALPHA_HOST_URL/tasks" \
-  -H "Authorization: Bearer $ALPHA_ADMIN_TOKEN" -H 'content-type: application/json' \
-  -d '{
-    "type": "alpha.coordination",
-    "payload": {
-      "action": "Post",
-      "actor": "claude-cowork",
-      "message": "Retro receipt: wired the interaction pack into Alpha.",
-      "paths": ["software/backend/main.py", "memory/knowledge/pack.json"]
-    }
-  }'
+npm run admin -- coord --action Post --actor claude-cowork \
+  --message "Receipt: wired the interaction pack into Alpha." \
+  --paths "software/backend/main.py,memory/knowledge/pack.json"
+```
+
+Or as a plain task, which is what `coord` builds:
+
+```bash
+npm run admin -- task --type alpha.coordination \
+  --payload '{"action":"Init","actor":"claude-cowork"}'
 ```
 
 The result carries `exitCode`, `stdout` and `stderr`. A non-zero exit — a

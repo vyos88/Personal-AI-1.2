@@ -186,41 +186,39 @@ You should see `registered extra handler` and then `alpha.coordination` in the
 
 ## 7. Verify it end to end
 
-From the admin terminal:
-
 ```powershell
-npm run admin -- whoami
-curl.exe -s -H "Authorization: Bearer $env:ALPHA_ADMIN_TOKEN" http://127.0.0.1:8787/agents
+npm run admin -- agents
 ```
 
 The agent should be listed with `alpha.coordination` among its capabilities.
 Now drive the tunnel with a read-only action first:
 
 ```powershell
-curl.exe -s -X POST http://127.0.0.1:8787/tasks `
-  -H "Authorization: Bearer $env:ALPHA_ADMIN_TOKEN" `
-  -H "content-type: application/json" `
-  -d '{\"type\":\"alpha.coordination\",\"payload\":{\"action\":\"Status\",\"actor\":\"alpha-host\"}}'
+npm run admin -- coord --action Status --actor alpha-host
 ```
 
-Then fetch the result with the returned id:
+That queues the task, waits for the agent to run it, and prints the script's
+exit code, stdout and stderr. Compare it against running the script by hand.
+**Confirm the argv shape before trusting `Claim` or `Release`** — see "Verify
+the contract" below.
+
+Once `Status` looks right:
 
 ```powershell
-curl.exe -s -H "Authorization: Bearer $env:ALPHA_ADMIN_TOKEN" http://127.0.0.1:8787/tasks/task_xxxx
+npm run admin -- coord --action Init --actor claude-cowork
+
+npm run admin -- coord --action Post --actor claude-cowork `
+  --message "Receipt: coordination handler wired up and verified." `
+  --paths "software/backend/main.py,memory/knowledge/pack.json"
 ```
 
-Check `result.exitCode`, `result.stdout` and `result.stderr` against what the
-script does when you run it by hand. **Confirm the argv shape before trusting
-`Claim` or `Release`** — see "Verify the contract" below.
+A **non-zero exit code with the task still `succeeded` is not a bug**: the task
+ran, and the script answered no — a contested claim, say. The CLI spells that
+out rather than leaving you to wonder.
 
-Once `Status` looks right, an `Init` and a `Post`:
-
-```powershell
-curl.exe -s -X POST http://127.0.0.1:8787/tasks `
-  -H "Authorization: Bearer $env:ALPHA_ADMIN_TOKEN" `
-  -H "content-type: application/json" `
-  -d '{\"type\":\"alpha.coordination\",\"payload\":{\"action\":\"Init\",\"actor\":\"claude-cowork\"}}'
-```
+`npm run admin -- tasks` lists recent tasks; add `--json` to any command for raw
+output. If a task sits in `queued`, no attached agent offers that type — check
+`ALPHA_EXTRA_HANDLERS` on the agent.
 
 ## 8. Reach it from the laptop and cloud sessions
 
@@ -304,9 +302,13 @@ things to confirm on the host before relying on it:
    parameter block:
 
    ```powershell
+   # by hand, to see what the script expects
    powershell.exe -NoProfile -ExecutionPolicy Bypass `
      -File .\scripts\alpha_coordination_tunnel.ps1 `
      -Action Status -Actor test -Paths "a/b.py,c/d.py"
+
+   # through the tunnel, to confirm they match
+   npm run admin -- coord --action Status --actor test --paths "a/b.py,c/d.py"
    ```
 
    If your script wants separate arguments instead, change `buildArgs` in the

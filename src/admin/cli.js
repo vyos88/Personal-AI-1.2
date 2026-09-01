@@ -35,6 +35,14 @@ Keys
   keys [--user <userId>]                                 List keys
   revoke-key <keyId>                                     Revoke one credential
 
+Tasks
+  task --type <t> [--payload <json>] [--no-wait]         Queue a task, await result
+  coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
+                                                         Drive the coordination tunnel
+  tasks [--status queued|leased|succeeded|failed]        List recent tasks
+
+  agents                                                 List attached agents
+
 Session
   login --email <e>                                      Prompts for password
   whoami                                                 Show the current principal
@@ -70,6 +78,57 @@ async function api(path, { method = 'GET', body, anonymous = false } = {}) {
   }
 }
 
+/** Polls a queued task until it reaches a terminal state. */
+async function awaitTask(taskId, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let last;
+  while (Date.now() < deadline) {
+    last = await api(`/tasks/${taskId}`);
+    if (last.status !== 'queued' && last.status !== 'leased') return last;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  fail(
+    `task ${taskId} was still ${last?.status ?? 'pending'} after ${Math.round(timeoutMs / 1000)}s.\n` +
+      'If it never left "queued", no attached agent offers that type — check `alpha-admin agents`.',
+  );
+}
+
+/** Renders a finished task, giving coordination results their own shape. */
+function reportTask(task, flags) {
+  if (flags.json) {
+    process.stdout.write(JSON.stringify(task, null, 2) + '\n');
+    return;
+  }
+  process.stdout.write(`Task ${task.id} — ${task.status} (attempt ${task.attempts})\n`);
+
+  const result = task.result;
+  if (result && typeof result === 'object' && 'exitCode' in result) {
+    process.stdout.write(`  exit code: ${result.exitCode}\n`);
+    if (result.stdout?.trim()) {
+      process.stdout.write(`\n  --- stdout ---\n${indent(result.stdout)}\n`);
+    }
+    if (result.stderr?.trim()) {
+      process.stdout.write(`\n  --- stderr ---\n${indent(result.stderr)}\n`);
+    }
+    if (result.exitCode !== 0) {
+      // The task ran fine; the script itself said no. Worth spelling out,
+      // because "succeeded" next to a non-zero exit code reads as a mistake.
+      process.stdout.write(
+        `\n  The task ran; the script exited ${result.exitCode}. ` +
+          'That is the tunnel answering, not a failure to run it.\n',
+      );
+    }
+    return;
+  }
+
+  if (task.error) process.stdout.write(`  error: ${task.error.message}\n`);
+  if (result !== null && result !== undefined) {
+    process.stdout.write(`  result: ${JSON.stringify(result, null, 2)}\n`);
+  }
+}
+
+const indent = (text) => text.trimEnd().split('\n').map((line) => `  | ${line}`).join('\n');
+
 function table(rows, columns) {
   if (rows.length === 0) {
     process.stdout.write('(none)\n');
@@ -95,6 +154,15 @@ const OPTIONS = {
   token: { type: 'string' },
   status: { type: 'string' },
   'expires-days': { type: 'string' },
+  type: { type: 'string' },
+  payload: { type: 'string' },
+  action: { type: 'string' },
+  actor: { type: 'string' },
+  message: { type: 'string' },
+  paths: { type: 'string' },
+  'lease-ms': { type: 'string' },
+  'no-wait': { type: 'boolean' },
+  timeout: { type: 'string' },
   json: { type: 'boolean' },
   help: { type: 'boolean', short: 'h' },
 };
@@ -203,6 +271,82 @@ export async function main(argv = process.argv.slice(2)) {
           `Your API key — shown once, store it somewhere safe:\n\n  ${result.token}\n\n` +
           `Use it as ALPHA_ADMIN_TOKEN for this CLI, or ALPHA_AGENT_KEY for a worker.\n`,
       );
+      return;
+    }
+
+    case 'task':
+    case 'coord': {
+      let type;
+      let payload;
+
+      if (command === 'coord') {
+        if (!flags.action) fail('coord requires --action (Init, Claim, Post, Release or Status)');
+        type = flags.type ?? 'alpha.coordination';
+        payload = {
+          action: flags.action,
+          actor: flags.actor ?? process.env.ALPHA_COORDINATION_ACTOR,
+        };
+        if (flags.message) payload.message = flags.message;
+        if (flags.paths) {
+          payload.paths = flags.paths.split(',').map((entry) => entry.trim()).filter(Boolean);
+        }
+        if (!payload.actor) fail('coord requires --actor (or set ALPHA_COORDINATION_ACTOR)');
+      } else {
+        if (!flags.type) fail('task requires --type');
+        type = flags.type;
+        try {
+          payload = flags.payload ? JSON.parse(flags.payload) : {};
+        } catch (error) {
+          fail(`--payload is not valid JSON: ${error.message}`);
+        }
+      }
+
+      const body = { type, payload };
+      if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
+
+      const queued = await api('/tasks', { method: 'POST', body });
+
+      if (!queued.agentAvailable) {
+        // Not fatal — it runs as soon as a capable agent attaches — but silence
+        // here is how you end up staring at a task that never moves.
+        process.stderr.write(
+          `warning: no attached agent currently offers "${type}". The task is queued.\n`,
+        );
+      }
+      if (flags['no-wait']) {
+        emit(`Queued ${queued.id} (${queued.status}).`, queued);
+        return;
+      }
+
+      const timeoutMs = Number.parseInt(flags.timeout ?? '60', 10) * 1_000;
+      reportTask(await awaitTask(queued.id, timeoutMs), flags);
+      return;
+    }
+
+    case 'tasks': {
+      const { tasks } = await api(
+        `/tasks?limit=20${flags.status ? `&status=${encodeURIComponent(flags.status)}` : ''}`,
+      );
+      if (flags.json) return emit('', tasks);
+      table(tasks, [
+        { header: 'ID', value: (t) => t.id },
+        { header: 'TYPE', value: (t) => t.type },
+        { header: 'STATUS', value: (t) => t.status },
+        { header: 'TRIES', value: (t) => t.attempts },
+        { header: 'CREATED', value: (t) => when(t.createdAt) },
+      ]);
+      return;
+    }
+
+    case 'agents': {
+      const { agents } = await api('/agents');
+      if (flags.json) return emit('', agents);
+      table(agents, [
+        { header: 'NAME', value: (a) => a.name },
+        { header: 'PRINCIPAL', value: (a) => a.principal ?? '-' },
+        { header: 'CAPABILITIES', value: (a) => a.capabilities.join(',') },
+        { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
+      ]);
       return;
     }
 

@@ -73,9 +73,13 @@ function die(message) {
 }
 
 /** Waits for the coordinator to answer, or gives up. */
-async function waitForHealth(url, { timeoutMs = 20_000 } = {}) {
+async function waitForHealth(url, { timeoutMs = 20_000, child } = {}) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
+    // A coordinator that died (port in use, bad store) will never become
+    // healthy, so stop waiting the moment it exits rather than burning the
+    // full timeout and then reporting something vague.
+    if (child?.exitCode !== null && child?.exitCode !== undefined) return false;
     try {
       const { body } = await fetchJson(`${url}/healthz`, { timeoutMs: 2_000 });
       if (body?.ok) return true;
@@ -202,6 +206,23 @@ async function main() {
   // -------------------------------------------------------- 3. start the host
   say(style.step(3, 'Starting the coordinator'));
 
+  // Refuse to adopt a coordinator this script did not start. Without this,
+  // an already-running instance answers the health check, provisioning then
+  // talks to a server that has never heard of our bootstrap token, and the
+  // whole thing fails with a baffling 401 instead of naming the real problem.
+  try {
+    const { body } = await fetchJson(`${hostUrl}/healthz`, { timeoutMs: 2_000 });
+    if (body?.ok) {
+      die(
+        `something is already listening on ${hostUrl}.\n` +
+          '  That is probably a coordinator you started earlier, or the alpha-coordinator\n' +
+          '  service. Stop it and re-run, or pass --port to provision on a different port.',
+      );
+    }
+  } catch {
+    // Nothing there, which is what we want.
+  }
+
   const coordinator = startProcess(join(ROOT, 'src', 'host', 'index.js'), {
     ALPHA_HOST_PORT: String(port),
     // Bind to loopback while provisioning regardless of the final setting, so
@@ -217,7 +238,7 @@ async function main() {
   let userId;
 
   try {
-    if (!(await waitForHealth(hostUrl))) {
+    if (!(await waitForHealth(hostUrl, { child: coordinator }))) {
       die(`the coordinator did not become healthy on ${hostUrl}.\n${coordinator.log}`);
     }
     say(style.ok(`Coordinator healthy on ${hostUrl}`));
