@@ -276,6 +276,70 @@ aborts shortly before the lease expires — honour it for anything long-running
 so the failure is reported by the agent rather than showing up as an
 unexplained lease expiry.
 
+## Wiring into Alpha's coordination tunnel
+
+`src/agent/handlers/alpha-coordination.js` drives Alpha's
+`scripts/alpha_coordination_tunnel.ps1` from a task, so a remote actor can
+claim paths, post receipts and release through an agent running on the Alpha
+host.
+
+It is **not registered by default** — it is the one handler that runs an
+external program. Add it to `BUILTIN` in `src/agent/handlers/index.js` on the
+host agent only:
+
+```js
+import * as alphaCoordination from './alpha-coordination.js';
+const BUILTIN = [echo, sysinfo, alphaCoordination];
+```
+
+Configure the host agent:
+
+| Variable | Meaning |
+|---|---|
+| `ALPHA_REPO_ROOT` | Alpha working copy. Required. |
+| `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
+| `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
+| `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
+
+Then coordinate by queueing tasks:
+
+```bash
+curl -s -X POST "$ALPHA_HOST_URL/tasks" \
+  -H "Authorization: Bearer $ALPHA_ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{"type":"alpha.coordination","payload":{"action":"Init","actor":"claude-cowork"}}'
+
+curl -s -X POST "$ALPHA_HOST_URL/tasks" \
+  -H "Authorization: Bearer $ALPHA_ADMIN_TOKEN" -H 'content-type: application/json' \
+  -d '{
+    "type": "alpha.coordination",
+    "payload": {
+      "action": "Post",
+      "actor": "claude-cowork",
+      "message": "Retro receipt: wired the interaction pack into Alpha.",
+      "paths": ["software/backend/main.py", "memory/knowledge/pack.json"]
+    }
+  }'
+```
+
+The result carries `exitCode`, `stdout` and `stderr`. A non-zero exit — a
+refused claim, say — is returned as data rather than thrown, because that is a
+real answer from the tunnel and not a failure of the task.
+
+**How it stays safe.** Arguments go to `execFile` as an argv array, so nothing
+is ever interpolated into a command line: a message containing `;`, `&&` or
+backticks is data. The executable and script are both pinned, the script must
+live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
+are constrained, and paths must be repo-relative with no `..` traversal, no
+drive letters and no commas (the argv joins on commas).
+
+**Unverified against the real script.** The Alpha working copy is not in any
+repository this was developed against, so the handler was built from the
+tunnel's observed call shape. `Init` and `Post` are confirmed; `Claim`,
+`Release` and `Status` are inferred from the tunnel's own vocabulary and should
+be checked before you rely on them. Confirm too that your script binds `-Paths`
+from a comma-joined token — the tests pin the exact argv, so if the real
+contract differs, adjust `buildArgs` and the expectation moves with it.
+
 ## Security
 
 - **Keep the host bound to `127.0.0.1` or a Tailscale address.** `0.0.0.0` puts
@@ -306,8 +370,8 @@ unexplained lease expiry.
 npm test
 ```
 
-50 tests across two suites, booting a real host and a real agent over loopback
-rather than mocking the transport.
+63 tests across three suites, booting a real host and a real agent over
+loopback rather than mocking the transport.
 
 `test/tunnel.test.js` (19) — registration, dispatch, long-poll handoff, lease
 expiry and requeue, retry exhaustion, capability matching, protocol version
@@ -322,13 +386,18 @@ behaviour, session revocation on password change, persistence across restart,
 refusal to start on a corrupt store, and assertions that no plaintext secret
 ever reaches disk.
 
+`test/alpha-coordination.test.js` (13) — action allowlisting, actor and path
+validation (traversal, drive letters, commas), and argv construction asserted
+against a stub interpreter that records exactly what it was handed, including
+a message full of shell metacharacters.
+
 ## Layout
 
 ```
 src/common/      protocol, HTTP client, backoff, logging, env
 src/host/        queue, agent registry, HTTP server, entrypoint
 src/host/auth/   scopes, scrypt passwords, token minting, store, auth service
-src/agent/       run loop, handler registry, built-in handlers, entrypoint
+src/agent/       run loop, handler registry, handlers, entrypoint
 src/admin/       alpha-admin CLI
 bin/             alpha-host, alpha-agent, alpha-admin
 test/            integration + unit tests
