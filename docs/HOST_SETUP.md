@@ -10,9 +10,9 @@ Everything below runs on the Alpha host unless a step says otherwise.
 
 Two processes, and the names are easy to mix up:
 
-- **coordinator** (`npm run host`) — holds the task queue and the accounts. It
+- **coordinator** (`node src/host/index.js`) — holds the task queue and the accounts. It
   listens.
-- **agent** (`npm run agent`) — does the work. It dials out; it never listens.
+- **agent** (`node src/agent/index.js`) — does the work. It dials out; it never listens.
 
 The coordination script lives in the Alpha working copy, so **the agent must run
 on the Alpha machine**. The coordinator can live anywhere both sides can reach.
@@ -31,6 +31,31 @@ move the coordinator later without touching the agent.
   └──────────────────────────────────────────────┘
 ```
 
+## A note on `npm` and PowerShell
+
+PowerShell's default execution policy blocks `npm.ps1`, so `npm run ...` fails
+with `running scripts is disabled on this system`. Commands in this guide therefore
+call `node` directly; if npm works in your shell, these are the equivalents:
+
+| Instead of | Run |
+|---|---|
+| `npm run host` | `node src/host/index.js` |
+| `npm run agent` | `node src/agent/index.js` |
+| `npm run admin -- <args>` | `node src/admin/run.js <args>` |
+| `npm run setup:host -- <args>` | `node scripts/setup-host.mjs <args>` |
+| `npm test` | `node --test test/*.test.js` |
+
+`npm.cmd run ...` also works. Or change the policy for your account, which is a
+system setting and therefore your call:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+The NSSM service commands in step 9 invoke `node` directly and are unaffected,
+as is the coordination handler itself — it already passes
+`-ExecutionPolicy Bypass` when it runs the tunnel script.
+
 ## The short version
 
 Steps 2-7 below are automated. On the Alpha host:
@@ -40,7 +65,10 @@ cd C:\services
 git clone https://github.com/vyos88/Personal-AI-1.2 alpha-tunnel
 cd alpha-tunnel
 
-npm run setup:host -- --email you@example.com --alpha-root C:\path\to\alpha
+node scripts/setup-host.mjs --email you@example.com --alpha-root C:\path\to\alpha
+
+# or, if npm works in your shell:
+# node scripts/setup-host.mjs --email you@example.com --alpha-root C:\path\to\alpha
 ```
 
 That generates a bootstrap token, writes `.env`, starts the coordinator,
@@ -49,7 +77,7 @@ scoped to `agent:connect` only, writes `.env.agent`, proves the whole loop with
 a round-trip task, then **removes the bootstrap token again** and prints your
 admin key plus the service commands.
 
-Afterwards `npm run host` and `npm run agent` need no environment variables —
+Afterwards `node src/host/index.js` and `node src/agent/index.js` need no environment variables —
 both read the files setup wrote.
 
 It refuses to overwrite an existing `.env` unless you pass `--force`, and the
@@ -87,7 +115,7 @@ cd alpha-tunnel
 No `npm install` — there are no runtime dependencies.
 
 ```powershell
-npm test        # 66 tests, all should pass
+node --test test/*.test.js      # 66 tests, all should pass
 ```
 
 ## 3. Configure and start the coordinator
@@ -110,7 +138,7 @@ Leave `ALPHA_HOST_BIND` on loopback for now. Step 8 covers reaching it from
 other machines properly.
 
 ```powershell
-npm run host
+node src/host/index.js
 ```
 
 Leave it running and open a second terminal for the rest.
@@ -122,14 +150,14 @@ cd C:\services\alpha-tunnel
 $env:ALPHA_HOST_URL = "http://127.0.0.1:8787"
 $env:ALPHA_ADMIN_TOKEN = "<your ALPHA_BOOTSTRAP_TOKEN>"
 
-npm run admin -- bootstrap-admin --email you@example.com
+node src/admin/run.js bootstrap-admin --email you@example.com
 ```
 
 That prints a one-time invite token. Redeem it — you will be prompted for a
 password, which is never passed on the command line:
 
 ```powershell
-npm run admin -- redeem --token 'alpha_inv_...'
+node src/admin/run.js redeem --token 'alpha_inv_...'
 ```
 
 It prints your **API key**. Save it; it is shown once. From here on that is
@@ -137,7 +165,7 @@ your `ALPHA_ADMIN_TOKEN`.
 
 ```powershell
 $env:ALPHA_ADMIN_TOKEN = "alpha_key_..."
-npm run admin -- whoami
+node src/admin/run.js whoami
 ```
 
 **Now remove `ALPHA_BOOTSTRAP_TOKEN` from `.env` and restart the coordinator.**
@@ -150,7 +178,7 @@ alongside real users.
 Take the `userId` from `whoami`:
 
 ```powershell
-npm run admin -- issue-key --user user_xxxxxxxx --scopes agent --name alpha-host-agent
+node src/admin/run.js issue-key --user user_xxxxxxxx --scopes agent --name alpha-host-agent
 ```
 
 `--scopes agent` grants exactly `agent:connect`: this key can pull and complete
@@ -160,7 +188,7 @@ the dot, not the shorter fingerprint on the first line.
 
 ## 6. Configure and start the agent
 
-`npm run setup:host` writes all of this to `.env.agent`, which the agent reads
+`scripts/setup-host.mjs` writes all of this to `.env.agent`, which the agent reads
 automatically — the agent loads `.env.agent` first, then `.env`, and a real
 environment variable beats both. To do it by hand, in a third terminal:
 
@@ -177,7 +205,7 @@ $env:ALPHA_EXTRA_HANDLERS = "alpha-coordination"
 $env:ALPHA_REPO_ROOT      = "C:\path\to\alpha"
 $env:ALPHA_POWERSHELL     = "powershell.exe"     # or the path to pwsh.exe
 
-npm run agent
+node src/agent/index.js
 ```
 
 You should see `registered extra handler` and then `alpha.coordination` in the
@@ -187,14 +215,14 @@ You should see `registered extra handler` and then `alpha.coordination` in the
 ## 7. Verify it end to end
 
 ```powershell
-npm run admin -- agents
+node src/admin/run.js agents
 ```
 
 The agent should be listed with `alpha.coordination` among its capabilities.
 Now drive the tunnel with a read-only action first:
 
 ```powershell
-npm run admin -- coord --action Status --actor alpha-host
+node src/admin/run.js coord --action Status --actor alpha-host
 ```
 
 That queues the task, waits for the agent to run it, and prints the script's
@@ -205,9 +233,9 @@ the contract" below.
 Once `Status` looks right:
 
 ```powershell
-npm run admin -- coord --action Init --actor claude-cowork
+node src/admin/run.js coord --action Init --actor claude-cowork
 
-npm run admin -- coord --action Post --actor claude-cowork `
+node src/admin/run.js coord --action Post --actor claude-cowork `
   --message "Receipt: coordination handler wired up and verified." `
   --paths "software/backend/main.py,memory/knowledge/pack.json"
 ```
@@ -216,7 +244,7 @@ A **non-zero exit code with the task still `succeeded` is not a bug**: the task
 ran, and the script answered no — a contested claim, say. The CLI spells that
 out rather than leaving you to wonder.
 
-`npm run admin -- tasks` lists recent tasks; add `--json` to any command for raw
+`node src/admin/run.js tasks` lists recent tasks; add `--json` to any command for raw
 output. If a task sits in `queued`, no attached agent offers that type — check
 `ALPHA_EXTRA_HANDLERS` on the agent.
 
@@ -234,14 +262,14 @@ Restart the coordinator, then from the other machine:
 ```bash
 export ALPHA_HOST_URL=http://100.x.y.z:8787
 export ALPHA_ADMIN_TOKEN=alpha_key_...
-npm run admin -- whoami
+node src/admin/run.js whoami
 ```
 
 Give each remote actor its **own** key rather than sharing yours, so you can
 revoke one without disturbing the others:
 
 ```powershell
-npm run admin -- invite --email teammate@example.com --scopes operator
+node src/admin/run.js invite --email teammate@example.com --scopes operator
 ```
 
 `operator` can queue, cancel and read tasks and see agents — enough to drive the
@@ -308,7 +336,7 @@ things to confirm on the host before relying on it:
      -Action Status -Actor test -Paths "a/b.py,c/d.py"
 
    # through the tunnel, to confirm they match
-   npm run admin -- coord --action Status --actor test --paths "a/b.py,c/d.py"
+   node src/admin/run.js coord --action Status --actor test --paths "a/b.py,c/d.py"
    ```
 
    If your script wants separate arguments instead, change `buildArgs` in the
@@ -319,7 +347,7 @@ things to confirm on the host before relying on it:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Agent logs `401` and exits | Key revoked, wrong, or user disabled | Issue a new key; check `npm run admin -- keys` |
+| Agent logs `401` and exits | Key revoked, wrong, or user disabled | Issue a new key; check `node src/admin/run.js keys` |
 | Agent logs `403 insufficient_scope` | Key lacks `agent:connect` | Reissue with `--scopes agent` |
 | Agent logs `410`, then re-registers | Coordinator restarted or pruned it | Normal. No action needed |
 | Task stays `queued`, `agentAvailable: false` | No attached agent offers that type | Check `ALPHA_EXTRA_HANDLERS` is set on the agent |

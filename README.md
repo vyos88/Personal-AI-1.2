@@ -377,6 +377,8 @@ contract differs, adjust `buildArgs` and the expectation moves with it.
 
 ```bash
 npm test
+# on Windows PowerShell, where npm.ps1 may be blocked by execution policy:
+node --test test/*.test.js
 ```
 
 66 tests across three suites, booting a real host and a real agent over
