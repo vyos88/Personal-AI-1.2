@@ -4,6 +4,21 @@
 
 export const PROTOCOL_VERSION = 1;
 
+// Agents report how much RAM their machine can lend the host, and tasks may
+// ask for a slice of it. Both are additive and optional, so an older agent
+// that reports nothing still attaches — it just never wins a task that names a
+// memory requirement.
+
+// What an agent keeps for itself before offering the rest. A laptop that hands
+// over every last free byte starts swapping, which is slower than not helping.
+export const DEFAULT_MEMORY_RESERVE_BYTES = 512 * 1024 * 1024;
+
+// A memory report older than this is treated as unknown rather than trusted;
+// free memory moves, and a stale figure is how you overcommit a machine.
+export const MEMORY_REPORT_STALE_MS = 120_000;
+
+export const MB = 1024 * 1024;
+
 export const TaskStatus = {
   QUEUED: 'queued',
   LEASED: 'leased',
@@ -84,8 +99,10 @@ export function validateTaskInput(body) {
 
   const leaseMs = clampInt(body.leaseMs, DEFAULT_LEASE_MS, 1_000, 3_600_000, 'leaseMs');
   const maxAttempts = clampInt(body.maxAttempts, DEFAULT_MAX_ATTEMPTS, 1, 20, 'maxAttempts');
+  // 0 means "no memory requirement", which is what almost every task wants.
+  const minMemoryMB = clampInt(body.minMemoryMB, 0, 0, 1024 * 1024, 'minMemoryMB');
 
-  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts };
+  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts, minMemoryMB };
 }
 
 export function validateRegistration(body) {
@@ -103,7 +120,38 @@ export function validateRegistration(body) {
     throw new ProtocolError('"capabilities" must be a non-empty array of task types');
   }
   const capabilities = body.capabilities.map(validateTaskType);
-  return { name, capabilities };
+  return { name, capabilities, memory: validateMemoryReport(body.memory) };
+}
+
+/**
+ * A machine's memory situation as the agent sees it.
+ *
+ * `offerableBytes` is the part the agent is willing to have work placed
+ * against — free memory minus whatever it holds back for itself — and is the
+ * only figure scheduling decisions are made from. The other two are for
+ * operators reading `alpha-admin agents`.
+ */
+export function validateMemoryReport(memory) {
+  if (memory === undefined || memory === null) return null;
+  if (typeof memory !== 'object') {
+    throw new ProtocolError('"memory" must be a JSON object when present');
+  }
+  const totalBytes = requireBytes(memory.totalBytes, 'memory.totalBytes');
+  const freeBytes = requireBytes(memory.freeBytes, 'memory.freeBytes');
+  const offerable = memory.offerableBytes === undefined ? freeBytes : memory.offerableBytes;
+  return {
+    totalBytes,
+    freeBytes,
+    // An agent may not offer more than it has free, whatever it claims.
+    offerableBytes: Math.min(requireBytes(offerable, 'memory.offerableBytes'), freeBytes),
+  };
+}
+
+function requireBytes(value, field) {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new ProtocolError(`"${field}" must be a non-negative number of bytes`);
+  }
+  return Math.floor(value);
 }
 
 function clampInt(value, fallback, min, max, field) {
