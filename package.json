@@ -9,12 +9,14 @@
   },
   "bin": {
     "alpha-host": "./bin/alpha-host",
-    "alpha-agent": "./bin/alpha-agent"
+    "alpha-agent": "./bin/alpha-agent",
+    "alpha-admin": "./bin/alpha-admin"
   },
   "scripts": {
     "host": "node src/host/index.js",
     "agent": "node src/agent/index.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "admin": "node src/admin/run.js"
   },
   "dependencies": {},
   "devDependencies": {}

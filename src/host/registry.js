@@ -12,19 +12,23 @@ export class AgentRegistry {
     this.now = now;
   }
 
-  register({ name, capabilities, remoteAddress }) {
+  register({ name, capabilities, remoteAddress, principal = null, userId = null }) {
     const agent = {
       id: newId('agent'),
       name,
       capabilities,
       remoteAddress: remoteAddress ?? null,
+      // Which credential attached this agent, so its owner can be identified
+      // and so one user's credential cannot drive another user's worker.
+      principal,
+      userId,
       registeredAt: this.now(),
       lastSeenAt: this.now(),
       tasksCompleted: 0,
       tasksFailed: 0,
     };
     this.#agents.set(agent.id, agent);
-    log.info('agent registered', { agentId: agent.id, name, capabilities });
+    log.info('agent registered', { agentId: agent.id, name, capabilities, principal });
     return agent;
   }
 

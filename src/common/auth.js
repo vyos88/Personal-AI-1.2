@@ -19,17 +19,3 @@ export function bearerFrom(headers) {
   return match ? match[1] : null;
 }
 
-export function requireToken(envName = 'ALPHA_TUNNEL_TOKEN') {
-  const token = process.env[envName];
-  if (!token || token === 'replace-me') {
-    throw new Error(
-      `${envName} is not set. Generate one with:\n` +
-        `  node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"\n` +
-        `and set the same value on the host and every agent.`,
-    );
-  }
-  if (token.length < 16) {
-    throw new Error(`${envName} must be at least 16 characters`);
-  }
-  return token;
-}

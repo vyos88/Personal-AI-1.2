@@ -1,31 +1,57 @@
 import { createHost } from './server.js';
+import { AuthService } from './auth/service.js';
+import { AuthStore } from './auth/store.js';
 import { loadEnv } from '../common/env.js';
-import { requireToken } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
 
 const log = createLogger('host');
 
 loadEnv();
 
-let token;
-try {
-  token = requireToken();
-} catch (error) {
-  log.error(error.message);
-  process.exit(1);
-}
-
 const port = Number.parseInt(process.env.ALPHA_HOST_PORT ?? '8787', 10);
 // Default to loopback. Binding 0.0.0.0 puts the coordinator on every
 // interface, so that has to be a deliberate choice, not a default.
 const bind = process.env.ALPHA_HOST_BIND ?? '127.0.0.1';
 
-const { server, close } = createHost({ token });
+// The break-glass credential. It exists so there is a way to create the first
+// real admin on a fresh install; once that admin exists it should be removed
+// from the environment. It is optional — a host with users already in its
+// store needs no bootstrap token at all.
+const bootstrapToken = process.env.ALPHA_BOOTSTRAP_TOKEN ?? process.env.ALPHA_TUNNEL_TOKEN ?? null;
+
+if (bootstrapToken && bootstrapToken.length < 16) {
+  log.error('ALPHA_BOOTSTRAP_TOKEN must be at least 16 characters');
+  process.exit(1);
+}
+
+const store = new AuthStore({ path: process.env.ALPHA_AUTH_STORE ?? './data/auth.json' });
+const auth = new AuthService({ store, bootstrapToken });
+
+try {
+  await auth.load();
+} catch (error) {
+  log.error('could not load the auth store', { message: error.message });
+  process.exit(1);
+}
+
+if (auth.userCount() === 0 && !bootstrapToken) {
+  log.error(
+    'no users exist and no ALPHA_BOOTSTRAP_TOKEN is set, so nothing could authenticate. ' +
+      'Set ALPHA_BOOTSTRAP_TOKEN, start the host, and create your first admin with: ' +
+      'npm run admin -- bootstrap-admin --email you@example.com',
+  );
+  process.exit(1);
+}
+
+const { server, close } = createHost({ auth });
 
 server.listen(port, bind, () => {
-  log.info('coordinator listening', { bind, port });
+  log.info('coordinator listening', { bind, port, users: auth.userCount() });
   if (bind === '0.0.0.0' || bind === '::') {
     log.warn('bound to all interfaces — make sure this port is not exposed beyond your tunnel');
+  }
+  if (bootstrapToken && auth.userCount() > 0) {
+    log.warn('bootstrap token is still active alongside real users — unset it when you are done');
   }
 });
 

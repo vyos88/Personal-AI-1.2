@@ -3,19 +3,26 @@ import os from 'node:os';
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
 import { loadEnv } from '../common/env.js';
-import { requireToken } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
 
 const log = createLogger('agent:main');
 
 loadEnv();
 
-let token;
-try {
-  token = requireToken();
-} catch (error) {
-  log.error(error.message);
+// An agent authenticates with its own API key — one issued to it, scoped to
+// `agent:connect`, and revocable on its own without disturbing anyone else.
+// ALPHA_TUNNEL_TOKEN still works so an existing deployment keeps running, but
+// it is the shared break-glass credential and should be replaced by a key.
+const token = process.env.ALPHA_AGENT_KEY || process.env.ALPHA_TUNNEL_TOKEN;
+if (!token) {
+  log.error(
+    'no credential found. Set ALPHA_AGENT_KEY to a key issued for this agent:\n' +
+      '  npm run admin -- issue-key --user <userId> --scopes agent --name "laptop"',
+  );
   process.exit(1);
+}
+if (!process.env.ALPHA_AGENT_KEY && process.env.ALPHA_TUNNEL_TOKEN) {
+  log.warn('using the shared ALPHA_TUNNEL_TOKEN; issue this agent its own ALPHA_AGENT_KEY');
 }
 
 const hostUrl = process.env.ALPHA_HOST_URL;
