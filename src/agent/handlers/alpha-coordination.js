@@ -16,8 +16,9 @@ import { ProtocolError } from '../../common/protocol.js';
  * takes an argument vector, so a message containing quotes, semicolons or
  * backticks is data, not syntax.
  *
- * It is NOT registered by default. Add it to BUILTIN in ./index.js on the
- * host agent only, and give that agent a key scoped to `agent:connect`.
+ * It is NOT registered by default. Enable it on the host agent with
+ * ALPHA_EXTRA_HANDLERS=alpha-coordination, and give that agent a key scoped to
+ * `agent:connect`.
  *
  * Configuration:
  *   ALPHA_REPO_ROOT           Alpha working copy (required)
@@ -33,11 +34,13 @@ export const description =
   'Runs Alpha\'s coordination tunnel script (Init/Claim/Post/Release/Status) on the host.';
 
 /**
- * Actions this handler will pass through. `Init` and `Post` are the two
- * observed directly; `Claim`, `Release` and `Status` follow from the tunnel's
- * own vocabulary ("edited without a prior claim", "Released; no paths held").
- * Verify against the real script before relying on the latter three — an
- * unknown action is refused here rather than forwarded blindly.
+ * Actions this handler will pass through, all five verified against the real
+ * `alpha_coordination_tunnel.ps1` on the Alpha host: `Init` and `Post` from
+ * observed usage, `Status`, `Claim` and `Release` by running a claim cycle
+ * through this handler and confirming the tunnel reported the path held.
+ *
+ * An action not on this list is refused here rather than forwarded blindly,
+ * so extending the script means extending this list too.
  */
 export const ALLOWED_ACTIONS = Object.freeze(['Init', 'Claim', 'Post', 'Release', 'Status']);
 
@@ -159,10 +162,11 @@ export function buildArgs({ script, action, actor, message, paths }) {
   }
   if (paths.length > 0) {
     // One comma-joined token. Invoked through `-File`, PowerShell re-parses
-    // each argument, and `a,b,c` is the form it reliably binds to a
-    // [string[]] parameter — passing `a , b` as separate tokens depends on
-    // looser parsing behaviour. validatePaths rejects commas in a path, so
-    // this join is unambiguous.
+    // each argument, and `a,b,c` is the form it binds to a [string[]]
+    // parameter — passing `a , b` as separate tokens depends on looser
+    // parsing behaviour. Confirmed against the real script by claiming a path
+    // and reading it back from Status. validatePaths rejects commas in a
+    // path, so this join is unambiguous.
     args.push('-Paths', paths.join(','));
   }
   return args;

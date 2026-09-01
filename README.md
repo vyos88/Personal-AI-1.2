@@ -341,6 +341,127 @@ live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
 are constrained, and paths must be repo-relative with no `..` traversal, no
 drive letters and no commas (the argv joins on commas).
 
+**Verified against the real script.** All five actions and the argv shape were
+confirmed on the Alpha host: `Init` and `Post` from observed usage, and
+`Status`, `Claim` and `Release` by running a claim cycle through this handler
+and reading the held path back from `Status`. The comma-joined `-Paths` form
+binds as intended.
+
+The tests pin the exact argv, so if the script's contract ever changes, adjust
+`buildArgs` and the expectation moves with it.
+
+## Task lifecycle
+
+```
+queued ──lease──▶ leased ──ok───────▶ succeeded
+   ▲                 │
+   │                 ├──error, attempts left──┐
+   └─────────────────┴──lease expired─────────┘
+                     │
+                     └──error, no attempts left──▶ failed
+```
+
+A task is **leased**, not pushed. If the agent dies mid-task, its lease expires
+(`leaseMs`, default 60s), the host reclaims the task and the next capable agent
+picks it up, up to `maxAttempts` (default 3). Results from an agent that no
+longer holds the lease are rejected with `409`, so a slow straggler can't
+overwrite the answer from the agent that actually owns the work.
+
+The task queue is in memory and clears on restart. Accounts and credentials are
+not — they persist to `ALPHA_AUTH_STORE`.
+
+## Adding a handler
+
+A handler is a module exporting `type`, `run`, and optionally `description`:
+
+```js
+// src/agent/handlers/disk-free.js
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+
+export const type = 'disk-free';
+export const description = 'Reports df -h for the root filesystem.';
+
+export async function run(payload, { signal }) {
+  const { stdout } = await promisify(execFile)('df', ['-h', '/'], { signal });
+  return { output: stdout };
+}
+```
+
+Register it in `src/agent/handlers/index.js` by adding it to `BUILTIN`. The
+agent advertises exactly the types it has handlers for, and refuses to start if
+`ALPHA_AGENT_CAPABILITIES` names one it cannot run.
+
+`run` receives `(payload, { signal, taskId, attempt, log })`. The `signal`
+aborts shortly before the lease expires — honour it for anything long-running
+so the failure is reported by the agent rather than showing up as an
+unexplained lease expiry.
+
+## Wiring into Alpha's coordination tunnel
+
+`src/agent/handlers/alpha-coordination.js` drives Alpha's
+`scripts/alpha_coordination_tunnel.ps1` from a task, so a remote actor can
+claim paths, post receipts and release through an agent running on the Alpha
+host.
+
+It is **not registered by default** — it is the one handler that runs an
+external program, so enabling it is a deliberate per-machine decision. Turn it
+on with configuration rather than a code edit:
+
+```bash
+ALPHA_EXTRA_HANDLERS=alpha-coordination
+```
+
+Handler names there are restricted to a simple charset, so the value cannot
+reach outside `src/agent/handlers/`, and an unknown or malformed name stops the
+agent rather than letting it start silently missing a capability.
+
+Configure the host agent:
+
+| Variable | Meaning |
+|---|---|
+| `ALPHA_REPO_ROOT` | Alpha working copy. Required. |
+| `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
+| `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
+| `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
+| `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
+
+On the Alpha host, `npm run setup:host -- --email you@example.com --alpha-root
+C:\path\to\alpha` does the whole provisioning in one command: config, admin
+account, a key scoped to `agent:connect`, a verified round-trip task, and it
+removes the bootstrap token when it is done.
+
+Full walkthrough, including Tailscale and running both processes as services:
+**[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
+
+Then coordinate from the CLI:
+
+```bash
+npm run admin -- coord --action Status --actor alpha-host
+
+npm run admin -- coord --action Post --actor claude-cowork \
+  --message "Receipt: wired the interaction pack into Alpha." \
+  --paths "software/backend/main.py,memory/knowledge/pack.json"
+```
+
+Or as a plain task, which is what `coord` builds:
+
+```bash
+npm run admin -- task --type alpha.coordination \
+  --payload '{"action":"Init","actor":"claude-cowork"}'
+```
+
+The result carries `exitCode`, `stdout` and `stderr`. A non-zero exit — a
+refused claim, say — is returned as data rather than thrown, because that is a
+real answer from the tunnel and not a failure of the task.
+
+**How it stays safe.** Arguments go to `execFile` as an argv array, so nothing
+is ever interpolated into a command line: a message containing `;`, `&&` or
+backticks is data. The executable and script are both pinned, the script must
+live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
+are constrained, and paths must be repo-relative with no `..` traversal, no
+drive letters and no commas (the argv joins on commas).
+
 **Unverified against the real script.** The Alpha working copy is not in any
 repository this was developed against, so the handler was built from the
 tunnel's observed call shape. `Init` and `Post` are confirmed; `Claim`,

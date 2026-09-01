@@ -226,9 +226,8 @@ node src/admin/run.js coord --action Status --actor alpha-host
 ```
 
 That queues the task, waits for the agent to run it, and prints the script's
-exit code, stdout and stderr. Compare it against running the script by hand.
-**Confirm the argv shape before trusting `Claim` or `Release`** — see "Verify
-the contract" below.
+exit code, stdout and stderr. A healthy tunnel answers something like
+`tunnel ready, no paths held`.
 
 Once `Status` looks right:
 
@@ -313,35 +312,37 @@ Two things to protect:
 - **`ALPHA_AGENT_KEY`** in the service config. Anyone who can read the service
   configuration can attach an agent.
 
-## Verify the contract
+## The verified contract
 
-The handler was written without access to the real
-`alpha_coordination_tunnel.ps1`, from the tunnel's observed call shape. Two
-things to confirm on the host before relying on it:
+All five actions and the argv shape have been confirmed against the real
+`alpha_coordination_tunnel.ps1`:
 
-1. **Actions.** `Init` and `Post` are confirmed. `Claim`, `Release` and
-   `Status` are inferred from the tunnel's own vocabulary. If your script names
-   them differently, edit `ALLOWED_ACTIONS` in
-   `src/agent/handlers/alpha-coordination.js`.
+| Action | Confirmed by |
+|---|---|
+| `Init` | observed usage |
+| `Post` | observed usage |
+| `Status` | run through the handler, returned "tunnel ready, no paths held" |
+| `Claim` | claim cycle, path reported held afterwards |
+| `Release` | same cycle, path released afterwards |
 
-2. **How `-Paths` binds.** The handler passes one comma-joined token
-   (`-Paths a,b,c`), which is the form PowerShell reliably binds to a
-   `[string[]]` parameter through `-File`. Check that against your script's
-   parameter block:
+`-Paths` is passed as one comma-joined token (`-Paths a/b.py,c/d.py`), which is
+what PowerShell binds to a `[string[]]` parameter through `-File`. Confirmed by
+claiming a path and reading it back from `Status`.
 
-   ```powershell
-   # by hand, to see what the script expects
-   powershell.exe -NoProfile -ExecutionPolicy Bypass `
-     -File .\scripts\alpha_coordination_tunnel.ps1 `
-     -Action Status -Actor test -Paths "a/b.py,c/d.py"
+**If the script's contract changes**, two places need updating together:
 
-   # through the tunnel, to confirm they match
-   node src/admin/run.js coord --action Status --actor test --paths "a/b.py,c/d.py"
-   ```
+- `ALLOWED_ACTIONS` in `src/agent/handlers/alpha-coordination.js` — an action
+  not on that list is refused rather than forwarded, so a new action has to be
+  added deliberately.
+- `buildArgs` in the same file, if argument shapes change.
 
-   If your script wants separate arguments instead, change `buildArgs` in the
-   handler. `test/alpha-coordination.test.js` pins the exact argv, so update
-   the expectation alongside it and the tests keep guarding the shape.
+`test/alpha-coordination.test.js` pins the exact argv against a stub
+interpreter that records what it was handed, so the expectation moves with the
+fix and cannot drift silently. Re-run it after any change:
+
+```powershell
+node --test test/alpha-coordination.test.js
+```
 
 ## Troubleshooting
 
