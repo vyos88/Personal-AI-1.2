@@ -1,0 +1,21 @@
+{
+  "name": "alpha-tunnel",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Tunnel coordinator (host) and worker (agent) for the Alpha personal-AI stack.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "alpha-host": "./bin/alpha-host",
+    "alpha-agent": "./bin/alpha-agent"
+  },
+  "scripts": {
+    "host": "node src/host/index.js",
+    "agent": "node src/agent/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
