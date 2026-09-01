@@ -7,6 +7,10 @@ import { createLogger } from '../common/log.js';
 
 const log = createLogger('agent:main');
 
+// .env.agent first: loadEnv never overwrites a value that is already set, so
+// whichever file is read first wins. The agent's own file should take
+// precedence over the shared .env, which belongs to the coordinator.
+loadEnv('.env.agent');
 loadEnv();
 
 // An agent authenticates with its own API key — one issued to it, scoped to

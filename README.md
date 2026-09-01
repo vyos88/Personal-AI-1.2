@@ -305,8 +305,13 @@ Configure the host agent:
 | `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
 | `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
 
-Full walkthrough for the Windows host, including running both processes as
-services: **[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
+On the Alpha host, `npm run setup:host -- --email you@example.com --alpha-root
+C:\path\to\alpha` does the whole provisioning in one command: config, admin
+account, a key scoped to `agent:connect`, a verified round-trip task, and it
+removes the bootstrap token when it is done.
+
+Full walkthrough, including Tailscale and running both processes as services:
+**[docs/HOST_SETUP.md](docs/HOST_SETUP.md)**.
 
 Then coordinate by queueing tasks:
 

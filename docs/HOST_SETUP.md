@@ -31,6 +31,37 @@ move the coordinator later without touching the agent.
   └──────────────────────────────────────────────┘
 ```
 
+## The short version
+
+Steps 2-7 below are automated. On the Alpha host:
+
+```powershell
+cd C:\services
+git clone https://github.com/vyos88/Personal-AI-1.2 alpha-tunnel
+cd alpha-tunnel
+
+npm run setup:host -- --email you@example.com --alpha-root C:\path\to\alpha
+```
+
+That generates a bootstrap token, writes `.env`, starts the coordinator,
+prompts for a password, creates your admin account, issues the agent a key
+scoped to `agent:connect` only, writes `.env.agent`, proves the whole loop with
+a round-trip task, then **removes the bootstrap token again** and prints your
+admin key plus the service commands.
+
+Afterwards `npm run host` and `npm run agent` need no environment variables —
+both read the files setup wrote.
+
+It refuses to overwrite an existing `.env` unless you pass `--force`, and the
+password is prompted for rather than taken as an argument. Add
+`--skip-coordination` to provision without enabling the tunnel handler.
+
+The rest of this document is the same thing done by hand, plus the parts setup
+cannot do for you: exposing the coordinator over Tailscale (step 8), installing
+services (step 9), and confirming the script's real contract.
+
+---
+
 ## 1. Prerequisites
 
 ```powershell
@@ -129,7 +160,9 @@ the dot, not the shorter fingerprint on the first line.
 
 ## 6. Configure and start the agent
 
-The agent needs its own environment. In a third terminal:
+`npm run setup:host` writes all of this to `.env.agent`, which the agent reads
+automatically — the agent loads `.env.agent` first, then `.env`, and a real
+environment variable beats both. To do it by hand, in a third terminal:
 
 ```powershell
 cd C:\services\alpha-tunnel

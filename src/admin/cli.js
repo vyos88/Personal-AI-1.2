@@ -1,8 +1,8 @@
 import { parseArgs } from 'node:util';
-import { createInterface } from 'node:readline';
 
 import { fetchJson, HttpError } from '../common/http.js';
 import { loadEnv } from '../common/env.js';
+import { promptSecret } from '../common/prompt.js';
 
 loadEnv();
 
@@ -47,61 +47,6 @@ Scopes may be a comma-separated list, or a preset: admin, operator, agent, viewe
 function fail(message, { usage = false } = {}) {
   process.stderr.write(`${message}\n${usage ? `\n${USAGE}\n` : ''}`);
   process.exit(1);
-}
-
-/** Reads a secret without echoing it, so it never lands in shell history. */
-function promptSecret(prompt) {
-  return new Promise((resolve, reject) => {
-    if (!process.stdin.isTTY) {
-      // Piped input: read one line. Supports `echo hunter2 | alpha-admin ...`.
-      const rl = createInterface({ input: process.stdin });
-      // Resolve *before* closing: rl.close() emits 'close' synchronously, so
-      // closing first lets the close handler settle the promise with '' and
-      // the real line is silently discarded.
-      rl.once('line', (line) => {
-        resolve(line);
-        rl.close();
-      });
-      // Only reached when the stream ends without a line at all.
-      rl.once('close', () => resolve(''));
-      return;
-    }
-
-    process.stdout.write(prompt);
-    const stdin = process.stdin;
-    const wasRaw = stdin.isRaw;
-    stdin.setRawMode(true);
-    stdin.resume();
-    stdin.setEncoding('utf8');
-
-    let value = '';
-    const onData = (char) => {
-      switch (char) {
-        case '\n':
-        case '\r':
-        case '\u0004': // Ctrl-D
-          stdin.setRawMode(wasRaw);
-          stdin.pause();
-          stdin.off('data', onData);
-          process.stdout.write('\n');
-          resolve(value);
-          break;
-        case '\u0003': // Ctrl-C
-          stdin.setRawMode(wasRaw);
-          stdin.pause();
-          stdin.off('data', onData);
-          process.stdout.write('\n');
-          reject(new Error('cancelled'));
-          break;
-        case '\u007f': // backspace
-          value = value.slice(0, -1);
-          break;
-        default:
-          value += char;
-      }
-    };
-    stdin.on('data', onData);
-  });
 }
 
 async function api(path, { method = 'GET', body, anonymous = false } = {}) {
