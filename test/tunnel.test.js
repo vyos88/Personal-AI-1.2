@@ -8,6 +8,7 @@ import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { fetchJson, HttpError } from '../src/common/http.js';
 import { TaskStatus } from '../src/common/protocol.js';
+import { ALPHA_VERSION } from '../src/common/version.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
 
@@ -209,6 +210,57 @@ test('host rejects a protocol version mismatch at registration', async (t) => {
     }),
     (error) => error instanceof HttpError && error.status === 409,
   );
+});
+
+test('/healthz reports the release the host is running', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body } = await fetchJson(`${host.url}/healthz`);
+  assert.equal(body.version, ALPHA_VERSION);
+});
+
+test('an agent\'s version is recorded and handed back at registration', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: { protocolVersion: 1, name: 'worker', capabilities: ['echo'], version: '9.9.9' },
+  });
+  assert.equal(body.version, ALPHA_VERSION);
+
+  const { body: listed } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+  assert.equal(listed.hostVersion, ALPHA_VERSION);
+  assert.equal(listed.agents.find((a) => a.name === 'worker').version, '9.9.9');
+});
+
+test('a different release still attaches — only the protocol is a hard gate', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { status } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: { protocolVersion: 1, name: 'behind', capabilities: ['echo'], version: '0.0.1' },
+  });
+  assert.equal(status, 201);
+});
+
+test('an agent too old to report a version still attaches', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { status } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: { protocolVersion: 1, name: 'silent', capabilities: ['echo'] },
+  });
+  assert.equal(status, 201);
+
+  const { body: listed } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+  assert.equal(listed.agents.find((a) => a.name === 'silent').version, null);
 });
 
 test('host rejects a malformed task type', async (t) => {

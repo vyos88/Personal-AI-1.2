@@ -11,6 +11,7 @@ import {
   DEFAULT_MEMORY_RESERVE_BYTES,
   MB,
 } from '../common/protocol.js';
+import { ALPHA_VERSION } from '../common/version.js';
 
 const log = createLogger('agent');
 
@@ -154,6 +155,7 @@ export class TunnelAgent {
         protocolVersion: PROTOCOL_VERSION,
         name: this.name,
         capabilities: this.capabilities,
+        version: ALPHA_VERSION,
         memory,
       },
     });
@@ -162,8 +164,18 @@ export class TunnelAgent {
     log.info('registered with host', {
       agentId: this.#agentId,
       capabilities: this.capabilities,
+      version: ALPHA_VERSION,
       offerableMB: Math.round(memory.offerableBytes / MB),
     });
+    // The protocol matched or we would not be here, so a different release is
+    // drift rather than a fault: say so once and carry on working.
+    if (body.version && body.version !== ALPHA_VERSION) {
+      log.warn('this machine is not on the host\'s version of Alpha', {
+        hostVersion: body.version,
+        agentVersion: ALPHA_VERSION,
+        hint: 'git pull on this machine so both run the same version',
+      });
+    }
     this.#startHeartbeat(body.heartbeatIntervalMs ?? 20_000);
   }
 

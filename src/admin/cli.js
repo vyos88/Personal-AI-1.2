@@ -3,6 +3,7 @@ import { parseArgs } from 'node:util';
 import { fetchJson, HttpError } from '../common/http.js';
 import { loadEnv } from '../common/env.js';
 import { promptSecret } from '../common/prompt.js';
+import { ALPHA_VERSION } from '../common/version.js';
 
 loadEnv();
 
@@ -42,7 +43,7 @@ Tasks
                                                          Drive the coordination tunnel
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
-  agents                                                 List attached agents and their free RAM
+  agents                                                 List attached agents, their free RAM and version
 
 Borrowed memory
   mem --action stats                                     Store usage on the agent
@@ -55,6 +56,7 @@ Session
   login --email <e>                                      Prompts for password
   whoami                                                 Show the current principal
   scopes                                                 List scopes and presets
+  version                                                Compare this checkout's version with the host's
 
 Scopes may be a comma-separated list, or a preset: admin, operator, agent, viewer.
 "--scopes admin" (or "*") grants everything, including issuing credentials.
@@ -377,11 +379,15 @@ export async function main(argv = process.argv.slice(2)) {
     }
 
     case 'agents': {
-      const { agents } = await api('/agents');
+      const { agents, hostVersion } = await api('/agents');
       if (flags.json) return emit('', agents);
+      const drifted = agents.filter((a) => a.version && a.version !== hostVersion);
       table(agents, [
         { header: 'NAME', value: (a) => a.name },
         { header: 'PRINCIPAL', value: (a) => a.principal ?? '-' },
+        // A machine on another release still works — the protocol gate passed —
+        // but it is running different code, so mark it rather than hide it.
+        { header: 'VERSION', value: (a) => (a.version ? (a.version === hostVersion ? a.version : `${a.version} *`) : '-') },
         { header: 'CAPABILITIES', value: (a) => a.capabilities.join(',') },
         { header: 'RAM', value: (a) => mb(a.memory?.totalBytes) },
         // What is left to place work against: offered, minus what the tasks
@@ -390,6 +396,34 @@ export async function main(argv = process.argv.slice(2)) {
         { header: 'HELD', value: (a) => mb(a.reservedBytes) },
         { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
       ]);
+      if (drifted.length) {
+        emit(
+          `\n* not the host's version (${hostVersion}). Update ` +
+            `${drifted.map((a) => a.name).join(', ')} so every machine runs the same version.`,
+        );
+      }
+      return;
+    }
+
+    // Answers "are we both on the same version?" from whichever machine you
+    // happen to be sitting at, without needing a key that can read /agents.
+    case 'version': {
+      const health = await fetchJson(`${HOST}/healthz`, { timeoutMs: 10_000 })
+        .then((r) => r.body)
+        .catch(() => null);
+      const hostVersion = health?.version ?? null;
+      if (flags.json) return emit('', { version: ALPHA_VERSION, hostVersion, host: HOST });
+      emit(`This checkout: ${ALPHA_VERSION}`);
+      if (!hostVersion) {
+        emit(`Host ${HOST}: unreachable, or too old to report a version.`);
+      } else if (hostVersion === ALPHA_VERSION) {
+        emit(`Host ${HOST}: ${hostVersion} — both machines run the same version.`);
+      } else {
+        emit(
+          `Host ${HOST}: ${hostVersion} — this machine has drifted.\n` +
+            '  git pull on whichever machine is behind so both run the same version.',
+        );
+      }
       return;
     }
 

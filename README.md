@@ -239,7 +239,7 @@ needs `Authorization: Bearer <token>` and the scope listed.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/agent/register` | Announce name, capabilities and free RAM; receive an agent id. |
+| `POST` | `/agent/register` | Announce name, capabilities, version and free RAM; receive an agent id. |
 | `GET` | `/agent/:id/tasks/next?wait=ms` | Long-poll for work. `204` when nothing matches. |
 | `POST` | `/agent/:id/tasks/:taskId/result` | Report `{ok, result?, error?}`. |
 | `POST` | `/agent/:id/heartbeat` | Liveness, and a fresh `{memory}` reading. |
@@ -465,6 +465,45 @@ binds as intended.
 The tests pin the exact argv, so if the script's contract ever changes, adjust
 `buildArgs` and the expectation moves with it.
 
+## Keeping both machines on the same version
+
+Two things travel with every registration, and they are not the same thing:
+
+- **`PROTOCOL_VERSION`** (`src/common/protocol.js`) is the wire contract. It is
+  a hard gate — the host answers a mismatched agent with `409` at registration
+  rather than letting it fail halfway through a task. Bump it when a field
+  changes meaning.
+- **The release** — `version` in `package.json`, exported as `ALPHA_VERSION`
+  from `src/common/version.js` — is which checkout the machine is running. Two
+  laptops can speak protocol 1 and still be days apart: different handlers,
+  different defaults, different bugs. That is drift, not incompatibility, so
+  the host attaches the agent and makes the difference visible instead.
+
+Where the drift shows up:
+
+```bash
+alpha-admin version    # this checkout vs. the host, from either machine
+alpha-admin agents     # a VERSION column; drifted machines are marked *
+```
+
+```
+NAME     PRINCIPAL  VERSION    CAPABILITIES  RAM    FREE   HELD  IDLE
+-------  ---------  ---------  ------------  -----  -----  ----  ----
+tower    key_a1b2   0.2.0      echo,sysinfo  32768M 21014M 0M    2s
+laptop   key_c3d4   0.1.0 *    echo,sysinfo  16384M  9210M 0M    4s
+
+* not the host's version (0.2.0). Update laptop so every machine runs the same version.
+```
+
+`GET /healthz` reports the host's `version` alongside `protocolVersion`, so
+`scripts/setup-agent.mjs` says which release each side is on before a worker
+attaches, and both the host and the agent log a warning when they differ.
+
+To bring a machine into line, `git pull` there and restart it — the version is
+read from `package.json`, so there is nothing else to keep in step. An agent
+built before this existed reports no version at all; it still attaches, and
+shows as `-`.
+
 ## Security
 
 - **Keep the host bound to `127.0.0.1` or a Tailscale address.** `0.0.0.0` puts
@@ -497,13 +536,15 @@ npm test
 node --test test/*.test.js
 ```
 
-108 tests across five suites, booting a real host and a real agent over
+112 tests across five suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
-`test/tunnel.test.js` (22) — registration, dispatch, long-poll handoff, lease
+`test/tunnel.test.js` (26) — registration, dispatch, long-poll handoff, lease
 expiry and requeue, retry exhaustion, capability matching, protocol version
-mismatch, stale-holder result rejection, reconnecting when an agent starts
-before its host, and serving several bind addresses from one coordinator.
+mismatch, release-version reporting (recorded, surfaced, and never a reason to
+refuse an agent), stale-holder result rejection, reconnecting when an agent
+starts before its host, and serving several bind addresses from one
+coordinator.
 
 `test/auth.test.js` (32) — password hashing and salting, token parsing and
 forgery, scope normalization and escalation refusal, the full invite lifecycle
@@ -533,7 +574,7 @@ handler names that could escape the handlers directory.
 ## Layout
 
 ```
-src/common/      protocol, HTTP client, backoff, logging, env
+src/common/      protocol, version, HTTP client, backoff, logging, env
 src/host/        queue, agent registry, HTTP server, entrypoint
 src/host/auth/   scopes, scrypt passwords, token minting, store, auth service
 src/agent/       run loop, handler registry, handlers, memory report + store

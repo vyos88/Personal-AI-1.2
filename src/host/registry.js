@@ -1,4 +1,5 @@
 import { newId, AGENT_STALE_MS, MEMORY_REPORT_STALE_MS, MB } from '../common/protocol.js';
+import { ALPHA_VERSION } from '../common/version.js';
 import { createLogger } from '../common/log.js';
 
 const log = createLogger('host:registry');
@@ -22,11 +23,22 @@ export class AgentRegistry {
     this.now = now;
   }
 
-  register({ name, capabilities, memory = null, remoteAddress, principal = null, userId = null }) {
+  register({
+    name,
+    capabilities,
+    memory = null,
+    version = null,
+    remoteAddress,
+    principal = null,
+    userId = null,
+  }) {
     const agent = {
       id: newId('agent'),
       name,
       capabilities,
+      // Which release this machine is running, or null from an agent too old
+      // to report one. Never used for placement — only so drift is visible.
+      version,
       remoteAddress: remoteAddress ?? null,
       // Which credential attached this agent, so its owner can be identified
       // and so one user's credential cannot drive another user's worker.
@@ -49,8 +61,19 @@ export class AgentRegistry {
       name,
       capabilities,
       principal,
+      version,
       offerableMB: memory ? Math.round(memory.offerableBytes / MB) : null,
     });
+    // The agent cleared PROTOCOL_VERSION, so this is drift, not incompatibility:
+    // attach it and make the mismatch loud rather than turning the worker away.
+    if (version && version !== ALPHA_VERSION) {
+      log.warn('agent is not on the host\'s version of Alpha', {
+        agentId: agent.id,
+        name,
+        agentVersion: version,
+        hostVersion: ALPHA_VERSION,
+      });
+    }
     return agent;
   }
 

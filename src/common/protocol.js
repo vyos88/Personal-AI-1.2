@@ -120,7 +120,25 @@ export function validateRegistration(body) {
     throw new ProtocolError('"capabilities" must be a non-empty array of task types');
   }
   const capabilities = body.capabilities.map(validateTaskType);
-  return { name, capabilities, memory: validateMemoryReport(body.memory) };
+  return {
+    name,
+    capabilities,
+    version: validateReportedVersion(body.version),
+    memory: validateMemoryReport(body.memory),
+  };
+}
+
+/**
+ * The release string an agent reports for itself — see ALPHA_VERSION.
+ *
+ * Optional, and never a reason to turn an agent away: PROTOCOL_VERSION is the
+ * compatibility gate, and an agent that clears it can do the work whatever
+ * release it is on. The host records this so drift between the two machines
+ * shows up in `alpha-admin agents` instead of staying invisible.
+ */
+export function validateReportedVersion(version) {
+  if (version === undefined || version === null) return null;
+  return requireString(version, 'version', { max: 64 });
 }
 
 /**
