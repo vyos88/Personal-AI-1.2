@@ -29,6 +29,7 @@ import { promptSecret } from '../src/common/prompt.js';
 import { SCOPES, hasScope } from '../src/host/auth/scopes.js';
 import { memorySnapshot } from '../src/agent/memory.js';
 import { PROTOCOL_VERSION, MB } from '../src/common/protocol.js';
+import { ALPHA_VERSION } from '../src/common/version.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -304,6 +305,17 @@ async function main() {
       `the host speaks protocol ${health.protocolVersion}, this checkout speaks ${PROTOCOL_VERSION}.\n` +
         '  Update this machine to the host\'s version before attaching.',
     );
+  }
+  // Same protocol, different release: the agent will attach and work, so this
+  // is a warning rather than a stop — but it is exactly the drift that makes
+  // one machine behave unlike the other, so say it plainly.
+  if (!health.version) {
+    say(style.warn(`host does not report a version; this machine is ${ALPHA_VERSION}`));
+  } else if (health.version === ALPHA_VERSION) {
+    say(style.ok(`Both machines on Alpha ${ALPHA_VERSION}`));
+  } else {
+    say(style.warn(`host runs Alpha ${health.version}, this machine runs ${ALPHA_VERSION}`));
+    say(style.info('git pull on whichever machine is behind so both run the same version'));
   }
 
   // ------------------------------------------------------------ 3. the key

@@ -15,6 +15,7 @@ import {
   validateTaskInput,
   validateMemoryReport,
 } from '../common/protocol.js';
+import { ALPHA_VERSION } from '../common/version.js';
 
 const log = createLogger('host:server');
 
@@ -149,7 +150,13 @@ async function handle(req, res, ctx) {
   try {
     // ---------------------------------------------------------- public routes
     if (method === 'GET' && url.pathname === '/healthz') {
-      return sendJson(res, 200, { ok: true, protocolVersion: PROTOCOL_VERSION });
+      // `version` is what setup-agent compares against so a laptop on an older
+      // checkout is told before it attaches, not after a task behaves oddly.
+      return sendJson(res, 200, {
+        ok: true,
+        protocolVersion: PROTOCOL_VERSION,
+        version: ALPHA_VERSION,
+      });
     }
 
     // The invite token is itself the credential for these two, so they cannot
@@ -339,11 +346,12 @@ async function handle(req, res, ctx) {
     if (method === 'POST' && url.pathname === '/agent/register') {
       require(SCOPES.AGENT_CONNECT);
       const body = await readJson(req);
-      const { name, capabilities, memory } = validateRegistration(body);
+      const { name, capabilities, memory, version } = validateRegistration(body);
       const agent = ctx.registry.register({
         name,
         capabilities,
         memory,
+        version,
         remoteAddress: req.socket.remoteAddress,
         principal: principal.label,
         userId: principal.userId,
@@ -351,6 +359,9 @@ async function handle(req, res, ctx) {
       return sendJson(res, 201, {
         agentId: agent.id,
         protocolVersion: PROTOCOL_VERSION,
+        // Handed back so the agent can say, in its own log, that this machine
+        // is not on the host's release.
+        version: ALPHA_VERSION,
         heartbeatIntervalMs: 20_000,
         maxPollWaitMs: MAX_POLL_WAIT_MS,
       });
@@ -492,12 +503,15 @@ async function handle(req, res, ctx) {
 
     if (method === 'GET' && url.pathname === '/agents') {
       require(SCOPES.AGENTS_READ);
-      return sendJson(res, 200, { agents: ctx.registry.list() });
+      // The host's own version rides along so a reader can tell at a glance
+      // which attached machines have drifted from it.
+      return sendJson(res, 200, { agents: ctx.registry.list(), hostVersion: ALPHA_VERSION });
     }
 
     if (method === 'GET' && url.pathname === '/stats') {
       require(SCOPES.AGENTS_READ);
       return sendJson(res, 200, {
+        version: ALPHA_VERSION,
         queue: ctx.queue.stats(),
         agents: ctx.registry.list().length,
         capabilities: ctx.registry.coveredCapabilities(),
