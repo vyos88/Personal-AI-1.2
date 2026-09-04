@@ -357,39 +357,114 @@ A laptop that sleeps or leaves the network is pruned as stale like any other
 agent, and its share of the memory simply stops being on offer; tasks that
 needed it wait for it to come back rather than failing.
 
-## 9. Survive a reboot
+## 9. Keep it always on
 
-Run both processes as services so they come back on their own. With
-[NSSM](https://nssm.cc):
+Run both processes as Windows services so they start at boot, restart on
+failure, and never need you to log in.
+
+### Install
 
 ```powershell
-nssm install alpha-coordinator "C:\Program Files\nodejs\node.exe" "C:\services\alpha-tunnel\src\host\index.js"
-nssm set alpha-coordinator AppDirectory C:\services\alpha-tunnel
-nssm set alpha-coordinator AppStdout C:\services\alpha-tunnel\logs\host.log
-nssm set alpha-coordinator AppStderr C:\services\alpha-tunnel\logs\host.log
+$NODE = "C:\Program Files\nodejs\node.exe"
+$APP  = "C:\services\alpha-tunnel"
+mkdir "$APP\logs" -Force
 
-nssm install alpha-agent "C:\Program Files\nodejs\node.exe" "C:\services\alpha-tunnel\src\agent\index.js"
-nssm set alpha-agent AppDirectory C:\services\alpha-tunnel
+nssm install alpha-coordinator "$NODE" "$APP\src\host\index.js"
+nssm set alpha-coordinator AppDirectory $APP
+nssm set alpha-coordinator AppStdout "$APP\logs\host.log"
+nssm set alpha-coordinator AppStderr "$APP\logs\host.log"
+
+nssm install alpha-agent "$NODE" "$APP\src\agent\index.js"
+nssm set alpha-agent AppDirectory $APP
+nssm set alpha-agent AppStdout "$APP\logs\agent.log"
+nssm set alpha-agent AppStderr "$APP\logs\agent.log"
+```
+
+The agent reads `.env.agent`, so its key and settings need not go in the
+service configuration. If you would rather set them there:
+
+```powershell
 nssm set alpha-agent AppEnvironmentExtra ALPHA_HOST_URL=http://127.0.0.1:8787 ALPHA_AGENT_KEY=alpha_key_... ALPHA_EXTRA_HANDLERS=alpha-coordination ALPHA_REPO_ROOT=C:\path\to\alpha ALPHA_AGENT_NAME=alpha-host
-nssm set alpha-agent AppStdout C:\services\alpha-tunnel\logs\agent.log
-nssm set alpha-agent AppStderr C:\services\alpha-tunnel\logs\agent.log
+```
+
+### Make it actually survive things
+
+Installing the service is not the same as keeping it up. Four settings do the
+real work:
+
+```powershell
+# 1. Restart on any unexpected exit, after 5s, forever.
+foreach ($s in "alpha-coordinator","alpha-agent") {
+  nssm set $s AppExit Default Restart
+  nssm set $s AppRestartDelay 5000
+  # Do not treat a fast crash-loop as "wont start" and give up.
+  nssm set $s AppThrottle 10000
+}
+
+# 2. Start late at boot, after the network and Tailscale are up.
+sc.exe config alpha-coordinator start= delayed-auto
+sc.exe config alpha-agent start= delayed-auto
+
+# 3. Start the agent only once the coordinator service exists.
+nssm set alpha-agent DependOnService alpha-coordinator
+
+# 4. Rotate logs, or an always-on service eventually fills the disk.
+foreach ($s in "alpha-coordinator","alpha-agent") {
+  nssm set $s AppRotateFiles 1
+  nssm set $s AppRotateOnline 1
+  nssm set $s AppRotateBytes 10485760      # 10 MB
+}
 
 nssm start alpha-coordinator
 nssm start alpha-agent
 ```
 
-Set `ALPHA_LOG_FORMAT=json` for both if you want to parse those logs later.
+### Boot ordering and Tailscale
 
-The agent reconnects on its own when the coordinator restarts, and re-registers
-if the coordinator has forgotten it, so start order does not matter.
+If `ALPHA_HOST_BIND` includes a tailnet address, the coordinator will usually
+start before Tailscale has assigned it. It **waits** for the address rather
+than exiting — up to `ALPHA_BIND_WAIT_MS` (default 5 minutes), logging the wait
+once. So a reboot recovers on its own even though the address is missing for
+the first few seconds.
+
+Two things it deliberately does **not** wait for, because waiting could never
+fix them: a port already in use (another coordinator is running) and an address
+that never appears within the window.
+
+`DependOnService` orders the two services but says nothing about readiness. It
+does not need to: the agent retries with backoff until the coordinator answers,
+and re-registers if the coordinator restarts and forgets it. Start order is not
+something you have to get right.
+
+### Verify it is really always on
+
+```powershell
+sc.exe qc alpha-coordinator | Select-String "START_TYPE|DEPENDENCIES"
+Get-Service alpha-coordinator,alpha-agent | Format-Table Name,Status,StartType
+
+# The real test: kill it and watch it come back.
+Stop-Process -Name node -Force
+Start-Sleep -Seconds 15
+node src/admin/run.js agents      # the agent should be listed again
+```
+
+Then reboot the machine once and run `node src/admin/run.js agents` after it
+comes up. That is the only check that actually proves the boot path.
+
+### What still does not survive a restart
+
+The **task queue is in memory**. A coordinator restart drops queued and
+in-flight tasks — accounts, keys and invites persist, but pending work does
+not. For the coordination tunnel this is usually fine, because tasks are short
+and you re-issue them; it matters if you ever queue long-running work.
 
 Two things to protect:
 
 - **`data\auth.json`** is the only copy of your accounts. Back it up. The
   coordinator refuses to start rather than overwrite a store it cannot parse,
   because silently starting empty would un-revoke every revoked credential.
-- **`ALPHA_AGENT_KEY`** in the service config. Anyone who can read the service
-  configuration can attach an agent.
+- **`ALPHA_AGENT_KEY`**, wherever it lives — `.env.agent` or the service
+  configuration. Anyone who can read it can attach an agent.
 
 ## The verified contract
 

@@ -1,6 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:net';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { mkdtemp } from 'node:fs/promises';
+import { spawn } from 'node:child_process';
 
 import { createHost } from '../src/host/server.js';
 import { TaskQueue } from '../src/host/queue.js';
@@ -424,4 +428,71 @@ test('binding an address this machine does not have fails clearly', async () => 
     (error) => error.code === 'EADDRNOTAVAIL' || error.code === 'EINVAL',
   );
   await host.close();
+});
+
+test('the coordinator waits for an address that is not up yet, then binds', async (t) => {
+  // 127.0.0.2 exists, so stand in for "Tailscale not up yet" with an address
+  // this machine genuinely does not have, and give up quickly.
+  const dir = await mkdtemp(join(tmpdir(), 'alpha-bindwait-'));
+  const child = spawn(process.execPath, ['src/host/index.js'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      ALPHA_BOOTSTRAP_TOKEN: TOKEN,
+      ALPHA_AUTH_STORE: join(dir, 'auth.json'),
+      ALPHA_HOST_PORT: '8931',
+      ALPHA_HOST_BIND: '203.0.113.99',
+      ALPHA_BIND_WAIT_MS: '3000',
+      ALPHA_LOG_LEVEL: 'info',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  t.after(() => child.kill('SIGKILL'));
+
+  let output = '';
+  child.stdout.on('data', (c) => (output += c));
+  child.stderr.on('data', (c) => (output += c));
+
+  const exitCode = await new Promise((resolve) => child.on('exit', resolve));
+
+  // It should have waited and said so once, not died on the first attempt.
+  assert.match(output, /is not up yet — waiting for it/);
+  assert.match(output, /gave up waiting/);
+  assert.equal(exitCode, 1);
+  // One warning, however many retries happened underneath.
+  assert.equal(output.match(/is not up yet/g).length, 1);
+});
+
+test('a port genuinely in use still fails fast rather than waiting', async (t) => {
+  const blocker = createServer();
+  await new Promise((resolve) => blocker.listen(8932, '127.0.0.1', resolve));
+  t.after(() => new Promise((resolve) => blocker.close(resolve)));
+
+  const dir = await mkdtemp(join(tmpdir(), 'alpha-bindbusy-'));
+  const child = spawn(process.execPath, ['src/host/index.js'], {
+    cwd: process.cwd(),
+    env: {
+      ...process.env,
+      ALPHA_BOOTSTRAP_TOKEN: TOKEN,
+      ALPHA_AUTH_STORE: join(dir, 'auth.json'),
+      ALPHA_HOST_PORT: '8932',
+      ALPHA_HOST_BIND: '127.0.0.1',
+      // Generous, to prove it does NOT wait: a taken port is a real conflict.
+      ALPHA_BIND_WAIT_MS: '300000',
+      ALPHA_LOG_LEVEL: 'info',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  t.after(() => child.kill('SIGKILL'));
+
+  let output = '';
+  child.stdout.on('data', (c) => (output += c));
+  child.stderr.on('data', (c) => (output += c));
+
+  const started = Date.now();
+  const exitCode = await new Promise((resolve) => child.on('exit', resolve));
+
+  assert.equal(exitCode, 1);
+  assert.match(output, /already in use/);
+  assert.ok(Date.now() - started < 20_000, 'should not have waited out the bind window');
 });

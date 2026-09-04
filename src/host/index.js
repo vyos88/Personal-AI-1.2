@@ -57,21 +57,59 @@ if (auth.userCount() === 0 && !bootstrapToken) {
 
 const { servers, listen, close } = createHost({ auth });
 
-try {
-  await listen({ port, binds });
-} catch (error) {
-  if (error.code === 'EADDRINUSE') {
-    log.error(`port ${port} is already in use — is a coordinator already running?`);
-  } else if (error.code === 'EADDRNOTAVAIL') {
-    log.error(
-      `cannot bind ${error.address ?? 'that address'} — it is not an address on this machine. ` +
-        'Check the Tailscale address with: tailscale ip -4',
-    );
-  } else {
-    log.error('could not listen', { message: error.message, code: error.code });
+// How long to keep retrying an address that does not exist on this machine yet.
+// At boot the coordinator usually starts before Tailscale has assigned its
+// 100.x address, so binding fails with EADDRNOTAVAIL for the first few seconds
+// of every reboot. Exiting there would leave the tunnel down until something
+// restarted it; waiting costs nothing and is the difference between "always
+// on" and "on unless the machine rebooted".
+const BIND_WAIT_MS = Number.parseInt(process.env.ALPHA_BIND_WAIT_MS ?? '300000', 10);
+const BIND_RETRY_MS = 2_000;
+
+async function listenWhenAvailable() {
+  const deadline = Date.now() + Math.max(0, BIND_WAIT_MS);
+  let warned = false;
+
+  for (;;) {
+    try {
+      await listen({ port, binds });
+      return;
+    } catch (error) {
+      // A port already taken is a real conflict, not a timing problem — another
+      // coordinator is running, and waiting would never resolve it.
+      if (error.code === 'EADDRINUSE') {
+        log.error(`port ${port} is already in use — is a coordinator already running?`);
+        process.exit(1);
+      }
+
+      const missingAddress = error.code === 'EADDRNOTAVAIL' || error.code === 'EINVAL';
+      if (!missingAddress || Date.now() >= deadline) {
+        if (missingAddress) {
+          log.error(
+            `gave up waiting for ${error.address ?? 'the configured address'} after ` +
+              `${Math.round(BIND_WAIT_MS / 1000)}s. Check it with: tailscale ip -4`,
+          );
+        } else {
+          log.error('could not listen', { message: error.message, code: error.code });
+        }
+        process.exit(1);
+      }
+
+      // Say it once, then wait quietly rather than filling the log at boot.
+      if (!warned) {
+        log.warn(
+          `${error.address ?? 'a configured address'} is not up yet — waiting for it ` +
+            '(Tailscale is usually still starting)',
+          { retryingForMs: BIND_WAIT_MS },
+        );
+        warned = true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, BIND_RETRY_MS));
+    }
   }
-  process.exit(1);
 }
+
+await listenWhenAvailable();
 
 log.info('coordinator listening', { binds, port, users: auth.userCount() });
 if (binds.some((address) => address === '0.0.0.0' || address === '::')) {

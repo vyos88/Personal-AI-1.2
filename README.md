@@ -180,6 +180,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AUTH_STORE` | host | `./data/auth.json` | Where users/keys/invites persist. |
 | `ALPHA_BOOTSTRAP_TOKEN` | host | — | Break-glass admin credential. Remove after setup. |
 | `ALPHA_INVITE_BASE_URL` | host | request `Host` | Base for the printed redeem link. |
+| `ALPHA_BIND_WAIT_MS` | host | `300000` | How long to wait for a bind address that is not up yet (Tailscale at boot). |
 | `ALPHA_HOST_URL` | agent, CLI | — | Where the host is reachable. |
 | `ALPHA_AGENT_KEY` | agent | — | This agent's API key. |
 | `ALPHA_AGENT_NAME` | agent | machine hostname | Name shown in `/agents`. |
@@ -536,7 +537,7 @@ npm test
 node --test test/*.test.js
 ```
 
-112 tests across five suites, booting a real host and a real agent over
+114 tests across five suites, booting a real host and a real agent over
 loopback rather than mocking the transport.
 
 `test/tunnel.test.js` (26) — registration, dispatch, long-poll handoff, lease
