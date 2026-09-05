@@ -14,18 +14,56 @@ import {
   validatePaths,
 } from '../src/agent/handlers/alpha-coordination.js';
 
+const isWindows = process.platform === 'win32';
+
+// A PowerShell literal, single-quoted so nothing inside it is expanded.
+const psLiteral = (value) => `'${String(value).replace(/'/g, "''")}'`;
+
 /**
- * Builds a throwaway Alpha working copy with a stub "PowerShell" that records
- * the argv it was handed. That is what makes these assertions meaningful: the
- * real .ps1 is not available here, but argument construction, validation and
- * refusal behaviour are exactly the parts that must not be guessed at.
+ * Builds a throwaway Alpha working copy with a "PowerShell" that records the
+ * argv it was handed. That is what makes these assertions meaningful: argument
+ * construction, validation and refusal behaviour are exactly the parts that
+ * must not be guessed at.
+ *
+ * The recorder differs by platform, because a shebang script is not runnable
+ * as an interpreter on Windows: chmod is a no-op there, CreateProcess will not
+ * execute an extensionless file, and Node refuses .cmd/.bat without
+ * `shell: true` -- which would re-parse the very argument boundaries these
+ * tests exist to pin. So Windows drives the *real* powershell.exe and makes
+ * the coordination script itself the recorder. That checks strictly more than
+ * the stub did: it proves real PowerShell hands a `-File` script the arguments
+ * buildArgs assumes, including a message full of shell metacharacters
+ * arriving as one argv entry.
+ *
+ * `argvPrefix` is what the recorder sees *before* `-Action`. The POSIX stub
+ * stands in for the interpreter and so observes the leading `-NoProfile
+ * -ExecutionPolicy Bypass -File <script>`; a real PowerShell consumes those
+ * itself and the script sees only what follows. They are still pinned on
+ * Windows -- by the buildArgs test above, and by the script running at all.
  */
-async function fixture() {
+async function fixture({ exitCode = 0, stderr = '' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'alpha-repo-'));
   await mkdir(join(root, 'scripts'), { recursive: true });
-  await writeFile(join(root, 'scripts', 'alpha_coordination_tunnel.ps1'), '# stub\n');
-
+  const scriptPath = join(root, 'scripts', 'alpha_coordination_tunnel.ps1');
   const argvLog = join(root, 'argv.json');
+
+  if (isWindows) {
+    // WriteAllText avoids the BOM that Set-Content -Encoding UTF8 emits on
+    // Windows PowerShell 5.1, which JSON.parse would choke on. The join
+    // builds the array by hand because ConvertTo-Json unrolls a one-element
+    // array into a bare scalar.
+    await writeFile(
+      scriptPath,
+      `$items = @($args | ForEach-Object { $_ | ConvertTo-Json -Compress })
+[System.IO.File]::WriteAllText(${psLiteral(argvLog)}, '[' + ($items -join ',') + ']')
+[Console]::Out.Write('stub ok')
+${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode}
+`,
+    );
+    return { root, stub: 'powershell.exe', argvLog, scriptPath, argvPrefix: [] };
+  }
+
+  await writeFile(scriptPath, '# stub\n');
   const stub = join(root, 'fake-powershell');
   // Records argv as JSON, so a test can assert on exact argument boundaries.
   await writeFile(
@@ -34,11 +72,20 @@ async function fixture() {
 const { writeFileSync } = require('node:fs');
 writeFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)));
 process.stdout.write('stub ok');
+${stderr ? `process.stderr.write(${JSON.stringify(stderr)});\n` : ''}// Set the code rather than calling process.exit(), which would not wait for
+// those writes to flush when stdout is a pipe.
+process.exitCode = ${exitCode};
 `,
   );
   await chmod(stub, 0o755);
 
-  return { root, stub, argvLog };
+  return {
+    root,
+    stub,
+    argvLog,
+    scriptPath,
+    argvPrefix: ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', scriptPath],
+  };
 }
 
 function withEnv(vars, fn) {
@@ -135,13 +182,15 @@ test('a message-less Post is refused, but Init needs no message', async () => {
 // ------------------------------------------------------------- invocation
 
 test('a real invocation passes exactly the expected argv', async () => {
-  const { root, stub, argvLog } = await fixture();
+  const { root, stub, argvLog, argvPrefix } = await fixture();
 
   const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
     run({
       action: 'Post',
       actor: 'claude-cowork',
-      message: 'Retro receipt: wired the interaction pack into Alpha.',
+      // Shell metacharacters again, because this path is the one that reaches
+      // a real interpreter: the whole message must arrive as one argv entry.
+      message: 'Retro receipt; rm -rf / && echo "pwned" `whoami`',
       paths: ['software/backend/main.py'],
     }),
   );
@@ -152,29 +201,22 @@ test('a real invocation passes exactly the expected argv', async () => {
 
   const argv = JSON.parse(await readFile(argvLog, 'utf8'));
   assert.deepEqual(argv, [
-    '-NoProfile',
-    '-ExecutionPolicy',
-    'Bypass',
-    '-File',
-    join(root, 'scripts', 'alpha_coordination_tunnel.ps1'),
+    ...argvPrefix,
     '-Action',
     'Post',
     '-Actor',
     'claude-cowork',
     '-Message',
-    'Retro receipt: wired the interaction pack into Alpha.',
+    'Retro receipt; rm -rf / && echo "pwned" `whoami`',
     '-Paths',
     'software/backend/main.py',
   ]);
 });
 
 test('a non-zero exit is reported as data, not thrown', async () => {
-  const { root } = await fixture();
-  const failing = join(root, 'failing-powershell');
-  await writeFile(failing, '#!/usr/bin/env node\nprocess.stderr.write("claim refused");\nprocess.exit(3);\n');
-  await chmod(failing, 0o755);
+  const { root, stub } = await fixture({ exitCode: 3, stderr: 'claim refused' });
 
-  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: failing }, () =>
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
     run({ action: 'Claim', actor: 'claude-remote', paths: ['software/backend/main.py'] }),
   );
 

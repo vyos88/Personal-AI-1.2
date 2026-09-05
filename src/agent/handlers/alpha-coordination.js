@@ -100,8 +100,15 @@ export function validatePaths(paths, root) {
       throw new ProtocolError(`path must not contain a comma, got ${JSON.stringify(entry)}`);
     }
     // Belt and braces: resolve it and confirm it really lands inside the root.
-    const resolved = resolve(root, path);
-    if (resolved !== root && !resolved.startsWith(root + sep)) {
+    // Both sides have to be resolved. resolve() returns a normalized absolute
+    // path, so comparing that against a raw root rejects every legitimate
+    // path whenever the root is not already in exactly that form: on Windows
+    // an ALPHA_REPO_ROOT of "C:/alpha" or "C:\alpha\" resolves to "C:\alpha"
+    // and matched neither branch, so a valid repo-relative path was reported
+    // as escaping the root.
+    const base = resolve(root);
+    const resolved = resolve(base, path);
+    if (resolved !== base && !resolved.startsWith(base + sep)) {
       throw new ProtocolError(`path escapes the repository root: ${JSON.stringify(entry)}`);
     }
     return path;
