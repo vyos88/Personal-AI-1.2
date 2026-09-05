@@ -52,6 +52,7 @@ export class TunnelAgent {
   #inFlight = 0;
   #slotWaiters = [];
   #throttledSince = null;
+  #readMemory;
 
   constructor({
     hostUrl,
@@ -68,6 +69,10 @@ export class TunnelAgent {
     // Injectable so a test can put this machine under a load it does not
     // actually have. Anything with a snapshot() will do.
     loadSampler = new LoadSampler(),
+    // The same seam for memory. The interesting case — the host places work on
+    // a reading that has since moved — is temporal, so it cannot be reached
+    // with a machine's real figures.
+    memoryReader = memorySnapshot,
   }) {
     if (!hostUrl) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
@@ -86,6 +91,7 @@ export class TunnelAgent {
     this.loadBackoffMs = loadBackoffMs;
     this.throttleMaxMs = throttleMaxMs;
     this.#load = loadSampler;
+    this.#readMemory = memoryReader;
 
     // An explicit capability list may only narrow what this agent advertises;
     // claiming a type with no handler would strand every task of that type.
@@ -111,7 +117,7 @@ export class TunnelAgent {
 
   /** What this machine is currently willing to lend, read fresh each time. */
   memory() {
-    return memorySnapshot({
+    return this.#readMemory({
       reserveBytes: this.memoryReserveBytes,
       // Budget this agent's own handlers are holding. Read per call rather
       // than once at startup: a memory.store that has filled up is holding
@@ -416,6 +422,31 @@ export class TunnelAgent {
       return;
     }
 
+    // This machine's own last word on whether it can hold what the task asks
+    // for, and the only check made by the party that knows what its RAM is
+    // actually doing. The host placed this from a report, and reports age:
+    // between the poll that carried one and this task arriving, the owner's
+    // own build can have taken the memory the host was counting on. Without
+    // this the handler is simply handed the task and the machine swaps.
+    const needed = Math.max(0, task.minMemoryMB ?? 0) * MB;
+    if (needed > 0) {
+      const memory = this.memory();
+      if (memory.offerableBytes < needed) {
+        taskLog.warn('declining, not enough memory left to hold this task', {
+          taskId: task.id,
+          needMB: Math.round(needed / MB),
+          offerableMB: Math.round(memory.offerableBytes / MB),
+        });
+        await this.#decline(task.id, memory, {
+          message:
+            `needs ${Math.round(needed / MB)} MB, this machine can offer ` +
+            `${Math.round(memory.offerableBytes / MB)} MB`,
+          code: 'insufficient_memory',
+        });
+        return;
+      }
+    }
+
     const controller = new AbortController();
     // Give up a little before the host reclaims the lease, so the failure is
     // reported by us rather than showing up as an unexplained lease expiry.
@@ -444,6 +475,29 @@ export class TunnelAgent {
         code: error.code ?? 'handler_error',
         stack: error.stack,
       });
+    }
+  }
+
+  /**
+   * Hands a task back unrun, with the reading that says why.
+   *
+   * Reported separately from a failure so the host can requeue it without
+   * charging an attempt — nothing was tried. The memory report rides along
+   * because it is the whole point: the host placed this on a figure that has
+   * since moved, and without the fresh one it would simply place it here again.
+   */
+  async #decline(taskId, memory, error) {
+    try {
+      await fetchJson(`${this.hostUrl}/agent/${this.#agentId}/tasks/${taskId}/result`, {
+        method: 'POST',
+        token: this.token,
+        retries: 3,
+        body: { ok: false, declined: true, memory, error },
+      });
+    } catch (reportError) {
+      // The lease will expire and the task will be requeued anyway; the cost is
+      // the wait, and an attempt this machine did not spend on running it.
+      log.error('could not report a declined task', { taskId, message: reportError.message });
     }
   }
 

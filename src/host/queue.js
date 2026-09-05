@@ -176,6 +176,34 @@ export class TaskQueue {
     return task;
   }
 
+  /**
+   * The agent looked at what the task asks for and said it cannot hold it.
+   *
+   * Deliberately not a failure. Nothing was attempted, so charging an attempt
+   * would spend the task's retry budget on machines that never ran it, and a
+   * fleet that is briefly tight everywhere would fail work outright rather than
+   * waiting for room. The attempt `#assign` took at dispatch is handed back and
+   * the task requeued as if it had never been placed.
+   *
+   * This cannot spin, for two reasons. The decline carries the agent's fresh
+   * memory report and the host records it *before* this runs, so the stale
+   * figure that made the placement look possible is gone by the time the task
+   * is offered again. And the agent's own check is looser than the host's
+   * admission test — it does not subtract the holds the host is carrying — so
+   * an agent can only ever decline work a fresher reading would have kept it
+   * from being offered in the first place.
+   */
+  decline(taskId, agentId, reason) {
+    const task = this.#requireLeasedBy(taskId, agentId);
+    this.admission.release(agentId, task);
+    task.attempts = Math.max(0, task.attempts - 1);
+    // Kept so `alpha-admin tasks` can show why a task is going round again
+    // rather than leaving it looking like it was never picked up.
+    task.error = normalizeError(reason);
+    this.#requeue(task, `agent declined: ${task.error.message}`);
+    return task;
+  }
+
   cancel(taskId) {
     const task = this.#tasks.get(taskId);
     if (!task) return null;

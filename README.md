@@ -332,6 +332,13 @@ that hold is settled against what the agent goes on to report: once the machine
 says the memory has actually been taken, the hold is released rather than
 charged a second time on top of the drop the report already shows.
 
+The agent gets the last word. It is told what the task needs and re-reads its own
+memory before running anything, so a machine whose owner took the RAM in the
+window between the poll and the task arriving hands the work straight back
+instead of swapping. That is not a failure and costs the task nothing: the
+attempt is handed back, the decline carries the reading that explains it, and the
+task waits in the queue with its full retry budget until a machine has room.
+
 A task may then ask for a slice of it:
 
 ```bash

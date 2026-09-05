@@ -55,6 +55,15 @@ function fixedRegistry(startAt = 1_000) {
 
 const gb = (n) => n * 1024 * MB;
 
+async function until(predicate, { timeoutMs = 10_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await predicate()) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error('condition not met in time');
+}
+
 // ------------------------------------------------------------------ protocol
 
 test('a task may ask for memory, and defaults to asking for none', () => {
@@ -296,6 +305,188 @@ test('a stale report is still worth nothing, reservation or not', () => {
   assert.equal(registry.reportedOfferableBytes(agent.id), 0);
   assert.equal(registry.offerableBytes(agent.id), 0);
   assert.equal(registry.canAdmit(agent.id, { type: 'echo', minMemoryMB: 1 }), false);
+});
+
+// ------------------------------------------------------ declining a placement
+
+test('a declined task is requeued without being charged an attempt', async () => {
+  // Nothing was run, so charging for it would spend the task's retry budget on
+  // machines that never touched it — and a fleet briefly tight everywhere
+  // would fail work outright rather than waiting for room.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
+  const leased = await (queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 }));
+
+  assert.equal(leased.id, task.id);
+  assert.equal(task.attempts, 1);
+
+  queue.decline(task.id, 'a1', { message: 'needs 4096 MB', code: 'insufficient_memory' });
+
+  assert.equal(task.status, TaskStatus.QUEUED);
+  assert.equal(task.attempts, 0);
+  assert.equal(task.agentId, null);
+  // Why it went round again is kept, so it does not look like it was never
+  // picked up at all.
+  assert.equal(task.error.code, 'insufficient_memory');
+});
+
+test('a task may be declined more times than it has attempts', async () => {
+  // The point of not charging: three declines do not exhaust maxAttempts, so
+  // the task is still there to run when a machine finally has room.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 2 });
+
+  for (const agentId of ['a1', 'a2', 'a3']) {
+    await queue.lease({ agentId, capabilities: ['echo'], waitMs: 0 });
+    queue.decline(task.id, agentId, { message: 'no room', code: 'insufficient_memory' });
+  }
+
+  assert.equal(task.status, TaskStatus.QUEUED);
+  assert.equal(task.attempts, 0);
+
+  const finally_ = await queue.lease({ agentId: 'a4', capabilities: ['echo'], waitMs: 0 });
+  assert.equal(finally_.id, task.id);
+  assert.equal(task.attempts, 1);
+});
+
+test('an agent that no longer holds the lease cannot decline the task', async () => {
+  // Same protection as a result from a stale holder: a straggler must not be
+  // able to bounce work the agent that owns it is busy running.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
+  await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+
+  assert.throws(() => queue.decline(task.id, 'someone-else', { message: 'no room' }), (error) => {
+    assert.equal(error.status, 409);
+    return true;
+  });
+  assert.equal(task.status, TaskStatus.LEASED);
+});
+
+test('declining frees the memory the placement was holding', async () => {
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+  const queue = new TaskQueue({ admission: registry });
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3, minMemoryMB: 4096 });
+
+  await queue.lease({ agentId: agent.id, capabilities: ['echo'], waitMs: 0 });
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  queue.decline(task.id, agent.id, { message: 'no room', code: 'insufficient_memory' });
+  assert.equal(registry.offerableBytes(agent.id), gb(8));
+  assert.equal(registry.get(agent.id).inFlight, 0);
+});
+
+test('the host records the reading that came with a decline before requeueing', async (t) => {
+  // The whole reason a decline carries one: without it the host would place
+  // the task straight back on the machine that just said it could not hold it.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body: registered } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      protocolVersion: 1,
+      name: 'laptop',
+      capabilities: ['echo'],
+      memory: { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(8) },
+    },
+  });
+  const { body: queued } = await enqueue(host.url, { type: 'echo', payload: {}, minMemoryMB: 4096 });
+
+  const { body: dispatched } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?wait=0`,
+    { token: TOKEN },
+  );
+  // The agent is told what the task needs, or it could not check at all.
+  assert.equal(dispatched.minMemoryMB, 4096);
+
+  await fetchJson(`${host.url}/agent/${registered.agentId}/tasks/${queued.id}/result`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      ok: false,
+      declined: true,
+      memory: { totalBytes: gb(16), freeBytes: gb(1), offerableBytes: gb(1) },
+      error: { message: 'needs 4096 MB, this machine can offer 1024 MB', code: 'insufficient_memory' },
+    },
+  });
+
+  const { body: after } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
+  assert.equal(after.status, TaskStatus.QUEUED);
+  assert.equal(after.attempts, 0);
+
+  // And the reading is in, so polling again does not simply get it back.
+  const { body: agents } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+  assert.equal(agents.agents[0].availableBytes, gb(1));
+
+  const { status } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?wait=0`,
+    { token: TOKEN },
+  );
+  assert.equal(status, 204);
+});
+
+test('a real agent hands back work its machine went too tight to hold, and runs it once it can', async (t) => {
+  // The end-to-end case, and the one that cannot be built from a machine's real
+  // figures because it is temporal: the host places on a reading carried by a
+  // parked poll, the owner's build takes the memory in the window that follows,
+  // and the task arrives at a machine that can no longer hold it.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  let offerableBytes = gb(8);
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'laptop',
+    handlers: new HandlerRegistry(),
+    capabilities: ['echo'],
+    memoryReader: () => ({ totalBytes: gb(16), freeBytes: offerableBytes, offerableBytes }),
+  });
+  const running = agent.start();
+  t.after(async () => {
+    await agent.stop();
+    await running;
+  });
+
+  // Wait for its long poll to park. The 8 GB reading it carried is now the one
+  // the host will place against.
+  await until(async () => {
+    const { body } = await fetchJson(`${host.url}/stats`, { token: TOKEN });
+    return body.queue.waiters === 1;
+  });
+
+  // The owner's build takes 7 GB while the poll sits there.
+  offerableBytes = gb(1);
+  const { body: queued } = await enqueue(host.url, { type: 'echo', payload: {}, minMemoryMB: 4096 });
+
+  // Handed straight to the parked agent, which reads its own memory and says no.
+  await until(async () => {
+    const { body } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
+    return body.status === TaskStatus.QUEUED && body.error?.code === 'insufficient_memory';
+  });
+  const { body: bounced } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
+  assert.equal(bounced.attempts, 0, 'a decline must not spend an attempt');
+
+  // The build finishes. Nothing was lost: the task is still queued with its
+  // whole retry budget, and the next poll that can hold it takes it.
+  //
+  // That next poll is what the trivial task below provokes. Matching runs when
+  // a task is enqueued or requeued, not when a report improves, so the agent
+  // parked here with its 1 GB reading is not reconsidered until its own poll
+  // cycles — up to MAX_POLL_WAIT_MS away. That is inherent to pulling work
+  // rather than pushing it, and it is bounded; waiting 25s in a test to watch
+  // it is not. Any task the agent can take releases the poll, and the reading
+  // it carries on the way back is the current one.
+  offerableBytes = gb(8);
+  const { body: nudge } = await enqueue(host.url, { type: 'echo', payload: {} });
+  assert.equal((await waitForTask(host.url, nudge.id)).status, TaskStatus.SUCCEEDED);
+
+  const finished = await waitForTask(host.url, queued.id);
+  assert.equal(finished.status, TaskStatus.SUCCEEDED);
+  assert.equal(finished.attempts, 1, 'the run that succeeded is the only attempt charged');
 });
 
 // ------------------------------------------- memory a handler holds for itself
