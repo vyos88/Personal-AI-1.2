@@ -18,6 +18,8 @@ import {
   validateTaskInput,
   validateRegistration,
   validateMemoryReport,
+  memoryReportFromQuery,
+  memoryReportToQuery,
   ProtocolError,
 } from '../src/common/protocol.js';
 
@@ -275,6 +277,99 @@ test('a queue with no admission controller places everything', async () => {
   const task = queue.enqueue({ type: 'crunch', payload: {}, leaseMs: 1_000, maxAttempts: 1, minMemoryMB: 999_999 });
   const leased = await queue.lease({ agentId: 'agent_anything', capabilities: ['crunch'], waitMs: 0 });
   assert.equal(leased.id, task.id);
+});
+
+// ------------------------------------------------------------ report on poll
+
+test('memory survives the round trip through a poll\'s query string', () => {
+  const report = { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(7) };
+  const params = memoryReportToQuery(new URLSearchParams({ wait: '25000' }), report);
+  assert.equal(params.get('wait'), '25000');
+  assert.deepEqual(memoryReportFromQuery(params), report);
+});
+
+test('a poll carrying no memory leaves the last report standing', () => {
+  // An older agent polls with nothing but `wait`, and a partial report is no
+  // report: recording either would wipe out a good reading from its heartbeat.
+  assert.equal(memoryReportFromQuery(new URLSearchParams({ wait: '25000' })), null);
+  assert.equal(memoryReportFromQuery(new URLSearchParams({ moffer: String(gb(4)) })), null);
+});
+
+test('the host takes an agent\'s memory from the poll, not just the heartbeat', async (t) => {
+  // The heartbeat is 20s apart and a report is trusted for two minutes, but
+  // the poll is the moment the agent is asking to be given work. Memory has to
+  // be current there, because it is what decides whether a task may be placed
+  // on this machine at all.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body: registered } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      protocolVersion: 1,
+      name: 'laptop',
+      capabilities: ['echo'],
+      memory: { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(8) },
+    },
+  });
+
+  const query = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(1),
+    offerableBytes: gb(1),
+  });
+  await fetchJson(`${host.url}/agent/${registered.agentId}/tasks/next?${query}`, { token: TOKEN });
+
+  const { body } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+  assert.equal(body.agents[0].availableBytes, gb(1));
+});
+
+test('a task is not placed against memory the machine has since given up', async (t) => {
+  // The failure this closes: the agent reports 8 GB, its owner then starts a
+  // build that eats 7 of them, and the agent polls. Reading the placement off
+  // the heartbeat hands it a 4 GB task the machine can no longer hold, and the
+  // agent has no memory check of its own with which to refuse it.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body: registered } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      protocolVersion: 1,
+      name: 'laptop',
+      capabilities: ['echo'],
+      memory: { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(8) },
+    },
+  });
+  await enqueue(host.url, { type: 'echo', payload: {}, minMemoryMB: 4096 });
+
+  const shrunk = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(1),
+    offerableBytes: gb(1),
+  });
+  const { status } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?${shrunk}`,
+    { token: TOKEN },
+  );
+  assert.equal(status, 204);
+
+  // And the other half of the same fix: once the build finishes, the machine
+  // is eligible again on the strength of its poll rather than having to wait
+  // out a heartbeat while the task sits there reported as blocked on memory.
+  const recovered = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(8),
+    offerableBytes: gb(8),
+  });
+  const { status: after, body: task } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?${recovered}`,
+    { token: TOKEN },
+  );
+  assert.equal(after, 200);
+  assert.equal(task.type, 'echo');
 });
 
 // ---------------------------------------------------------------- agent side

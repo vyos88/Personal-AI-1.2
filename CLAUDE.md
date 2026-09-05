@@ -59,6 +59,16 @@ memory report can cover it, and that much is held against the agent for the life
 of the lease. Without the hold, three 4 GB tasks would all land on the same 8 GB
 laptop in the same instant.
 
+**The memory report rides the long poll, not just the heartbeat.** Both reports
+travel on `GET /agent/:id/tasks/next` as query parameters, but for memory it is
+load-bearing rather than an optimisation: load only ranks the agents that could
+all take a task, while memory decides which of them may be given it at all. Read
+off the heartbeat, admission ran against a figure up to a beat old and trusted
+for `MEMORY_REPORT_STALE_MS`, so a laptop whose owner's build had just eaten 6 GB
+still won a 4 GB task — and the agent has no memory check of its own to refuse
+it. Keep `memoryReportToQuery`/`memoryReportFromQuery` in step with the load
+pair; a partial or absent report is null, which leaves the last one standing.
+
 **Placement is also load-aware, and that has two halves.** On the host,
 `registry.rank()` orders candidate agents by leases already held, then by
 reported CPU load, and `queue.#findWaiterFor` hands the task to the best of

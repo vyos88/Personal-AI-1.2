@@ -275,6 +275,57 @@ export function loadReportToQuery(params, load) {
   return params;
 }
 
+/**
+ * The memory report, arriving on the long poll's query string.
+ *
+ * Memory rides the poll for a stronger reason than load does. Load only breaks
+ * ties between agents that could all take the task; memory decides whether the
+ * task may be placed on a machine at all. Leaving it to the heartbeat meant the
+ * host admitted work against a reading up to a beat old — and, under
+ * MEMORY_REPORT_STALE_MS, trusted for two minutes — at the exact moment it was
+ * choosing where the task went. A laptop whose owner's own build had just eaten
+ * 6 GB would still be handed a 4 GB task, and the agent has no memory check of
+ * its own with which to refuse it. The reverse hurts too: a machine that has
+ * just freed that 6 GB keeps being passed over until its next beat, while the
+ * task sits in the queue reported as blocked on memory.
+ *
+ * Absent parameters are null, so a poll from an older agent carries no report
+ * and simply leaves the last one standing.
+ */
+export function memoryReportFromQuery(params) {
+  const read = (name) => {
+    const raw = params.get(name);
+    if (raw === null || raw.trim() === '') return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) throw new ProtocolError(`"${name}" must be a number`);
+    return value;
+  };
+  const totalBytes = read('mtotal');
+  const freeBytes = read('mfree');
+  const offerableBytes = read('moffer');
+  // A report is built from total and free; without both there is nothing worth
+  // recording, and a partial one must not overwrite a good reading. Same
+  // reasoning as the all-null case on the load side.
+  if (totalBytes === null || freeBytes === null) return null;
+  return validateMemoryReport({
+    totalBytes,
+    freeBytes,
+    offerableBytes: offerableBytes ?? freeBytes,
+  });
+}
+
+/** The other side of that: the query string an agent appends to its poll. */
+export function memoryReportToQuery(params, memory) {
+  if (!memory) return params;
+  const write = (name, value) => {
+    if (value !== null && value !== undefined) params.set(name, String(value));
+  };
+  write('mtotal', memory.totalBytes);
+  write('mfree', memory.freeBytes);
+  write('moffer', memory.offerableBytes);
+  return params;
+}
+
 function optionalNumber(value, field, { min, max }) {
   if (value === undefined || value === null) return null;
   if (!Number.isFinite(value) || value < min || value > max) {
