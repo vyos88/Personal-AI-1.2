@@ -390,8 +390,8 @@ node src/admin/run.js agents
 
 ```
 NAME        PRINCIPAL  VERSION  CAPABILITIES  RAM     FREE    HELD  CPU   RUN  IDLE
-laptop      viorel     0.2.0    echo,sysinfo  16075M  11448M  0M    8%    3    1s
-alpha-host  viorel     0.2.0    alpha.coor..  32768M  20480M  0M    97%   0    2s
+laptop      viorel     0.3.0    echo,sysinfo  16075M  11448M  0M    8%    3    1s
+alpha-host  viorel     0.3.0    alpha.coor..  32768M  20480M  0M    97%   0    2s
 ```
 
 `CPU` is the share of that machine's cores in use; `RUN` is how many tasks it
@@ -417,7 +417,7 @@ node src/admin/run.js stats
 ```
 
 ```
-Alpha 0.2.0 — 2 agent(s) attached
+Alpha 0.3.0 — 2 agent(s) attached
   queue          0 pending, 1 agent(s) waiting
   offered RAM    31928M
   load           busiest 97%, idlest 8%, 3 task(s) running

@@ -581,13 +581,18 @@ alpha-admin agents     # a VERSION column; drifted machines are marked *
 ```
 
 ```
-NAME     PRINCIPAL  VERSION    CAPABILITIES  RAM    FREE   HELD  IDLE
--------  ---------  ---------  ------------  -----  -----  ----  ----
-tower    key_a1b2   0.2.0      echo,sysinfo  32768M 21014M 0M    2s
-laptop   key_c3d4   0.1.0 *    echo,sysinfo  16384M  9210M 0M    4s
+NAME     PRINCIPAL  VERSION    CAPABILITIES  RAM    FREE   HELD  CPU  RUN  IDLE
+-------  ---------  ---------  ------------  -----  -----  ----  ---  ---  ----
+tower    key_a1b2   0.3.0      echo,sysinfo  32768M 21014M 0M    12%  1    2s
+laptop   key_c3d4   0.2.0 *    echo,sysinfo  16384M  9210M 0M    -    0    4s
 
-* not the host's version (0.2.0). Update laptop so every machine runs the same version.
+* not the host's version (0.3.0). Update laptop so every machine runs the same version.
 ```
+
+The `-` under `CPU` on the drifted machine is the same story told twice: 0.2.0
+predates load reporting, so that laptop cannot say how busy it is and the host
+ranks it as unknown rather than idle. Getting both machines onto one version is
+what turns it back into a number.
 
 `GET /healthz` reports the host's `version` alongside `protocolVersion`, so
 `scripts/setup-agent.mjs` says which release each side is on before a worker
