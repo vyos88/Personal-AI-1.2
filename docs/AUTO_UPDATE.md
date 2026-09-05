@@ -211,3 +211,27 @@ come from the Alpha host, where the code actually lives.
 
 `Status` is useful before then: it says what commit the host's checkout is on
 and how much there is uncommitted, which is the first thing worth knowing.
+
+### Getting Alpha into the repo, once
+
+A first push of a directory that has never been in version control is the most
+dangerous git operation there is — whatever is sitting in it goes public in one
+commit, and a secret in git history stays there long after the file is deleted.
+A personal assistant's working directory is close to a worst case: Alpha's shell
+calls `/speech`, `/avatar`, `/communication` and `/triggers`, so that machine
+plausibly holds model and speech credentials, messaging tokens, and an auth
+store.
+
+So survey it first, on the Alpha host:
+
+```bash
+node scripts/publish-alpha.mjs --dir C:\alpha
+```
+
+It reads and reports — **it runs no git command and changes nothing.** You get
+what would be committed, anything that looks like a credential (by file and
+line, never by value), anything too large for GitHub, and a `.gitignore` to
+paste in *before* the first `git add`. Then push, by hand, having read it.
+
+Exit 2 means there is something to look at. Exit 0 is not a guarantee: skim the
+file list too.
