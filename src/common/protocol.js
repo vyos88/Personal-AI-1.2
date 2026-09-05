@@ -17,6 +17,41 @@ export const DEFAULT_MEMORY_RESERVE_BYTES = 512 * 1024 * 1024;
 // free memory moves, and a stale figure is how you overcommit a machine.
 export const MEMORY_REPORT_STALE_MS = 120_000;
 
+// Agents also report how busy their CPUs are, and the host prefers the least
+// loaded machine that can run a task. Additive and optional in the same way as
+// the memory report: an agent that says nothing still attaches and still gets
+// work, it just cannot be told apart from an idle one.
+
+// A load report ages the same way a memory report does, and for the same
+// reason: a laptop's CPU picture at 90s old is a guess, not a measurement.
+export const LOAD_REPORT_STALE_MS = 120_000;
+
+// What an agent whose load is unknown counts as when the host ranks placements.
+// Deliberately mid-scale: an agent that reports nothing should not beat a
+// machine known to be idle, nor lose to one known to be pinned.
+export const UNKNOWN_LOAD_FACTOR = 0.5;
+
+// Above this share of its own CPUs, an agent stops asking the host for work so
+// its neighbour takes the next task instead. 0.85 rather than 1.0 because a
+// machine only reaches a sustained 1.0 once it is already thrashing.
+export const DEFAULT_MAX_LOAD = 0.85;
+
+// How long a loaded agent waits before looking at its load again.
+export const LOAD_BACKOFF_MS = 5_000;
+
+// The safety valve on that backoff. If every agent is over its ceiling, work
+// would sit in the queue forever; after this long an idle-but-loaded agent
+// takes a task anyway, so a busy fleet runs work late rather than never.
+export const LOAD_THROTTLE_MAX_MS = 60_000;
+
+// Tasks one agent will run at once. One by default: a machine that opts into
+// more is saying its cores are worth more than the isolation.
+export const DEFAULT_AGENT_CONCURRENCY = 1;
+
+// How long a stopping agent gives its running tasks to report before it tells
+// the host it is gone. Kept under the entrypoint's 3s force-exit budget.
+export const SHUTDOWN_DRAIN_MS = 2_000;
+
 export const MB = 1024 * 1024;
 
 export const TaskStatus = {
@@ -125,6 +160,7 @@ export function validateRegistration(body) {
     capabilities,
     version: validateReportedVersion(body.version),
     memory: validateMemoryReport(body.memory),
+    load: validateLoadReport(body.load),
   };
 }
 
@@ -163,6 +199,88 @@ export function validateMemoryReport(memory) {
     // An agent may not offer more than it has free, whatever it claims.
     offerableBytes: Math.min(requireBytes(offerable, 'memory.offerableBytes'), freeBytes),
   };
+}
+
+/**
+ * How busy a machine's CPUs are, as the agent measured them.
+ *
+ * `loadFactor` is the only figure placement is made from — the larger of
+ * measured utilisation and run-queue pressure, so whichever signal says the
+ * machine is struggling is the one believed. The other two are for operators
+ * reading `alpha-admin agents`.
+ *
+ * Every field is optional, because a machine can legitimately fail to measure
+ * one: `os.loadavg()` is always [0,0,0] on Windows, and `os.cpus()` comes back
+ * empty in some containers. A missing figure is reported as null and treated
+ * as unknown, never as zero — reading "no data" as "idle" would send work
+ * straight at the busiest machine in the fleet.
+ */
+export function validateLoadReport(load) {
+  if (load === undefined || load === null) return null;
+  if (typeof load !== 'object') {
+    throw new ProtocolError('"load" must be a JSON object when present');
+  }
+  return {
+    cpus: optionalNumber(load.cpus, 'load.cpus', { min: 1, max: 4096 }),
+    busy: optionalNumber(load.busy, 'load.busy', { min: 0, max: 1 }),
+    loadAverage1: optionalNumber(load.loadAverage1, 'load.loadAverage1', { min: 0, max: 10_000 }),
+    loadFactor: optionalNumber(load.loadFactor, 'load.loadFactor', { min: 0, max: 10_000 }),
+  };
+}
+
+/**
+ * The same report, arriving on the long poll's query string.
+ *
+ * The poll is by far the most frequent thing an agent says to the host — every
+ * 25 seconds against the heartbeat's 20, and, more to the point, at the exact
+ * moment the agent is asking to be given work. Carrying load here is what
+ * makes the host's ranking current at the moment it places a task, instead of
+ * up to a heartbeat out of date. A laptop that has just finished a build would
+ * otherwise keep being passed over on the strength of a stale reading.
+ *
+ * Absent parameters are null, so a poll from an older agent carries no report
+ * and simply leaves the last one standing.
+ */
+export function loadReportFromQuery(params) {
+  const read = (name) => {
+    const raw = params.get(name);
+    if (raw === null || raw.trim() === '') return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) throw new ProtocolError(`"${name}" must be a number`);
+    return value;
+  };
+  const load = {
+    cpus: read('cpus'),
+    busy: read('busy'),
+    loadAverage1: read('la1'),
+    loadFactor: read('load'),
+  };
+  // Nothing worth recording — an older agent, or one that cannot measure
+  // itself. Say so rather than storing a report of nulls, which would overwrite
+  // a good reading from the last heartbeat.
+  if (Object.values(load).every((value) => value === null)) return null;
+  return validateLoadReport(load);
+}
+
+/** The other side of that: the query string an agent appends to its poll. */
+export function loadReportToQuery(params, load) {
+  if (!load) return params;
+  const write = (name, value) => {
+    if (value !== null && value !== undefined) params.set(name, String(value));
+  };
+  write('cpus', load.cpus);
+  write('busy', load.busy);
+  write('la1', load.loadAverage1);
+  write('load', load.loadFactor);
+  return params;
+}
+
+function optionalNumber(value, field, { min, max }) {
+  if (value === undefined || value === null) return null;
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw new ProtocolError(`"${field}" must be a number between ${min} and ${max} when present`);
+  }
+  return value;
 }
 
 function requireBytes(value, field) {

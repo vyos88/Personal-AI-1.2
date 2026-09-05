@@ -3,7 +3,8 @@ import os from 'node:os';
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
 import { reserveFromEnv, memorySnapshot } from './memory.js';
-import { MB } from '../common/protocol.js';
+import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from './load.js';
+import { MB, DEFAULT_MAX_LOAD, DEFAULT_AGENT_CONCURRENCY } from '../common/protocol.js';
 import { loadEnv } from '../common/env.js';
 import { createLogger } from '../common/log.js';
 
@@ -80,6 +81,24 @@ try {
   process.exit(1);
 }
 
+// The CPU half of the same bargain. Above ALPHA_AGENT_MAX_LOAD this machine
+// stops asking the host for work, so the next task lands on a laptop that has
+// cores free instead of on whichever one happened to ask first.
+let maxLoad;
+let concurrency;
+try {
+  maxLoad = maxLoadFromEnv(process.env.ALPHA_AGENT_MAX_LOAD, DEFAULT_MAX_LOAD);
+} catch (error) {
+  log.error(`ALPHA_AGENT_MAX_LOAD: ${error.message}`);
+  process.exit(1);
+}
+try {
+  concurrency = concurrencyFromEnv(process.env.ALPHA_AGENT_CONCURRENCY, DEFAULT_AGENT_CONCURRENCY);
+} catch (error) {
+  log.error(`ALPHA_AGENT_CONCURRENCY: ${error.message}`);
+  process.exit(1);
+}
+
 let agent;
 try {
   agent = new TunnelAgent({
@@ -89,6 +108,8 @@ try {
     capabilities: capabilities.length ? capabilities : undefined,
     handlers,
     memoryReserveBytes,
+    maxLoad,
+    concurrency,
   });
 } catch (error) {
   log.error(error.message);
@@ -103,6 +124,17 @@ log.info('memory offered to the host', {
   availableMB: Math.round(snapshot.freeBytes / MB),
   reservedMB: Math.round(memoryReserveBytes / MB),
   offerableMB: Math.round(snapshot.offerableBytes / MB),
+});
+
+const load = new LoadSampler().snapshot();
+log.info('cpu offered to the host', {
+  cpus: load.cpus,
+  loadFactor: load.loadFactor,
+  maxLoad,
+  concurrency,
+  // Worth saying out loud on Windows, where os.loadavg() does not exist and
+  // the whole picture comes from sampled CPU ticks.
+  loadAverageAvailable: load.loadAverage1 !== null,
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {

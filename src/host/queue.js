@@ -15,6 +15,9 @@ const OPEN_ADMISSION = {
   canAdmit: () => true,
   admit: () => {},
   release: () => {},
+  // Every agent looks equally good, so ranking degrades to the arrival order
+  // this queue used before it could rank at all.
+  rank: () => 0,
 };
 
 /**
@@ -28,6 +31,12 @@ const OPEN_ADMISSION = {
  * agent's free RAM. The queue does not track memory itself: it asks the
  * `admission` controller (the agent registry, in a live host) whether a given
  * agent can take a task, and tells it when a lease starts and ends.
+ *
+ * When more than one parked agent could take a task, the controller also says
+ * which of them is the better target and the task goes there. Picking the
+ * first waiter instead — which is what this did — meant whichever laptop
+ * happened to park its long poll earliest won every dispatch, so a machine
+ * already at full tilt kept being handed work while its neighbour sat idle.
  */
 export class TaskQueue {
   #tasks = new Map();
@@ -100,6 +109,11 @@ export class TaskQueue {
   lease({ agentId, capabilities, waitMs, signal }) {
     const wanted = new Set(capabilities);
 
+    // Ranking deliberately does not apply here. This branch is an agent asking
+    // for work that is already queued, and there is nobody else to weigh it
+    // against — the other machine is not parked, or it would have been handed
+    // the task at enqueue time. An agent too loaded to be a good target
+    // declines by not asking; see the agent's own load ceiling.
     const index = this.#pending.findIndex(
       (task) => wanted.has(task.type) && this.admission.canAdmit(agentId, task),
     );
@@ -249,13 +263,25 @@ export class TaskQueue {
     log.info('task requeued', { taskId: task.id, reason, attempts: task.attempts });
   }
 
+  /**
+   * The best parked agent for this task, or null if none can take it.
+   *
+   * Ties keep insertion order, so with nothing to tell two agents apart this
+   * behaves exactly as it did before ranking existed: first waiter wins.
+   */
   #findWaiterFor(task) {
+    let best = null;
+    let bestRank = Number.POSITIVE_INFINITY;
     for (const waiter of this.#waiters) {
-      if (waiter.capabilities.has(task.type) && this.admission.canAdmit(waiter.agentId, task)) {
-        return waiter;
+      if (!waiter.capabilities.has(task.type)) continue;
+      if (!this.admission.canAdmit(waiter.agentId, task)) continue;
+      const rank = this.admission.rank?.(waiter.agentId) ?? 0;
+      if (rank < bestRank) {
+        best = waiter;
+        bestRank = rank;
       }
     }
-    return null;
+    return best;
   }
 
   #resolveWaiter(waiter, task) {

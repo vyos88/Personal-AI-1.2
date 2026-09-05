@@ -14,6 +14,8 @@ import {
   validateRegistration,
   validateTaskInput,
   validateMemoryReport,
+  validateLoadReport,
+  loadReportFromQuery,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -346,11 +348,12 @@ async function handle(req, res, ctx) {
     if (method === 'POST' && url.pathname === '/agent/register') {
       require(SCOPES.AGENT_CONNECT);
       const body = await readJson(req);
-      const { name, capabilities, memory, version } = validateRegistration(body);
+      const { name, capabilities, memory, load, version } = validateRegistration(body);
       const agent = ctx.registry.register({
         name,
         capabilities,
         memory,
+        load,
         version,
         remoteAddress: req.socket.remoteAddress,
         principal: principal.label,
@@ -382,15 +385,22 @@ async function handle(req, res, ctx) {
       }
 
       if (method === 'POST' && segments[2] === 'heartbeat' && segments.length === 3) {
-        // The heartbeat carries the agent's current memory reading. Free RAM
-        // moves under the agent's own workload, so a report is only good
-        // until the next beat — see MEMORY_REPORT_STALE_MS.
+        // The heartbeat carries the agent's current memory and CPU readings.
+        // Both move under the agent's own workload, so a report is only good
+        // until the next beat — see MEMORY_REPORT_STALE_MS and
+        // LOAD_REPORT_STALE_MS.
         const body = await readJson(req);
         ctx.registry.reportMemory(agentId, validateMemoryReport(body?.memory));
+        ctx.registry.reportLoad(agentId, validateLoadReport(body?.load));
         return sendJson(res, 200, {
           ok: true,
           queue: ctx.queue.stats(),
           availableBytes: ctx.registry.offerableBytes(agentId),
+          // What this agent looks like from here: the leases it holds, and how
+          // it ranks against the others. Lets a worker's own log explain why it
+          // is or is not being given work.
+          inFlight: agent.inFlight,
+          rank: ctx.registry.rank(agentId),
         });
       }
 
@@ -402,6 +412,11 @@ async function handle(req, res, ctx) {
       if (method === 'GET' && segments[2] === 'tasks' && segments[3] === 'next' && segments.length === 4) {
         const requested = Number.parseInt(url.searchParams.get('wait') ?? '', 10);
         const waitMs = Number.isFinite(requested) ? requested : MAX_POLL_WAIT_MS;
+
+        // Recorded before parking, so the ranking that decides where the next
+        // task goes uses what this agent is like right now rather than
+        // whatever it said on its last heartbeat.
+        ctx.registry.reportLoad(agentId, loadReportFromQuery(url.searchParams));
 
         const controller = new AbortController();
         const onClose = () => controller.abort();
@@ -519,6 +534,7 @@ async function handle(req, res, ctx) {
           offeredBytes: ctx.registry.offeredBytes(),
           blockedTasks: ctx.queue.memoryBlocked().length,
         },
+        load: loadSummary(ctx.registry.list()),
       });
     }
 
@@ -568,6 +584,24 @@ function readJson(req) {
       }
     });
   });
+}
+
+/**
+ * Fleet-level view of how work is spread, for `alpha-admin stats`.
+ *
+ * `busiest` next to `idlest` is the number to look at: far apart means the
+ * fleet is unbalanced, both high means everything really is saturated and more
+ * machines are the only answer.
+ */
+function loadSummary(agents) {
+  const reported = agents.map((agent) => agent.loadFactor).filter((value) => value !== null);
+  return {
+    reporting: reported.length,
+    unknown: agents.length - reported.length,
+    busiest: reported.length ? Math.max(...reported) : null,
+    idlest: reported.length ? Math.min(...reported) : null,
+    tasksInFlight: agents.reduce((total, agent) => total + agent.inFlight, 0),
+  };
 }
 
 function sendJson(res, status, body) {

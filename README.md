@@ -13,6 +13,11 @@ It also lends the host its spare RAM two ways: the host places memory-hungry
 tasks on it by free memory, and can park data in it by key. See
 **[Lending the host RAM](#lending-the-host-ram)**.
 
+Work is placed on the machine that can actually absorb it, by leases already
+held and by reported CPU load — and a machine at full tilt stands aside so its
+neighbour takes the next task. See
+**[Placing work by load](#placing-work-by-load)**.
+
 ```
   ┌────────────────────────┐                      ┌──────────────────────┐
   │  HOST  (Alpha)         │                      │  AGENT  (laptop)     │
@@ -186,6 +191,8 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_NAME` | agent | machine hostname | Name shown in `/agents`. |
 | `ALPHA_AGENT_CAPABILITIES` | agent | all handlers | Subset of task types to accept. |
 | `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | `512` | RAM kept for this machine; the rest is offered to the host. |
+| `ALPHA_AGENT_MAX_LOAD` | agent | `0.85` | Share of its own cores above which this machine stops asking for work. |
+| `ALPHA_AGENT_CONCURRENCY` | agent | `1` | Tasks this machine will run at once. |
 | `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`. |
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
@@ -240,10 +247,10 @@ needs `Authorization: Bearer <token>` and the scope listed.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/agent/register` | Announce name, capabilities, version and free RAM; receive an agent id. |
-| `GET` | `/agent/:id/tasks/next?wait=ms` | Long-poll for work. `204` when nothing matches. |
+| `POST` | `/agent/register` | Announce name, capabilities, version, free RAM and CPU load; receive an agent id. |
+| `GET` | `/agent/:id/tasks/next?wait=ms` | Long-poll for work, carrying this machine's current load. `204` when nothing matches. |
 | `POST` | `/agent/:id/tasks/:taskId/result` | Report `{ok, result?, error?}`. |
-| `POST` | `/agent/:id/heartbeat` | Liveness, and a fresh `{memory}` reading. |
+| `POST` | `/agent/:id/heartbeat` | Liveness, and fresh `{memory, load}` readings. |
 | `DELETE` | `/agent/:id` | Detach cleanly. |
 
 A `410` on any `/agent/:id/...` call means the host has forgotten this agent
@@ -326,12 +333,89 @@ nobody has the RAM right now. The CLI says which:
 
 ```
 $ npm run admin -- agents
-NAME     PRINCIPAL  CAPABILITIES        RAM     FREE   HELD   IDLE
-laptop   viorel     echo,sysinfo,...    15866M  9184M  4096M  3s
+NAME     PRINCIPAL  CAPABILITIES        RAM     FREE   HELD   CPU  RUN  IDLE
+laptop   viorel     echo,sysinfo,...    15866M  9184M  4096M  12%  1    3s
 ```
 
 `FREE` is what is left to place work against — offered, minus what its
-in-flight tasks already claimed. `HELD` is that claim.
+in-flight tasks already claimed. `HELD` is that claim. `CPU` and `RUN` are the
+other half of placement — see below.
+
+### Placing work by load
+
+Free RAM says nothing about whether a machine can take on more. A laptop
+running its owner's build at 100% CPU still reports gigabytes free, and to a
+host that only knows about memory it looks exactly as good a target as an idle
+one. That is how both laptops end up pinned while work keeps landing on
+whichever of them asked first.
+
+So an agent reports its CPU alongside its memory — on registration, on every
+heartbeat, and on every long poll:
+
+- **utilisation**, sampled from `os.cpus()` tick deltas — the only signal that
+  works on Windows, where `os.loadavg()` always reads `[0, 0, 0]`;
+- **run-queue pressure**, the 1-minute load average over core count, which
+  unlike utilisation keeps climbing past "fully busy".
+
+Reporting it on the poll matters as much as the figure itself. The poll is the
+moment an agent is actually asking for work, so the host ranks it on what it is
+like right now rather than on a heartbeat that could be twenty seconds old — a
+laptop that has just finished a build should stop being passed over
+immediately, not eventually.
+
+`loadFactor` is the larger of the two: whichever signal says the machine is
+struggling is the one believed. Below `1.0` it reads as the fraction of the
+machine spoken for; above `1.0`, work is queueing behind the cores. A figure
+the machine could not measure is reported as `null` and treated as **unknown,
+never as idle** — guessing zero would send work straight at the quietest
+reporter rather than the quietest machine.
+
+Placement then works on two things, in this order:
+
+1. **Leases already held.** Exact, immediate, and impossible to go stale. A
+   task handed over a millisecond ago has not moved any reading yet, so without
+   this a burst of work lands on one machine before any of it shows up.
+2. **Reported load.** Between two machines holding the same amount of work, the
+   less loaded one wins.
+
+An agent holding a task therefore always ranks below an idle one, however
+quiet it claims to be — and among idle agents, the coolest wins.
+
+The worker enforces the same thing from its side. Above `ALPHA_AGENT_MAX_LOAD`
+(0.85 of its cores by default) it stops asking for work at all, so the next
+task goes to a machine with cores free. The host can only rank agents that are
+actually asking, and a laptop pinned by its owner's own work has to take itself
+out of the running. This is a pause, not a refusal: it keeps heartbeating, and
+picks work up again the moment its load drops. If *every* machine is over its
+ceiling, an agent that has stood aside for a minute with nothing in hand takes
+a task anyway — a busy fleet should run work late, never not at all.
+
+`alpha-admin stats` shows whether the fleet is unbalanced or genuinely full:
+
+```
+$ npm run admin -- stats --json
+"load": { "reporting": 2, "unknown": 0, "busiest": 0.91, "idlest": 0.06, "tasksInFlight": 1 }
+```
+
+Far apart means work is not being spread. Both high means the fleet really is
+saturated and another machine is the only answer.
+
+### Running more than one task per machine
+
+An agent runs one task at a time by default. `ALPHA_AGENT_CONCURRENCY=4` lets a
+machine with cores to spare hold four leases at once, which is usually the
+difference between two laptops doing two tasks and two laptops doing eight.
+
+It composes with the load ceiling rather than fighting it: a machine that takes
+on more than it can handle sees its own load climb and stops asking, so
+concurrency raises the ceiling on a quiet machine without letting a busy one
+overcommit. Set it from cores and from what the handlers actually do — CPU-bound
+work wants roughly one per core, work that mostly waits on I/O can go higher.
+
+On shutdown an agent now waits up to two seconds for its running tasks to
+report before it disconnects. Disconnecting first turns those reports into
+`410`s, and the host then sits out the whole lease before re-running work that
+had in fact succeeded.
 
 ### Parking data in the laptop's RAM
 

@@ -43,7 +43,7 @@ Tasks
                                                          Drive the coordination tunnel
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
-  agents                                                 List attached agents, their free RAM and version
+  agents                                                 List attached agents, their free RAM, CPU load and version
 
 Borrowed memory
   mem --action stats                                     Store usage on the agent
@@ -154,6 +154,12 @@ function table(rows, columns) {
 }
 
 const mb = (bytes) => (Number.isFinite(bytes) ? `${Math.round(bytes / (1024 * 1024))}M` : '-');
+
+// Share of the machine's cores in use, as a percentage. "-" means the agent
+// has not reported load, or its last report went stale — which the host reads
+// as unknown, not as idle.
+const load = (agent) =>
+  Number.isFinite(agent.loadFactor) ? `${Math.round(agent.loadFactor * 100)}%` : '-';
 
 const when = (ms) => (ms ? new Date(ms).toISOString().replace('T', ' ').slice(0, 19) : '-');
 const days = (value) => (value === undefined ? undefined : Number(value) * 24 * 60 * 60 * 1_000);
@@ -394,6 +400,11 @@ export async function main(argv = process.argv.slice(2)) {
         // this agent is already holding have claimed.
         { header: 'FREE', value: (a) => mb(a.availableBytes) },
         { header: 'HELD', value: (a) => mb(a.reservedBytes) },
+        // The other half of placement. CPU is the reason work goes to one
+        // laptop rather than the other when both have RAM to spare, so it
+        // belongs next to the memory columns rather than behind --json.
+        { header: 'CPU', value: (a) => load(a) },
+        { header: 'RUN', value: (a) => a.inFlight ?? 0 },
         { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
       ]);
       if (drifted.length) {

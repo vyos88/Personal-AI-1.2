@@ -59,6 +59,22 @@ memory report can cover it, and that much is held against the agent for the life
 of the lease. Without the hold, three 4 GB tasks would all land on the same 8 GB
 laptop in the same instant.
 
+**Placement is also load-aware, and that has two halves.** On the host,
+`registry.rank()` orders candidate agents by leases already held, then by
+reported CPU load, and `queue.#findWaiterFor` hands the task to the best of
+them — it used to take the first parked waiter, so whichever laptop asked
+first won every dispatch even when it was already pinned. On the agent,
+`ALPHA_AGENT_MAX_LOAD` makes a saturated machine stop asking at all, because
+the host can only rank the agents that are actually asking. Two invariants
+hold that together:
+
+- **Unknown load is never read as idle.** A missing, unmeasurable (Windows has
+  no load average) or stale report ranks mid-scale. Reading it as zero would
+  make the quietest *reporter* beat the quietest *machine*.
+- **Standing aside is bounded.** After `LOAD_THROTTLE_MAX_MS` with nothing in
+  hand, a loaded agent takes work anyway — otherwise a fleet that is busy
+  everywhere would never run anything.
+
 **Auth is capability-based, recomputed per request.** `src/host/auth/service.js`
 resolves a bearer token to a principal whose effective scopes are the
 intersection of the *key's* scopes and its *owner's*. Two invariants depend on
@@ -82,8 +98,9 @@ them passing.
 These are all real bugs that were found and fixed here. The comments in the code
 say so at each site; this is the short list.
 
-- **Never `unref()` a timer that represents pending work.** A backoff nap and a
-  parked long-poll waiter are the whole of what is in flight at that moment.
+- **Never `unref()` a timer that represents pending work.** A backoff nap, a
+  parked long-poll waiter and the agent's shutdown drain are the whole of what
+  is in flight at those moments.
   Unref'ing them lets the event loop drain and the process exits silently. The
   sweeper and pruner are background janitors and stay unref'd.
 - **Shutdown order matters.** `close()` must stop the queue (releasing parked
@@ -97,6 +114,9 @@ say so at each site; this is the short list.
   A port already in use still fails fast — waiting could never fix that.
 - **Every handler path must end the response.** Returning from the long-poll
   abort branch without `res.end()` leaves the request open and blocks close.
+- **An agent must not deregister while tasks are still reporting.** `stop()`
+  drains first, then aborts, then deregisters. Deregistering up front makes
+  every in-flight result a 410, and the host re-runs work that succeeded.
 
 ## Adding a handler
 

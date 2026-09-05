@@ -1,4 +1,11 @@
-import { newId, AGENT_STALE_MS, MEMORY_REPORT_STALE_MS, MB } from '../common/protocol.js';
+import {
+  newId,
+  AGENT_STALE_MS,
+  MEMORY_REPORT_STALE_MS,
+  LOAD_REPORT_STALE_MS,
+  UNKNOWN_LOAD_FACTOR,
+  MB,
+} from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 import { createLogger } from '../common/log.js';
 
@@ -14,6 +21,13 @@ const log = createLogger('host:registry');
  * the lease. Without the hold, three 4 GB tasks would all be placed on the
  * same 8 GB laptop in the same instant, because none of them would have
  * started consuming memory yet when the next one was matched.
+ *
+ * It also ranks agents, which is what stops two laptops from being driven into
+ * the ground together. Free RAM is a poor proxy for "can take more work": a
+ * machine pinned at 100% CPU by its owner's own build still reports plenty of
+ * memory. So `rank()` orders candidates by how much work they are already
+ * holding, then by how loaded they last said they were, and the queue hands
+ * the task to the best of them instead of to whoever asked first.
  */
 export class AgentRegistry {
   #agents = new Map();
@@ -27,6 +41,7 @@ export class AgentRegistry {
     name,
     capabilities,
     memory = null,
+    load = null,
     version = null,
     remoteAddress,
     principal = null,
@@ -53,9 +68,16 @@ export class AgentRegistry {
       memory: null,
       memoryReportedAt: null,
       reservedBytes: 0,
+      // How busy this machine said it was, and how many leases it is holding
+      // right now. The second needs no report and never goes stale, which is
+      // why it outranks the first.
+      load: null,
+      loadReportedAt: null,
+      inFlight: 0,
     };
     this.#agents.set(agent.id, agent);
     if (memory) this.reportMemory(agent.id, memory);
+    if (load) this.reportLoad(agent.id, load);
     log.info('agent registered', {
       agentId: agent.id,
       name,
@@ -63,6 +85,7 @@ export class AgentRegistry {
       principal,
       version,
       offerableMB: memory ? Math.round(memory.offerableBytes / MB) : null,
+      loadFactor: load?.loadFactor ?? null,
     });
     // The agent cleared PROTOCOL_VERSION, so this is drift, not incompatibility:
     // attach it and make the mismatch loud rather than turning the worker away.
@@ -84,6 +107,30 @@ export class AgentRegistry {
     agent.memory = memory;
     agent.memoryReportedAt = this.now();
     return agent;
+  }
+
+  /** Records a fresh CPU reading. Sent alongside memory on every heartbeat. */
+  reportLoad(agentId, load) {
+    const agent = this.#agents.get(agentId);
+    if (!agent || !load) return null;
+    agent.load = load;
+    agent.loadReportedAt = this.now();
+    return agent;
+  }
+
+  /**
+   * How loaded this agent last said it was, or null when that is unknown.
+   *
+   * Unknown covers three cases that all deserve the same answer: an agent too
+   * old to report load, one whose platform could not measure it, and one whose
+   * last report has gone stale. Guessing zero for any of them would make the
+   * silent machine the most attractive target in the fleet.
+   */
+  loadFactor(agentId) {
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    if (!agent?.load || agent.load.loadFactor === null) return null;
+    if (this.now() - agent.loadReportedAt > LOAD_REPORT_STALE_MS) return null;
+    return agent.load.loadFactor;
   }
 
   /**
@@ -124,17 +171,43 @@ export class AgentRegistry {
   }
 
   admit(agentId, task) {
-    const needed = requiredBytes(task);
     const agent = this.#agents.get(agentId);
-    if (needed === 0 || !agent) return;
+    if (!agent) return;
+    // Counted for every task, memory requirement or not. This is the only
+    // placement signal that is exact and immediate — a task handed over a
+    // millisecond ago has not moved a memory report or a load average yet, and
+    // without it a burst of work all lands on one machine before any of it
+    // shows up in a reading.
+    agent.inFlight += 1;
+    const needed = requiredBytes(task);
+    if (needed === 0) return;
     agent.reservedBytes += needed;
   }
 
   release(agentId, task) {
-    const needed = requiredBytes(task);
     const agent = this.#agents.get(agentId);
-    if (needed === 0 || !agent) return;
+    if (!agent) return;
+    agent.inFlight = Math.max(0, agent.inFlight - 1);
+    const needed = requiredBytes(task);
+    if (needed === 0) return;
     agent.reservedBytes = Math.max(0, agent.reservedBytes - needed);
+  }
+
+  /**
+   * How poor a target this agent is, lower being better. The queue places each
+   * task on the lowest-ranked agent that can run it.
+   *
+   * Work in hand dominates: the load contribution is scaled below 1 so that an
+   * agent holding a task always ranks worse than an idle one, however quiet it
+   * claims its CPUs are. Within the same number of leases, the less loaded
+   * machine wins — which is the whole point, and is what keeps the second
+   * laptop from being handed work simply because it asked first.
+   */
+  rank(agentId) {
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    if (!agent) return Number.POSITIVE_INFINITY;
+    const load = this.loadFactor(agent) ?? UNKNOWN_LOAD_FACTOR;
+    return agent.inFlight + Math.min(load, 1) * 0.999;
   }
 
   deregister(agentId) {
@@ -170,14 +243,21 @@ export class AgentRegistry {
       ...agent,
       idleMs: now - agent.lastSeenAt,
       availableBytes: this.offerableBytes(agent),
+      // Resolved rather than raw, so a reader sees the figure placement
+      // actually used — null where the report is missing or stale.
+      loadFactor: this.loadFactor(agent),
+      rank: this.rank(agent),
     }));
   }
 
-  /** Agents that could take this task right now, by capability and by RAM. */
+  /**
+   * Agents that could take this task right now, by capability and by RAM,
+   * best target first.
+   */
   candidatesFor(task) {
-    return [...this.#agents.values()].filter(
-      (agent) => agent.capabilities.includes(task.type) && this.canAdmit(agent.id, task),
-    );
+    return [...this.#agents.values()]
+      .filter((agent) => agent.capabilities.includes(task.type) && this.canAdmit(agent.id, task))
+      .sort((a, b) => this.rank(a) - this.rank(b));
   }
 
   /** Total memory attached agents are currently lending, less what is spoken for. */
