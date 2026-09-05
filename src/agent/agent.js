@@ -16,6 +16,7 @@ import {
   LOAD_THROTTLE_MAX_MS,
   SHUTDOWN_DRAIN_MS,
   loadReportToQuery,
+  memoryReportToQuery,
   MB,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
@@ -110,7 +111,14 @@ export class TunnelAgent {
 
   /** What this machine is currently willing to lend, read fresh each time. */
   memory() {
-    return memorySnapshot({ reserveBytes: this.memoryReserveBytes });
+    return memorySnapshot({
+      reserveBytes: this.memoryReserveBytes,
+      // Budget this agent's own handlers are holding. Read per call rather
+      // than once at startup: a memory.store that has filled up is holding
+      // real heap, which the machine's free figure already reflects, so only
+      // its remaining headroom should still be withheld.
+      committedBytes: this.handlers.committedBytes?.() ?? 0,
+    });
   }
 
   /** How busy this machine's CPUs are, sampled at most every couple of seconds. */
@@ -360,13 +368,15 @@ export class TunnelAgent {
   }
 
   async #pollOnce() {
-    // The poll carries this machine's current load. It is the most frequent
-    // thing the agent says, and it is said at the moment work is being asked
-    // for — so the host ranks this machine on what it is like now, not on its
-    // last heartbeat.
-    const query = loadReportToQuery(
-      new URLSearchParams({ wait: String(this.pollWaitMs) }),
-      this.load(),
+    // The poll carries this machine's current load and memory. It is the most
+    // frequent thing the agent says, and it is said at the moment work is
+    // being asked for — so the host places against what this machine is like
+    // now, not against its last heartbeat. Memory is the one that must be
+    // fresh: it is a hard admission gate, and the agent has no check of its
+    // own to refuse a task its RAM can no longer hold.
+    const query = memoryReportToQuery(
+      loadReportToQuery(new URLSearchParams({ wait: String(this.pollWaitMs) }), this.load()),
+      this.memory(),
     );
     const url = `${this.hostUrl}/agent/${this.#agentId}/tasks/next?${query}`;
     const { status, body } = await fetchJson(url, {

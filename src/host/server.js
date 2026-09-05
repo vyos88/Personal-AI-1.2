@@ -14,6 +14,7 @@ import {
   validateRegistration,
   validateTaskInput,
   validateMemoryReport,
+  memoryReportFromQuery,
   validateLoadReport,
   loadReportFromQuery,
 } from '../common/protocol.js';
@@ -413,10 +414,13 @@ async function handle(req, res, ctx) {
         const requested = Number.parseInt(url.searchParams.get('wait') ?? '', 10);
         const waitMs = Number.isFinite(requested) ? requested : MAX_POLL_WAIT_MS;
 
-        // Recorded before parking, so the ranking that decides where the next
-        // task goes uses what this agent is like right now rather than
-        // whatever it said on its last heartbeat.
+        // Recorded before parking, so the placement that decides where the
+        // next task goes uses what this agent is like right now rather than
+        // whatever it said on its last heartbeat. Memory matters here more
+        // than load does: load only ranks the machines that could take the
+        // task, memory decides which of them may be given it at all.
         ctx.registry.reportLoad(agentId, loadReportFromQuery(url.searchParams));
+        ctx.registry.reportMemory(agentId, memoryReportFromQuery(url.searchParams));
 
         const controller = new AbortController();
         const onClose = () => controller.abort();

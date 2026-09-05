@@ -18,6 +18,8 @@ import {
   validateTaskInput,
   validateRegistration,
   validateMemoryReport,
+  memoryReportFromQuery,
+  memoryReportToQuery,
   ProtocolError,
 } from '../src/common/protocol.js';
 
@@ -169,6 +171,174 @@ test('registry reports which agents could take a task, and what is on offer over
   assert.equal(registry.offeredBytes(), gb(8) + gb(1) / 2);
 });
 
+// --------------------------------------------------- settling a reservation
+
+const task4gb = { type: 'echo', minMemoryMB: 4096 };
+const task2gb = { type: 'echo', minMemoryMB: 2048 };
+
+function laptop(registry, offerableBytes = gb(8)) {
+  return registry.register({
+    name: 'laptop',
+    capabilities: ['echo'],
+    memory: { totalBytes: gb(16), freeBytes: offerableBytes, offerableBytes },
+  });
+}
+
+test('a reservation holds the whole requirement until the machine reports it gone', () => {
+  // The window the hold exists for: the task has been placed but has not
+  // allocated anything yet, so the agent still reports every byte as free.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(4));
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  // And it is still a hard gate while it is unmaterialized: two 4 GB tasks fit
+  // an 8 GB machine, a third does not.
+  registry.admit(agent.id, task4gb);
+  assert.equal(registry.offerableBytes(agent.id), 0);
+  assert.equal(registry.canAdmit(agent.id, task4gb), false);
+});
+
+test('a reservation stops being held once the report shows the memory taken', () => {
+  // The bug this closes: the task allocates, the drop lands in the agent's own
+  // report, and subtracting the reservation from it too charged the machine
+  // twice — an 8 GB laptop running one 4 GB task looked like it had nothing
+  // left, for the rest of the lease.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+  assert.equal(registry.canAdmit(agent.id, task4gb), true);
+});
+
+test('a drop larger than the promise leaves the agent poorer, not richer', () => {
+  // The credit is capped by what was promised, and the report is the ceiling
+  // either way: a machine that has lost more than the reservation cannot come
+  // out of the arithmetic with memory to spare.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(6), offerableBytes: gb(6) });
+  // 2 GB of the 4 has shown up, so 2 GB is still held by hand.
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(2));
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(2), offerableBytes: gb(2) });
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(2));
+});
+
+test('settling cannot tell the task\'s allocation from the owner\'s, and overcommits', () => {
+  // The known cost of settling holds against the report. The host cannot see
+  // *why* memory moved, so a drop the machine's owner caused releases the hold
+  // while the placed task is still holding nothing — and a second task can then
+  // be placed against memory the first one is going to take.
+  //
+  // Pinned deliberately rather than left implicit: holding for the whole lease
+  // refused this, at the cost of the far commoner fault of a working laptop
+  // looking empty until its lease ran out. If the agent ever gains a memory
+  // check of its own (it is not handed minMemoryMB today, so it cannot), this
+  // is the case that check closes, and this test is the one that changes.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  // The owner's build takes 4 GB. The task has allocated nothing.
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+  // Truthfully there is no headroom at all: those 4 GB are spoken for.
+  assert.equal(registry.canAdmit(agent.id, task4gb), true);
+});
+
+test('a second reservation is not credited with the first one\'s drop', () => {
+  // Re-anchoring on every admission would forget what the earlier tasks have
+  // already accounted for and hold their memory a second time.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  // 8 GB machine, 4 taken by the first task, 2 promised to the second: 2 left.
+  registry.admit(agent.id, task2gb);
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(2));
+  assert.equal(registry.offerableBytes(agent.id), gb(2));
+});
+
+test('the agent\'s own report is the whole truth again once nothing is reserved', () => {
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.release(agent.id, task4gb);
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(8));
+  assert.equal(registry.list()[0].unmaterializedBytes, 0);
+});
+
+test('a stale report is still worth nothing, reservation or not', () => {
+  const { registry, tick } = fixedRegistry();
+  const agent = laptop(registry);
+  registry.admit(agent.id, task4gb);
+
+  tick(MEMORY_REPORT_STALE_MS + 1);
+  assert.equal(registry.reportedOfferableBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), 0);
+  assert.equal(registry.canAdmit(agent.id, { type: 'echo', minMemoryMB: 1 }), false);
+});
+
+// ------------------------------------------- memory a handler holds for itself
+
+test('a handler\'s own budget is not offered to the host as well', (t) => {
+  // memory.store may grow into its limit at any moment. Offering that headroom
+  // to the host as lendable promises the same RAM twice: once to a memory-
+  // hungry task, once to the next put that fills the cache up.
+  const handlers = new HandlerRegistry([memstoreHandler]);
+  memstoreHandler.setStore(new MemoryStore({ limitBytes: 200 * MB }));
+  t.after(() => memstoreHandler.setStore(null));
+
+  assert.equal(handlers.committedBytes(), 200 * MB);
+
+  // Read from one snapshot, so a machine whose free memory moves under the
+  // test cannot make this flake.
+  const snapshot = memorySnapshot({ reserveBytes: 0, committedBytes: handlers.committedBytes() });
+  // The machine's honest free figure is untouched; only what it will lend moves.
+  assert.equal(snapshot.offerableBytes, Math.max(0, snapshot.freeBytes - 200 * MB));
+});
+
+test('only a handler\'s unused budget is withheld', (t) => {
+  // What the store already holds is real heap and has left the machine's free
+  // memory on its own. Withholding it again would take it off the offer twice.
+  const store = new MemoryStore({ limitBytes: 200 * MB, maxValueBytes: 200 * MB });
+  const handlers = new HandlerRegistry([memstoreHandler]);
+  memstoreHandler.setStore(store);
+  t.after(() => memstoreHandler.setStore(null));
+
+  store.put('batch', 'x'.repeat(10 * MB));
+  assert.ok(store.usedBytes >= 10 * MB);
+  assert.equal(store.headroomBytes, store.limitBytes - store.usedBytes);
+  assert.equal(handlers.committedBytes(), store.headroomBytes);
+});
+
+test('handlers that hold nothing cost nothing', () => {
+  // The built-ins hold no budget, so an agent running them offers exactly what
+  // it has free less its own reserve — unchanged from before any of this.
+  assert.equal(new HandlerRegistry().committedBytes(), 0);
+  const snapshot = memorySnapshot({ reserveBytes: 0, committedBytes: 0 });
+  assert.equal(snapshot.offerableBytes, snapshot.freeBytes);
+});
+
 // --------------------------------------------------------------------- queue
 
 test('the queue leases a memory-hungry task only to an agent that has the RAM', async () => {
@@ -275,6 +445,106 @@ test('a queue with no admission controller places everything', async () => {
   const task = queue.enqueue({ type: 'crunch', payload: {}, leaseMs: 1_000, maxAttempts: 1, minMemoryMB: 999_999 });
   const leased = await queue.lease({ agentId: 'agent_anything', capabilities: ['crunch'], waitMs: 0 });
   assert.equal(leased.id, task.id);
+});
+
+// ------------------------------------------------------------ report on poll
+
+test('memory survives the round trip through a poll\'s query string', () => {
+  const report = { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(7) };
+  const params = memoryReportToQuery(new URLSearchParams({ wait: '25000' }), report);
+  assert.equal(params.get('wait'), '25000');
+  assert.deepEqual(memoryReportFromQuery(params), report);
+});
+
+test('a poll carrying no memory leaves the last report standing', () => {
+  // An older agent polls with nothing but `wait`, and a partial report is no
+  // report: recording either would wipe out a good reading from its heartbeat.
+  assert.equal(memoryReportFromQuery(new URLSearchParams({ wait: '25000' })), null);
+  assert.equal(memoryReportFromQuery(new URLSearchParams({ moffer: String(gb(4)) })), null);
+  // Including one that names what the machine has but not what it will lend:
+  // treating the whole free figure as the offer would lend out the reserve the
+  // agent is holding back for itself.
+  assert.equal(
+    memoryReportFromQuery(new URLSearchParams({ mtotal: String(gb(16)), mfree: String(gb(8)) })),
+    null,
+  );
+});
+
+test('the host takes an agent\'s memory from the poll, not just the heartbeat', async (t) => {
+  // The heartbeat is 20s apart and a report is trusted for two minutes, but
+  // the poll is the moment the agent is asking to be given work. Memory has to
+  // be current there, because it is what decides whether a task may be placed
+  // on this machine at all.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body: registered } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      protocolVersion: 1,
+      name: 'laptop',
+      capabilities: ['echo'],
+      memory: { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(8) },
+    },
+  });
+
+  const query = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(1),
+    offerableBytes: gb(1),
+  });
+  await fetchJson(`${host.url}/agent/${registered.agentId}/tasks/next?${query}`, { token: TOKEN });
+
+  const { body } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+  assert.equal(body.agents[0].availableBytes, gb(1));
+});
+
+test('a task is not placed against memory the machine has since given up', async (t) => {
+  // The failure this closes: the agent reports 8 GB, its owner then starts a
+  // build that eats 7 of them, and the agent polls. Reading the placement off
+  // the heartbeat hands it a 4 GB task the machine can no longer hold, and the
+  // agent has no memory check of its own with which to refuse it.
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { body: registered } = await fetchJson(`${host.url}/agent/register`, {
+    method: 'POST',
+    token: TOKEN,
+    body: {
+      protocolVersion: 1,
+      name: 'laptop',
+      capabilities: ['echo'],
+      memory: { totalBytes: gb(16), freeBytes: gb(8), offerableBytes: gb(8) },
+    },
+  });
+  await enqueue(host.url, { type: 'echo', payload: {}, minMemoryMB: 4096 });
+
+  const shrunk = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(1),
+    offerableBytes: gb(1),
+  });
+  const { status } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?${shrunk}`,
+    { token: TOKEN },
+  );
+  assert.equal(status, 204);
+
+  // And the other half of the same fix: once the build finishes, the machine
+  // is eligible again on the strength of its poll rather than having to wait
+  // out a heartbeat while the task sits there reported as blocked on memory.
+  const recovered = memoryReportToQuery(new URLSearchParams({ wait: '0' }), {
+    totalBytes: gb(16),
+    freeBytes: gb(8),
+    offerableBytes: gb(8),
+  });
+  const { status: after, body: task } = await fetchJson(
+    `${host.url}/agent/${registered.agentId}/tasks/next?${recovered}`,
+    { token: TOKEN },
+  );
+  assert.equal(after, 200);
+  assert.equal(task.type, 'echo');
 });
 
 // ---------------------------------------------------------------- agent side
