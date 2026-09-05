@@ -217,10 +217,10 @@ test('a reservation stops being held once the report shows the memory taken', ()
   assert.equal(registry.canAdmit(agent.id, task4gb), true);
 });
 
-test('memory the machine loses to its owner is not credited to a reservation', () => {
-  // The drop has to be at least the size of the promise before the hold is
-  // released, and a drop bigger than the promise leaves the agent poorer, not
-  // richer: the owner's build took RAM too.
+test('a drop larger than the promise leaves the agent poorer, not richer', () => {
+  // The credit is capped by what was promised, and the report is the ceiling
+  // either way: a machine that has lost more than the reservation cannot come
+  // out of the arithmetic with memory to spare.
   const { registry } = fixedRegistry();
   const agent = laptop(registry);
 
@@ -233,6 +233,30 @@ test('memory the machine loses to its owner is not credited to a reservation', (
   registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(2), offerableBytes: gb(2) });
   assert.equal(registry.unmaterializedBytes(agent.id), 0);
   assert.equal(registry.offerableBytes(agent.id), gb(2));
+});
+
+test('settling cannot tell the task\'s allocation from the owner\'s, and overcommits', () => {
+  // The known cost of settling holds against the report. The host cannot see
+  // *why* memory moved, so a drop the machine's owner caused releases the hold
+  // while the placed task is still holding nothing — and a second task can then
+  // be placed against memory the first one is going to take.
+  //
+  // Pinned deliberately rather than left implicit: holding for the whole lease
+  // refused this, at the cost of the far commoner fault of a working laptop
+  // looking empty until its lease ran out. If the agent ever gains a memory
+  // check of its own (it is not handed minMemoryMB today, so it cannot), this
+  // is the case that check closes, and this test is the one that changes.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  // The owner's build takes 4 GB. The task has allocated nothing.
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+  // Truthfully there is no headroom at all: those 4 GB are spoken for.
+  assert.equal(registry.canAdmit(agent.id, task4gb), true);
 });
 
 test('a second reservation is not credited with the first one\'s drop', () => {
@@ -437,6 +461,13 @@ test('a poll carrying no memory leaves the last report standing', () => {
   // report: recording either would wipe out a good reading from its heartbeat.
   assert.equal(memoryReportFromQuery(new URLSearchParams({ wait: '25000' })), null);
   assert.equal(memoryReportFromQuery(new URLSearchParams({ moffer: String(gb(4)) })), null);
+  // Including one that names what the machine has but not what it will lend:
+  // treating the whole free figure as the offer would lend out the reserve the
+  // agent is holding back for itself.
+  assert.equal(
+    memoryReportFromQuery(new URLSearchParams({ mtotal: String(gb(16)), mfree: String(gb(8)) })),
+    null,
+  );
 });
 
 test('the host takes an agent\'s memory from the poll, not just the heartbeat', async (t) => {

@@ -303,15 +303,12 @@ export function memoryReportFromQuery(params) {
   const totalBytes = read('mtotal');
   const freeBytes = read('mfree');
   const offerableBytes = read('moffer');
-  // A report is built from total and free; without both there is nothing worth
-  // recording, and a partial one must not overwrite a good reading. Same
-  // reasoning as the all-null case on the load side.
-  if (totalBytes === null || freeBytes === null) return null;
-  return validateMemoryReport({
-    totalBytes,
-    freeBytes,
-    offerableBytes: offerableBytes ?? freeBytes,
-  });
+  // All three or nothing. A partial report must not overwrite a good reading,
+  // and defaulting a missing offer to the whole free figure — which is what the
+  // JSON body path does for an older agent — would offer memory past the
+  // reserve this machine is holding back, which no agent ever asks for.
+  if (totalBytes === null || freeBytes === null || offerableBytes === null) return null;
+  return validateMemoryReport({ totalBytes, freeBytes, offerableBytes });
 }
 
 /** The other side of that: the query string an agent appends to its poll. */

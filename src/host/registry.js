@@ -165,6 +165,22 @@ export class AgentRegistry {
    * began against what they promised, and hold back only the remainder. A
    * report that has not moved still withholds the lot, which is exactly the old
    * behaviour in the window the hold is for.
+   *
+   * This is a deliberate trade, not a free win. The host cannot see *why* the
+   * machine's memory moved, so a drop the owner's own build caused settles the
+   * reservation just as readily as the task taking what it asked for. An 8 GB
+   * agent holding an unstarted 4 GB task, whose owner then eats 4 GB, reports 4
+   * GB free and is credited in full — so a second 4 GB task can be placed
+   * against memory the first one is still going to take. Holding for the whole
+   * lease refused that, at the cost of the far commoner fault of a working
+   * laptop looking empty until its lease ran out. The overcommit needs
+   * unrelated consumption of at least `minMemoryMB` *and* a second
+   * memory-tagged task, both inside the same window; the machine looking empty
+   * happened on every single memory-tagged task. Hence this way round.
+   *
+   * Closing it properly needs the agent to be able to refuse — it is the only
+   * party that knows what its RAM is actually doing — and it cannot today,
+   * because the task it is handed does not carry `minMemoryMB` at all.
    */
   unmaterializedBytes(agentId) {
     const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;

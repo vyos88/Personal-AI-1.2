@@ -67,6 +67,11 @@ instant. Two invariants keep the two sides of that accounting honest:
   The anchor (`reservedAgainstBytes`) is set by the *first* outstanding
   reservation and cleared when the last one is released; re-anchoring per
   admission would forget the drop the earlier tasks already accounted for.
+  Known cost, pinned by a test: the host cannot see *why* memory moved, so a
+  drop the machine's owner caused settles the hold too, and a second task can be
+  placed against memory the first is still going to take. Closing that needs the
+  agent to refuse, which it cannot — the task it is handed carries no
+  `minMemoryMB`.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.
