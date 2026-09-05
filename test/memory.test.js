@@ -171,6 +171,150 @@ test('registry reports which agents could take a task, and what is on offer over
   assert.equal(registry.offeredBytes(), gb(8) + gb(1) / 2);
 });
 
+// --------------------------------------------------- settling a reservation
+
+const task4gb = { type: 'echo', minMemoryMB: 4096 };
+const task2gb = { type: 'echo', minMemoryMB: 2048 };
+
+function laptop(registry, offerableBytes = gb(8)) {
+  return registry.register({
+    name: 'laptop',
+    capabilities: ['echo'],
+    memory: { totalBytes: gb(16), freeBytes: offerableBytes, offerableBytes },
+  });
+}
+
+test('a reservation holds the whole requirement until the machine reports it gone', () => {
+  // The window the hold exists for: the task has been placed but has not
+  // allocated anything yet, so the agent still reports every byte as free.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(4));
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  // And it is still a hard gate while it is unmaterialized: two 4 GB tasks fit
+  // an 8 GB machine, a third does not.
+  registry.admit(agent.id, task4gb);
+  assert.equal(registry.offerableBytes(agent.id), 0);
+  assert.equal(registry.canAdmit(agent.id, task4gb), false);
+});
+
+test('a reservation stops being held once the report shows the memory taken', () => {
+  // The bug this closes: the task allocates, the drop lands in the agent's own
+  // report, and subtracting the reservation from it too charged the machine
+  // twice — an 8 GB laptop running one 4 GB task looked like it had nothing
+  // left, for the rest of the lease.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+  assert.equal(registry.canAdmit(agent.id, task4gb), true);
+});
+
+test('memory the machine loses to its owner is not credited to a reservation', () => {
+  // The drop has to be at least the size of the promise before the hold is
+  // released, and a drop bigger than the promise leaves the agent poorer, not
+  // richer: the owner's build took RAM too.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(6), offerableBytes: gb(6) });
+  // 2 GB of the 4 has shown up, so 2 GB is still held by hand.
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(2));
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(2), offerableBytes: gb(2) });
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(2));
+});
+
+test('a second reservation is not credited with the first one\'s drop', () => {
+  // Re-anchoring on every admission would forget what the earlier tasks have
+  // already accounted for and hold their memory a second time.
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.reportMemory(agent.id, { totalBytes: gb(16), freeBytes: gb(4), offerableBytes: gb(4) });
+  assert.equal(registry.offerableBytes(agent.id), gb(4));
+
+  // 8 GB machine, 4 taken by the first task, 2 promised to the second: 2 left.
+  registry.admit(agent.id, task2gb);
+  assert.equal(registry.unmaterializedBytes(agent.id), gb(2));
+  assert.equal(registry.offerableBytes(agent.id), gb(2));
+});
+
+test('the agent\'s own report is the whole truth again once nothing is reserved', () => {
+  const { registry } = fixedRegistry();
+  const agent = laptop(registry);
+
+  registry.admit(agent.id, task4gb);
+  registry.release(agent.id, task4gb);
+
+  assert.equal(registry.unmaterializedBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), gb(8));
+  assert.equal(registry.list()[0].unmaterializedBytes, 0);
+});
+
+test('a stale report is still worth nothing, reservation or not', () => {
+  const { registry, tick } = fixedRegistry();
+  const agent = laptop(registry);
+  registry.admit(agent.id, task4gb);
+
+  tick(MEMORY_REPORT_STALE_MS + 1);
+  assert.equal(registry.reportedOfferableBytes(agent.id), 0);
+  assert.equal(registry.offerableBytes(agent.id), 0);
+  assert.equal(registry.canAdmit(agent.id, { type: 'echo', minMemoryMB: 1 }), false);
+});
+
+// ------------------------------------------- memory a handler holds for itself
+
+test('a handler\'s own budget is not offered to the host as well', (t) => {
+  // memory.store may grow into its limit at any moment. Offering that headroom
+  // to the host as lendable promises the same RAM twice: once to a memory-
+  // hungry task, once to the next put that fills the cache up.
+  const handlers = new HandlerRegistry([memstoreHandler]);
+  memstoreHandler.setStore(new MemoryStore({ limitBytes: 200 * MB }));
+  t.after(() => memstoreHandler.setStore(null));
+
+  assert.equal(handlers.committedBytes(), 200 * MB);
+
+  // Read from one snapshot, so a machine whose free memory moves under the
+  // test cannot make this flake.
+  const snapshot = memorySnapshot({ reserveBytes: 0, committedBytes: handlers.committedBytes() });
+  // The machine's honest free figure is untouched; only what it will lend moves.
+  assert.equal(snapshot.offerableBytes, Math.max(0, snapshot.freeBytes - 200 * MB));
+});
+
+test('only a handler\'s unused budget is withheld', (t) => {
+  // What the store already holds is real heap and has left the machine's free
+  // memory on its own. Withholding it again would take it off the offer twice.
+  const store = new MemoryStore({ limitBytes: 200 * MB, maxValueBytes: 200 * MB });
+  const handlers = new HandlerRegistry([memstoreHandler]);
+  memstoreHandler.setStore(store);
+  t.after(() => memstoreHandler.setStore(null));
+
+  store.put('batch', 'x'.repeat(10 * MB));
+  assert.ok(store.usedBytes >= 10 * MB);
+  assert.equal(store.headroomBytes, store.limitBytes - store.usedBytes);
+  assert.equal(handlers.committedBytes(), store.headroomBytes);
+});
+
+test('handlers that hold nothing cost nothing', () => {
+  // The built-ins hold no budget, so an agent running them offers exactly what
+  // it has free less its own reserve — unchanged from before any of this.
+  assert.equal(new HandlerRegistry().committedBytes(), 0);
+  const snapshot = memorySnapshot({ reserveBytes: 0, committedBytes: 0 });
+  assert.equal(snapshot.offerableBytes, snapshot.freeBytes);
+});
+
 // --------------------------------------------------------------------- queue
 
 test('the queue leases a memory-hungry task only to an agent that has the RAM', async () => {

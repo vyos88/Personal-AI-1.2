@@ -68,6 +68,11 @@ export class AgentRegistry {
       memory: null,
       memoryReportedAt: null,
       reservedBytes: 0,
+      // What the agent last reported offerable at the moment its current run
+      // of reservations began. Reservations are settled against this, so a
+      // task's memory stops being held twice once the machine's own report
+      // shows it has actually been taken. Zero when nothing is reserved.
+      reservedAgainstBytes: 0,
       // How busy this machine said it was, and how many leases it is holding
       // right now. The second needs no report and never goes stale, which is
       // why it outranks the first.
@@ -134,15 +139,48 @@ export class AgentRegistry {
   }
 
   /**
-   * Bytes this agent can still be given work against: what it last offered,
-   * minus what its in-flight tasks already claimed. A missing or stale report
+   * What the agent itself last said it could lend. A missing or stale report
    * counts as zero — an unknown amount of RAM is not a licence to place work.
    */
-  offerableBytes(agentId) {
+  reportedOfferableBytes(agentId) {
     const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
     if (!agent?.memory) return 0;
     if (this.now() - agent.memoryReportedAt > MEMORY_REPORT_STALE_MS) return 0;
-    return Math.max(0, agent.memory.offerableBytes - agent.reservedBytes);
+    return agent.memory.offerableBytes;
+  }
+
+  /**
+   * The part of this agent's reservations that its own reports have not caught
+   * up with yet, and which therefore still has to be held back by hand.
+   *
+   * A reservation exists to cover one specific window: between a task being
+   * placed and the memory it wants actually being taken. Inside that window the
+   * agent's report still shows the RAM as free, so without the hold a second
+   * task would be placed against the same bytes. Once the task allocates,
+   * though, the drop is in the report — and subtracting the reservation from it
+   * as well charged the machine twice for the same gigabytes, which quietly
+   * took a working laptop out of the running for the rest of the lease.
+   *
+   * So credit the drop the agent has actually reported since these reservations
+   * began against what they promised, and hold back only the remainder. A
+   * report that has not moved still withholds the lot, which is exactly the old
+   * behaviour in the window the hold is for.
+   */
+  unmaterializedBytes(agentId) {
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    if (!agent?.reservedBytes) return 0;
+    const observedDrop = Math.max(0, agent.reservedAgainstBytes - this.reportedOfferableBytes(agent));
+    return Math.max(0, agent.reservedBytes - observedDrop);
+  }
+
+  /**
+   * Bytes this agent can still be given work against: what it last offered,
+   * less whatever its in-flight tasks have promised but not yet taken.
+   */
+  offerableBytes(agentId) {
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    if (!agent) return 0;
+    return Math.max(0, this.reportedOfferableBytes(agent) - this.unmaterializedBytes(agent));
   }
 
   /** Any authenticated call from an agent counts as a sign of life. */
@@ -181,6 +219,14 @@ export class AgentRegistry {
     agent.inFlight += 1;
     const needed = requiredBytes(task);
     if (needed === 0) return;
+    // Anchor this run of reservations to the reading they are being made
+    // against, so the drop that follows can be credited to them. Only the
+    // first one sets it: re-anchoring on a later admission would forget the
+    // drop the earlier tasks have already accounted for and hold their memory
+    // a second time.
+    if (agent.reservedBytes === 0) {
+      agent.reservedAgainstBytes = this.reportedOfferableBytes(agent);
+    }
     agent.reservedBytes += needed;
   }
 
@@ -191,6 +237,9 @@ export class AgentRegistry {
     const needed = requiredBytes(task);
     if (needed === 0) return;
     agent.reservedBytes = Math.max(0, agent.reservedBytes - needed);
+    // Nothing outstanding, so there is nothing left to settle: the agent's own
+    // report is the whole truth again until the next task is placed.
+    if (agent.reservedBytes === 0) agent.reservedAgainstBytes = 0;
   }
 
   /**
@@ -243,6 +292,9 @@ export class AgentRegistry {
       ...agent,
       idleMs: now - agent.lastSeenAt,
       availableBytes: this.offerableBytes(agent),
+      // Of `reservedBytes`, the part the agent's own reports have not shown
+      // being taken yet — the only part still being held back by hand.
+      unmaterializedBytes: this.unmaterializedBytes(agent),
       // Resolved rather than raw, so a reader sees the figure placement
       // actually used — null where the report is missing or stale.
       loadFactor: this.loadFactor(agent),

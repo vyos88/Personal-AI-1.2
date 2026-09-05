@@ -47,6 +47,19 @@ export class MemoryStore {
     return this.#entries.size;
   }
 
+  /**
+   * Budget this store may still grow into.
+   *
+   * The bytes it already holds are real heap and so are already missing from
+   * the machine's free memory; this is the part that is spoken for but has not
+   * been taken yet. The agent withholds it from what it offers the host, or the
+   * same RAM would be promised twice — once to a memory-hungry task, once to
+   * the next `put` that fills this cache up to its limit.
+   */
+  get headroomBytes() {
+    return Math.max(0, this.limitBytes - this.#usedBytes);
+  }
+
   put(key, value, { ttlMs = null } = {}) {
     const encoded = encode(value);
     if (encoded.length > this.maxValueBytes) {

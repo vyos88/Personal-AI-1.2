@@ -55,9 +55,23 @@ straggler cannot overwrite the answer from the agent that owns the work.
 
 **Placement is memory-aware.** `src/host/registry.js` doubles as an admission
 controller: a task with `minMemoryMB` is only offered to an agent whose last
-memory report can cover it, and that much is held against the agent for the life
-of the lease. Without the hold, three 4 GB tasks would all land on the same 8 GB
-laptop in the same instant.
+memory report can cover it, and that much is held against the agent. Without the
+hold, three 4 GB tasks would all land on the same 8 GB laptop in the same
+instant. Two invariants keep the two sides of that accounting honest:
+
+- **A hold covers a window, not a lease.** It exists to bridge placement to the
+  moment the task's memory is actually taken, while the agent still reports it
+  as free. Once a report shows the drop, `unmaterializedBytes()` credits it
+  against the promise and the hold goes — subtracting both charged the machine
+  twice and took a working laptop out of the running for the rest of the lease.
+  The anchor (`reservedAgainstBytes`) is set by the *first* outstanding
+  reservation and cleared when the last one is released; re-anchoring per
+  admission would forget the drop the earlier tasks already accounted for.
+- **RAM a handler holds for itself is never also offered to the host.** A
+  handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
+  it and `memorySnapshot()` takes it off the offer alongside the reserve.
+  `memory.store` is the one that does — its *unused* budget only, since what it
+  already holds is real heap and has left `freeBytes` on its own.
 
 **The memory report rides the long poll, not just the heartbeat.** Both reports
 travel on `GET /agent/:id/tasks/next` as query parameters, but for memory it is
@@ -131,7 +145,9 @@ say so at each site; this is the short list.
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
-`description`, then add it to `BUILTIN` in `src/agent/handlers/index.js` — or
+`description` and `committedBytes()` (RAM the handler holds for itself, which
+the agent then stops offering the host), then add it to `BUILTIN` in
+`src/agent/handlers/index.js` — or
 leave it out and let a machine opt in with
 `ALPHA_EXTRA_HANDLERS=<module-name>`. Handlers that run an external program
 must be opt-in, never in `BUILTIN`.

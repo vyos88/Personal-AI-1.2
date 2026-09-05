@@ -111,7 +111,14 @@ export class TunnelAgent {
 
   /** What this machine is currently willing to lend, read fresh each time. */
   memory() {
-    return memorySnapshot({ reserveBytes: this.memoryReserveBytes });
+    return memorySnapshot({
+      reserveBytes: this.memoryReserveBytes,
+      // Budget this agent's own handlers are holding. Read per call rather
+      // than once at startup: a memory.store that has filled up is holding
+      // real heap, which the machine's free figure already reflects, so only
+      // its remaining headroom should still be withheld.
+      committedBytes: this.handlers.committedBytes?.() ?? 0,
+    });
   }
 
   /** How busy this machine's CPUs are, sampled at most every couple of seconds. */

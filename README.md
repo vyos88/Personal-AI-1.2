@@ -203,7 +203,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_MAX_LOAD` | agent | `0.85` | Share of its own cores above which this machine stops asking for work. |
 | `ALPHA_AGENT_CONCURRENCY` | agent | `1` | Tasks this machine will run at once. |
 | `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`. |
-| `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. |
+| `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. Unused budget is withheld from what this machine offers. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
@@ -311,12 +311,26 @@ platform it ran on, so the laptop keeps lending across reboots.
 
 ### Placing work by free memory
 
-The agent reports its memory on registration and on every heartbeat: total,
-what is actually available, and what it is willing to offer — available minus
-`ALPHA_AGENT_MEMORY_RESERVE_MB`, held back so lending memory never pushes this
-machine into swap. On Linux the "available" figure comes from `MemAvailable` in
-`/proc/meminfo` rather than `os.freemem()`, which counts reclaimable page cache
-as used and would make a busy laptop look full.
+The agent reports its memory on registration, on every heartbeat and on every
+poll: total, what is actually available, and what it is willing to offer. The
+poll matters — that is the moment the agent is asking for work, and memory is
+what decides whether a task may be placed here at all, so a reading from a
+heartbeat ago is not good enough. On Linux the "available" figure comes from
+`MemAvailable` in `/proc/meminfo` rather than `os.freemem()`, which counts
+reclaimable page cache as used and would make a busy laptop look full.
+
+Two things come off what it offers. `ALPHA_AGENT_MEMORY_RESERVE_MB` is held
+back so lending memory never pushes this machine into swap. So is any budget
+this agent's own handlers are holding: with `memstore` enabled, the part of
+`ALPHA_MEMSTORE_LIMIT_MB` the cache has not filled yet is RAM it may take at any
+moment, and offering it to the host as well would promise the same gigabyte
+twice. Only the unused part — memory already stored is real heap and has left
+the available figure on its own.
+
+On the host, a task's `minMemoryMB` is held against the agent that takes it, and
+that hold is settled against what the agent goes on to report: once the machine
+says the memory has actually been taken, the hold is released rather than
+charged a second time on top of the drop the report already shows.
 
 A task may then ask for a slice of it:
 
