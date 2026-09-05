@@ -45,6 +45,17 @@ export function getStore() {
   return store;
 }
 
+/**
+ * RAM this handler has already promised itself on this machine, and which the
+ * agent therefore must not also offer the host — see MemoryStore.headroomBytes.
+ *
+ * The optional half of the handler contract: export this and the agent stops
+ * lending out memory you are holding for your own use.
+ */
+export function committedBytes() {
+  return getStore().headroomBytes;
+}
+
 /** Test seam: swap in a store with a known budget, or drop the current one. */
 export function setStore(next = null) {
   store = next;

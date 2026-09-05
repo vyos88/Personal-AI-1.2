@@ -118,11 +118,16 @@ try {
 
 log.info('handlers available', { handlers: handlers.describe() });
 
-const snapshot = memorySnapshot({ reserveBytes: memoryReserveBytes });
+// Handlers holding a budget of their own — memory.store — take their headroom
+// off the offer as well, so say so rather than leaving an operator wondering
+// why a 16 GB laptop is lending less than its free memory.
+const committedBytes = handlers.committedBytes();
+const snapshot = memorySnapshot({ reserveBytes: memoryReserveBytes, committedBytes });
 log.info('memory offered to the host', {
   totalMB: Math.round(snapshot.totalBytes / MB),
   availableMB: Math.round(snapshot.freeBytes / MB),
   reservedMB: Math.round(memoryReserveBytes / MB),
+  handlerBudgetMB: Math.round(committedBytes / MB),
   offerableMB: Math.round(snapshot.offerableBytes / MB),
 });
 

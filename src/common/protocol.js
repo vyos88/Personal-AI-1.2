@@ -275,6 +275,54 @@ export function loadReportToQuery(params, load) {
   return params;
 }
 
+/**
+ * The memory report, arriving on the long poll's query string.
+ *
+ * Memory rides the poll for a stronger reason than load does. Load only breaks
+ * ties between agents that could all take the task; memory decides whether the
+ * task may be placed on a machine at all. Leaving it to the heartbeat meant the
+ * host admitted work against a reading up to a beat old — and, under
+ * MEMORY_REPORT_STALE_MS, trusted for two minutes — at the exact moment it was
+ * choosing where the task went. A laptop whose owner's own build had just eaten
+ * 6 GB would still be handed a 4 GB task, and the agent has no memory check of
+ * its own with which to refuse it. The reverse hurts too: a machine that has
+ * just freed that 6 GB keeps being passed over until its next beat, while the
+ * task sits in the queue reported as blocked on memory.
+ *
+ * Absent parameters are null, so a poll from an older agent carries no report
+ * and simply leaves the last one standing.
+ */
+export function memoryReportFromQuery(params) {
+  const read = (name) => {
+    const raw = params.get(name);
+    if (raw === null || raw.trim() === '') return null;
+    const value = Number(raw);
+    if (!Number.isFinite(value)) throw new ProtocolError(`"${name}" must be a number`);
+    return value;
+  };
+  const totalBytes = read('mtotal');
+  const freeBytes = read('mfree');
+  const offerableBytes = read('moffer');
+  // All three or nothing. A partial report must not overwrite a good reading,
+  // and defaulting a missing offer to the whole free figure — which is what the
+  // JSON body path does for an older agent — would offer memory past the
+  // reserve this machine is holding back, which no agent ever asks for.
+  if (totalBytes === null || freeBytes === null || offerableBytes === null) return null;
+  return validateMemoryReport({ totalBytes, freeBytes, offerableBytes });
+}
+
+/** The other side of that: the query string an agent appends to its poll. */
+export function memoryReportToQuery(params, memory) {
+  if (!memory) return params;
+  const write = (name, value) => {
+    if (value !== null && value !== undefined) params.set(name, String(value));
+  };
+  write('mtotal', memory.totalBytes);
+  write('mfree', memory.freeBytes);
+  write('moffer', memory.offerableBytes);
+  return params;
+}
+
 function optionalNumber(value, field, { min, max }) {
   if (value === undefined || value === null) return null;
   if (!Number.isFinite(value) || value < min || value > max) {

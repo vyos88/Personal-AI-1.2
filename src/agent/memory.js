@@ -32,19 +32,36 @@ function readMemAvailable() {
 }
 
 /**
- * The report the agent sends the host on registration and every heartbeat.
+ * The report the agent sends the host on registration, every heartbeat and
+ * every poll.
  *
- * `reserveBytes` is what this machine keeps for itself. Lending every last
- * free byte is how a laptop ends up swapping, which helps nobody: the host
- * gets a worker that has to page its own task back in.
+ * Two things come off the top of what this machine will lend.
+ *
+ * `reserveBytes` is what it keeps for itself. Lending every last free byte is
+ * how a laptop ends up swapping, which helps nobody: the host gets a worker
+ * that has to page its own task back in.
+ *
+ * `committedBytes` is what this agent's own handlers have already promised
+ * themselves — the `memory.store` budget is the one that does this. Those bytes
+ * are free right now and would otherwise be offered to the host as lendable, so
+ * the host would place a 4 GB task on a machine whose cache is about to grow
+ * into the same gigabyte. Only headroom counts: memory a handler is already
+ * holding is real heap and has left `freeBytes` on its own.
+ *
+ * `freeBytes` stays the machine's honest figure either way — the withholding
+ * belongs in `offerableBytes`, which is the only one placement reads.
  */
-export function memorySnapshot({ reserveBytes = DEFAULT_MEMORY_RESERVE_BYTES } = {}) {
+export function memorySnapshot({
+  reserveBytes = DEFAULT_MEMORY_RESERVE_BYTES,
+  committedBytes = 0,
+} = {}) {
   const totalBytes = os.totalmem();
   const freeBytes = availableBytes();
+  const heldBack = Math.max(0, reserveBytes) + Math.max(0, committedBytes);
   return {
     totalBytes,
     freeBytes,
-    offerableBytes: Math.max(0, freeBytes - Math.max(0, reserveBytes)),
+    offerableBytes: Math.max(0, freeBytes - heldBack),
   };
 }
 

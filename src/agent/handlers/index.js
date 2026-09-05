@@ -40,6 +40,25 @@ export class HandlerRegistry {
     return [...this.#handlers.keys()].sort();
   }
 
+  /**
+   * RAM the registered handlers have already promised themselves here.
+   *
+   * A handler that holds a budget of its own — `memory.store` is the one that
+   * does — would otherwise have that budget offered to the host as free at the
+   * same time, and the host would place a memory-hungry task against RAM the
+   * handler is about to fill. Optional, so a handler that exports nothing costs
+   * nothing.
+   */
+  committedBytes() {
+    let total = 0;
+    for (const handler of this.#handlers.values()) {
+      if (typeof handler.committedBytes !== 'function') continue;
+      const bytes = handler.committedBytes();
+      if (Number.isFinite(bytes) && bytes > 0) total += Math.floor(bytes);
+    }
+    return total;
+  }
+
   describe() {
     return this.types().map((type) => ({
       type,
