@@ -44,6 +44,7 @@ Tasks
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
   agents                                                 List attached agents, their free RAM, CPU load and version
+  stats                                                  Fleet summary: queue, capacity, how work is spread
 
 Borrowed memory
   mem --action stats                                     Store usage on the agent
@@ -412,6 +413,40 @@ export async function main(argv = process.argv.slice(2)) {
           `\n* not the host's version (${hostVersion}). Update ` +
             `${drifted.map((a) => a.name).join(', ')} so every machine runs the same version.`,
         );
+      }
+      return;
+    }
+
+    // The fleet at a glance. The question it exists to answer is the one you
+    // ask when work feels slow: is it piling onto one machine, or are they
+    // genuinely all busy? `busiest` next to `idlest` is what says which.
+    case 'stats': {
+      const stats = await api('/stats');
+      if (flags.json) return emit('', stats);
+
+      const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '-');
+      emit(`Alpha ${stats.version} — ${stats.agents} agent(s) attached`);
+      emit(`  capabilities   ${stats.capabilities.join(', ') || '(none)'}`);
+      emit(`  queue          ${stats.queue.pending} pending, ${stats.queue.waiters} agent(s) waiting`);
+      emit(`  offered RAM    ${mb(stats.memory.offeredBytes)}${
+        stats.memory.blockedTasks ? `, ${stats.memory.blockedTasks} task(s) waiting on memory` : ''
+      }`);
+
+      const load = stats.load ?? {};
+      emit(
+        `  load           busiest ${pct(load.busiest)}, idlest ${pct(load.idlest)}, ` +
+          `${load.tasksInFlight ?? 0} task(s) running`,
+      );
+      if (load.unknown) emit(`                 ${load.unknown} agent(s) not reporting load`);
+
+      // The whole point of showing the two together, spelled out rather than
+      // left to the reader.
+      if (Number.isFinite(load.busiest) && Number.isFinite(load.idlest)) {
+        if (load.busiest - load.idlest > 0.4) {
+          emit('\n  Work is not spread evenly — one machine is far busier than another.');
+        } else if (load.idlest > 0.85) {
+          emit('\n  Every machine is near capacity. Another worker is the only thing that helps.');
+        }
       }
       return;
     }

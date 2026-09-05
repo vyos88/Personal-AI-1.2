@@ -23,12 +23,21 @@ neighbour takes the next task. See
   │  HOST  (Alpha)         │                      │  AGENT  (laptop)     │
   │                        │                      │                      │
   │  task queue            │ ◀── POST /register ──│  registers           │
-  │  agent registry        │                      │                      │
-  │  users / keys / scopes │ ◀── GET  tasks/next ─│  long-polls (25s)    │
+  │  agent registry        │ ◀── POST heartbeat ──│  RAM + CPU, every 20s│
+  │  users / keys / scopes │ ◀── GET  tasks/next ─│  long-polls (25s),   │
+  │                        │      ?load=0.12      │  carrying its load   │
+  │  ranks the agents      │                      │                      │
   │  leases a task ────────│ ─── 200 {task} ─────▶│  runs a handler      │
-  │                        │ ◀── POST result ─────│  reports back        │
+  │   to the coolest one   │ ◀── POST result ─────│  reports back        │
   └────────────────────────┘                      └──────────────────────┘
          listens                                     dials out only
+
+  Two laptops, one pinned:                  ...and the pinned one stands aside
+  ┌──────────────┬───────┬─────┐            above ALPHA_AGENT_MAX_LOAD, so it
+  │ laptop-A     │  97%  │  0  │  ← skipped stops asking until it quietens down
+  │ laptop-B     │   8%  │  3  │  ← placed
+  └──────────────┴───────┴─────┘
+       agent        CPU    running
 ```
 
 No runtime dependencies — Node's standard library only. Requires Node >= 20.

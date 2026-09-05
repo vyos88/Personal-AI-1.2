@@ -28,7 +28,13 @@ import { fetchJson, HttpError } from '../src/common/http.js';
 import { promptSecret } from '../src/common/prompt.js';
 import { SCOPES, hasScope } from '../src/host/auth/scopes.js';
 import { memorySnapshot } from '../src/agent/memory.js';
-import { PROTOCOL_VERSION, MB } from '../src/common/protocol.js';
+import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from '../src/agent/load.js';
+import {
+  PROTOCOL_VERSION,
+  DEFAULT_MAX_LOAD,
+  DEFAULT_AGENT_CONCURRENCY,
+  MB,
+} from '../src/common/protocol.js';
 import { ALPHA_VERSION } from '../src/common/version.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -44,6 +50,9 @@ Options
   --name <n>          Name this machine shows as. Defaults to the hostname
   --reserve-mb <n>    RAM kept for this machine. Default: a quarter of it,
                       between 512 and 4096
+  --max-load <n>      Share of this machine's cores above which it stops
+                      asking for work. Default: ${DEFAULT_MAX_LOAD}
+  --concurrency <n>   Tasks to run at once here. Default: ${DEFAULT_AGENT_CONCURRENCY}
   --memstore          Also let the host park data in this machine's RAM
   --memstore-mb <n>   Budget for that store. Default: the agent's own default
   --capabilities <l>  Comma-separated task types to accept. Default: all
@@ -60,6 +69,8 @@ const OPTIONS = {
   key: { type: 'string' },
   name: { type: 'string' },
   'reserve-mb': { type: 'string' },
+  'max-load': { type: 'string' },
+  concurrency: { type: 'string' },
   memstore: { type: 'boolean' },
   'memstore-mb': { type: 'string' },
   capabilities: { type: 'string' },
@@ -127,6 +138,8 @@ export function renderAgentEnv({
   key,
   name = '',
   reserveMB,
+  maxLoad = DEFAULT_MAX_LOAD,
+  concurrency = DEFAULT_AGENT_CONCURRENCY,
   capabilities = '',
   memstore = false,
   memstoreMB = null,
@@ -140,6 +153,15 @@ export function renderAgentEnv({
     '',
     '# RAM kept for this machine. Everything above it is offered to the host.',
     `ALPHA_AGENT_MEMORY_RESERVE_MB=${reserveMB}`,
+    '',
+    '# The CPU half of the same bargain. Above this share of its own cores this',
+    '# machine stops asking for work, so the next task goes to one with cores',
+    '# free. It keeps heartbeating throughout and resumes when the load drops.',
+    `ALPHA_AGENT_MAX_LOAD=${maxLoad}`,
+    '',
+    '# Tasks to run here at once. Raise it on a machine with cores to spare —',
+    '# the ceiling above stops it overcommitting.',
+    `ALPHA_AGENT_CONCURRENCY=${concurrency}`,
   ];
   if (capabilities) {
     lines.push('', '# Only these task types are accepted from the host.', `ALPHA_AGENT_CAPABILITIES=${capabilities}`);
@@ -242,10 +264,16 @@ async function main() {
   let hostUrl;
   let reserveOverrideMB;
   let memstoreMB;
+  let maxLoad;
+  let concurrency;
   try {
     hostUrl = normalizeHostUrl(flags.host);
     reserveOverrideMB = parseMegabytes(flags['reserve-mb'], '--reserve-mb');
     memstoreMB = parseMegabytes(flags['memstore-mb'], '--memstore-mb');
+    // Same parsers the agent itself uses, so a value setup accepts is one the
+    // agent will start with — rather than one it rejects on first run.
+    maxLoad = maxLoadFromEnv(flags['max-load'], DEFAULT_MAX_LOAD);
+    concurrency = concurrencyFromEnv(flags.concurrency, DEFAULT_AGENT_CONCURRENCY);
   } catch (error) {
     die(`${error.message}\n\n${USAGE}`);
   }
@@ -283,6 +311,28 @@ async function main() {
   say(style.info(`keeping ${mb(reserveBytes)} for this machine, offering ${mb(snapshot.offerableBytes)}`));
   if (snapshot.offerableBytes === 0) {
     say(style.warn('nothing to offer at the moment — the host will use it once memory frees up'));
+  }
+
+  // The CPU side of what this machine is lending. Shown here because the whole
+  // point of the ceiling is that an operator can see what it will do: a laptop
+  // already over it will attach, heartbeat, and quite correctly decline work
+  // until it quietens down — which looks like a broken setup if unexplained.
+  const load = new LoadSampler().snapshot();
+  const asPercent = (value) => `${Math.round(value * 100)}%`;
+  say(style.ok(`${load.cpus} cores, running ${concurrency} task${concurrency === 1 ? '' : 's'} at a time`));
+  if (load.loadFactor === null) {
+    say(style.info(`standing aside above ${asPercent(maxLoad)} load (not measurable yet on this machine)`));
+  } else {
+    say(style.info(`load ${asPercent(load.loadFactor)} now; standing aside above ${asPercent(maxLoad)}`));
+    if (load.loadFactor >= maxLoad) {
+      say(style.warn('this machine is over the ceiling right now, so it will attach but decline work'));
+      say(style.info('that is the feature working — it takes work again as soon as the load drops'));
+    }
+  }
+  if (load.loadAverage1 === null) {
+    // Worth saying on Windows: os.loadavg() is [0,0,0] there, so the whole
+    // picture comes from sampled CPU ticks and cannot exceed 100%.
+    say(style.info('no load average on this platform; load comes from sampled CPU ticks'));
   }
 
   // ----------------------------------------------------------- 2. reach host
@@ -360,6 +410,8 @@ async function main() {
       key,
       name,
       reserveMB: Math.round(reserveBytes / MB),
+      maxLoad,
+      concurrency,
       capabilities: flags.capabilities ?? '',
       memstore: Boolean(flags.memstore),
       memstoreMB,
@@ -390,7 +442,7 @@ async function main() {
 
 Then, from the host or anywhere with an operator key:
 
-    npm run admin -- agents                       # this machine, and its RAM
+    npm run admin -- agents                       # this machine: RAM, load, tasks running
     npm run admin -- task --type sysinfo --min-memory-mb 1024${
       flags.memstore
         ? `

@@ -109,6 +109,31 @@ test('the sampler reports this machine\'s cores and a load factor in range', () 
   assert.ok(load.busy === null || (load.busy >= 0 && load.busy <= 1));
 });
 
+test('a sampler with no real interval yet reports unknown, not 100%', () => {
+  // The first reading lands microseconds after the sampler primes itself, so
+  // the tick delta is a couple of ticks of quantised accounting and the ratio
+  // is noise — in practice a clean 100%. Reporting that had a freshly enrolled
+  // agent announce itself at full load and decline the first work it was
+  // offered, which looks exactly like a broken enrolment.
+  const sampler = new LoadSampler();
+  assert.equal(sampler.snapshot().busy, null);
+});
+
+test('the baseline is kept until a window is worth dividing', () => {
+  // Advancing it on every too-short call would reset the window each time and
+  // the sampler would never measure anything at all.
+  let clock = 0;
+  const sampler = new LoadSampler({ now: () => clock });
+  assert.equal(sampler.utilisation(), null);
+
+  clock += 50;
+  assert.equal(sampler.utilisation(), null, 'still too short a window');
+
+  clock += 5_000;
+  const busy = sampler.utilisation();
+  assert.ok(busy === null || (busy >= 0 && busy <= 1), 'measures once the window is real');
+});
+
 test('two reads in the same instant reuse one sample instead of measuring nothing', () => {
   // CPU ticks are cumulative, so readings taken microseconds apart span no
   // ticks and would come back unknown. The heartbeat and the poll loop both

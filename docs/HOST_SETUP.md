@@ -115,7 +115,7 @@ cd alpha-tunnel
 No `npm install` — there are no runtime dependencies.
 
 ```powershell
-node --test test/*.test.js      # 66 tests, all should pass
+node --test test/*.test.js      # 140 tests, all should pass
 ```
 
 ## 3. Configure and start the coordinator
@@ -316,12 +316,26 @@ node scripts/setup-agent.mjs --host http://100.x.y.z:8787 --key alpha_key_... --
 
 It checks the host is reachable and that the key really is an `agent:connect`
 key, decides how much RAM to offer (a quarter of the machine, floored at 512 MB
-and capped at 4 GB — override with `--reserve-mb 2048`), writes `.env.agent`,
-and then attaches for a moment to prove the loop before telling you it worked.
-Add `--memstore` to let the host park data in the laptop's RAM as well;
+and capped at 4 GB — override with `--reserve-mb 2048`), reads this machine's
+cores and current load, writes `.env.agent`, and then attaches for a moment to
+prove the loop before telling you it worked.
+
+`--concurrency 4` lets a machine with cores to spare run four tasks at once;
+`--max-load 0.7` lowers the point at which it stops asking for work. Add
+`--memstore` to let the host park data in the laptop's RAM as well;
 `--capabilities echo,sysinfo` narrows what it will accept. It finishes by
 printing the service command for whichever platform it ran on, so the laptop
 keeps lending across reboots.
+
+Step 1 prints what the machine will do before it does it:
+
+```
+[1] Checking this machine
+  ✓ 16075 MB of RAM, 15460 MB available right now
+    keeping 4019 MB for this machine, offering 11442 MB
+  ✓ 4 cores, running 3 tasks at a time
+    load 2% now; standing aside above 75%
+```
 
 From then on, on the laptop:
 
@@ -336,13 +350,16 @@ ALPHA_HOST_URL=http://100.x.y.z:8787
 ALPHA_AGENT_KEY=alpha_key_...
 ALPHA_AGENT_NAME=laptop
 ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+ALPHA_AGENT_MAX_LOAD=0.85
+ALPHA_AGENT_CONCURRENCY=1
 ALPHA_EXTRA_HANDLERS=memstore
 ```
 
 The agent logs what it is offering on start, and the host shows it:
 
 ```bash
-node src/admin/run.js agents      # RAM / FREE / HELD columns
+node src/admin/run.js agents      # RAM / FREE / HELD / CPU / RUN columns
+node src/admin/run.js stats       # the fleet: queue, capacity, how work is spread
 node src/admin/run.js mem --action stats
 ```
 
@@ -351,6 +368,61 @@ agent actually has the memory:
 
 ```bash
 node src/admin/run.js task --type sysinfo --min-memory-mb 2048
+```
+
+### Lending the laptop's cores
+
+Memory is only half of it. Free RAM says nothing about whether a machine can
+take on more work — a laptop running its owner's build at 100% CPU still
+reports gigabytes free, and to a coordinator that only knew about memory it
+looked exactly as good a target as an idle one. That is how both laptops end up
+pinned while work keeps landing on whichever asked first.
+
+Every agent now reports its CPU as well, on registration, on every heartbeat,
+and on every long poll. The coordinator places work by leases already held,
+then by that load, so the machine with cores free wins. And a machine over its
+own `ALPHA_AGENT_MAX_LOAD` stops asking altogether, because the coordinator can
+only rank the agents that are actually asking.
+
+```bash
+node src/admin/run.js agents
+```
+
+```
+NAME        PRINCIPAL  VERSION  CAPABILITIES  RAM     FREE    HELD  CPU   RUN  IDLE
+laptop      viorel     0.2.0    echo,sysinfo  16075M  11448M  0M    8%    3    1s
+alpha-host  viorel     0.2.0    alpha.coor..  32768M  20480M  0M    97%   0    2s
+```
+
+`CPU` is the share of that machine's cores in use; `RUN` is how many tasks it
+is holding. A `-` in `CPU` means the agent has not reported load or its report
+went stale — the host reads that as **unknown, not idle**, so a silent machine
+never wins work by saying nothing.
+
+Two things that look like faults and are not:
+
+- **A busy machine sitting at `RUN 0`.** It is over its ceiling and standing
+  aside on purpose. It keeps heartbeating and takes work again as soon as its
+  load drops. If every machine is over its ceiling, one of them takes work
+  anyway after a minute rather than leaving the queue stalled forever.
+- **`CPU` reading `-` on a Windows machine at first.** Windows has no load
+  average, so the figure comes entirely from sampled CPU ticks and needs a
+  moment of running time before it means anything.
+
+`stats` answers the question you actually have when work feels slow — is it
+piling onto one machine, or are they genuinely all busy?
+
+```bash
+node src/admin/run.js stats
+```
+
+```
+Alpha 0.2.0 — 2 agent(s) attached
+  queue          0 pending, 1 agent(s) waiting
+  offered RAM    31928M
+  load           busiest 97%, idlest 8%, 3 task(s) running
+
+  Work is not spread evenly — one machine is far busier than another.
 ```
 
 A laptop that sleeps or leaves the network is pruned as stale like any other
@@ -506,6 +578,9 @@ node --test test/alpha-coordination.test.js
 | Agent logs `403 insufficient_scope` | Key lacks `agent:connect` | Reissue with `--scopes agent` |
 | Agent logs `410`, then re-registers | Coordinator restarted or pruned it | Normal. No action needed |
 | Task stays `queued`, `agentAvailable: false` | No attached agent offers that type | Check `ALPHA_EXTRA_HANDLERS` is set on the agent |
+| Task stays `queued` with agents attached and idle | Every agent is over `ALPHA_AGENT_MAX_LOAD` | Expected; one takes it within a minute. `stats` shows the loads |
+| One machine takes everything, the other nothing | The idle one is not reporting load, or is on an old version | `agents` — a `-` in `CPU` says which. Update it so both run the same version |
+| `CPU` shows `-` for a machine | No load report yet, or it went stale | Normal for a few seconds after attaching. Persisting means the agent stopped heartbeating |
 | `ALPHA_REPO_ROOT is not set` | Agent cannot see the Alpha working copy | Set it in the agent's environment, not the coordinator's |
 | `coordination script not found` | Wrong root, or script moved | Check `ALPHA_COORDINATION_SCRIPT` relative to root |
 | `PowerShell not found` | `powershell.exe` not on `PATH` | Set `ALPHA_POWERSHELL` to the full path |
@@ -525,6 +600,8 @@ node --test test/alpha-coordination.test.js
 | `ALPHA_AGENT_KEY` | agent | This agent's credential |
 | `ALPHA_AGENT_NAME` | agent | Name in `/agents` |
 | `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | RAM kept back; the rest is offered to the host |
+| `ALPHA_AGENT_MAX_LOAD` | agent | Share of its cores above which it stops asking for work (default `0.85`) |
+| `ALPHA_AGENT_CONCURRENCY` | agent | Tasks it runs at once (default `1`) |
 | `ALPHA_EXTRA_HANDLERS` | agent | `alpha-coordination`, `memstore` |
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | Budget for data the host parks here |
 | `ALPHA_REPO_ROOT` | agent | Alpha working copy |

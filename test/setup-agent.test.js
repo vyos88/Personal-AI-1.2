@@ -8,6 +8,8 @@ import {
   renderAgentEnv,
   serviceHint,
 } from '../scripts/setup-agent.mjs';
+import { maxLoadFromEnv, concurrencyFromEnv } from '../src/agent/load.js';
+import { reserveFromEnv } from '../src/agent/memory.js';
 import { MB } from '../src/common/protocol.js';
 
 const gb = (n) => n * 1024 * MB;
@@ -52,6 +54,40 @@ test('the written configuration carries the host, key and reserve', () => {
   // Off unless asked for: holding data costs the RAM it costs.
   assert.doesNotMatch(env, /ALPHA_EXTRA_HANDLERS/);
   assert.doesNotMatch(env, /ALPHA_AGENT_CAPABILITIES/);
+});
+
+test('the written configuration carries the load ceiling and concurrency', () => {
+  // Without these the laptop is enrolled with no load settings at all, which
+  // is how a machine ends up taking work while it is already pinned.
+  const env = renderAgentEnv({ hostUrl: 'http://h:1', key: 'k', reserveMB: 512 });
+  assert.match(env, /^ALPHA_AGENT_MAX_LOAD=0\.85$/m);
+  assert.match(env, /^ALPHA_AGENT_CONCURRENCY=1$/m);
+
+  const tuned = renderAgentEnv({
+    hostUrl: 'http://h:1',
+    key: 'k',
+    reserveMB: 512,
+    maxLoad: 0.6,
+    concurrency: 4,
+  });
+  assert.match(tuned, /^ALPHA_AGENT_MAX_LOAD=0\.6$/m);
+  assert.match(tuned, /^ALPHA_AGENT_CONCURRENCY=4$/m);
+});
+
+test('what setup writes is what the agent will actually start with', () => {
+  // The two sides parse these independently, so a value setup happily writes
+  // could be one the agent refuses on first run. Same parsers, no drift.
+  const env = renderAgentEnv({
+    hostUrl: 'http://h:1',
+    key: 'k',
+    reserveMB: 512,
+    maxLoad: maxLoadFromEnv('0.7', 0.85),
+    concurrency: concurrencyFromEnv('3', 1),
+  });
+  const read = (name) => new RegExp(`^${name}=(.*)$`, 'm').exec(env)[1];
+  assert.equal(maxLoadFromEnv(read('ALPHA_AGENT_MAX_LOAD'), 0.85), 0.7);
+  assert.equal(concurrencyFromEnv(read('ALPHA_AGENT_CONCURRENCY'), 1), 3);
+  assert.equal(reserveFromEnv(read('ALPHA_AGENT_MEMORY_RESERVE_MB')), 512 * MB);
 });
 
 test('the store and a capability list are written only when asked for', () => {

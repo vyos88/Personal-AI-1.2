@@ -24,17 +24,26 @@ import os from 'node:os';
  * spoken for"; above 1.0 it means work is queueing behind the CPUs.
  */
 
+// The shortest gap between two tick readings worth dividing. Below this the
+// delta is a couple of ticks of quantised accounting, and the ratio it yields
+// is noise — reliably 0% or 100%, never anything in between. Reporting that
+// noise made an agent announce itself at 100% load the instant it started,
+// which had it decline work on the very first poll of its life.
+const MIN_SAMPLE_WINDOW_MS = 200;
+
 // Ticks are cumulative since boot, so a single reading is an average over the
 // machine's whole uptime and useless for scheduling. The sampler keeps the
 // previous reading and reports the delta between the two.
 export class LoadSampler {
   #previous = null;
+  #previousAt = -Infinity;
   #last = null;
   #lastAt = -Infinity;
 
   constructor({ now = () => Date.now() } = {}) {
     this.now = now;
     this.#previous = readTicks();
+    this.#previousAt = this.now();
   }
 
   /**
@@ -43,10 +52,24 @@ export class LoadSampler {
    * unknown rather than guessed at.
    */
   utilisation() {
-    const current = readTicks();
+    const at = this.now();
     const previous = this.#previous;
+
+    if (!previous) {
+      this.#previous = readTicks();
+      this.#previousAt = at;
+      return null;
+    }
+
+    // Deliberately does not advance the baseline: keeping the older reading
+    // means the next call measures against a window that has had time to grow,
+    // instead of resetting to another useless one.
+    if (at - this.#previousAt < MIN_SAMPLE_WINDOW_MS) return null;
+
+    const current = readTicks();
     this.#previous = current;
-    if (!previous || !current) return null;
+    this.#previousAt = at;
+    if (!current) return null;
 
     const totalDelta = current.total - previous.total;
     const idleDelta = current.idle - previous.idle;
