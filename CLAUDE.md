@@ -172,6 +172,17 @@ leave it out and let a machine opt in with
 `ALPHA_EXTRA_HANDLERS=<module-name>`. Handlers that run an external program
 must be opt-in, never in `BUILTIN`.
 
+`alpha-update.js` is the second one, and drives `git` rather than a script on
+the host — git's CLI is a contract that already exists, so there is nothing to
+keep in step with a file that would have to be shipped to the host before the
+update mechanism could ship it. Its allowlist is `Status`/`Fetch`/`Pull` and
+nothing else: no action may rewrite history, discard local work, or change
+branch, `Pull` is `--ff-only` and refused outright on a dirty tree, and there is
+deliberately **no Build or Restart** — a handler that ran a command from its
+payload or its configuration would be a remote shell with extra steps. Fleet
+self-update (`scripts/self-update.mjs`, `docs/AUTO_UPDATE.md`) follows the same
+three rules and never restarts anything itself; it exits 10 to ask.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
