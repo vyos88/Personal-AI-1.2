@@ -1,0 +1,137 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## What this is
+
+`alpha-tunnel` — a coordinator (**host**) and worker (**agent**) that let the
+Alpha host run tasks on other machines, with accounts behind it. Its reason for
+existing is the `alpha.coordination` handler: it drives Alpha's
+`scripts/alpha_coordination_tunnel.ps1` by queued task, so a remote actor can
+claim paths and post receipts without a shell on the Alpha box.
+
+**No runtime dependencies.** Node standard library only, Node >= 20. There is no
+build step, no bundler, no lint config. Do not add a dependency without a
+specific reason — the whole thing is designed to be cloned onto a machine and
+run with nothing but `node`.
+
+## Commands
+
+```bash
+npm test                                   # all suites
+node --test test/auth.test.js              # one suite
+node --test --test-name-pattern="revoke"   # one test by name
+
+npm run host          # coordinator (listens)
+npm run agent         # worker (dials out)
+npm run admin -- <args>
+```
+
+On the Alpha host (Windows), PowerShell's execution policy blocks `npm.ps1`, so
+everything there is invoked as `node src/host/index.js`, `node
+src/admin/run.js <args>` and so on. Keep both forms working; docs use the
+`node` form.
+
+## Architecture
+
+**All connections are outbound from the agent.** The agent long-polls
+`GET /agent/:id/tasks/next` and never listens, so a worker needs no open port
+and no inbound firewall rule. This shapes everything else — do not add a design
+that requires reaching *into* an agent.
+
+Three planes share one HTTP server (`src/host/server.js`):
+
+| Plane | Entry | Notes |
+|---|---|---|
+| Work | `/tasks`, `/agent/*` | queue + registry, both in memory |
+| Access | `/invites`, `/users`, `/keys`, `/auth/login` | persisted to `ALPHA_AUTH_STORE` |
+| Health | `/healthz` | the only unauthenticated GET |
+
+**Tasks are leased, not pushed.** `src/host/queue.js` hands a task to an agent
+with a lease (`DEFAULT_LEASE_MS`, 60s). If the agent dies, the lease expires and
+the sweeper requeues it up to `maxAttempts`. A result from an agent that no
+longer holds the lease is rejected with 409 — that is deliberate, so a slow
+straggler cannot overwrite the answer from the agent that owns the work.
+
+**Placement is memory-aware.** `src/host/registry.js` doubles as an admission
+controller: a task with `minMemoryMB` is only offered to an agent whose last
+memory report can cover it, and that much is held against the agent for the life
+of the lease. Without the hold, three 4 GB tasks would all land on the same 8 GB
+laptop in the same instant.
+
+**Auth is capability-based, recomputed per request.** `src/host/auth/service.js`
+resolves a bearer token to a principal whose effective scopes are the
+intersection of the *key's* scopes and its *owner's*. Two invariants depend on
+this and are tested:
+
+- Narrowing a user narrows every key they already hold, immediately.
+- A key never inherits its owner's scopes — an `operator` key issued by an
+  `admin` is operator-only.
+
+Disabling a user is checked at token-verification time, so it takes effect on
+the very next request with no key sweep.
+
+**Secrets are never stored in the clear.** Tokens are `alpha_<kind>_<id>.<secret>`
+— the id indexes the record so verification is an O(1) lookup plus one
+constant-time compare, and only a SHA-256 digest of the secret is kept.
+Passwords use scrypt. There are tests asserting no plaintext reaches disk; keep
+them passing.
+
+## Things that will bite you
+
+These are all real bugs that were found and fixed here. The comments in the code
+say so at each site; this is the short list.
+
+- **Never `unref()` a timer that represents pending work.** A backoff nap and a
+  parked long-poll waiter are the whole of what is in flight at that moment.
+  Unref'ing them lets the event loop drain and the process exits silently. The
+  sweeper and pruner are background janitors and stay unref'd.
+- **Shutdown order matters.** `close()` must stop the queue (releasing parked
+  long polls) *before* waiting on `server.close()`. Draining from the server's
+  own `close` event deadlocks the two against each other.
+- **Hand `server.close()` its callback up front.** With nothing connected it
+  completes synchronously, and a `close` listener attached afterwards waits
+  forever.
+- **The coordinator waits for a bind address it does not have yet**
+  (`ALPHA_BIND_WAIT_MS`), because at boot Tailscale has not assigned `100.x`.
+  A port already in use still fails fast — waiting could never fix that.
+- **Every handler path must end the response.** Returning from the long-poll
+  abort branch without `res.end()` leaves the request open and blocks close.
+
+## Adding a handler
+
+Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
+`description`, then add it to `BUILTIN` in `src/agent/handlers/index.js` — or
+leave it out and let a machine opt in with
+`ALPHA_EXTRA_HANDLERS=<module-name>`. Handlers that run an external program
+must be opt-in, never in `BUILTIN`.
+
+`alpha-coordination.js` is the reference for that case: pinned interpreter,
+pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
+and arguments passed to `execFile` as an argv array so a message containing
+shell metacharacters is data, not syntax. Its contract is **verified against the
+real script** — all five actions and `-Paths` as one comma-joined token. The
+tests pin the exact argv, so if the script's contract changes, update
+`buildArgs` and the expectation together.
+
+## Testing conventions
+
+Tests boot a real host and a real agent over loopback rather than mocking the
+transport; several drive the actual entrypoints as subprocesses. Prefer that
+over stubs — most of the bugs above were only findable that way.
+
+`AuthStore` takes `path: null` for an in-memory store, and `createHost({ token })`
+builds an ephemeral auth service with that token as its only credential. Both
+exist for tests.
+
+## Working with other sessions
+
+Several Claude sessions push to this repo, and `main` moves under you.
+
+- **Fetch before you push, and merge — never force.** A non-fast-forward
+  rejection means someone else landed work; `--force` would destroy it.
+- Run the full suite after merging. Merges here have been textually clean while
+  touching the same subsystems.
+- Coordination happens through commits and PRs. Sessions in cloud containers
+  cannot reach the Alpha host's tailnet, so anything needing the live
+  coordinator has to run on the host or the laptop.
