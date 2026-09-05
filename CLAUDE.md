@@ -69,9 +69,20 @@ instant. Two invariants keep the two sides of that accounting honest:
   admission would forget the drop the earlier tasks already accounted for.
   Known cost, pinned by a test: the host cannot see *why* memory moved, so a
   drop the machine's owner caused settles the hold too, and a second task can be
-  placed against memory the first is still going to take. Closing that needs the
-  agent to refuse, which it cannot — the task it is handed carries no
-  `minMemoryMB`.
+  placed against memory the first is still going to take. The agent's own check
+  below is what catches that.
+- **The machine gets the last word, and it costs nothing to use it.** The
+  dispatched task carries `minMemoryMB`, and the agent re-reads its own memory
+  before running anything. Every host-side guard is a guess from a report that
+  ages; this is the only check made by the party that knows what the RAM is
+  actually doing. A decline goes back through the result endpoint with
+  `declined: true` and is **not** a failure — `queue.decline()` hands back the
+  attempt `#assign` charged, or a task unlucky in placement would spend its
+  retry budget on machines that never ran it. It cannot spin: the decline
+  carries a fresh memory report that the host records *before* requeueing, and
+  the agent's check is looser than `canAdmit` (it does not subtract outstanding
+  holds), so an agent can only decline work a current reading would not have
+  offered it.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.

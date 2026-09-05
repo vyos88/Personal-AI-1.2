@@ -451,6 +451,11 @@ async function handle(req, res, ctx) {
           attempt: task.attempts,
           maxAttempts: task.maxAttempts,
           leaseMs: task.leaseMs,
+          // What the task needs, so the machine that is about to run it can
+          // check its own RAM against it. The host places from a report, and a
+          // report ages; this is the only check made by the party that knows
+          // what the memory is actually doing.
+          minMemoryMB: task.minMemoryMB,
         });
       }
 
@@ -458,6 +463,20 @@ async function handle(req, res, ctx) {
         const taskId = segments[3];
         const body = await readJson(req);
         if (!body || typeof body !== 'object') throw new ProtocolError('result body must be a JSON object');
+
+        // A decline is neither a success nor a failure: the agent read what the
+        // task wants, found it no longer fits, and ran nothing. Its reading is
+        // recorded before the requeue so the stale figure that made this
+        // placement look possible cannot immediately produce it again.
+        if (body.ok !== true && body.declined === true) {
+          ctx.registry.reportMemory(agentId, validateMemoryReport(body.memory));
+          const declined = ctx.queue.decline(
+            taskId,
+            agentId,
+            body.error ?? { message: 'agent declined the task', code: 'declined' },
+          );
+          return sendJson(res, 200, { ok: true, status: declined.status, declined: true });
+        }
 
         const succeeded = body.ok === true;
         const task = succeeded
