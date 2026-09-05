@@ -339,6 +339,19 @@ instead of swapping. That is not a failure and costs the task nothing: the
 attempt is handed back, the decline carries the reading that explains it, and the
 task waits in the queue with its full retry budget until a machine has room.
 
+Each hand-back is counted, which is the only trace it leaves:
+
+```
+$ npm run admin -- tasks
+ID                     TYPE  STATUS  TRIES  DECLINED  CREATED
+task_x4gsncaxwin3jbwa  echo  queued  0      3         2026-09-05 13:42:57
+```
+
+Nothing reads that count, and there is no limit on it — a task waiting for a
+machine with room is *supposed* to wait indefinitely. It is there because that
+task and one an agent keeps refusing otherwise look identical: both queued, both
+with `TRIES` flat. `DECLINED` climbing while `TRIES` does not is the difference.
+
 A task may then ask for a slice of it:
 
 ```bash
