@@ -349,6 +349,37 @@ test('a task may be declined more times than it has attempts', async () => {
   assert.equal(task.attempts, 1);
 });
 
+test('declines are counted, so being refused is distinguishable from waiting', async () => {
+  // Nothing acts on the count, and nothing should: a task waiting for a
+  // machine with room ought to wait, so any limit would break the legitimate
+  // case. What it makes visible is the illegitimate one — an agent
+  // misreporting its own memory refuses the same task forever, and that looks
+  // exactly like patience: same status, same attempts, nothing accumulating.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 2 });
+  assert.equal(task.declines, 0);
+
+  for (const agentId of ['a1', 'a2', 'a3']) {
+    await queue.lease({ agentId, capabilities: ['echo'], waitMs: 0 });
+    queue.decline(task.id, agentId, { message: 'no room', code: 'insufficient_memory' });
+  }
+
+  assert.equal(task.declines, 3);
+  // The two figures that would otherwise be identical to a task simply waiting.
+  assert.equal(task.attempts, 0);
+  assert.equal(task.status, TaskStatus.QUEUED);
+});
+
+test('work that is never refused carries no decline count', async () => {
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 2 });
+  await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+  queue.complete(task.id, 'a1', { ok: true });
+
+  assert.equal(task.declines, 0);
+  assert.equal(task.status, TaskStatus.SUCCEEDED);
+});
+
 test('an agent that no longer holds the lease cannot decline the task', async () => {
   // Same protection as a result from a stale holder: a straggler must not be
   // able to bounce work the agent that owns it is busy running.
@@ -416,6 +447,8 @@ test('the host records the reading that came with a decline before requeueing', 
   const { body: after } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
   assert.equal(after.status, TaskStatus.QUEUED);
   assert.equal(after.attempts, 0);
+  // Visible to a reader over /tasks, which is the whole point of counting it.
+  assert.equal(after.declines, 1);
 
   // And the reading is in, so polling again does not simply get it back.
   const { body: agents } = await fetchJson(`${host.url}/agents`, { token: TOKEN });

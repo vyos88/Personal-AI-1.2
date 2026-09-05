@@ -77,6 +77,15 @@ export class TaskQueue {
       minMemoryMB,
       status: TaskStatus.QUEUED,
       attempts: 0,
+      // How many times a machine has been handed this and given it straight
+      // back. Nothing reads it — deliberately. `decline()` is the one result
+      // path with no bound, because a task waiting for a machine with room
+      // should wait, and any limit would break that legitimate case. What a
+      // limit would have caught is an agent misreporting its own memory: the
+      // task it keeps refusing cycles forever and looks exactly like one
+      // waiting patiently for capacity — same status, same attempts, nothing
+      // accumulating anywhere. This is the thing that accumulates.
+      declines: 0,
       agentId: null,
       result: null,
       error: null,
@@ -197,6 +206,8 @@ export class TaskQueue {
     const task = this.#requireLeasedBy(taskId, agentId);
     this.admission.release(agentId, task);
     task.attempts = Math.max(0, task.attempts - 1);
+    // Counted, never acted on: see `declines` in enqueue().
+    task.declines += 1;
     // Kept so `alpha-admin tasks` can show why a task is going round again
     // rather than leaving it looking like it was never picked up.
     task.error = normalizeError(reason);

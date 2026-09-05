@@ -82,7 +82,11 @@ instant. Two invariants keep the two sides of that accounting honest:
   carries a fresh memory report that the host records *before* requeueing, and
   the agent's check is looser than `canAdmit` (it does not subtract outstanding
   holds), so an agent can only decline work a current reading would not have
-  offered it.
+  offered it. `task.declines` counts them and **nothing reads it** — keep it
+  that way. Bounding declines would break the legitimate case (a task waiting
+  for a machine with room should wait); the count is there so an agent
+  misreporting its own memory, which refuses the same task forever, is
+  distinguishable from that patience in `/tasks` rather than identical to it.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.
