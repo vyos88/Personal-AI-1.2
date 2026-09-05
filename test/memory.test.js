@@ -358,10 +358,12 @@ test('declines are counted, so being refused is distinguishable from waiting', a
   const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 2 });
   assert.equal(task.declines, 0, 'a task nobody has refused reports zero');
 
-  for (let i = 0; i < 3; i++) {
-    const leased = await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+  // Three different machines, which is how a briefly-tight fleet actually
+  // refuses work — not one agent asked over and over.
+  for (const agentId of ['a1', 'a2', 'a3']) {
+    const leased = await queue.lease({ agentId, capabilities: ['echo'], waitMs: 0 });
     assert.ok(leased, 'the task is offered again after each decline');
-    queue.decline(task.id, 'a1', { message: 'no room', code: 'insufficient_memory' });
+    queue.decline(task.id, agentId, { message: 'no room', code: 'insufficient_memory' });
   }
 
   assert.equal(queue.get(task.id).declines, 3);
@@ -370,17 +372,24 @@ test('declines are counted, so being refused is distinguishable from waiting', a
   queue.stop();
 });
 
-test('a task that fails rather than declining leaves the decline count alone', async () => {
-  // A failure is the other thing entirely: it spends an attempt and says the
-  // work was tried. Only a hand-back counts here.
-  const queue = new TaskQueue();
-  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
-  await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
-  queue.fail(task.id, 'a1', { message: 'handler blew up' });
+test('work that runs — or tries to — carries no decline count', async () => {
+  // The other two outcomes are different things entirely: both say the machine
+  // took the work. Only a hand-back counts here.
+  const failed = new TaskQueue();
+  const a = failed.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
+  await failed.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+  failed.fail(a.id, 'a1', { message: 'handler blew up' });
+  assert.equal(failed.get(a.id).declines, 0);
+  assert.equal(failed.get(a.id).attempts, 1, 'a failure does spend an attempt');
+  failed.stop();
 
-  assert.equal(queue.get(task.id).declines, 0);
-  assert.equal(queue.get(task.id).attempts, 1);
-  queue.stop();
+  const done = new TaskQueue();
+  const b = done.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
+  await done.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+  done.complete(b.id, 'a1', { ok: true });
+  assert.equal(done.get(b.id).declines, 0);
+  assert.equal(done.get(b.id).status, TaskStatus.SUCCEEDED);
+  done.stop();
 });
 
 test('an agent that no longer holds the lease cannot decline the task', async () => {
@@ -450,6 +459,8 @@ test('the host records the reading that came with a decline before requeueing', 
   const { body: after } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
   assert.equal(after.status, TaskStatus.QUEUED);
   assert.equal(after.attempts, 0);
+  // Visible to a reader over /tasks, which is the whole point of counting it.
+  assert.equal(after.declines, 1);
 
   // And the reading is in, so polling again does not simply get it back.
   const { body: agents } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
