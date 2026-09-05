@@ -349,6 +349,40 @@ test('a task may be declined more times than it has attempts', async () => {
   assert.equal(task.attempts, 1);
 });
 
+test('declines are counted, so being refused is distinguishable from waiting', async () => {
+  // The two look identical otherwise: a task waiting for a machine with room
+  // and a task an agent keeps handing back are both `queued` with `attempts`
+  // flat. Nothing reads this count — bounding declines would break the first
+  // case, which is supposed to wait — it exists to tell them apart.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 2 });
+  assert.equal(task.declines, 0, 'a task nobody has refused reports zero');
+
+  for (let i = 0; i < 3; i++) {
+    const leased = await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+    assert.ok(leased, 'the task is offered again after each decline');
+    queue.decline(task.id, 'a1', { message: 'no room', code: 'insufficient_memory' });
+  }
+
+  assert.equal(queue.get(task.id).declines, 3);
+  assert.equal(queue.get(task.id).attempts, 0, 'and still no attempt spent');
+  assert.equal(queue.get(task.id).status, TaskStatus.QUEUED);
+  queue.stop();
+});
+
+test('a task that fails rather than declining leaves the decline count alone', async () => {
+  // A failure is the other thing entirely: it spends an attempt and says the
+  // work was tried. Only a hand-back counts here.
+  const queue = new TaskQueue();
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 1_000, maxAttempts: 3 });
+  await queue.lease({ agentId: 'a1', capabilities: ['echo'], waitMs: 0 });
+  queue.fail(task.id, 'a1', { message: 'handler blew up' });
+
+  assert.equal(queue.get(task.id).declines, 0);
+  assert.equal(queue.get(task.id).attempts, 1);
+  queue.stop();
+});
+
 test('an agent that no longer holds the lease cannot decline the task', async () => {
   // Same protection as a result from a stale holder: a straggler must not be
   // able to bounce work the agent that owns it is busy running.

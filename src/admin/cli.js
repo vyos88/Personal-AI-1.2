@@ -380,6 +380,9 @@ export async function main(argv = process.argv.slice(2)) {
         { header: 'TYPE', value: (t) => t.type },
         { header: 'STATUS', value: (t) => t.status },
         { header: 'TRIES', value: (t) => t.attempts },
+        // Next to TRIES on purpose: a queued task with tries flat and declines
+        // climbing is being refused, not waiting for a free machine.
+        { header: 'DECLINED', value: (t) => t.declines ?? 0 },
         { header: 'CREATED', value: (t) => when(t.createdAt) },
       ]);
       return;

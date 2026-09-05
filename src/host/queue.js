@@ -77,6 +77,14 @@ export class TaskQueue {
       minMemoryMB,
       status: TaskStatus.QUEUED,
       attempts: 0,
+      // How many times an agent has handed this task straight back. Nothing
+      // reads it — a decline deliberately costs no attempt, and bounding them
+      // would break the case the count exists to make legible: a task waiting
+      // for a machine with room is *supposed* to wait. It is here so that case
+      // can be told apart from an agent refusing the same work over and over,
+      // which otherwise looks identical: queued, attempts flat, nothing
+      // accumulating anywhere.
+      declines: 0,
       agentId: null,
       result: null,
       error: null,
@@ -197,6 +205,7 @@ export class TaskQueue {
     const task = this.#requireLeasedBy(taskId, agentId);
     this.admission.release(agentId, task);
     task.attempts = Math.max(0, task.attempts - 1);
+    task.declines += 1;
     // Kept so `alpha-admin tasks` can show why a task is going round again
     // rather than leaving it looking like it was never picked up.
     task.error = normalizeError(reason);
