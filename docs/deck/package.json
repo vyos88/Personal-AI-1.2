@@ -1,0 +1,13 @@
+{
+  "name": "alpha-tunnel-deck",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Generator for the load-aware placement deck. Isolated from the repo root, which has no dependencies and must keep none.",
+  "scripts": {
+    "build": "node build-deck.mjs"
+  },
+  "devDependencies": {
+    "pptxgenjs": "^4.0.1"
+  }
+}
