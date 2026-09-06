@@ -202,7 +202,9 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | `512` | RAM kept for this machine; the rest is offered to the host. |
 | `ALPHA_AGENT_MAX_LOAD` | agent | `0.85` | Share of its own cores above which this machine stops asking for work. |
 | `ALPHA_AGENT_CONCURRENCY` | agent | `1` | Tasks this machine will run at once. |
-| `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`. |
+| `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`, `alpha-update`. |
+| `ALPHA_GIT` | agent | `git` | git executable, for `alpha.update` and self-update. |
+| `ALPHA_UPDATE_REMOTE` | agent | `origin` | Remote `alpha.update` consults. |
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. Unused budget is withheld from what this machine offers. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
