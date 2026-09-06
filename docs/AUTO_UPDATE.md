@@ -131,6 +131,72 @@ Same shape — a `StartCalendarInterval` job running
 
 ---
 
+## Keeping a worker laptop awake
+
+An agent that is asleep is not lending anything. This is the part of "always
+on" that is not about the software at all.
+
+What actually happens when the lid closes: the agent stops polling, the host
+notices nothing for `AGENT_STALE_MS` (90 seconds) and prunes it, and any task it
+was holding has its lease expire and gets requeued somewhere else. **Nothing is
+lost** — that is what leases are for — but the machine has quietly left the
+fleet, and `alpha-admin agents` stops listing it. It rejoins on its own when the
+machine wakes; no manual step.
+
+So the fix is power settings, not configuration.
+
+### Windows
+
+```powershell
+powercfg /change standby-timeout-ac 0
+powercfg /change hibernate-timeout-ac 0
+```
+
+Closing the lid still suspends by default, which is usually the real culprit on
+a laptop that lives on a shelf:
+
+```powershell
+powercfg /setacvalueindex SCHEME_CURRENT 4f971e89-eebd-4455-a8de-9e59040e7347 `
+  5ca83367-6e45-459f-a27b-476b1d01c936 0
+powercfg /setactive SCHEME_CURRENT
+```
+
+Check it took:
+
+```powershell
+powercfg /query SCHEME_CURRENT SUB_SLEEP | Select-String "Current AC Power Setting"
+```
+
+### Linux
+
+```bash
+sudo systemctl mask sleep.target suspend.target hybrid-sleep.target
+```
+
+and in `/etc/systemd/logind.conf`, `HandleLidSwitch=ignore` (then
+`systemctl restart systemd-logind`).
+
+### macOS
+
+```bash
+sudo pmset -c sleep 0 disablesleep 1
+```
+
+`-c` is "on charger". `disablesleep` is what keeps it running with the lid shut.
+
+### Only on mains power
+
+Every command above is deliberately scoped to AC. Do not disable sleep on
+battery: it will flatten the machine in an afternoon, and a laptop on battery
+should not be taking work anyway — it is about to disappear either way. Leaving
+the battery settings alone means the machine drops out of the fleet when it is
+unplugged, which is the correct behaviour rather than a bug.
+
+Letting the *screen* sleep is fine and worth keeping — it costs nothing and the
+agent does not care.
+
+---
+
 ## Restarting an agent is safe, even mid-task
 
 `stop()` drains before it deregisters: running tasks are given
