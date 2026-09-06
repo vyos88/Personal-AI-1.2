@@ -72,15 +72,19 @@ Assuming the agent runs as an NSSM service named `alpha-agent`. Save as
 `scripts\self-update.cmd` or paste into a scheduled task's action:
 
 ```bat
-node C:\alpha-tunnel\scripts\self-update.mjs --repo C:\alpha-tunnel
+node <tunnel>\scripts\self-update.mjs --repo <tunnel>
 if %ERRORLEVEL%==10 nssm restart alpha-agent
 ```
+
+`<tunnel>` is wherever this checkout actually lives — find it with
+`(Get-CimInstance Win32_Service -Filter "Name='alpha-agent'").PathName` rather
+than assuming, since the service knows and you may not.
 
 Schedule it daily:
 
 ```powershell
 schtasks /Create /TN "alpha-tunnel self-update" /SC DAILY /ST 04:30 ^
-  /TR "C:\alpha-tunnel\scripts\self-update.cmd" /RU SYSTEM
+  /TR "<tunnel>\scripts\self-update.cmd" /RU SYSTEM
 ```
 
 Remember PowerShell's execution policy blocks `npm.ps1` on the Alpha host — use
@@ -171,8 +175,16 @@ Enable the handler on the host agent only:
 
 ```
 ALPHA_EXTRA_HANDLERS=alpha-coordination,alpha-update
-ALPHA_REPO_ROOT=C:\alpha
+ALPHA_REPO_ROOT=C:\AlphaData\Alpha
 ```
+
+That path is the real one on the Alpha host, and it is worth stating rather than
+guessing at: `C:\alpha` does not exist there, and an afternoon went into
+commands built on that assumption before anyone checked. `AlphaData` also holds
+`Backups`, `Logs`, `Models` and `Voice` as *siblings* of `Alpha` — so a
+repository rooted at `Alpha` cannot sweep up model weights or voice recordings.
+That is luck of layout, not design, and it is the reason the first push is
+survivable at all.
 
 Then, from anywhere with an operator key:
 
