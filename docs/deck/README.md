@@ -22,20 +22,22 @@ nothing, and nothing under `src/` or `test/` imports anything in this
 directory. npm will not descend into here on its own — there are no workspaces
 configured — so this folder is only touched when you deliberately build a deck.
 
-## What is derived rather than typed
+## What is derived, and what is deliberately not
 
-Two figures come from the repository instead of being written into a slide,
-because a number typed into a deck is stale the moment somebody changes the
-code behind it:
+**The release** is read from the root `package.json`, so the deck cannot claim
+one version while the machines report another — the exact drift this project
+exists to make visible. It is derived because it matters and barely moves.
 
-- **The release** is read from the root `package.json`, so the deck cannot
-  claim one version while the machines report another — which is the exact
-  drift this project exists to make visible.
-- **The passing test count** comes from actually running `node --test`. If the
-  suite is red the build fails rather than producing a deck that asserts a
-  green one.
+**The suite is checked but not counted.** `node --test` runs at build time and a
+red suite fails the build, so the deck can never assert a green one over a
+failing one. It used to print the passing count too; that was dropped. Deriving
+the figure kept it honest, but a number on a slide is only honest until the next
+test lands, and the committed `.pptx` then had to be rebuilt to catch up — four
+times in three days, each a commit that changed nothing anybody reads. The check
+is the half worth keeping.
 
-So a rebuild after a version bump or a new test needs no edits here.
+So a rebuild is needed when the slides or the release change, and not merely
+because the suite grew.
 
 `PRE_LOAD_VERSION` is the one version literal that stays put: it names the
 release before agents could report load at all, which is what makes the drift
