@@ -30,14 +30,20 @@ const VERSION = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).ver
 const PRE_LOAD_VERSION = '0.2.0';
 
 /**
- * The number of passing tests, by running them.
+ * Refuses to build a deck over a failing suite.
  *
- * The closing slide claims a figure, and a figure typed into a slide is stale
- * the moment somebody adds a test. Running the suite makes the claim true by
- * construction, and refuses to build a deck that would assert a green suite
- * over a red one.
+ * This used to also hand the closing slide a test count. It no longer does.
+ * Deriving the figure kept it honest, but a number on a slide is only honest
+ * until the next test lands, and the committed .pptx then has to be rebuilt to
+ * catch up — four times in three days, each one a commit that changed nothing
+ * anybody reads. The check is the half worth keeping, so the check stayed and
+ * the number went.
+ *
+ * The release is still derived, because that one matters and barely moves: a
+ * deck claiming a version the machines are not running is the exact drift this
+ * project exists to make visible.
  */
-function passingTestCount() {
+function requireGreenSuite() {
   const files = readdirSync(join(ROOT, 'test'))
     .filter((name) => name.endsWith('.test.js'))
     .map((name) => join('test', name))
@@ -58,12 +64,12 @@ function passingTestCount() {
     );
   }
 
-  const passed = /^# pass (\d+)$/m.exec(output);
-  if (!passed) throw new Error('could not read a pass count out of the test output');
-  return Number(passed[1]);
+  if (!/^# fail 0$/m.test(output)) {
+    throw new Error('could not confirm a green suite from the test output');
+  }
 }
 
-const TEST_COUNT = passingTestCount();
+requireGreenSuite();
 
 // Hot/cool is the subject matter, so it is the palette: slate carries the
 // structure, teal means a machine with capacity, ember means one at full tilt.
@@ -850,7 +856,11 @@ const darkSlide = () => {
   });
 
   const items = [
-    [`${TEST_COUNT} tests pass`, 'No new dependencies. Node standard library only, as before.'],
+    [
+      'The suite is green',
+      'Checked when this deck was built — it will not render against a failing one. ' +
+        'No dependencies beyond the Node standard library.',
+    ],
     ['Verified over loopback', 'Real coordinator, real agents, real enrolment — not mocks.'],
     ['Not yet verified on the tailnet', 'A cloud container cannot reach the Alpha host. Worth a run on the real pair, especially the Windows side where load comes entirely from sampled CPU ticks.'],
   ];
