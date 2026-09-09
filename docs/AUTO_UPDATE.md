@@ -330,7 +330,7 @@ store.
 So survey it first, on the Alpha host:
 
 ```bash
-node scripts/publish-alpha.mjs --dir C:\alpha
+node scripts/publish-alpha.mjs --dir C:\AlphaData\Alpha
 ```
 
 It reads and reports — **it runs no git command and changes nothing.** You get
@@ -340,3 +340,23 @@ paste in *before* the first `git add`. Then push, by hand, having read it.
 
 Exit 2 means there is something to look at. Exit 0 is not a guarantee: skim the
 file list too.
+
+`scripts/publish-alpha-push.ps1` wraps that audit and, on a second explicit run,
+makes the push itself:
+
+```powershell
+.\scripts\publish-alpha-push.ps1                 # audit only; pushes nothing
+.\scripts\publish-alpha-push.ps1 -Push           # only after you have read it
+```
+
+Even with `-Push` it stops unless the audit exits 0, and then shows the file
+count and waits for the word `PUBLISH` typed in full. It writes the `.gitignore`
+from the audit's own suggested block **before** the first `git add`, which is the
+ordering that matters: written afterwards, the excludes apply to some later
+commit and not to the one that publishes everything. It pushes to a branch,
+never to `main`, and never with `--force`, because `main` already carries an
+unrelated commit.
+
+The two-step shape is not ceremony. A first push of a directory that has never
+been in version control cannot be undone by a later commit — a secret in history
+stays in history, and rotating the credential is the only real fix.
