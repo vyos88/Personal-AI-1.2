@@ -27,7 +27,11 @@ param(
   [string]$Tunnel,
   [string]$Remote   = 'https://github.com/vyos88/Alpha',
   [string]$Branch   = 'alpha-from-host',
-  [switch]$Push
+  [switch]$Push,
+  # Proceed when every audit finding is a filename the .gitignore excludes and
+  # none are inside source files. Deliberately separate from -Push so that
+  # accepting findings is its own decision, typed on purpose.
+  [switch]$AcceptIgnoredNames
 )
 
 $ErrorActionPreference = 'Stop'
@@ -52,14 +56,80 @@ $auditExit = $LASTEXITCODE
 Write-Host "`n  audit written to $auditPath"
 
 if ($auditExit -eq 1) { Die "The audit could not run. Nothing was changed." }
+
 if ($auditExit -eq 2) {
-  Write-Host "`n  The audit found credential-looking or oversized files." -ForegroundColor Red
-  Write-Host "  Nothing has been pushed and nothing has been changed." -ForegroundColor Red
-  Write-Host "  Read $auditPath, deal with each finding, then run this again."
-  Write-Host "  A secret pushed once stays in history; rotating it is the only real fix."
-  exit 2
+  # Not all findings are equally dangerous, and the difference decides what to
+  # do about them. Working it out by eye means reading two dozen lines and
+  # knowing which excludes apply, so this does it instead.
+  #
+  #   named by FILENAME  (.env, *.pem)  -> the .gitignore keeps them out of the
+  #                                        commit entirely
+  #   named by LINE      ("at line 42") -> ordinary source code. No exclude
+  #                                        touches it. A push publishes it, and
+  #                                        rotating the credential first does
+  #                                        not help if the new value is on that
+  #                                        same line.
+  $lines = Get-Content $auditPath
+  $byName = New-Object System.Collections.ArrayList
+  $byLine = New-Object System.Collections.ArrayList
+
+  for ($i = 0; $i -lt $lines.Count; $i++) {
+    if ($lines[$i] -notmatch '^\s{6}\S') { continue }   # the indented "why" line
+    $why  = $lines[$i].Trim()
+    $file = if ($i -gt 0) { $lines[$i - 1].Trim() } else { '' }
+    if (-not $file) { continue }
+    if ($why -match 'at line \d+') { [void]$byLine.Add("$file  ($why)") }
+    elseif ($why -match 'credentials file|key or certificate') { [void]$byName.Add("$file  ($why)") }
+  }
+
+  Section "What the findings actually are"
+
+  if ($byLine.Count) {
+    Write-Host "  $($byLine.Count) finding(s) INSIDE source files — a push would publish these:" -ForegroundColor Red
+    foreach ($f in $byLine) { Write-Host "    $f" -ForegroundColor Red }
+    Write-Host ""
+    Write-Host "  These are normal source files. No .gitignore entry excludes them, so" -ForegroundColor Red
+    Write-Host "  they go into the commit as they are. Rotating the credential does not" -ForegroundColor Red
+    Write-Host "  make this safe: if the new value sits on that same line, the push" -ForegroundColor Red
+    Write-Host "  publishes the new one." -ForegroundColor Red
+    Write-Host ""
+    Write-Host "  Do this for each: move the value out of the file and read it from the"
+    Write-Host "  environment instead, so the file holds a name rather than a secret."
+    Write-Host "  Then run this script again — it will tell you when they are gone."
+  }
+
+  if ($byName.Count) {
+    Write-Host ""
+    Write-Host "  $($byName.Count) finding(s) matched by FILENAME:" -ForegroundColor Yellow
+    foreach ($f in $byName) { Write-Host "    $f" }
+    Write-Host ""
+    Write-Host "  The .gitignore this script writes excludes these before the first"
+    Write-Host "  git add, so they do not enter the commit. They are the reason the"
+    Write-Host "  audit exits 2, but they are not what a push would expose."
+  }
+
+  if ($byLine.Count -eq 0 -and $byName.Count -gt 0) {
+    Write-Host ""
+    Write-Host "  Every finding is a filename the .gitignore already covers, and none" -ForegroundColor Green
+    Write-Host "  are inside source files. Re-run with -AcceptIgnoredNames -Push to" -ForegroundColor Green
+    Write-Host "  proceed; it will still show the file list and still ask for PUBLISH." -ForegroundColor Green
+    if ($Push -and $AcceptIgnoredNames) {
+      Write-Host ""
+      OK "proceeding: filename-only findings, accepted by -AcceptIgnoredNames"
+    } else {
+      Write-Host ""
+      Write-Host "  Nothing was pushed and nothing was changed."
+      exit 2
+    }
+  } else {
+    Write-Host ""
+    Write-Host "  Nothing was pushed and nothing was changed." -ForegroundColor Red
+    Write-Host "  Full audit: $auditPath"
+    exit 2
+  }
+} else {
+  OK "audit found nothing alarming"
 }
-OK "audit found nothing alarming"
 
 if (-not $Push) {
   Section "Audit only"
