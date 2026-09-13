@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
@@ -9,11 +9,14 @@ import { ProtocolError } from '../../common/protocol.js';
  * machine with the GPU does the rendering and only the *recipe* comes back.
  *
  * That split is the point. An educational image is tens or hundreds of
- * megabytes and has no business travelling over a task result; the seed and
- * the species parameters that produced it are a few hundred bytes and are the
- * only part anyone needs in order to ask for that exact image again. So the
- * image stays on the machine that made it and the result carries the recipe,
- * plus where the file landed and how big it is.
+ * megabytes and has no business travelling over a task result; the species and
+ * seed that produced it are a few dozen bytes and are the only part anyone
+ * needs in order to ask for that exact image again. So the image stays on the
+ * machine that made it and the result carries the recipe, plus what landed and
+ * how big it is.
+ *
+ * The generator takes `--species --seed --output-dir` and names the file
+ * itself, so the handler reports what appeared rather than predicting a path.
  *
  * This is the second handler that runs an external program, so it follows the
  * rules `alpha-coordination.js` set for that case: a pinned executable, a
@@ -44,7 +47,7 @@ import { ProtocolError } from '../../common/protocol.js';
  * the machine will actually need:
  *
  *   alpha-admin task --type alpha.render --lease-ms 600000 --min-memory-mb 4096 \
- *     --payload '{"species":"fern","seed":1234}'
+ *     --payload '{"species":"beetle","seed":1234}'
  */
 
 export const type = 'alpha.render';
@@ -55,12 +58,9 @@ export const description =
 const DEFAULT_SCRIPT = 'scripts/generate.py';
 const DEFAULT_OUTPUT = 'output';
 const DEFAULT_TIMEOUT_MS = 600_000;
-const MAX_PARAMS = 32;
-const MAX_PARAM_LENGTH = 128;
-
-// Species and parameter names land in a filename and in an argv entry. Keeping
-// them to this set means the recipe maps onto a file name without escaping,
-// and a typo is a refusal rather than a surprising path.
+// A species lands in an argv entry the generator parses. Keeping it to this
+// set means a typo is a refusal rather than whatever the generator falls back
+// to, and leaves nothing that could be read as an option rather than a value.
 const NAME_PATTERN = /^[a-z][a-z0-9_-]{0,63}$/;
 
 // Seeds are what make a recipe reproducible, so they must survive a JSON round
@@ -102,56 +102,19 @@ export function validateSeed(seed) {
 }
 
 /**
- * Species parameters, as flat scalars only.
+ * This generator takes a species and a seed and nothing else.
  *
- * Flat because each one becomes a single `--param key=value` argv entry, and a
- * nested object has no unambiguous rendering there. A generator that needs
- * structure should take a species name that means it, rather than having the
- * shape smuggled through a parameter.
+ * A payload carrying `params` is refused rather than quietly dropped: the
+ * script has no per-parameter flag, so accepting them would mean returning a
+ * recipe naming values that had no effect on the image it describes — the one
+ * thing a recipe must never do.
  */
-export function validateParams(params) {
-  if (params === undefined || params === null) return {};
-  if (typeof params !== 'object' || Array.isArray(params)) {
-    throw new ProtocolError('"params" must be a JSON object of scalar values');
-  }
-
-  const entries = Object.entries(params);
-  if (entries.length > MAX_PARAMS) {
-    throw new ProtocolError(`"params" may carry at most ${MAX_PARAMS} entries`);
-  }
-
-  const validated = {};
-  for (const [key, value] of entries) {
-    if (!NAME_PATTERN.test(key)) {
-      throw new ProtocolError(
-        `parameter name must be 1-64 characters of lowercase letters, digits, dash or ` +
-          `underscore, starting with a letter (got ${JSON.stringify(key)})`,
-      );
-    }
-    if (typeof value === 'number') {
-      if (!Number.isFinite(value)) {
-        throw new ProtocolError(`parameter ${JSON.stringify(key)} must be a finite number`);
-      }
-    } else if (typeof value !== 'boolean' && typeof value !== 'string') {
-      throw new ProtocolError(
-        `parameter ${JSON.stringify(key)} must be a number, boolean or string, ` +
-          `not ${Array.isArray(value) ? 'an array' : typeof value}`,
-      );
-    } else if (typeof value === 'string') {
-      if (value.length > MAX_PARAM_LENGTH) {
-        throw new ProtocolError(
-          `parameter ${JSON.stringify(key)} must be at most ${MAX_PARAM_LENGTH} characters`,
-        );
-      }
-      // `key=value` is split on the first `=` by the generator, so a newline
-      // or an embedded `=` would make the pair ambiguous to read back.
-      if (/[\r\n]/.test(value)) {
-        throw new ProtocolError(`parameter ${JSON.stringify(key)} must not contain a newline`);
-      }
-    }
-    validated[key] = value;
-  }
-  return validated;
+export function rejectUnsupportedParams(payload) {
+  if (payload?.params === undefined || payload?.params === null) return;
+  throw new ProtocolError(
+    'this generator takes only "species" and "seed"; it has no --param flag, so ' +
+      '"params" would not reach it and the recipe would name values the image does not have',
+  );
 }
 
 function requireRoot() {
@@ -200,20 +163,44 @@ function requireScript(root) {
 }
 
 /**
- * Where this recipe's image belongs.
+ * What the generator wrote, found by when it was written.
  *
- * Derived from the recipe rather than chosen by the caller, so the same seed
- * and species always name the same file — asking twice overwrites rather than
- * littering, and a recipe is enough to find the image it produced. It is also
- * why a caller cannot pass an output path: that would be a task deciding where
- * on this machine to write.
+ * The script takes `--output-dir` and names the file itself, so the handler
+ * cannot predict the path and must not pretend to. Listing what appeared is
+ * the honest alternative.
+ *
+ * The cutoff is a timestamp rather than a before/after diff of the directory,
+ * because a re-run of the same recipe overwrites its own output: the name is
+ * unchanged, so a diff would see nothing and report a successful render as
+ * having produced no image. `mtime` moves either way.
+ *
+ * The second of slack absorbs filesystems that keep mtime to a coarser
+ * resolution than the clock this compares against. The output directory is
+ * this generator's own, so the worst case is naming a file written moments
+ * before by the same generator.
  */
-export function imageNameFor({ species, seed }) {
-  return `${species}-${seed}.png`;
+export function imagesWrittenSince(outputDir, cutoffMs) {
+  return readdirSync(outputDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const path = resolve(outputDir, entry.name);
+      const { size, mtimeMs } = statSync(path);
+      return { name: entry.name, path, bytes: size, mtimeMs };
+    })
+    .filter((file) => file.mtimeMs >= cutoffMs - 1_000)
+    .sort((a, b) => b.mtimeMs - a.mtimeMs)
+    .map(({ name, path, bytes }) => ({ name, path, bytes }));
 }
 
-/** Builds the argv passed to Blender. Exported so tests can assert on it. */
-export function buildArgs({ script, species, seed, params, outputPath }) {
+/**
+ * Builds the argv passed to Blender. Exported so tests can assert on it.
+ *
+ * `--species --seed --output-dir` is the real generator's interface, confirmed
+ * against the script on Jack's laptop rather than assumed. It takes no
+ * per-parameter flag, which is why `run` refuses a payload carrying `params`
+ * instead of quietly dropping them.
+ */
+export function buildArgs({ script, species, seed, outputDir }) {
   const args = [
     '--background',
     // No user preferences, add-ons or startup file: a render that depends on
@@ -229,12 +216,10 @@ export function buildArgs({ script, species, seed, params, outputPath }) {
     species,
     '--seed',
     String(seed),
-    '--out',
-    outputPath,
+    '--output-dir',
+    outputDir,
   ];
-  for (const [key, value] of Object.entries(params)) {
-    args.push('--param', `${key}=${value}`);
-  }
+
   return args;
 }
 
@@ -260,16 +245,18 @@ export async function run(payload, { signal, log } = {}) {
     'ALPHA_RENDER_OUTPUT',
   );
 
+  rejectUnsupportedParams(payload);
   const species = validateSpecies(payload?.species);
   const seed = validateSeed(payload?.seed);
-  const params = validateParams(payload?.params);
 
-  const imageName = imageNameFor({ species, seed });
-  const outputPath = resolve(outputDir, imageName);
+  // The generator writes here and names the file itself, so the directory has
+  // to exist before it runs. It is inside the validated root either way.
+  mkdirSync(outputDir, { recursive: true });
+
   const blender = process.env.ALPHA_BLENDER ?? 'blender';
-  const args = buildArgs({ script, species, seed, params, outputPath });
+  const args = buildArgs({ script, species, seed, outputDir });
 
-  log?.info?.('rendering', { species, seed, params: Object.keys(params).length });
+  log?.info?.('rendering', { species, seed });
 
   const startedAt = Date.now();
   const { stdout, stderr, code } = await new Promise((resolvePromise, rejectPromise) => {
@@ -305,10 +292,11 @@ export async function run(payload, { signal, log } = {}) {
 
   // A zero exit with no image is the worse failure, because it would otherwise
   // be reported as a success carrying a recipe that reproduces nothing.
-  if (!existsSync(outputPath)) {
+  const images = imagesWrittenSince(outputDir, startedAt);
+  if (images.length === 0) {
     throw new ProtocolError(
-      `Blender exited 0 but wrote no image at ${outputPath}. The generator script ` +
-        'should write to the path given by --out.',
+      `Blender exited 0 but wrote nothing into ${outputDir}. The generator script ` +
+        'should write its image to the directory given by --output-dir.',
       { status: 500, code: 'no_image' },
     );
   }
@@ -316,14 +304,10 @@ export async function run(payload, { signal, log } = {}) {
   return {
     // The recipe: everything needed to ask for this exact image again, and
     // nothing that is only true of this run.
-    recipe: { species, seed, params },
-    // Where it landed on this machine, and proof it is really there. The image
-    // itself deliberately does not travel.
-    image: {
-      path: outputPath,
-      name: imageName,
-      bytes: statSync(outputPath).size,
-    },
+    recipe: { species, seed },
+    // What landed on this machine, newest first, and proof it is really there.
+    // The images themselves deliberately do not travel.
+    images,
     renderedInMs: Date.now() - startedAt,
     stdout: stdout.slice(-8_000),
     stderr: stderr.slice(-8_000),

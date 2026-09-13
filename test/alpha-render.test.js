@@ -6,9 +6,9 @@ import { join } from 'node:path';
 
 import {
   buildArgs,
-  imageNameFor,
+  imagesWrittenSince,
+  rejectUnsupportedParams,
   run,
-  validateParams,
   validateSeed,
   validateSpecies,
 } from '../src/agent/handlers/alpha-render.js';
@@ -44,8 +44,10 @@ async function fixture({ exitCode = 0, stderr = '', writeImage = true } = {}) {
         "const { writeFileSync, copyFileSync } = require('node:fs');",
         `writeFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)));`,
         // Mirror the POSIX branch: honour --out the way a generator would.
-        'const i = process.argv.indexOf("--out");',
-        `if (i !== -1 && ${writeImage}) writeFileSync(process.argv[i + 1], "png");`,
+        'const i = process.argv.indexOf("--output-dir");',
+        'const sp = process.argv[process.argv.indexOf("--species") + 1];',
+        'const sd = process.argv[process.argv.indexOf("--seed") + 1];',
+        `if (i !== -1 && ${writeImage}) writeFileSync(require('node:path').join(process.argv[i + 1], sp + "-" + sd + ".png"), "png");`,
         `if (${JSON.stringify(stderr)}) process.stderr.write(${JSON.stringify(stderr)});`,
         `process.exit(${exitCode});`,
       ].join('\n'),
@@ -64,9 +66,16 @@ async function fixture({ exitCode = 0, stderr = '', writeImage = true } = {}) {
         `fs.writeFileSync(process.argv[1],JSON.stringify(d.split('\\n').slice(0,-1))))` +
         `" ${argvLog}`,
       // Honour --out, the way the real generator is expected to.
-      'out=""; prev=""',
-      'for a in "$@"; do if [ "$prev" = "--out" ]; then out="$a"; fi; prev="$a"; done',
-      writeImage ? '[ -n "$out" ] && printf png > "$out"' : ': # deliberately writes nothing',
+      'dir=""; sp=""; sd=""; prev=""',
+      'for a in "$@"; do',
+      '  case "$prev" in --output-dir) dir="$a";; --species) sp="$a";; --seed) sd="$a";; esac',
+      '  prev="$a"',
+      'done',
+      // The generator names its own file, which is why the handler has to
+      // discover what appeared rather than predict a path.
+      writeImage
+        ? '[ -n "$dir" ] && printf png > "$dir/$sp-$sd.png"'
+        : ': # deliberately writes nothing',
       stderr ? `printf %s ${JSON.stringify(stderr)} >&2` : ':',
       `exit ${exitCode}`,
     ].join('\n'),
@@ -132,20 +141,17 @@ test('a seed must survive a JSON round trip exactly', () => {
   }
 });
 
-test('params are flat scalars, because each becomes one argv entry', () => {
-  assert.deepEqual(validateParams(undefined), {});
-  assert.deepEqual(validateParams({ height: 2.5, dense: true, style: 'wild' }), {
-    height: 2.5,
-    dense: true,
-    style: 'wild',
-  });
+test('a payload carrying params is refused, not quietly dropped', () => {
+  // The generator has no --param flag. Accepting them would return a recipe
+  // naming values that had no effect on the image it describes, which is the
+  // one thing a recipe must never do.
+  assert.equal(rejectUnsupportedParams({ species: 'beetle', seed: 1 }), undefined);
+  assert.equal(rejectUnsupportedParams({ species: 'beetle', seed: 1, params: null }), undefined);
 
-  assert.throws(() => validateParams({ nested: { a: 1 } }), /must be a number, boolean or string/);
-  assert.throws(() => validateParams({ list: [1, 2] }), /must be a number, boolean or string/);
-  assert.throws(() => validateParams({ 'Bad Key': 1 }), /parameter name/);
-  assert.throws(() => validateParams({ height: Infinity }), /finite number/);
-  assert.throws(() => validateParams({ note: 'a\nb' }), /newline/);
-  assert.throws(() => validateParams([1, 2]), /JSON object/);
+  assert.throws(
+    () => rejectUnsupportedParams({ species: 'beetle', seed: 1, params: { height: 2 } }),
+    /only "species" and "seed"/,
+  );
 });
 
 // ------------------------------------------------------------------- the argv
@@ -153,12 +159,13 @@ test('params are flat scalars, because each becomes one argv entry', () => {
 test('the argv hands Blender the script and the generator its arguments', () => {
   const args = buildArgs({
     script: '/r/scripts/generate.py',
-    species: 'fern',
+    species: 'beetle',
     seed: 1234,
-    params: { height: 2.5, dense: true },
-    outputPath: '/r/output/fern-1234.png',
+    outputDir: '/r/output',
   });
 
+  // The generator's real interface: --species --seed --output-dir, and it
+  // names the file itself.
   assert.deepEqual(args, [
     '--background',
     '--factory-startup',
@@ -166,15 +173,11 @@ test('the argv hands Blender the script and the generator its arguments', () => 
     '/r/scripts/generate.py',
     '--',
     '--species',
-    'fern',
+    'beetle',
     '--seed',
     '1234',
-    '--out',
-    '/r/output/fern-1234.png',
-    '--param',
-    'height=2.5',
-    '--param',
-    'dense=true',
+    '--output-dir',
+    '/r/output',
   ]);
 
   // Everything the generator reads sits after the bare `--`, or Blender's own
@@ -185,14 +188,26 @@ test('the argv hands Blender the script and the generator its arguments', () => 
   assert.ok(args.includes('--factory-startup'));
 });
 
-test('the image is named by the recipe, not by the caller', () => {
-  assert.equal(imageNameFor({ species: 'fern', seed: 1234 }), 'fern-1234.png');
-  // Same recipe, same file: asking twice overwrites rather than littering, and
-  // a recipe is enough to find the image it produced.
-  assert.equal(
-    imageNameFor({ species: 'fern', seed: 1234 }),
-    imageNameFor({ species: 'fern', seed: 1234 }),
-  );
+test('a re-run that overwrites its own output still counts as produced', async () => {
+  // The generator names its file, so a repeat of the same recipe writes the
+  // same name. A before/after diff of the directory would see nothing new and
+  // report a successful render as having produced no image; mtime moves either
+  // way, which is why the cutoff is a timestamp.
+  const dir = await mkdtemp(join(tmpdir(), 'alpha-render-out-'));
+  const image = join(dir, 'beetle-1234.png');
+  await writeFile(image, 'first');
+
+  const secondRunStartedAt = Date.now();
+  await new Promise((r) => setTimeout(r, 20));
+  await writeFile(image, 'second');
+
+  const found = imagesWrittenSince(dir, secondRunStartedAt);
+  assert.equal(found.length, 1);
+  assert.equal(found[0].name, 'beetle-1234.png');
+  assert.equal(found[0].bytes, 6);
+
+  // And something written well before the render is not claimed as its output.
+  assert.equal(imagesWrittenSince(dir, Date.now() + 60_000).length, 0);
 });
 
 // --------------------------------------------------------------- running it
@@ -202,27 +217,28 @@ test('a render returns the recipe and leaves the image on the machine', async (t
   const f = await fixture();
   useFixture(t, f);
 
-  const result = await run({ species: 'fern', seed: 1234, params: { height: 2.5 } });
+  const result = await run({ species: 'beetle', seed: 1234 });
 
   // The recipe is the whole payload anyone needs to ask again.
-  assert.deepEqual(result.recipe, { species: 'fern', seed: 1234, params: { height: 2.5 } });
-  // The image did not travel; its location and size did.
-  assert.match(result.image.path, /output[\\/]fern-1234\.png$/);
-  assert.equal(result.image.name, 'fern-1234.png');
-  assert.equal(result.image.bytes, 3);
+  assert.deepEqual(result.recipe, { species: 'beetle', seed: 1234 });
+  // The image did not travel; what landed and how big it is did.
+  assert.equal(result.images.length, 1);
+  assert.equal(result.images[0].name, 'beetle-1234.png');
+  assert.equal(result.images[0].bytes, 3);
+  assert.match(result.images[0].path, /output[\\/]beetle-1234\.png$/);
   assert.ok(typeof result.renderedInMs === 'number');
 
   // And the arguments really reached the generator in the shape buildArgs
   // promises, through a real process boundary.
   const argv = await recordedArgv(f.argvLog);
   assert.ok(argv.includes('--factory-startup'));
-  assert.deepEqual(argv.slice(argv.indexOf('--') + 1, argv.indexOf('--param')), [
+  assert.deepEqual(argv.slice(argv.indexOf('--') + 1), [
     '--species',
-    'fern',
+    'beetle',
     '--seed',
     '1234',
-    '--out',
-    result.image.path,
+    '--output-dir',
+    f.root + '/output',
   ]);
 });
 
@@ -231,13 +247,20 @@ test('shell metacharacters in a parameter are data, not syntax', async (t) => {
   const f = await fixture();
   useFixture(t, f);
 
-  const nasty = 'a; rm -rf / && echo $(whoami) `id` | tee /tmp/x';
-  await run({ species: 'fern', seed: 1, params: { style: nasty } });
+  // The species is the only caller-supplied string that reaches the argv, and
+  // validateSpecies already refuses anything like this — so the belt-and-braces
+  // check is that the output directory, which comes from configuration, also
+  // survives intact through execFile rather than being re-parsed by a shell.
+  const nasty = "a dir; rm -rf / && echo $(whoami) `id`";
+  await mkdir(join(f.root, nasty), { recursive: true });
+  process.env.ALPHA_RENDER_OUTPUT = nasty;
+
+  await run({ species: 'beetle', seed: 1 });
 
   const argv = await recordedArgv(f.argvLog);
   // One argv entry, intact. execFile takes a vector, so there is no shell to
   // reinterpret any of this.
-  assert.ok(argv.includes(`style=${nasty}`));
+  assert.ok(argv.includes(join(f.root, nasty)), 'the directory arrived as one argument');
 });
 
 test('a generator that fails is a failed task, not a result', async (t) => {
@@ -247,7 +270,7 @@ test('a generator that fails is a failed task, not a result', async (t) => {
 
   // Unlike the coordination tunnel, where a non-zero exit is the script
   // answering "no", a generator that exits non-zero generated nothing.
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /exited 1.*no such species/s);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /exited 1.*no such species/s);
 });
 
 test('a clean exit that produced no image is still a failure', async (t) => {
@@ -257,7 +280,7 @@ test('a clean exit that produced no image is still a failure', async (t) => {
   const f = await fixture({ exitCode: 0, writeImage: false });
   useFixture(t, f);
 
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /wrote no image/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /wrote nothing into/);
 });
 
 test('the handler refuses to run unconfigured, rather than guessing', async (t) => {
@@ -268,10 +291,10 @@ test('the handler refuses to run unconfigured, rather than guessing', async (t) 
   });
 
   delete process.env.ALPHA_RENDER_ROOT;
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /ALPHA_RENDER_ROOT is not set/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /ALPHA_RENDER_ROOT is not set/);
 
   process.env.ALPHA_RENDER_ROOT = join(tmpdir(), 'alpha-render-does-not-exist');
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /does not exist/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /does not exist/);
 });
 
 test('a script or output directory outside the root is refused', async (t) => {
@@ -280,9 +303,9 @@ test('a script or output directory outside the root is refused', async (t) => {
   useFixture(t, f);
 
   process.env.ALPHA_RENDER_SCRIPT = '../escape.py';
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
 
   delete process.env.ALPHA_RENDER_SCRIPT;
   process.env.ALPHA_RENDER_OUTPUT = '../elsewhere';
-  await assert.rejects(run({ species: 'fern', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
 });
