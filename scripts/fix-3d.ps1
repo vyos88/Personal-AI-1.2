@@ -54,6 +54,21 @@ function Warn($t)    { Write-Host "  $t" -ForegroundColor Yellow }
 function Bad($t)     { Write-Host "  $t" -ForegroundColor Red }
 function Fix($t)     { Write-Host "     fix: $t" -ForegroundColor Magenta }
 
+# Every section adds to this, and the last section prints it as one line. Three
+# rounds of this diagnostic have now ended with the answer stuck on the machine
+# it ran on, because a full log does not survive being read aloud. One line does.
+$fp = [ordered]@{
+  webgl  = '?'      # only the browser can answer this; filled in by hand
+  pkg    = 'n/a'    # installed / declared
+  assets = 0
+  zero   = 0
+  served = 'n/a'
+  api    = 0
+  empty  = 0
+  gpu    = '?'
+  rdp    = 'n'
+}
+
 # ------------------------------------------------------------- Alpha root
 Section "Alpha on disk"
 if (-not (Test-Path $AlphaRoot)) {
@@ -87,6 +102,7 @@ $known3d = @(
   'maplibre-gl', 'mapbox-gl', 'ogl', 'regl', 'gl-matrix'
 )
 $missing = @()
+$declared3d = 0
 $found3d = $false
 foreach ($d in $pkgDirs) {
   $pkg = Get-Content (Join-Path $d 'package.json') -Raw | ConvertFrom-Json
@@ -94,8 +110,9 @@ foreach ($d in $pkgDirs) {
   foreach ($set in @($pkg.dependencies, $pkg.devDependencies)) {
     if ($set) { $set.PSObject.Properties | ForEach-Object { $deps[$_.Name] = $_.Value } }
   }
-  $mine = $known3d | Where-Object { $deps.ContainsKey($_) }
+  $mine = @($known3d | Where-Object { $deps.ContainsKey($_) })
   if (-not $mine) { continue }
+  $declared3d += $mine.Count
   $found3d = $true
   Write-Host "  in $d"
   foreach ($name in $mine) {
@@ -109,6 +126,7 @@ foreach ($d in $pkgDirs) {
     }
   }
 }
+$fp.pkg = if ($found3d) { "$($declared3d - $missing.Count)/$declared3d" } else { 'none-declared' }
 if (-not $found3d) {
   Warn "No known 3D library is declared in any package.json here."
   Warn "Either the 3D panels use something this script does not know about, or"
@@ -143,6 +161,8 @@ if (-not $assets) {
   $assets | Sort-Object Length -Descending | Select-Object -First 5 |
     ForEach-Object { Write-Host ("    {0,8:N1} MB  {1}" -f ($_.Length/1MB), $_.FullName.Replace($AlphaRoot,'')) }
   $zero = @($assets | Where-Object Length -eq 0)
+  $fp.assets = $assets.Count
+  $fp.zero   = $zero.Count
   if ($zero) {
     Bad "$($zero.Count) asset file(s) are 0 bytes — a truncated or failed copy."
     $zero | ForEach-Object { Write-Host "    $($_.FullName)" }
@@ -215,6 +235,7 @@ if (-not $urls) {
         $ct = [string]$r.Headers['Content-Type']
         $len = $r.RawContentLength
         if ($ct -match 'text/html') {
+          $fp.served = 'html'
           Bad "    $p -> $($r.StatusCode) but Content-Type is $ct"
           Bad "         The server answered with the app's HTML page, not the file."
           Bad "         A 3D loader receiving HTML fails with no visible error."
@@ -222,9 +243,11 @@ if (-not $urls) {
         } elseif ($len -eq 0) {
           Bad "    $p -> $($r.StatusCode) but 0 bytes"
         } else {
+          if ($fp.served -eq 'n/a') { $fp.served = 'ok' }
           OK "    $p -> $($r.StatusCode) $ct  $([math]::Round($len/1KB,1)) KB"
         }
       } catch {
+        $fp.served = 'fail'
         Bad "    $p -> $($_.Exception.Message)"
         Fix "The panel cannot load this file. Confirm it exists under the directory the server publishes."
       }
@@ -241,7 +264,9 @@ if (-not $vcs) {
   foreach ($v in $vcs) {
     Write-Host "  $($v.Name)"
     Write-Host "     driver $($v.DriverVersion)  ($($v.DriverDate))  status: $($v.Status)"
+    if ($fp.gpu -eq '?') { $fp.gpu = 'ok' }
     if ($v.Name -match 'Microsoft Basic Display') {
+      $fp.gpu = 'basic'
       Bad "     This is Windows' fallback adapter — the real GPU driver is not loaded."
       Bad "     The browser will fall back to software WebGL, which renders 3D blank or at a few frames a second."
       Fix "Install the GPU vendor's driver for this laptop, then reboot and re-run."
@@ -255,6 +280,7 @@ if (-not $vcs) {
 
 Section "Session type"
 if ($env:SESSIONNAME -like 'RDP*') {
+  $fp.rdp = 'y'
   Warn "This is a Remote Desktop session ($env:SESSIONNAME)."
   Warn "RDP gives the browser limited or no GPU access, so 3D can be blank here"
   Warn "while working fine on the physical screen."
@@ -453,6 +479,7 @@ if (-not $specBase) {
     Warn "No GET route looks like a source of 3D topology data."
     Note "Send me the route list above and I can say which one the panel wants."
   } else {
+    $fp.api = $cands.Count
     Write-Host "  routes that could feed a 3D topology view:"
     $emptyOnes = @()
     foreach ($c in $cands) {
@@ -492,6 +519,7 @@ if (-not $specBase) {
         }
       }
     }
+    $fp.empty = $emptyOnes.Count
     if ($emptyOnes) {
       Bad "  $($emptyOnes.Count) route(s) answered successfully with nothing in them."
       Bad "  A topology view fed an empty list renders an empty scene. That is"
@@ -510,6 +538,29 @@ Write-Host "    'Unexpected token <' or a JSON/GLB parse error             -> th
 Write-Host "    'THREE.WebGLRenderer: Error creating WebGL context'        -> the browser or driver; see webgl-check.html"
 Write-Host "  Also say which of the three surfaces are blank — the top-bar avatar,"
 Write-Host "  `"Avatar Lab`", `"3D Ops`" — because that alone splits the causes in half."
+
+Section "SEND ME THIS ONE LINE"
+# Deliberately one line of short tokens. A full log has not once made it off the
+# machine it was written on; this is meant to be read off the screen and typed.
+$line = "3D " + (($fp.GetEnumerator() | ForEach-Object { "$($_.Key)=$($_.Value)" }) -join ' ')
+Write-Host ""
+Write-Host "  $line" -ForegroundColor White -BackgroundColor DarkBlue
+Write-Host ""
+Write-Host "  Replace webgl=? with what webgl-check.html showed:" -ForegroundColor Magenta
+Write-Host "     hw    the gradient moved" -ForegroundColor Magenta
+Write-Host "     sw    it said software rendering" -ForegroundColor Magenta
+Write-Host "     none  it said WebGL unavailable" -ForegroundColor Magenta
+Write-Host "     x     you have not opened it" -ForegroundColor Magenta
+Write-Host ""
+Write-Host "  What the rest mean, so the line is readable without me:"
+Write-Host "     pkg     3D libraries installed / declared. Anything below full is the cause."
+Write-Host "     assets  model and texture files found; zero = how many are 0 bytes."
+Write-Host "     served  ok | html (server sent the app page instead of the file) | fail."
+Write-Host "     api     topology data routes found; empty = how many answered 200 with nothing."
+Write-Host "     gpu     ok | basic (no real driver loaded).   rdp  y = Remote Desktop."
+Write-Host ""
+$line | Set-Content -Path (Join-Path $PSScriptRoot 'fix-3d-oneline.txt') -Encoding ASCII
+Write-Host "  Also saved to: $(Join-Path $PSScriptRoot 'fix-3d-oneline.txt')"
 
 Write-Host "`nFull log written to: $log`n"
 Stop-Transcript | Out-Null
