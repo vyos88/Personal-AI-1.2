@@ -15,10 +15,22 @@
     the "Avatar Lab" tab        AvatarLabPanel
     the "3D Ops" tab            UnifiedOps3DPanel
 
-  If the top-bar avatar draws but "3D Ops" is blank, the GPU and the browser
-  are fine and the fault is in that panel or the files it loads — skip to the
-  PACKAGES and ASSETS sections. If nothing anywhere draws, it is the browser
-  or the driver — the GPU and WEBGL sections are the ones that matter.
+  If nothing anywhere draws, suspect the browser or the driver first — the GPU
+  and BROWSER sections. If "3D Ops" alone is blank, the fault is in that panel,
+  the files it loads, or the data it fetches — PACKAGES, ASSETS, SERVING and
+  BACKEND DATA ROUTES.
+
+  The top-bar avatar drawing does NOT prove WebGL works: AvatarCoreRenderer may
+  not use WebGL at all, and a 2D canvas or an image would draw on a machine
+  where WebGL is dead. Only webgl-check.html answers that, and only by showing
+  a MOVING GRADIENT — its verdict text is a report, the moving picture is the
+  proof.
+
+  "3D Ops" is UnifiedOps3DPanel, a topology view mounted with no props, so it
+  fetches its own data and builds geometry from it. A data route answering 200
+  with an empty list renders an empty scene with nothing broken anywhere. That
+  is why BACKEND DATA ROUTES exists, and it is the first thing to read once
+  packages and assets come back clean.
 
   Two files are written next to this script:
     fix-3d-log.txt     everything printed here, so you can attach it
@@ -390,10 +402,105 @@ A blank or frozen box means it cannot, and no amount of fixing Alpha's code will
 '@
 Set-Content -Path $probe -Value $html -Encoding UTF8
 OK "wrote $probe"
-Write-Host "  Open it in the SAME browser you use for Alpha:" -ForegroundColor Magenta
-Write-Host "     start `"`" `"$probe`"" -ForegroundColor Magenta
+Write-Host ""
+Write-Host "  >>> OPEN THIS FILE NOW, in the same browser you use for Alpha <<<" -ForegroundColor Magenta
+Write-Host "      $probe" -ForegroundColor Magenta
+Write-Host "      copy-paste:  start `"`" `"$probe`"" -ForegroundColor Magenta
+Write-Host "      You are looking for a MOVING COLOUR GRADIENT in the box." -ForegroundColor Magenta
+Write-Host "      Moving = the GPU works. Blank or still = it does not." -ForegroundColor Magenta
+Write-Host ""
 Write-Host "  It reports whether the browser can use the GPU at all, which is the"
 Write-Host "  one thing nothing on this side can determine."
+
+# ------------------------------------------------------- backend data routes
+# UnifiedOps3DPanel is a topology view mounted with no props, so it fetches its
+# own data and builds geometry from it. A route that answers 200 with an empty
+# list draws an empty scene — nothing is broken anywhere, and nothing appears.
+# That is worth checking before suspecting the renderer, and it needs no
+# guessing at endpoint names: a FastAPI backend publishes its own route list.
+Section "Backend data routes"
+$apiBases = @()
+foreach ($u in $urls) { $apiBases += $u }
+$apiBases += 'http://127.0.0.1:8000'    # the port the speech WebSocket uses
+$apiBases = @($apiBases | Select-Object -Unique)
+
+$spec = $null; $specBase = $null
+foreach ($b in $apiBases) {
+  try {
+    $spec = Invoke-RestMethod "$b/openapi.json" -TimeoutSec 8
+    if ($spec -and $spec.paths) { $specBase = $b; break }
+  } catch { $spec = $null }
+}
+
+if (-not $specBase) {
+  Warn "No /openapi.json on any of: $($apiBases -join ', ')"
+  Warn "Either the backend is not FastAPI, or it is not running, or it is on"
+  Warn "another port. Without it there is no way to list routes from here."
+  Note "Use the browser instead: F12 > Network on the 3D Ops tab, reload, and"
+  Note "look for a request that is red, or that returns [] or {}."
+} else {
+  OK "route list from $specBase/openapi.json"
+  $all = @($spec.paths.PSObject.Properties.Name)
+  Write-Host "  $($all.Count) route(s) published"
+
+  # Only GET routes with no path parameter can be called blind.
+  $cands = @($all | Where-Object {
+    $_ -notmatch '\{' -and
+    $_ -match 'ops|topolog|3d|graph|node|edge|mesh|scene|layout|network|device|map|telemetr' -and
+    $spec.paths.$_.PSObject.Properties.Name -contains 'get'
+  })
+  if (-not $cands) {
+    Warn "No GET route looks like a source of 3D topology data."
+    Note "Send me the route list above and I can say which one the panel wants."
+  } else {
+    Write-Host "  routes that could feed a 3D topology view:"
+    $emptyOnes = @()
+    foreach ($c in $cands) {
+      try {
+        $r = Invoke-WebRequest ($specBase + $c) -TimeoutSec 12 -UseBasicParsing
+        $body = [string]$r.Content
+        $n = $null
+        try {
+          $o = $body | ConvertFrom-Json
+          if ($o -is [array]) { $n = $o.Count }
+          elseif ($o) {
+            # A wrapper object: count whichever collection it carries.
+            foreach ($k in @('nodes','items','data','results','devices','edges','links')) {
+              if ($o.PSObject.Properties.Name -contains $k) {
+                $n = @($o.$k).Count; break
+              }
+            }
+            if ($null -eq $n) { $n = ($o.PSObject.Properties | Measure-Object).Count }
+          }
+        } catch { $n = $null }
+
+        if ($n -eq 0) {
+          Bad "    $c -> 200 but EMPTY (0 items)"
+          $emptyOnes += $c
+        } elseif ($null -eq $n) {
+          OK "    $c -> $($r.StatusCode), $([math]::Round($body.Length/1KB,1)) KB (not JSON, or unparsed)"
+        } else {
+          OK "    $c -> $($r.StatusCode), $n item(s), $([math]::Round($body.Length/1KB,1)) KB"
+        }
+      } catch {
+        $code = try { [int]$_.Exception.Response.StatusCode } catch { 0 }
+        if ($code -in @(401, 403)) {
+          Warn "    $c -> $code (needs a token)"
+          Note "Not the cause on its own: the browser sends a bearer token and this does not."
+        } else {
+          Bad "    $c -> $($_.Exception.Message)"
+        }
+      }
+    }
+    if ($emptyOnes) {
+      Bad "  $($emptyOnes.Count) route(s) answered successfully with nothing in them."
+      Bad "  A topology view fed an empty list renders an empty scene. That is"
+      Bad "  the most likely reason 3D Ops is blank while the renderer is fine."
+      Fix "The fault is on the backend side — whatever populates $($emptyOnes -join ', ') has no data."
+      Fix "Check that the services or devices that feed it are registered and reporting."
+    }
+  }
+}
 
 Section "If 3D is still blank after all of the above"
 Write-Host "  Open Alpha, go to the `"3D Ops`" tab, press F12, and read the Console tab."
