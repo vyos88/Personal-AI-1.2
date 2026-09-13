@@ -15,6 +15,8 @@ const OPEN_ADMISSION = {
   canAdmit: () => true,
   admit: () => {},
   release: () => {},
+  // With nothing tracking registrations, every parked poll is a live one.
+  knows: () => true,
   // Every agent looks equally good, so ranking degrades to the arrival order
   // this queue used before it could rank at all.
   rank: () => 0,
@@ -311,6 +313,12 @@ export class TaskQueue {
     let bestRank = Number.POSITIVE_INFINITY;
     for (const waiter of this.#waiters) {
       if (!waiter.capabilities.has(task.type)) continue;
+      // A poll can outlive the registration that made it: the agent was
+      // pruned as stale, or a newer process on the same machine took its place
+      // and it has not reached the end of this long poll yet. Handing it work
+      // costs a whole lease — the reply it sends back is a 410, and the task
+      // waits out the expiry before anyone else can try it.
+      if (!(this.admission.knows?.(waiter.agentId) ?? true)) continue;
       if (!this.admission.canAdmit(waiter.agentId, task)) continue;
       const rank = this.admission.rank?.(waiter.agentId) ?? 0;
       if (rank < bestRank) {

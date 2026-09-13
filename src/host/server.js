@@ -32,6 +32,10 @@ export function createHost({
   token,
   registry = new AgentRegistry(),
   queue = new TaskQueue({ admission: registry }),
+  // How often an agent is told to check in. A seam for tests, which cannot
+  // otherwise reach what a heartbeat does — twenty seconds is longer than a
+  // test should take.
+  heartbeatIntervalMs = 20_000,
 } = {}) {
   // `token` is the convenience path: it builds an ephemeral auth service whose
   // only credential is that bootstrap token. Real deployments pass `auth` so
@@ -51,7 +55,7 @@ export function createHost({
   function makeServer() {
     const created = http.createServer((req, res) => {
       ready
-        .then(() => handle(req, res, { auth: authService, queue, registry }))
+        .then(() => handle(req, res, { auth: authService, queue, registry, heartbeatIntervalMs }))
         .catch((error) => {
           log.error('unhandled request error', { message: error.message, url: req.url });
           if (!res.headersSent) sendJson(res, 500, { error: 'internal_error' });
@@ -349,16 +353,21 @@ async function handle(req, res, ctx) {
     if (method === 'POST' && url.pathname === '/agent/register') {
       require(SCOPES.AGENT_CONNECT);
       const body = await readJson(req);
-      const { name, capabilities, memory, load, version } = validateRegistration(body);
+      const { name, capabilities, instanceId, memory, load, version } = validateRegistration(body);
       const agent = ctx.registry.register({
         name,
         capabilities,
+        // Which worker this is. A registration repeating an instance id this
+        // user already has attached replaces it, so a machine that crashed
+        // mid-task stops being counted twice the moment it comes back.
+        instanceId,
         memory,
         load,
         version,
         remoteAddress: req.socket.remoteAddress,
         principal: principal.label,
         userId: principal.userId,
+        keyId: principal.keyId ?? null,
       });
       return sendJson(res, 201, {
         agentId: agent.id,
@@ -366,7 +375,7 @@ async function handle(req, res, ctx) {
         // Handed back so the agent can say, in its own log, that this machine
         // is not on the host's release.
         version: ALPHA_VERSION,
-        heartbeatIntervalMs: 20_000,
+        heartbeatIntervalMs: ctx.heartbeatIntervalMs ?? 20_000,
         maxPollWaitMs: MAX_POLL_WAIT_MS,
       });
     }
@@ -376,6 +385,20 @@ async function handle(req, res, ctx) {
       const agentId = segments[1];
       const agent = ctx.registry.touch(agentId);
       if (!agent) {
+        // A newer process from the same machine took this registration over,
+        // so tell this one to stand down. Re-registering is what it would do
+        // with `reregister`, and the two would then take turns evicting each
+        // other for as long as both were running.
+        const superseded = ctx.registry.supersededBy(agentId);
+        if (superseded) {
+          return sendJson(res, 410, {
+            error: 'superseded',
+            code: 'stand_down',
+            message:
+              'another agent process on this machine has taken over this registration',
+            byAgentId: superseded.byAgentId,
+          });
+        }
         // Tell the agent to re-register rather than leaving it polling a
         // registration the host has already pruned.
         return sendJson(res, 410, { error: 'unknown_agent', code: 'reregister' });

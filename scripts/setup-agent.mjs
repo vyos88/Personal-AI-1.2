@@ -17,6 +17,7 @@
  */
 
 import os from 'node:os';
+import { randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
@@ -212,8 +213,17 @@ function attachOnce({ timeoutMs = 25_000 } = {}) {
   return new Promise((resolvePromise) => {
     const child = spawn(process.execPath, [join(ROOT, 'src', 'agent', 'index.js')], {
       cwd: ROOT,
-      // No env overrides: this proves .env.agent as written, not as imagined.
-      env: { ...process.env, ALPHA_LOG_LEVEL: 'info' },
+      // Nothing about the machine's configuration is overridden here: this
+      // proves .env.agent as written, not as imagined. The two exceptions earn
+      // their place — the log level, so there is something to read, and a
+      // throwaway instance id, because the host keeps one registration per
+      // instance and this check would otherwise evict the agent already
+      // lending from this machine and kill whatever task it was running.
+      env: {
+        ...process.env,
+        ALPHA_LOG_LEVEL: 'info',
+        ALPHA_AGENT_INSTANCE_ID: `inst_setupcheck_${randomBytes(4).toString('hex')}`,
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

@@ -6,6 +6,7 @@ import { backoffDelay, sleep } from '../common/backoff.js';
 import { createLogger } from '../common/log.js';
 import { memorySnapshot } from './memory.js';
 import { LoadSampler } from './load.js';
+import { instanceIdFor } from './identity.js';
 import {
   PROTOCOL_VERSION,
   MAX_POLL_WAIT_MS,
@@ -53,11 +54,16 @@ export class TunnelAgent {
   #slotWaiters = [];
   #throttledSince = null;
   #readMemory;
+  #stoodDown = false;
 
   constructor({
     hostUrl,
     token,
     name = os.hostname(),
+    // Which worker this is, stably across restarts — see identity.js. Passed
+    // rather than read from the environment here so a test can run two
+    // "machines" in one process.
+    instanceId,
     capabilities,
     handlers = new HandlerRegistry(),
     pollWaitMs = MAX_POLL_WAIT_MS,
@@ -80,6 +86,7 @@ export class TunnelAgent {
     this.hostUrl = hostUrl.replace(/\/+$/, '');
     this.token = token;
     this.name = name;
+    this.instanceId = instanceId ?? instanceIdFor({ name });
     this.handlers = handlers;
     this.pollWaitMs = pollWaitMs;
     // Held back for this machine's own use and never offered to the host.
@@ -115,6 +122,15 @@ export class TunnelAgent {
     return this.#agentId;
   }
 
+  /**
+   * Whether this process stopped because another one took over this machine's
+   * registration, rather than because it was asked to stop. Nothing here reads
+   * it; it is how the entrypoint and the tests tell the two exits apart.
+   */
+  get stoodDown() {
+    return this.#stoodDown;
+  }
+
   /** What this machine is currently willing to lend, read fresh each time. */
   memory() {
     return this.#readMemory({
@@ -145,6 +161,7 @@ export class TunnelAgent {
     log.info('starting', {
       host: this.hostUrl,
       name: this.name,
+      instanceId: this.instanceId,
       capabilities: this.capabilities,
       concurrency: this.concurrency,
       maxLoad: this.maxLoad,
@@ -170,6 +187,13 @@ export class TunnelAgent {
         failures = 0;
       } catch (error) {
         if (!this.#running) break;
+
+        // Another process on this machine registered as this worker and the
+        // host handed it our place.
+        if (isStandDown(error)) {
+          await this.#standDown();
+          break;
+        }
 
         // The host no longer knows us — it restarted, or pruned us as stale.
         // Drop the id and register again on the next pass.
@@ -241,6 +265,7 @@ export class TunnelAgent {
       body: {
         protocolVersion: PROTOCOL_VERSION,
         name: this.name,
+        instanceId: this.instanceId,
         capabilities: this.capabilities,
         version: ALPHA_VERSION,
         memory,
@@ -251,6 +276,7 @@ export class TunnelAgent {
     this.#agentId = body.agentId;
     log.info('registered with host', {
       agentId: this.#agentId,
+      instanceId: this.instanceId,
       capabilities: this.capabilities,
       version: ALPHA_VERSION,
       offerableMB: Math.round(memory.offerableBytes / MB),
@@ -516,6 +542,33 @@ export class TunnelAgent {
     }
   }
 
+  /**
+   * Gives this machine's place up to the process that has taken it.
+   *
+   * Standing down rather than registering again is the whole of why this
+   * terminates: two processes started on one machine converge on the newer one
+   * instead of evicting each other for as long as both run. Running tasks
+   * still get their drain, though their results have nowhere to land — the
+   * registration they were leased to is gone, and the host's sweeper will
+   * requeue the work.
+   */
+  async #standDown() {
+    if (this.#stoodDown) return;
+    this.#stoodDown = true;
+    log.error('another agent process has taken over this machine\'s registration, standing down', {
+      name: this.name,
+      instanceId: this.instanceId,
+      host: this.hostUrl,
+      hint:
+        'run one agent per machine. If these really are two machines, set ' +
+        'ALPHA_AGENT_NAME and ALPHA_AGENT_INSTANCE_ID on one of them',
+    });
+    // Nothing to deregister: the host dropped this registration when it handed
+    // the place over, so a DELETE would only come back as another 410.
+    this.#agentId = null;
+    await this.stop();
+  }
+
   #startHeartbeat(intervalMs) {
     this.#stopHeartbeat();
     this.#heartbeatTimer = setInterval(async () => {
@@ -532,7 +585,12 @@ export class TunnelAgent {
           body: { memory: this.memory(), load: this.load() },
         });
       } catch (error) {
-        if (error instanceof HttpError && error.status === 410) this.#agentId = null;
+        // A heartbeat is the other request that can be told to stand down, and
+        // the one place it must not be treated as an ordinary 410: clearing
+        // the id is exactly what would make the next pass register straight
+        // back in and evict the process that just took over.
+        if (isStandDown(error)) void this.#standDown().catch(() => {});
+        else if (error instanceof HttpError && error.status === 410) this.#agentId = null;
         else log.debug('heartbeat failed', { message: error.message });
       }
     }, intervalMs);
@@ -545,6 +603,15 @@ export class TunnelAgent {
       this.#heartbeatTimer = null;
     }
   }
+}
+
+/**
+ * The host telling this process that a newer one holds its registration, as
+ * opposed to the host simply not knowing the id — which is an invitation to
+ * register again. See src/host/registry.js for the pair.
+ */
+function isStandDown(error) {
+  return error instanceof HttpError && error.status === 410 && error.body?.code === 'stand_down';
 }
 
 /** Load figures are for humans reading logs; full float precision is noise. */
