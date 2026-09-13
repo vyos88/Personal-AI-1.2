@@ -183,6 +183,18 @@ payload or its configuration would be a remote shell with extra steps. Fleet
 self-update (`scripts/self-update.mjs`, `docs/AUTO_UPDATE.md`) follows the same
 three rules and never restarts anything itself; it exits 10 to ask.
 
+`alpha-render.js` is the third, and the one that shows what a task result is
+*for*. It drives Blender to generate a creature or plant and returns the
+**recipe** — species, seed, params — while the image stays on the machine that
+made it. An educational render is hundreds of megabytes and has no business on
+a result; the few hundred bytes that reproduce it are the only part anyone
+needs. Two failures it refuses to report as success: a non-zero exit (unlike
+the coordination tunnel, a generator that exits non-zero generated nothing), and
+a *clean* exit that wrote no image — which would otherwise hand back a recipe
+reproducing nothing. The output filename is derived from the recipe rather than
+taken from the payload, so a task cannot choose where on that machine to write.
+Renders outlive `DEFAULT_LEASE_MS`, so queue them with `--lease-ms`.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

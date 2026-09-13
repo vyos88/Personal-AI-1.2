@@ -207,6 +207,12 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_UPDATE_REMOTE` | agent | `origin` | Remote `alpha.update` consults. |
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. Unused budget is withheld from what this machine offers. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
+| `ALPHA_RENDER_ROOT` | agent | — | Directory holding the Blender generator script. Required by `alpha-render`. |
+| `ALPHA_RENDER_SCRIPT` | agent | `scripts/generate.py` | Generator script, relative to the root. |
+| `ALPHA_BLENDER` | agent | `blender` | Blender executable. |
+| `ALPHA_RENDER_OUTPUT` | agent | `output` | Where images are written, relative to the root. |
+| `ALPHA_RENDER_SPECIES` | agent | any well-formed name | Comma-separated allowlist of species this machine generates. |
+| `ALPHA_RENDER_TIMEOUT_MS` | agent | `600000` | Ceiling on one render; the task's lease usually bites first. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
