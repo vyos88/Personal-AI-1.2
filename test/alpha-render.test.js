@@ -1,12 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
   buildArgs,
-  imagesWrittenSince,
   rejectUnsupportedParams,
   run,
   validateSeed,
@@ -169,6 +168,8 @@ test('the argv hands Blender the script and the generator its arguments', () => 
   assert.deepEqual(args, [
     '--background',
     '--factory-startup',
+    '--python-exit-code',
+    '1',
     '--python',
     '/r/scripts/generate.py',
     '--',
@@ -186,28 +187,67 @@ test('the argv hands Blender the script and the generator its arguments', () => 
   // --factory-startup is not decoration: a render that depends on this
   // machine's saved preferences is not reproducible from the recipe.
   assert.ok(args.includes('--factory-startup'));
+  // Nor is this: verified against Blender 4.0.2 that a script raising on its
+  // first line still exits 0 without it, which is the likeliest failure there
+  // is and the one the exit-code guard exists to catch.
+  assert.deepEqual(
+    args.slice(args.indexOf('--python-exit-code'), args.indexOf('--python-exit-code') + 2),
+    ['--python-exit-code', '1'],
+  );
 });
 
-test('a re-run that overwrites its own output still counts as produced', async () => {
-  // The generator names its file, so a repeat of the same recipe writes the
-  // same name. A before/after diff of the directory would see nothing new and
-  // report a successful render as having produced no image; mtime moves either
-  // way, which is why the cutoff is a timestamp.
-  const dir = await mkdtemp(join(tmpdir(), 'alpha-render-out-'));
-  const image = join(dir, 'beetle-1234.png');
-  await writeFile(image, 'first');
+test('another render\'s output is never claimed as this one\'s', async (t) => {
+  if (isWindows) return;
+  // The hazard the staging directory exists for. An earlier version compared
+  // mtimes against the render's start, so a file another task had just written
+  // into the shared directory satisfied the "did it produce anything" guard —
+  // and got returned under this task's recipe.
+  const f = await fixture({ writeImage: false });
+  useFixture(t, f);
 
-  const secondRunStartedAt = Date.now();
-  await new Promise((r) => setTimeout(r, 20));
-  await writeFile(image, 'second');
+  // Exactly what a concurrent render would leave behind, written now.
+  await writeFile(join(f.root, 'output', 'fern-999.png'), 'someone else');
 
-  const found = imagesWrittenSince(dir, secondRunStartedAt);
-  assert.equal(found.length, 1);
-  assert.equal(found[0].name, 'beetle-1234.png');
-  assert.equal(found[0].bytes, 6);
+  await assert.rejects(run({ species: 'beetle', seed: 1234 }), /wrote nothing/);
+});
 
-  // And something written well before the render is not claimed as its output.
-  assert.equal(imagesWrittenSince(dir, Date.now() + 60_000).length, 0);
+test('a re-run replaces its own output rather than accumulating copies', async (t) => {
+  if (isWindows) return;
+  const f = await fixture();
+  useFixture(t, f);
+
+  const first = await run({ species: 'beetle', seed: 1234 });
+  const second = await run({ species: 'beetle', seed: 1234 });
+
+  assert.equal(second.outputs.length, 1);
+  assert.equal(second.outputs[0].path, first.outputs[0].path);
+  // And no staging directories left lying around.
+  const left = (await readdir(join(f.root, 'output'))).filter((n) => n.startsWith('.render-'));
+  assert.deepEqual(left, []);
+});
+
+test('a render killed mid-flight is a failure, not a silent success', async (t) => {
+  if (isWindows) return;
+  // Verified against Node: a timeout-killed child reports code null, not a
+  // number, so `code ?? 0` read it as a clean exit and the guard never fired.
+  const f = await fixture({ writeImage: false });
+  useFixture(t, f);
+  process.env.ALPHA_RENDER_TIMEOUT_MS = '150';
+
+  // Make the stub outlast its own timeout.
+  await writeFile(f.blender, '#!/usr/bin/env bash\nsleep 5\n');
+  await chmod(f.blender, 0o755);
+
+  await assert.rejects(run({ species: 'beetle', seed: 1234 }), /killed before it finished/);
+});
+
+test('a blank environment variable means unset, not empty', (t) => {
+  const f = { root: tmpdir(), blender: 'blender' };
+  useFixture(t, f);
+  // ALPHA_RENDER_OUTPUT= would otherwise resolve to the render root itself,
+  // and every file in it would be reported as this render's output.
+  process.env.ALPHA_RENDER_OUTPUT = '   ';
+  assert.doesNotThrow(() => buildArgs({ script: 's', species: 'a', seed: 1, outputDir: 'd' }));
 });
 
 // --------------------------------------------------------------- running it
@@ -222,24 +262,22 @@ test('a render returns the recipe and leaves the image on the machine', async (t
   // The recipe is the whole payload anyone needs to ask again.
   assert.deepEqual(result.recipe, { species: 'beetle', seed: 1234 });
   // The image did not travel; what landed and how big it is did.
-  assert.equal(result.images.length, 1);
-  assert.equal(result.images[0].name, 'beetle-1234.png');
-  assert.equal(result.images[0].bytes, 3);
-  assert.match(result.images[0].path, /output[\\/]beetle-1234\.png$/);
+  assert.equal(result.outputs.length, 1);
+  assert.equal(result.outputs[0].name, 'beetle-1234.png');
+  assert.equal(result.outputs[0].bytes, 3);
+  assert.match(result.outputs[0].path, /output[\\/]beetle-1234\.png$/);
   assert.ok(typeof result.renderedInMs === 'number');
 
   // And the arguments really reached the generator in the shape buildArgs
   // promises, through a real process boundary.
   const argv = await recordedArgv(f.argvLog);
   assert.ok(argv.includes('--factory-startup'));
-  assert.deepEqual(argv.slice(argv.indexOf('--') + 1), [
-    '--species',
-    'beetle',
-    '--seed',
-    '1234',
-    '--output-dir',
-    f.root + '/output',
-  ]);
+  const tail = argv.slice(argv.indexOf('--') + 1);
+  assert.deepEqual(tail.slice(0, 4), ['--species', 'beetle', '--seed', '1234']);
+  assert.equal(tail[4], '--output-dir');
+  // Its own directory, not the shared one: that is what makes the files found
+  // afterwards unambiguously this render's.
+  assert.match(tail[5], /output[\\/]\.render-/);
 });
 
 test('shell metacharacters in a parameter are data, not syntax', async (t) => {
@@ -260,7 +298,11 @@ test('shell metacharacters in a parameter are data, not syntax', async (t) => {
   const argv = await recordedArgv(f.argvLog);
   // One argv entry, intact. execFile takes a vector, so there is no shell to
   // reinterpret any of this.
-  assert.ok(argv.includes(join(f.root, nasty)), 'the directory arrived as one argument');
+  const dirArg = argv[argv.indexOf('--output-dir') + 1];
+  assert.ok(
+    dirArg.startsWith(join(f.root, nasty)),
+    `the directory arrived as one argument, got ${JSON.stringify(dirArg)}`,
+  );
 });
 
 test('a generator that fails is a failed task, not a result', async (t) => {
@@ -280,7 +322,7 @@ test('a clean exit that produced no image is still a failure', async (t) => {
   const f = await fixture({ exitCode: 0, writeImage: false });
   useFixture(t, f);
 
-  await assert.rejects(run({ species: 'beetle', seed: 1 }), /wrote nothing into/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /wrote nothing/);
 });
 
 test('the handler refuses to run unconfigured, rather than guessing', async (t) => {

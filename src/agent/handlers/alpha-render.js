@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
@@ -47,7 +47,12 @@ import { ProtocolError } from '../../common/protocol.js';
  * the machine will actually need:
  *
  *   alpha-admin task --type alpha.render --lease-ms 600000 --min-memory-mb 4096 \
- *     --payload '{"species":"beetle","seed":1234}'
+ *     --no-wait --payload '{"species":"beetle","seed":1234}'
+ *
+ * `--no-wait` matters as much as the lease: the CLI's own poll gives up long
+ * before a render of this length finishes, and would report a task that is
+ * running perfectly well as having timed out. Read the result with
+ * `alpha-admin tasks` instead.
  */
 
 export const type = 'alpha.render';
@@ -83,6 +88,12 @@ export function validateSpecies(species) {
     );
   }
   return species;
+}
+
+/** Reads an environment variable, treating blank as unset rather than as "". */
+function configured(name, fallback) {
+  const raw = process.env[name];
+  return raw === undefined || raw.trim() === '' ? fallback : raw;
 }
 
 function allowedSpecies() {
@@ -150,7 +161,7 @@ function insideRoot(root, relative, label) {
 function requireScript(root) {
   const script = insideRoot(
     root,
-    process.env.ALPHA_RENDER_SCRIPT ?? DEFAULT_SCRIPT,
+    configured('ALPHA_RENDER_SCRIPT', DEFAULT_SCRIPT),
     'ALPHA_RENDER_SCRIPT',
   );
   if (!existsSync(script)) {
@@ -163,33 +174,32 @@ function requireScript(root) {
 }
 
 /**
- * What the generator wrote, found by when it was written.
+ * What one render produced.
  *
- * The script takes `--output-dir` and names the file itself, so the handler
- * cannot predict the path and must not pretend to. Listing what appeared is
- * the honest alternative.
+ * The generator names its own file, so the handler cannot predict the path.
+ * The first version of this compared mtimes against the render's start, which
+ * was wrong in two ways that both report someone else's work as this task's:
+ * a second render running concurrently (ALPHA_AGENT_CONCURRENCY is a thing)
+ * writes into the same directory inside the same window, and a back-to-back
+ * render lands within the clock tolerance.
  *
- * The cutoff is a timestamp rather than a before/after diff of the directory,
- * because a re-run of the same recipe overwrites its own output: the name is
- * unchanged, so a diff would see nothing and report a successful render as
- * having produced no image. `mtime` moves either way.
- *
- * The second of slack absorbs filesystems that keep mtime to a coarser
- * resolution than the clock this compares against. The output directory is
- * this generator's own, so the worst case is naming a file written moments
- * before by the same generator.
+ * So each render gets its own directory to write into and everything in it is
+ * unambiguously its own — no timestamps, no heuristics. The files are then
+ * moved into the shared output directory, which is what anyone looking for
+ * images actually browses.
  */
-export function imagesWrittenSince(outputDir, cutoffMs) {
-  return readdirSync(outputDir, { withFileTypes: true })
-    .filter((entry) => entry.isFile())
-    .map((entry) => {
-      const path = resolve(outputDir, entry.name);
-      const { size, mtimeMs } = statSync(path);
-      return { name: entry.name, path, bytes: size, mtimeMs };
-    })
-    .filter((file) => file.mtimeMs >= cutoffMs - 1_000)
-    .sort((a, b) => b.mtimeMs - a.mtimeMs)
-    .map(({ name, path, bytes }) => ({ name, path, bytes }));
+function collectOutputs(stagingDir, outputDir) {
+  const produced = [];
+  for (const entry of readdirSync(stagingDir, { withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const from = resolve(stagingDir, entry.name);
+    const to = resolve(outputDir, entry.name);
+    // Same recipe, same name: a re-run replaces its own output rather than
+    // accumulating copies.
+    renameSync(from, to);
+    produced.push({ name: entry.name, path: to, bytes: statSync(to).size });
+  }
+  return produced.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -207,6 +217,12 @@ export function buildArgs({ script, species, seed, outputDir }) {
     // whatever this machine's Blender was last configured with is not
     // reproducible from a recipe, which is the only thing this returns.
     '--factory-startup',
+    // Without this Blender exits 0 when the generator raises — verified: a
+    // script whose first line throws still exits 0, and with this it exits 1.
+    // That is the likeliest failure there is, and the exit-code guard below
+    // would never have seen it.
+    '--python-exit-code',
+    '1',
     '--python',
     script,
     // Everything after `--` is handed to the script rather than eaten by
@@ -241,7 +257,7 @@ export async function run(payload, { signal, log } = {}) {
   const script = requireScript(root);
   const outputDir = insideRoot(
     root,
-    process.env.ALPHA_RENDER_OUTPUT ?? DEFAULT_OUTPUT,
+    configured('ALPHA_RENDER_OUTPUT', DEFAULT_OUTPUT),
     'ALPHA_RENDER_OUTPUT',
   );
 
@@ -253,8 +269,12 @@ export async function run(payload, { signal, log } = {}) {
   // to exist before it runs. It is inside the validated root either way.
   mkdirSync(outputDir, { recursive: true });
 
-  const blender = process.env.ALPHA_BLENDER ?? 'blender';
-  const args = buildArgs({ script, species, seed, outputDir });
+  // Its own directory per render, so what it writes is unambiguously its own
+  // even with another render running beside it.
+  const stagingDir = mkdtempSync(resolve(outputDir, '.render-'));
+
+  const blender = configured('ALPHA_BLENDER', 'blender');
+  const args = buildArgs({ script, species, seed, outputDir: stagingDir });
 
   log?.info?.('rendering', { species, seed });
 
@@ -263,7 +283,16 @@ export async function run(payload, { signal, log } = {}) {
     execFile(
       blender,
       args,
-      { cwd: root, signal, timeout: timeoutMs(), maxBuffer: 4 * 1024 * 1024, windowsHide: true },
+      {
+        cwd: root,
+        signal,
+        timeout: timeoutMs(),
+        // A ten-minute render is far chattier than the coordination script this
+        // was copied from, and overflowing the buffer kills the child and then
+        // fails identically on every retry.
+        maxBuffer: 64 * 1024 * 1024,
+        windowsHide: true,
+      },
       (error, out, err) => {
         if (error && error.code === 'ENOENT') {
           rejectPromise(
@@ -271,6 +300,21 @@ export async function run(payload, { signal, log } = {}) {
               status: 500,
               code: 'no_blender',
             }),
+          );
+          return;
+        }
+        // A child killed by a signal reports `code: null`, not a number —
+        // verified: a timeout gives code null, killed true, signal SIGTERM. So
+        // `code ?? 0` read a render that blew its timeout or was aborted
+        // mid-frame as a clean exit, and the guard below never fired.
+        if (error && (error.killed || error.signal || error.code === 'ABORT_ERR')) {
+          rejectPromise(
+            new ProtocolError(
+              `Blender was killed before it finished (${error.signal ?? error.code}). ` +
+                'Either the render outran ALPHA_RENDER_TIMEOUT_MS, or the task lease expired ' +
+                '— queue it with a larger --lease-ms.',
+              { status: 500, code: 'render_killed' },
+            ),
           );
           return;
         }
@@ -284,6 +328,7 @@ export async function run(payload, { signal, log } = {}) {
   // simply did not generate anything. That is a failed task, so it throws and
   // the queue decides whether to retry it.
   if (code !== 0) {
+    rmSync(stagingDir, { recursive: true, force: true });
     throw new ProtocolError(
       `Blender exited ${code} generating ${species}/${seed}: ${stderr.trim().slice(-1_000)}`,
       { status: 500, code: 'render_failed' },
@@ -292,11 +337,12 @@ export async function run(payload, { signal, log } = {}) {
 
   // A zero exit with no image is the worse failure, because it would otherwise
   // be reported as a success carrying a recipe that reproduces nothing.
-  const images = imagesWrittenSince(outputDir, startedAt);
-  if (images.length === 0) {
+  const outputs = collectOutputs(stagingDir, outputDir);
+  rmSync(stagingDir, { recursive: true, force: true });
+  if (outputs.length === 0) {
     throw new ProtocolError(
-      `Blender exited 0 but wrote nothing into ${outputDir}. The generator script ` +
-        'should write its image to the directory given by --output-dir.',
+      'Blender exited 0 but wrote nothing. The generator script should write its ' +
+        'image to the directory given by --output-dir.',
       { status: 500, code: 'no_image' },
     );
   }
@@ -305,9 +351,10 @@ export async function run(payload, { signal, log } = {}) {
     // The recipe: everything needed to ask for this exact image again, and
     // nothing that is only true of this run.
     recipe: { species, seed },
-    // What landed on this machine, newest first, and proof it is really there.
-    // The images themselves deliberately do not travel.
-    images,
+    // Everything this render wrote, and proof it is really there. Named
+    // `outputs` rather than `images` because a generator may also leave a
+    // .blend or a sidecar, and calling those images would be a lie.
+    outputs,
     renderedInMs: Date.now() - startedAt,
     stdout: stdout.slice(-8_000),
     stderr: stderr.slice(-8_000),
