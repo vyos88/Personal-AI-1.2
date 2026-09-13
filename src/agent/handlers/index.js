@@ -1,4 +1,5 @@
 import * as echo from './echo.js';
+import * as grow from './grow.js';
 import * as sysinfo from './sysinfo.js';
 import { validateTaskType } from '../../common/protocol.js';
 
@@ -7,7 +8,10 @@ import { validateTaskType } from '../../common/protocol.js';
 // There is intentionally no shell-exec handler here. Registering one turns the
 // shared token into remote code execution on this machine, so that belongs in a
 // handler you write and enable on purpose — see README, "Adding a handler".
-const BUILTIN = [echo, sysinfo];
+// `grow` is pure arithmetic over its own payload: it reads nothing, writes
+// nothing and starts no process, so it belongs here rather than behind
+// ALPHA_EXTRA_HANDLERS.
+const BUILTIN = [echo, grow, sysinfo];
 
 export class HandlerRegistry {
   #handlers = new Map();
