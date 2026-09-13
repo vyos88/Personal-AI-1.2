@@ -81,6 +81,13 @@ export const MAX_POLL_WAIT_MS = 25_000;
 // no poll. Generous enough to survive a laptop sleeping through a GC pause.
 export const AGENT_STALE_MS = 90_000;
 
+// How long the host remembers that a registration was superseded by a newer
+// process from the same machine. Only has to outlast the superseded process's
+// next request — a poll at MAX_POLL_WAIT_MS or a heartbeat — but is generous
+// so a process that was napping over its load ceiling still learns why it was
+// dropped instead of quietly registering itself back into the fleet.
+export const SUPERSEDED_MEMORY_MS = 300_000;
+
 export class ProtocolError extends Error {
   constructor(message, { status = 400, code = 'bad_request' } = {}) {
     super(message);
@@ -158,10 +165,32 @@ export function validateRegistration(body) {
   return {
     name,
     capabilities,
+    instanceId: validateInstanceId(body.instanceId),
     version: validateReportedVersion(body.version),
     memory: validateMemoryReport(body.memory),
     load: validateLoadReport(body.load),
   };
+}
+
+/**
+ * Which worker this is, stably across restarts of it — see
+ * src/agent/identity.js for how an agent derives one.
+ *
+ * Optional, because it is the agent that knows its own identity and an agent
+ * that does not report one still works: it simply cannot be recognised as the
+ * same worker coming back, which is the pre-existing behaviour. Two machines
+ * must never share one, so it is derived from the machine rather than written
+ * into configuration a second machine could be handed a copy of.
+ */
+export function validateInstanceId(instanceId) {
+  if (instanceId === undefined || instanceId === null) return null;
+  requireString(instanceId, 'instanceId', { max: 128 });
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]*$/.test(instanceId)) {
+    throw new ProtocolError(
+      `"instanceId" must match /^[A-Za-z0-9][A-Za-z0-9._:-]*$/ (got ${JSON.stringify(instanceId)})`,
+    );
+  }
+  return instanceId;
 }
 
 /**

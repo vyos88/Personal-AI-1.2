@@ -150,7 +150,15 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   });
 }
 
-agent.start().catch((error) => {
-  log.error('agent exited', { message: error.message });
-  process.exit(1);
-});
+agent
+  .start()
+  .then(() => {
+    // A stand-down is a finished process, not a fault: another agent on this
+    // machine holds the registration, and this one coming back is the only
+    // thing that would keep the pair taking turns evicting each other.
+    if (agent.stoodDown) process.exit(0);
+  })
+  .catch((error) => {
+    log.error('agent exited', { message: error.message });
+    process.exit(1);
+  });

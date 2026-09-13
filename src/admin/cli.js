@@ -392,8 +392,17 @@ export async function main(argv = process.argv.slice(2)) {
       const { agents, hostVersion } = await api('/agents');
       if (flags.json) return emit('', agents);
       const drifted = agents.filter((a) => a.version && a.version !== hostVersion);
+      // Two machines may legitimately attach under one name — a laptop set up
+      // by copying the first one's configuration is the usual way it happens —
+      // and two identical rows are worse than a long one. Mark only the names
+      // that actually collide, so the common case stays as it was.
+      const shared = new Set(
+        agents.map((a) => a.name).filter((name, i, all) => all.indexOf(name) !== i),
+      );
+      const nameOf = (a) =>
+        shared.has(a.name) ? `${a.name} (${(a.instanceId ?? a.id).slice(-6)})` : a.name;
       table(agents, [
-        { header: 'NAME', value: (a) => a.name },
+        { header: 'NAME', value: nameOf },
         { header: 'PRINCIPAL', value: (a) => a.principal ?? '-' },
         // A machine on another release still works — the protocol gate passed —
         // but it is running different code, so mark it rather than hide it.
@@ -415,6 +424,12 @@ export async function main(argv = process.argv.slice(2)) {
         emit(
           `\n* not the host's version (${hostVersion}). Update ` +
             `${drifted.map((a) => a.name).join(', ')} so every machine runs the same version.`,
+        );
+      }
+      if (shared.size) {
+        emit(
+          `\n${[...shared].map((name) => `"${name}"`).join(', ')} names more than one machine ` +
+            '(the suffix is each machine\'s own id). Set ALPHA_AGENT_NAME on one of them.',
         );
       }
       return;

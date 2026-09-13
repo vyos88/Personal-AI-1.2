@@ -3,6 +3,7 @@ import {
   AGENT_STALE_MS,
   MEMORY_REPORT_STALE_MS,
   LOAD_REPORT_STALE_MS,
+  SUPERSEDED_MEMORY_MS,
   UNKNOWN_LOAD_FACTOR,
   MB,
 } from '../common/protocol.js';
@@ -22,6 +23,14 @@ const log = createLogger('host:registry');
  * same 8 GB laptop in the same instant, because none of them would have
  * started consuming memory yet when the next one was matched.
  *
+ * One registration per worker, too. Every agent dials out, so a worker that
+ * crashed and came back is indistinguishable from a new one on the wire: it
+ * registers, gets a new id, and its dead registration goes on lending the same
+ * machine's memory until the stale sweep. Agents therefore report an instance
+ * id (see src/agent/identity.js), and a registration that repeats one replaces
+ * the earlier registration rather than joining it. Reporting one is optional —
+ * an agent that does not is simply never recognised as a returning worker.
+ *
  * It also ranks agents, which is what stops two laptops from being driven into
  * the ground together. Free RAM is a poor proxy for "can take more work": a
  * machine pinned at 100% CPU by its owner's own build still reports plenty of
@@ -31,26 +40,39 @@ const log = createLogger('host:registry');
  */
 export class AgentRegistry {
   #agents = new Map();
+  // Registrations dropped because the same worker registered again, kept just
+  // long enough to tell the superseded process why its id stopped working.
+  #superseded = new Map();
 
-  constructor({ staleMs = AGENT_STALE_MS, now = () => Date.now() } = {}) {
+  constructor({
+    staleMs = AGENT_STALE_MS,
+    supersededMemoryMs = SUPERSEDED_MEMORY_MS,
+    now = () => Date.now(),
+  } = {}) {
     this.staleMs = staleMs;
+    this.supersededMemoryMs = supersededMemoryMs;
     this.now = now;
   }
 
   register({
     name,
     capabilities,
+    instanceId = null,
     memory = null,
     load = null,
     version = null,
     remoteAddress,
     principal = null,
     userId = null,
+    keyId = null,
   }) {
     const agent = {
       id: newId('agent'),
       name,
       capabilities,
+      // Which worker this is, across restarts of it. One registration is kept
+      // per instance — see #supersede.
+      instanceId,
       // Which release this machine is running, or null from an agent too old
       // to report one. Never used for placement — only so drift is visible.
       version,
@@ -59,6 +81,9 @@ export class AgentRegistry {
       // and so one user's credential cannot drive another user's worker.
       principal,
       userId,
+      // The specific key, not just its owner. Two machines sharing one key
+      // work, but cannot be revoked or retired apart, so it is worth saying.
+      keyId,
       registeredAt: this.now(),
       lastSeenAt: this.now(),
       tasksCompleted: 0,
@@ -80,12 +105,21 @@ export class AgentRegistry {
       loadReportedAt: null,
       inFlight: 0,
     };
+    // Before this machine is counted, retire whatever it left behind. A worker
+    // that crashed or was killed never got to deregister, so without this its
+    // dead registration goes on offering the machine's RAM and covering its
+    // capabilities until the stale sweep — the fleet reads as two workers, and
+    // `stats` as twice the memory that exists.
+    const previous = this.#findLiveInstance(agent);
     this.#agents.set(agent.id, agent);
+    if (previous) this.#supersede(previous, agent);
+    this.#warnAboutCollisions(agent);
     if (memory) this.reportMemory(agent.id, memory);
     if (load) this.reportLoad(agent.id, load);
     log.info('agent registered', {
       agentId: agent.id,
       name,
+      instanceId,
       capabilities,
       principal,
       version,
@@ -103,6 +137,108 @@ export class AgentRegistry {
       });
     }
     return agent;
+  }
+
+  /**
+   * The registration this one replaces, if any.
+   *
+   * Matched on the instance id *and* the owner: one user's credential must not
+   * be able to evict another user's worker, which is the same rule the agent
+   * plane enforces when a request tries to drive a registration it does not
+   * own. An agent that reports no instance id matches nothing — it cannot be
+   * recognised, so it is treated as a new worker, exactly as before.
+   */
+  #findLiveInstance(agent) {
+    if (!agent.instanceId) return null;
+    for (const existing of this.#agents.values()) {
+      if (existing.id === agent.id) continue;
+      if (existing.instanceId !== agent.instanceId) continue;
+      if ((existing.userId ?? null) !== (agent.userId ?? null)) continue;
+      return existing;
+    }
+    return null;
+  }
+
+  /**
+   * Retires `previous` in favour of `agent`, and remembers that it did.
+   *
+   * The newest process wins, and the superseded one is told to stand down
+   * rather than left to discover a 410 and register itself straight back in.
+   * That direction is what makes this terminate: two agent processes started
+   * on one machine converge on one survivor instead of evicting each other
+   * forever, and a restarted worker takes over from its own corpse
+   * immediately rather than waiting out AGENT_STALE_MS.
+   *
+   * Tasks the retired registration was holding are not touched. Its leases
+   * expire and the sweeper requeues them, which is the same path a dead agent
+   * has always taken; requeueing here instead would hand a task to a second
+   * machine while the process that has it is still aborting.
+   */
+  #supersede(previous, agent) {
+    this.#agents.delete(previous.id);
+    this.#forgetStaleSupersessions();
+    this.#superseded.set(previous.id, {
+      at: this.now(),
+      byAgentId: agent.id,
+      instanceId: previous.instanceId,
+      name: previous.name,
+    });
+    log.warn('agent registration superseded by a newer process on the same machine', {
+      superseded: previous.id,
+      by: agent.id,
+      name: agent.name,
+      instanceId: agent.instanceId,
+      heldTasks: previous.inFlight,
+      idleMs: this.now() - previous.lastSeenAt,
+    });
+  }
+
+  /**
+   * Why this registration stopped existing, or null if the host simply does
+   * not know the id. The two deserve different answers: an agent the host has
+   * forgotten should register again, while one a newer process took over from
+   * should stop asking.
+   */
+  supersededBy(agentId) {
+    this.#forgetStaleSupersessions();
+    return this.#superseded.get(agentId) ?? null;
+  }
+
+  #forgetStaleSupersessions() {
+    const cutoff = this.now() - this.supersededMemoryMs;
+    for (const [id, record] of this.#superseded) {
+      if (record.at < cutoff) this.#superseded.delete(id);
+    }
+  }
+
+  /**
+   * Two things that are legal, work, and are worth one line in the log each,
+   * because both are invisible from `alpha-admin agents` alone and both are
+   * usually a copied configuration rather than a decision.
+   */
+  #warnAboutCollisions(agent) {
+    for (const existing of this.#agents.values()) {
+      if (existing.id === agent.id) continue;
+      // Two machines under one name. Placement does not care, but every
+      // operator-facing surface does: two identical rows, and log lines that
+      // cannot be told apart.
+      if (existing.name === agent.name) {
+        log.warn('two machines are attached under the same name', {
+          name: agent.name,
+          agents: [existing.id, agent.id],
+          hint: 'set ALPHA_AGENT_NAME on one of them so the fleet can be read',
+        });
+      }
+      // One key on two machines. Revocation and expiry are per key, so this
+      // cannot retire one machine without retiring the other.
+      if (agent.keyId && existing.keyId === agent.keyId) {
+        log.warn('one agent key is in use by two machines', {
+          keyId: agent.keyId,
+          agents: [existing.id, agent.id],
+          hint: 'issue each machine its own key so it can be revoked on its own',
+        });
+      }
+    }
   }
 
   /** Records a fresh memory reading. Sent on registration and every heartbeat. */
@@ -288,8 +424,18 @@ export class AgentRegistry {
     return this.#agents.get(agentId) ?? null;
   }
 
+  /**
+   * Whether this registration is still live. The queue asks before handing a
+   * task to a parked poll, because a poll can outlast the registration behind
+   * it — pruned as stale, or superseded by a newer process on the machine.
+   */
+  knows(agentId) {
+    return this.#agents.has(agentId);
+  }
+
   /** Drops agents that have gone quiet; returns the ids removed. */
   prune() {
+    this.#forgetStaleSupersessions();
     const cutoff = this.now() - this.staleMs;
     const dropped = [];
     for (const [id, agent] of this.#agents) {
@@ -304,7 +450,10 @@ export class AgentRegistry {
 
   list() {
     const now = this.now();
-    return [...this.#agents.values()].map((agent) => ({
+    // `keyId` stays behind: it is recorded so the host can say when two
+    // machines are attached on one credential, and `agents:read` is a weaker
+    // scope than the `keys:read` that exists for looking at credentials.
+    return [...this.#agents.values()].map(({ keyId, ...agent }) => ({
       ...agent,
       idleMs: now - agent.lastSeenAt,
       availableBytes: this.offerableBytes(agent),

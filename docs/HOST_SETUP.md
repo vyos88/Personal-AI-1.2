@@ -370,6 +370,37 @@ agent actually has the memory:
 node src/admin/run.js task --type sysinfo --min-memory-mb 2048
 ```
 
+### A second laptop
+
+The same again, with its own key and its own name:
+
+```powershell
+node src/admin/run.js issue-key --user <yourUserId> --scopes agent --name jacks-laptop
+```
+
+```bash
+node scripts/setup-agent.mjs --host http://100.x.y.z:8787 --key alpha_key_... --name jacks-laptop
+```
+
+Its own key because revocation is per key — one key on two machines cannot
+retire either of them alone, and the host logs a warning when it sees that.
+
+Each agent reports an instance id derived from the machine it runs on, and the
+host keeps one registration per instance, so a laptop that crashed and came
+back replaces itself instead of being counted twice while its dead registration
+ages out. Two things follow, and both are worth knowing before they surprise
+you:
+
+- **One agent per machine.** If a second agent process starts on a machine that
+  is already lending, the newer registration wins and the older process logs
+  `standing down` and exits. That is the pair converging rather than taking
+  turns evicting each other. Re-running `setup-agent.mjs` is safe — its attach
+  check uses a throwaway identity precisely so it cannot kick the agent already
+  running there.
+- **Two machines may share a name**, and `alpha-admin agents` marks them with a
+  suffix rather than showing two identical rows. `ALPHA_AGENT_NAME` on one of
+  them is the fix.
+
 ### Lending the laptop's cores
 
 Memory is only half of it. Free RAM says nothing about whether a machine can

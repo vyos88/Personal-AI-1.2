@@ -93,6 +93,38 @@ instant. Two invariants keep the two sides of that accounting honest:
   `memory.store` is the one that does — its *unused* budget only, since what it
   already holds is real heap and has left `freeBytes` on its own.
 
+**One registration per worker.** Agents dial out, so a worker that crashed and
+came back is indistinguishable on the wire from a new machine: it registers,
+gets a fresh id, and the dead registration goes on lending the same RAM and
+covering the same capabilities until `AGENT_STALE_MS`. One laptop makes that
+obvious; two make a fleet that reads as twice the machines and twice the memory.
+So the agent reports an `instanceId` (`src/agent/identity.js`) and
+`registry.register()` supersedes any live registration with the same id *and*
+the same owner. Three things this rests on:
+
+- **The identity is derived from the machine, never configured.** `.env.agent`
+  is copied from one laptop to the next — that is how a second machine gets set
+  up — so an id living in it would arrive already belonging to another machine
+  and the two would evict each other forever. `ALPHA_AGENT_INSTANCE_ID` is the
+  escape hatch for machines the fingerprint cannot separate. The name is mixed
+  in, so two agents deliberately run on one machine stay two workers.
+- **The newest process wins and the superseded one stands down.** The host
+  answers its next request with `410 stand_down` rather than `reregister`, and
+  the agent stops instead of registering back in — that direction is the whole
+  reason this terminates. Anything that spawns the entrypoint beside a running
+  agent must pass a throwaway `ALPHA_AGENT_INSTANCE_ID`; `setup-agent.mjs`'s
+  attach check does, or proving the configuration would kill the agent already
+  lending from that machine.
+- **A dropped registration is never given work.** A long poll outlives the
+  registration behind it, so `queue.#findWaiterFor` skips waiters the registry
+  no longer `knows()`. Dispatching to one costs the task a whole lease: the
+  only reply it can send is a 410.
+
+Superseding does not touch the tasks the retired registration held — their
+leases expire and the sweeper requeues them, exactly as for any dead agent.
+Requeueing here instead would hand work to a second machine while the process
+holding it was still aborting.
+
 **The memory report rides the long poll, not just the heartbeat.** Both reports
 travel on `GET /agent/:id/tasks/next` as query parameters, but for memory it is
 load-bearing rather than an optimisation: load only ranks the agents that could

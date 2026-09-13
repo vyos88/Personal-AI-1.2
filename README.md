@@ -317,6 +317,64 @@ floored at 512 MB and capped at 4 GB — override with `--reserve-mb`), writes
 it worked. `npm run agent` from then on. It prints the service command for the
 platform it ran on, so the laptop keeps lending across reboots.
 
+### A second machine, and the same machine twice
+
+Another laptop attaches exactly like the first — its own key, issued to it on
+the host, and a name of its own:
+
+```bash
+npm run admin -- issue-key --user <userId> --scopes agent --name jacks-laptop   # on the host
+npm run setup:agent -- --host http://100.x.y.z:8787 --key alpha_key_... --name jacks-laptop
+```
+
+Its own key, because revocation and expiry are per key: one key shared between
+two machines cannot retire either of them on its own. The host says so in its
+log if you do it anyway.
+
+The harder half of a second machine is identity. Every agent dials out, so the
+host cannot tell a worker that crashed and came back from a new machine turning
+up: it registers, is handed a fresh agent id, and the registration the dead
+process left behind goes on offering that machine's RAM, covering its
+capabilities and sitting in `agents` until the stale sweep ninety seconds
+later. With one laptop that duplicate is obvious on sight. With two it is not,
+and a coordinator that counts one machine twice places work against memory that
+does not exist.
+
+So each agent reports an **instance id** and the host keeps **one registration
+per instance**. A machine coming back takes its own place over rather than
+joining itself, immediately, without waiting out the sweep — and its dead
+registration's memory holds go with it. A task the dead process was holding is
+left to its lease, the same path a dead agent has always taken.
+
+The id is derived from the machine — hostname, platform, CPU, RAM, user, plus
+the name this worker runs under — and deliberately not written into
+`.env.agent`, because that file gets copied from the first laptop to the second.
+That is how a second machine is usually set up, and an id travelling in it
+would arrive already belonging to another machine. `ALPHA_AGENT_INSTANCE_ID`
+overrides it for the one case the machine cannot separate: two machines that
+agree on every one of those things.
+
+Two *processes* on one machine are the case that cannot both be right. The
+newer registration wins, and the older process is told to stand down and
+exits — rather than re-registering, which is what would have the two taking
+turns evicting each other for as long as both ran. Running one agent per
+machine is the rule; two always-on services on one machine will flap slowly
+and say so in both logs.
+
+Two machines may share a *name*, on the other hand. Placement does not care
+about names, and refusing capacity over a label would be silly, so the host
+attaches both and marks them where it matters:
+
+```
+$ npm run admin -- agents
+NAME              PRINCIPAL  CAPABILITIES      RAM     FREE   HELD  CPU  RUN  IDLE
+laptop (a1b2c3)   viorel     echo,sysinfo,...  15866M  9184M  0M    12%  0    2s
+laptop (d4e5f6)   viorel     echo,sysinfo,...  8014M   3902M  0M    41%  1    1s
+
+"laptop" names more than one machine (the suffix is each machine's own id).
+Set ALPHA_AGENT_NAME on one of them.
+```
+
 ### Placing work by free memory
 
 The agent reports its memory on registration, on every heartbeat and on every
