@@ -105,6 +105,13 @@ $protected = @($AlphaRoot)
 # A copy is live if its full path appears verbatim in some command line.
 # Substring, not -like: a path containing [ or ] would break a wildcard match
 # and lose its protection, which is the one failure this must not have.
+#
+# DELIBERATELY not separator-aware. "C:\AlphaData\AlphaOld" starts with
+# "C:\AlphaData\Alpha" and is therefore treated as live, so a sibling whose
+# name merely begins with a protected path is never deleted. That is a false
+# positive, and for a deletion script a false positive costs a leftover folder
+# while a false negative costs someone's install. Do not "fix" this by adding a
+# trailing-separator check without deciding you want the opposite trade.
 function Test-Live($dir) {
   if ($protected | Where-Object {
         $dir.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) -or

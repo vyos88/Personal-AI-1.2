@@ -33,7 +33,8 @@ import { ProtocolError } from '../../common/protocol.js';
 export const type = 'grow';
 
 export const description =
-  'Grows a plant or creature from an L-system recipe and returns its skeleton as nodes and edges.';
+  'Grows a plant or creature from an L-system recipe and returns its skeleton as nodes and edges. '
+  + 'Structure, in milliseconds, on any agent — for a rendered image use alpha.render.';
 
 /**
  * Recipes worth keeping. Each is a whole organism in nine fields, which is the
