@@ -215,7 +215,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_RENDER_TIMEOUT_MS` | agent | `600000` | Ceiling on one render; the task's lease usually bites first. |
 | `ALPHA_PANEL_ROOT` | agent | — | Root holding the CrowPanel sketch. Required by `alpha-panel`. |
 | `ALPHA_PANEL_SKETCH` | agent | `firmware/crowpanel` | Sketch directory, relative to the root. |
-| `ALPHA_PANEL_FQBN` | agent | — | Board id, e.g. `esp32:esp32:esp32s3`. Required to compile or flash. |
+| `ALPHA_PANEL_FQBN` | agent | — | Board id, e.g. `esp32:esp32:esp32`. Required to compile or flash. |
 | `ALPHA_PANEL_PORT` | agent | — | Default serial port for the panel, e.g. `COM3`. |
 | `ALPHA_ARDUINO_CLI` | agent | `arduino-cli` | arduino-cli executable. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |

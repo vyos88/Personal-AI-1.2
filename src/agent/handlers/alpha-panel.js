@@ -42,8 +42,10 @@ import { ProtocolError } from '../../common/protocol.js';
  *   ALPHA_PANEL_ROOT    Root holding the sketch (required for Compile/Flash).
  *   ALPHA_PANEL_SKETCH  Sketch directory, relative to root.
  *                       Defaults to firmware/crowpanel.
- *   ALPHA_PANEL_FQBN    Board id, e.g. esp32:esp32:esp32s3 (required for
- *                       Compile/Flash).
+ *   ALPHA_PANEL_FQBN    Board id, e.g. esp32:esp32:esp32 (required for
+ *                       Compile/Flash). The panel enumerates through a CH340
+ *                       USB-UART bridge, so it is a classic ESP32 rather than
+ *                       an S3 — those present native USB or a CH343.
  *   ALPHA_PANEL_PORT    Default serial port, e.g. COM3 or /dev/ttyUSB0.
  *   ALPHA_ARDUINO_CLI   arduino-cli executable. Defaults to `arduino-cli`.
  */

@@ -37,10 +37,15 @@ USB at all — no `/sys/bus/usb`, no serial device nodes, no COM port — so:
 The tests cover what can be tested without hardware, which is the validation and
 the argv. They do not cover whether the board answers.
 
-**Open question, needed before a display flash:** which CrowPanel is it?
-`display.h` currently assumes an SPI unit (TFT_eSPI — the 2.4"/3.5" boards). The
-5"/7" units are RGB parallel on an ESP32-S3 and need a different driver *and* a
-different `ALPHA_PANEL_FQBN`. Everything else in the sketch is board-independent.
+**Which board, and how that was settled.** The only hardware record in the
+system is `COM3 USB-SERIAL CH340`. A CH340 is an external USB-UART bridge; an
+ESP32-S3 CrowPanel presents native USB or a CH343 instead. So this is a classic
+ESP32 in the SPI display family, which makes `ALPHA_PANEL_FQBN=esp32:esp32:esp32`
+and `display.h` on TFT_eSPI the right pair.
+
+That is inference from one line of evidence, not a reading off the board. If
+`Ports` reports something that disagrees, the FQBN is one env var and `display.h`
+is one file — nothing else in the sketch is board-dependent.
 
 ## Runbook — on the Alpha host
 

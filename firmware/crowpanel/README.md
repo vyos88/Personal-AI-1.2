@@ -36,14 +36,21 @@ Then point the agent at the sketch and enable the handler:
 ALPHA_EXTRA_HANDLERS=alpha-panel
 ALPHA_PANEL_ROOT=C:\path\to\alpha-tunnel
 ALPHA_PANEL_SKETCH=firmware/crowpanel
-ALPHA_PANEL_FQBN=esp32:esp32:esp32s3
+ALPHA_PANEL_FQBN=esp32:esp32:esp32
 ALPHA_PANEL_PORT=COM3
 ```
 
 `ALPHA_PANEL_FQBN` **must match your board.** CrowPanel is a family — the
-2.4"/3.5" units are SPI, the 5"/7" units are RGB parallel on an ESP32-S3 — and
-they do not share a core target. `arduino-cli board listall esp32` prints the
-options.
+2.4"/3.5" units are SPI on a classic ESP32, the 5"/7" units are RGB parallel on
+an ESP32-S3 — and they do not share a core target.
+
+The value above is `esp32:esp32:esp32` because this board enumerates through a
+**CH340** USB-UART bridge (`COM3 USB-SERIAL CH340`). An S3 CrowPanel would show
+native USB or a CH343, so the CH340 is what places this in the SPI family — and
+why `display.h` is TFT_eSPI rather than an RGB driver.
+
+Confirm it with `arduino-cli board listall esp32`; `Ports` will also report what
+the CLI thinks is attached.
 
 ## Flashing
 
