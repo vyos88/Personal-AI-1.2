@@ -18,7 +18,8 @@
     "test": "node --test test/*.test.js",
     "admin": "node src/admin/run.js",
     "setup:host": "node scripts/setup-host.mjs",
-    "setup:agent": "node scripts/setup-agent.mjs"
+    "setup:agent": "node scripts/setup-agent.mjs",
+    "jobs": "node scripts/run-jobs.mjs"
   },
   "dependencies": {},
   "devDependencies": {}

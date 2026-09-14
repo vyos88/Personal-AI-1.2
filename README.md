@@ -509,6 +509,45 @@ $ npm run admin -- stats --json
 Far apart means work is not being spread. Both high means the fleet really is
 saturated and another machine is the only answer.
 
+### Putting a batch of work on the fleet
+
+`alpha-admin task` queues one task and prints its result, which is the wrong
+shape for the question this thing exists to answer — *are the laptops actually
+doing Alpha's work?* That needs several jobs at once and a per-machine tally:
+
+```bash
+npm run jobs -- --type sysinfo --count 6
+```
+
+```
+Fleet at http://100.x.y.z:8787
+  laptop        16075M RAM, 9184M free, cpu 12%, 0 running
+  jacks-laptop   8014M RAM, 3902M free, cpu 41%, 1 running
+  alpha-host    32768M RAM, 20480M free, cpu 7%, 0 running
+
+Queueing 6 × sysinfo
+
+  task_gh6nw3nqqjac4s4v  jacks-laptop   succeeded 0.4s  tries 1
+  task_iu6iipl1n7o6f1w4  laptop         succeeded 0.4s  tries 1
+  ...
+
+Ran on: jacks-laptop 3, laptop 2, alpha-host 1
+```
+
+That last line is the whole point: it says the work is spread, and `tries`
+next to it says whether anything had to be retried to get there. It takes the
+same flags as a single task — `--agent` to pin the batch to one machine,
+`--min-memory-mb` to place by free RAM, `--lease-ms` for work that outlives a
+minute — and exits non-zero if anything failed or was still queued when the
+timeout ran out, so it can be the thing a scheduled job runs.
+
+Renders, which need the GPU and the generator on one box:
+
+```bash
+npm run jobs -- --type alpha.render --agent alpha-host --count 3 \
+  --payload '{"species":"fern","seed":7}' --lease-ms 900000 --timeout 1800
+```
+
 ### Sending work to one machine
 
 Everything above picks a machine. Some work has no choice of machine: a render
