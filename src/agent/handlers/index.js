@@ -32,6 +32,30 @@ export class HandlerRegistry {
     return this;
   }
 
+  /**
+   * Registers a handler unless the machine it is running on cannot do the
+   * work, in which case it is left out and the caller is told why.
+   *
+   * A handler may export `available()` returning `{ ok, reason }`. The ones
+   * that do are the ones that drive an external program — advertising
+   * `alpha.render` on a laptop with no Blender means winning the render on
+   * free RAM and then failing it, having spent an attempt, with the retry free
+   * to land right back on the same machine. A capability is a promise, and
+   * this is where a machine declines to make one it cannot keep.
+   *
+   * Registering stays unconditional (`register`) for handlers that can run
+   * anywhere, which is every built-in: they start no process and open no
+   * socket, so there is nothing for them to be unavailable for.
+   */
+  add(handler) {
+    const check = typeof handler?.available === 'function' ? handler.available() : { ok: true };
+    if (!check?.ok) {
+      return { registered: false, type: handler?.type ?? null, reason: check?.reason ?? 'unavailable' };
+    }
+    this.register(handler);
+    return { registered: true, type: handler.type, reason: null };
+  }
+
   get(type) {
     return this.#handlers.get(type) ?? null;
   }

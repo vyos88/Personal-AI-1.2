@@ -68,8 +68,19 @@ for (const name of extraHandlers) {
     process.exit(1);
   }
   try {
-    handlers.register(await import(`./handlers/${name}.js`));
-    log.info('registered extra handler', { handler: name });
+    const outcome = handlers.add(await import(`./handlers/${name}.js`));
+    if (outcome.registered) {
+      log.info('registered extra handler', { handler: name });
+    } else {
+      // Not fatal, and not silent. This machine goes on lending everything
+      // else; it simply stops claiming work it would only fail — which is the
+      // likely state of a laptop set up by copying the host's configuration.
+      log.warn('not offering a handler this machine cannot run', {
+        handler: name,
+        type: outcome.type,
+        reason: outcome.reason,
+      });
+    }
   } catch (error) {
     log.error(`could not load handler "${name}"`, { message: error.message });
     process.exit(1);

@@ -255,12 +255,29 @@ quorum, and the docs say so rather than implying this is HA.
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
-`description` and `committedBytes()` (RAM the handler holds for itself, which
-the agent then stops offering the host), then add it to `BUILTIN` in
-`src/agent/handlers/index.js` — or
+`description`, `committedBytes()` (RAM the handler holds for itself, which
+the agent then stops offering the host) and `available()` (below), then add it
+to `BUILTIN` in `src/agent/handlers/index.js` — or
 leave it out and let a machine opt in with
 `ALPHA_EXTRA_HANDLERS=<module-name>`. Handlers that run an external program
 must be opt-in, never in `BUILTIN`.
+
+**A handler that needs something from the machine proves it before the agent
+offers it.** `available()` returns `{ ok, reason }` and `HandlerRegistry.add()`
+— the path `src/agent/index.js` uses for `ALPHA_EXTRA_HANDLERS` — leaves out
+one that answers no, logging the reason and carrying on with everything else.
+Being opt-in is not enough on its own: `.env.agent` gets copied from the host
+to a laptop, and that laptop then advertises `alpha.render`, wins it on free
+RAM, and fails it with an attempt spent and a retry free to land right back
+there. `alpha-render.js` is the one that implements it, and the rule it follows
+is that the check asks *exactly* what `run()` asks, the same way — same root,
+same script-inside-root rule, same output directory, same executable resolved
+against PATH (and PATHEXT on Windows, where `blender` is `blender.exe`) — or a
+machine could pass the check and fail the task, which is the failure the check
+exists to prevent. It executes nothing: whether the binary works is not
+knowable without a render, and `run()` still reports that honestly. Built-ins
+export no `available()` and are registered unconditionally; they start no
+process, so there is nothing for them to be unavailable for.
 
 `alpha-update.js` is the second one, and drives `git` rather than a script on
 the host — git's CLI is a contract that already exists, so there is nothing to
@@ -290,10 +307,10 @@ attributed a concurrent render's output to the wrong task. `--python-exit-code
 is the likeliest failure there is. Renders outlive `DEFAULT_LEASE_MS`, so queue
 them with `--lease-ms` *and* `--no-wait`, or the CLI's own poll gives up on a
 task that is running fine. Queue them with `--agent <the rendering machine>`
-too: the handler being opt-in keeps it off machines that never enabled it, but
-not off one that was handed a copy of the host's configuration, and naming the
-machine is what makes a render land where the GPU and the generator actually
-are.
+too. Two halves of the same problem: `--agent` decides where a render goes, and
+`available()` (above) stops a machine that cannot render from offering to in
+the first place — the second is what covers an *unpinned* render on a laptop
+holding a copy of the host's configuration.
 
 `grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
 rivals, because both were asked for by "3D creatures and plants". They are not.

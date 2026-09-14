@@ -1,11 +1,11 @@
 <#
-  fix-3d.ps1 — find out why Alpha is not rendering 3D on this machine.
+  fix-3d.ps1 - find out why Alpha is not rendering 3D on this machine.
 
   Run on the machine whose browser shows the blank panel:
       powershell -ExecutionPolicy Bypass -File .\fix-3d.ps1
 
   This script CHANGES NOTHING. It only reads, and every check prints its own
-  fix, because the output has to be read on the machine — it cannot be relied
+  fix, because the output has to be read on the machine - it cannot be relied
   on to travel back to whoever is helping.
 
   Alpha has three 3D surfaces, and which of them are blank is the first thing
@@ -15,15 +15,15 @@
     the "Avatar Lab" tab        AvatarLabPanel
     the "3D Ops" tab            UnifiedOps3DPanel
 
-  If nothing anywhere draws, suspect the browser or the driver first — the GPU
+  If nothing anywhere draws, suspect the browser or the driver first - the GPU
   and BROWSER sections. If "3D Ops" alone is blank, the fault is in that panel,
-  the files it loads, or the data it fetches — PACKAGES, ASSETS, SERVING and
+  the files it loads, or the data it fetches - PACKAGES, ASSETS, SERVING and
   BACKEND DATA ROUTES.
 
   The top-bar avatar drawing does NOT prove WebGL works: AvatarCoreRenderer may
   not use WebGL at all, and a 2D canvas or an image would draw on a machine
   where WebGL is dead. Only webgl-check.html answers that, and only by showing
-  a MOVING GRADIENT — its verdict text is a report, the moving picture is the
+  a MOVING GRADIENT - its verdict text is a report, the moving picture is the
   proof.
 
   "3D Ops" is UnifiedOps3DPanel, a topology view mounted with no props, so it
@@ -86,7 +86,7 @@ foreach ($rel in @('', 'frontend')) {
   $d = if ($rel) { Join-Path $AlphaRoot $rel } else { $AlphaRoot }
   if (Test-Path (Join-Path $d 'package.json')) { $pkgDirs += $d }
 }
-if (-not $pkgDirs) { Warn "No package.json under $AlphaRoot — the PACKAGES section below cannot run." }
+if (-not $pkgDirs) { Warn "No package.json under $AlphaRoot - the PACKAGES section below cannot run." }
 
 # --------------------------------------------------------------- packages
 # A 3D panel whose library is missing does not warn, it throws on import and
@@ -149,7 +149,7 @@ $assets = @(Get-ChildItem $AlphaRoot -Recurse -File -Include $exts -EA SilentlyC
 if (-not $assets) {
   Warn "No model, texture or environment files found anywhere under $AlphaRoot."
   Warn "If the 3D panels build their geometry in code this is normal. If they"
-  Warn "are supposed to load a model, this is the whole problem — the files"
+  Warn "are supposed to load a model, this is the whole problem - the files"
   Warn "were never copied here."
   Fix "On the host: Get-ChildItem C:\AlphaData\Alpha -Recurse -Include *.glb,*.gltf | Measure-Object"
   Fix "If the host has them and this machine does not, re-run sync-alpha.ps1 -Mode Send from the host."
@@ -164,7 +164,7 @@ if (-not $assets) {
   $fp.assets = $assets.Count
   $fp.zero   = $zero.Count
   if ($zero) {
-    Bad "$($zero.Count) asset file(s) are 0 bytes — a truncated or failed copy."
+    Bad "$($zero.Count) asset file(s) are 0 bytes - a truncated or failed copy."
     $zero | ForEach-Object { Write-Host "    $($_.FullName)" }
     Fix "Re-copy Alpha with sync-alpha.ps1, or restore those files from the host."
   }
@@ -200,7 +200,7 @@ if ($Url) {
 
 # The check that catches the quiet one: a static server that answers every
 # unknown path with index.html hands the loader HTML instead of a model. The
-# request succeeds with 200, so nothing logs an error — the scene is just empty.
+# request succeeds with 200, so nothing logs an error - the scene is just empty.
 Section "Are 3D assets actually served?"
 if (-not $urls) {
   Warn "Skipped: nothing to ask."
@@ -267,7 +267,7 @@ if (-not $vcs) {
     if ($fp.gpu -eq '?') { $fp.gpu = 'ok' }
     if ($v.Name -match 'Microsoft Basic Display') {
       $fp.gpu = 'basic'
-      Bad "     This is Windows' fallback adapter — the real GPU driver is not loaded."
+      Bad "     This is Windows' fallback adapter - the real GPU driver is not loaded."
       Bad "     The browser will fall back to software WebGL, which renders 3D blank or at a few frames a second."
       Fix "Install the GPU vendor's driver for this laptop, then reboot and re-run."
     }
@@ -315,7 +315,7 @@ $html = @'
 </style>
 <h1>Alpha WebGL check</h1>
 <p class="sub">Open this in the same browser you use for Alpha. Nothing is sent anywhere.</p>
-<div id="verdict">checking…</div>
+<div id="verdict">checking...</div>
 <table id="facts"></table>
 <canvas id="c" width="260" height="150"></canvas>
 <p class="hint">A moving colour gradient above means the browser can draw with the GPU.
@@ -348,7 +348,7 @@ A blank or frozen box means it cannot, and no amount of fixing Alpha's code will
       'In order:\n' +
       '1. Open chrome://gpu (or edge://gpu) and read the "Graphics Feature Status" list.\n' +
       '2. Settings > System > turn ON "Use graphics acceleration when available", then restart the browser.\n' +
-      '3. If it is still off, the GPU driver is the cause — see the adapter name printed by fix-3d.ps1.\n' +
+      '3. If it is still off, the GPU driver is the cause - see the adapter name printed by fix-3d.ps1.\n' +
       '4. On Remote Desktop, test on the laptop\u2019s own screen instead.';
     row('WebGL', 'unavailable', 'bad');
     return;
@@ -441,7 +441,7 @@ Write-Host "  one thing nothing on this side can determine."
 # ------------------------------------------------------- backend data routes
 # UnifiedOps3DPanel is a topology view mounted with no props, so it fetches its
 # own data and builds geometry from it. A route that answers 200 with an empty
-# list draws an empty scene — nothing is broken anywhere, and nothing appears.
+# list draws an empty scene - nothing is broken anywhere, and nothing appears.
 # That is worth checking before suspecting the renderer, and it needs no
 # guessing at endpoint names: a FastAPI backend publishes its own route list.
 Section "Backend data routes"
@@ -524,7 +524,7 @@ if (-not $specBase) {
       Bad "  $($emptyOnes.Count) route(s) answered successfully with nothing in them."
       Bad "  A topology view fed an empty list renders an empty scene. That is"
       Bad "  the most likely reason 3D Ops is blank while the renderer is fine."
-      Fix "The fault is on the backend side — whatever populates $($emptyOnes -join ', ') has no data."
+      Fix "The fault is on the backend side - whatever populates $($emptyOnes -join ', ') has no data."
       Fix "Check that the services or devices that feed it are registered and reporting."
     }
   }
@@ -536,8 +536,8 @@ Write-Host "  Send me the first red line. The three shapes it takes:"
 Write-Host "    'Failed to resolve import' / 'does not provide an export'  -> a package is missing; see PACKAGES above"
 Write-Host "    'Unexpected token <' or a JSON/GLB parse error             -> the server sent HTML; see SERVING above"
 Write-Host "    'THREE.WebGLRenderer: Error creating WebGL context'        -> the browser or driver; see webgl-check.html"
-Write-Host "  Also say which of the three surfaces are blank — the top-bar avatar,"
-Write-Host "  `"Avatar Lab`", `"3D Ops`" — because that alone splits the causes in half."
+Write-Host "  Also say which of the three surfaces are blank - the top-bar avatar,"
+Write-Host "  `"Avatar Lab`", `"3D Ops`" - because that alone splits the causes in half."
 
 Section "SEND ME THIS ONE LINE"
 # Deliberately one line of short tokens. A full log has not once made it off the

@@ -548,6 +548,52 @@ npm run jobs -- --type alpha.render --agent alpha-host --count 3 \
   --payload '{"species":"fern","seed":7}' --lease-ms 900000 --timeout 1800
 ```
 
+### Rendering a batch, and getting the recipes back
+
+The images stay on the machine that made them; the **recipes** come back. One
+command renders a batch and writes the recipe book here:
+
+```bash
+npm run jobs -- --type alpha.render --agent alpha-host --count 6 \
+  --species fern,beetle --seed 0 --lease-ms 900000 --timeout 1800 --save recipes.json
+```
+
+```
+Queueing 6 × alpha.render (fern, beetle, seeds 0–5) for "alpha-host"
+
+  task_sp4mm5tdc2yiq3pr  alpha-host  succeeded 41.2s  tries 1  fern/0 → fern_0.png (182.4 MB)
+  task_j26b4mwp8sdbvcr3  alpha-host  succeeded 39.8s  tries 1  beetle/1 → beetle_1.png (176.1 MB)
+  ...
+
+Wrote 6 result(s) to recipes.json
+
+Ran on: alpha-host 6
+```
+
+`--species` cycles through the list and every job gets its own seed, so a batch
+is six *different* creatures and plants rather than the same one six times.
+Seeds start at `--seed` (default 0), which means re-running the same command
+asks for the same images again — the whole point of a recipe.
+
+`recipes.json` is what a recipe book looks like: species, seed, which machine
+made it, and what it left there. Never the image itself.
+
+```json
+[
+  {
+    "id": "task_sp4mm5tdc2yiq3pr",
+    "status": "succeeded",
+    "machine": "alpha-host",
+    "recipe": { "species": "fern", "seed": 0 },
+    "outputs": [{ "name": "fern_0.png", "path": "…/output/fern_0.png", "bytes": 191234567 }]
+  }
+]
+```
+
+`--lease-ms` and a generous `--timeout` are not optional for real renders: the
+default lease is 60 seconds and a render outlives it, at which point the host
+reclaims a task that is running perfectly well.
+
 ### Sending work to one machine
 
 Everything above picks a machine. Some work has no choice of machine: a render
@@ -609,6 +655,49 @@ report before it disconnects. Disconnecting first turns those reports into
 `410`s, and the host then sits out the whole lease before re-running work that
 had in fact succeeded.
 
+### Shaping the fleet: what each machine takes
+
+Placement already spreads work by RAM and load. What it cannot know is that one
+machine is *for* something — the Alpha host has the GPU, so its cores are worth
+more doing renders than echoing payloads. That is configuration, per machine,
+in `.env.agent`:
+
+```ini
+# The Alpha host: the two things only it can do.
+ALPHA_AGENT_CAPABILITIES=alpha.render,alpha.coordination
+ALPHA_EXTRA_HANDLERS=alpha-render,alpha-coordination
+ALPHA_AGENT_CONCURRENCY=1
+```
+
+```ini
+# The laptop that stays on: everything else, and as much of it as it can hold.
+ALPHA_AGENT_CONCURRENCY=4
+ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+ALPHA_AGENT_MAX_LOAD=0.9
+```
+
+```ini
+# A laptop with less to give: same work, smaller share.
+ALPHA_AGENT_CONCURRENCY=1
+ALPHA_AGENT_MEMORY_RESERVE_MB=4096
+ALPHA_AGENT_MAX_LOAD=0.6
+```
+
+`ALPHA_AGENT_CAPABILITIES` may only *narrow* what a machine offers — an agent
+that claims a type it has no handler for would strand every task of that type,
+so it refuses to start instead.
+
+**Keep `alpha.coordination` on the host.** It is the reason this repository
+exists: it drives `alpha_coordination_tunnel.ps1`, which lives on the Alpha box
+and nowhere else. Narrowing the host to `alpha.render` alone takes the
+coordination tunnel off the air, and nothing else can pick it up.
+
+The cost of narrowing the host is worth stating plainly: a task type only the
+host used to cover now waits when no laptop is attached. `alpha-admin stats`
+answers that in one line — `0 pending` and both laptops reporting means the
+split is working; a pending count that climbs while the laptops sleep means
+they are not.
+
 ### Parking data in the laptop's RAM
 
 The `memstore` handler turns the laptop into a keyed, in-memory store the host
@@ -640,6 +729,36 @@ a value larger than the per-entry limit is refused rather than allowed to evict
 everything else.
 
 Nothing here survives a restart of the agent. It is a cache, not a database.
+
+## A machine only offers what it can actually do
+
+`alpha.render` needs Blender and the generator script on the machine that runs
+it. Being opt-in (`ALPHA_EXTRA_HANDLERS=alpha-render`) keeps it off machines
+that never asked for it — but not off a laptop set up by copying the host's
+`.env.agent`, which is the usual way a second machine gets configured. That
+laptop advertises `alpha.render`, wins the task on free RAM, and fails it.
+
+So a handler that needs something from the machine is asked before the agent
+offers it. On a laptop with nothing to render with:
+
+```
+WARN  [agent:main] not offering a handler this machine cannot run
+      handler=alpha-render type=alpha.render
+      reason=ALPHA_RENDER_ROOT is not set on this agent, so there is no generator to run
+INFO  [agent] starting capabilities=["echo","grow","sysinfo"]
+```
+
+The machine goes on lending everything else; it just never claims the one thing
+it would fail. `alpha-admin agents` shows it without `alpha.render`, and a
+render queued while no machine offers it waits rather than failing — which is
+the same answer as a type nobody runs, and the right one.
+
+The check asks exactly what a render asks, in the same order: `ALPHA_RENDER_ROOT`
+exists, the generator script resolves inside it, the output directory does too,
+and `ALPHA_BLENDER` resolves — by PATH lookup, since that is how the render
+itself finds it, and with `PATHEXT` on Windows. It runs nothing: whether Blender
+*works* is not knowable without rendering, and a render still reports that
+honestly.
 
 ## Adding a handler
 
