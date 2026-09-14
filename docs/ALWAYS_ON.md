@@ -7,6 +7,25 @@ Two long-running processes, both meant to be started once and forgotten:
 | `node scripts/keep-agent.mjs` | an agent, always here and always on the current release |
 | `node scripts/standby-alpha.mjs` | Alpha itself, but only while the main host is not answering |
 
+### Which script is which
+
+Four scripts now touch "is this laptop still doing its job", and they are not
+alternatives to each other so much as different lengths of the same rope:
+
+| | Runs | Owns the agent process | Leaves a record |
+|---|---|---|---|
+| `self-update.mjs` | one pass, from a scheduler | no — exits 10 to ask | no |
+| `watchdog.mjs` | one pass, from a scheduler | only with `--restart-command` | one JSON line per run |
+| `keep-agent.mjs` | forever | yes | its log |
+| `standby-alpha.mjs` | forever | no — owns *Alpha* instead | its log |
+
+Run the keeper **or** the scheduled pair, not both halves of both: the keeper
+already pulls and restarts, so a `watchdog.mjs --restart-command` beside it is
+two things fighting over one worker. The combination worth having is the keeper
+plus `watchdog.mjs --no-update` on a timer — the watchdog then only asks the
+*host* whether this machine is attached and writes down the answer, which is the
+one question a process on the laptop cannot answer about itself.
+
 They are separate processes on purpose. The first is about lending this machine
 to the fleet; the second is about the household still having an Alpha when the
 host is off. A laptop can run either, or both.

@@ -175,6 +175,13 @@ worse than useless:
   restart: it exits 10 and says so. A scheduled task that bounces the wrong
   service every twelve hours is worse than one that bounces nothing.
 
+**Running the keeper too?** Then give the watchdog `--no-update` and no
+`--restart-command`. The keeper already pulls and owns the agent process; a
+scheduled task bouncing a service the keeper is supervising is two things
+fighting over one worker. What the watchdog still contributes — asking the host
+whether this machine is actually attached, and writing it down — is the half no
+supervisor on the laptop can do, because it is the host's answer.
+
 Reading `/agents` needs an **operator** key in `ALPHA_ADMIN_TOKEN` — the
 agent's own key cannot, by design. Without one the run still updates and still
 checks the host is up; it just says the attach check was skipped rather than

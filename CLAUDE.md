@@ -237,6 +237,12 @@ the keeper owns it, so it may. Three things it must keep doing:
   is also the test seam — the suite puts a stub at `src/agent/index.js` in a
   temp repo and watches the *new* one start.
 
+It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
+other: the watchdog is one scheduled pass that asks the *host* whether this
+machine is attached and writes the answer down, which nothing running on the
+laptop can answer about itself. Run beside the keeper it wants `--no-update` and
+no `--restart-command`, or the two bounce the same worker.
+
 `scripts/standby-alpha.mjs` runs Alpha on a laptop while the host is not
 answering, and stops it when the host is back. It is a local daemon and
 deliberately **not** a handler: failover cannot be driven over the tunnel,
