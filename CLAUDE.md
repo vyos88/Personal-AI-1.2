@@ -300,7 +300,9 @@ unilaterally, is how the two handlers came to overlap in the first place. That
 change starts on the Python side or not at all.
 
 `alpha-panel.js` is the fourth, and the only one that drives hardware. It
-flashes and provisions the CrowPanel hanging off one laptop's USB, through
+flashes and provisions the CrowPanel hanging off the **Alpha host's** USB (not a
+laptop's — the board is on the same Windows box that runs the coordinator, so
+these tasks are queued against the host's own agent), through
 `arduino-cli`, under the same rules as the coordination handler: pinned
 executable, pinned sketch that must resolve inside `ALPHA_PANEL_ROOT`,
 allowlisted action, argv array. The payload chooses an action and at most which
@@ -320,6 +322,12 @@ are worth keeping:
 - **`Flash` compiles first and stops if that fails.** Uploading after a failed
   build either flashes a stale binary from the cache or half-writes the board.
   A build failure is reported as a build failure, not as a failed flash.
+- **It implements `available()`.** It requires everything `Flash` needs — root,
+  sketch inside it, a valid FQBN, arduino-cli on PATH — not the smaller set
+  `Ports` or `Provision` would do with, because `alpha.panel` is advertised as
+  one name and a machine answering to it is offering the whole type. A machine
+  set up only to provision is not a case that exists: the board is on the
+  machine that flashes it.
 
 The serial side is `fs` plus one `stty`/`mode.com` call, because Node's standard
 library can open a serial device but cannot set its baud rate, and this repo has

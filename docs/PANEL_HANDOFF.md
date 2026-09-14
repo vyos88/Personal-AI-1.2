@@ -14,8 +14,8 @@ the part to read first.
 
 | Thing | Where | What it is |
 |---|---|---|
-| `alpha.panel` handler | `src/agent/handlers/alpha-panel.js` | Ports / Status / Compile / Flash / Provision, over `arduino-cli`. Opt-in. |
-| Tests | `test/alpha-panel.test.js` | 12 tests pinning argv, validation and credential handling. |
+| `alpha.panel` handler | `src/agent/handlers/alpha-panel.js` | Ports / Status / Compile / Flash / Provision, over `arduino-cli`. Opt-in, with `available()`. |
+| Tests | `test/alpha-panel.test.js` | 14 tests pinning argv, validation, credential handling and `available()`. |
 | Firmware | `firmware/crowpanel/crowpanel.ino` | WiFi + NVS provisioning, polls `/stats`, draws the live report. |
 | Display layer | `firmware/crowpanel/display.h` | The only board-specific file. TFT_eSPI, plus a serial-only build. |
 | Firmware docs | `firmware/crowpanel/README.md` | Setup, flashing, provisioning. |
@@ -42,15 +42,20 @@ the argv. They do not cover whether the board answers.
 5"/7" units are RGB parallel on an ESP32-S3 and need a different driver *and* a
 different `ALPHA_PANEL_FQBN`. Everything else in the sketch is board-independent.
 
-## Runbook — on the laptop with the panel
+## Runbook — on the Alpha host
 
-This has to run there. A cloud session cannot reach the Alpha host's tailnet, so
-none of it can be driven from a Claude session in a container.
+**The panel is on the host's USB, not on a laptop.** It is the same Windows box
+that runs the coordinator, so these tasks go to the host's own agent and the
+commands use the `node` form (PowerShell's execution policy blocks `npm.ps1`
+there).
+
+This has to run on that box. A cloud session cannot reach the Alpha host's
+tailnet, so none of it can be driven from a Claude session in a container.
 
 ### 1. Prove the handler and the board, before writing anything
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent <laptop> \
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
   --payload '{"action":"Ports"}'
 ```
 
@@ -72,7 +77,7 @@ display config is wrong, and this separates those two into one question each.
 ### 3. Flash
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent <laptop> \
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
   --lease-ms 600000 --no-wait --payload '{"action":"Flash","port":"COM3"}'
 ```
 
@@ -80,14 +85,14 @@ node src/admin/run.js task --type alpha.panel --agent <laptop> \
 a cold ESP32 build outruns `DEFAULT_LEASE_MS` and the CLI's own poll gives up on
 a task that is running fine.
 
-`--agent <laptop>` matters. The handler being opt-in keeps it off machines that
+`--agent alpha-host` matters. The handler being opt-in keeps it off machines that
 never enabled it, but not off one handed a copy of the same configuration, and
 naming the machine is what puts the flash where the panel actually is.
 
 ### 4. Provision
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent <laptop> --payload '{
+node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
   "action":"Provision",
   "port":"COM3",
   "ssid":"<network>",

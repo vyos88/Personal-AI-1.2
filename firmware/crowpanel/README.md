@@ -16,7 +16,10 @@ put it in an argv every process listing can read, in build artifacts on disk,
 and would mean a reflash every time the network changes. Do not add a
 `secrets.h`.
 
-## One-time setup on the machine with the panel
+## One-time setup on the Alpha host
+
+The panel is on the host's USB — the same Windows box that runs the
+coordinator — so all of this happens there, against the host's own agent.
 
 Install [`arduino-cli`](https://arduino.github.io/arduino-cli/), the ESP32 core,
 and the two libraries:
@@ -44,19 +47,23 @@ options.
 
 ## Flashing
 
-Find the port, build, then write it. Queue each with `--agent <that machine>`:
-the handler is opt-in so it stays off machines that never enabled it, but not
-off one handed a copy of the same configuration, and naming the machine is what
-puts the flash where the panel actually is.
+The host is Windows, where PowerShell's execution policy blocks `npm.ps1` — so
+these use the `node` form, as everything on that box does.
+
+Find the port, build, then write it. Queue each with `--agent alpha-host`:
+`available()` already stops a machine with no sketch or no arduino-cli from
+offering the type at all, and `--agent` is the other half — it pins the flash to
+the box the board is actually on, rather than to whichever qualifying machine
+ranks best.
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent laptop \
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
   --payload '{"action":"Ports"}'
 
-node src/admin/run.js task --type alpha.panel --agent laptop \
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
   --lease-ms 600000 --no-wait --payload '{"action":"Compile"}'
 
-node src/admin/run.js task --type alpha.panel --agent laptop \
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
   --lease-ms 600000 --no-wait --payload '{"action":"Flash","port":"COM3"}'
 ```
 
@@ -69,7 +76,7 @@ poll gives up on a task that is running fine.
 One task hands the panel its network and its view of the coordinator:
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent laptop --payload '{
+node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
   "action":"Provision",
   "port":"COM3",
   "ssid":"<the new network>",

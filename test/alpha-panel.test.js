@@ -4,8 +4,11 @@ import { mkdtemp, mkdir, writeFile, chmod, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { HandlerRegistry } from '../src/agent/handlers/index.js';
+import * as panel from '../src/agent/handlers/alpha-panel.js';
 import {
   ALLOWED_ACTIONS,
+  available,
   buildArgs,
   redact,
   run,
@@ -251,4 +254,92 @@ test('Flash compiles first and refuses to upload a sketch that did not build', {
   assert.equal(result.flashed, false);
   assert.equal(result.refused, 'sketch did not compile');
   assert.notEqual(result.exitCode, 0);
+});
+
+test('a machine that cannot flash never advertises the type', async () => {
+  const { root, recorder } = await fixture();
+
+  // Everything present: this machine really can do the work.
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: 'esp32:esp32:esp32s3',
+      ALPHA_ARDUINO_CLI: recorder,
+    },
+    () => assert.deepEqual(available(), { ok: true }),
+  );
+
+  // The case this exists for: .env.agent copied to a machine with no sketch.
+  await withEnv(
+    { ALPHA_PANEL_ROOT: undefined, ALPHA_PANEL_FQBN: 'esp32:esp32:esp32s3', ALPHA_ARDUINO_CLI: recorder },
+    () => {
+      const check = available();
+      assert.equal(check.ok, false);
+      assert.match(check.reason, /ALPHA_PANEL_ROOT is not set/);
+    },
+  );
+
+  // Configured sketch, but no board to build it for.
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: undefined,
+      ALPHA_ARDUINO_CLI: recorder,
+    },
+    () => {
+      const check = available();
+      assert.equal(check.ok, false);
+      assert.match(check.reason, /ALPHA_PANEL_FQBN is not set/);
+    },
+  );
+
+  // Configured everything, but the CLI is not installed.
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: 'esp32:esp32:esp32s3',
+      ALPHA_ARDUINO_CLI: join(root, 'no-such-arduino-cli'),
+    },
+    () => {
+      const check = available();
+      assert.equal(check.ok, false);
+      assert.match(check.reason, /arduino-cli not found/);
+    },
+  );
+});
+
+test('the registry leaves the handler out rather than advertising it', async () => {
+  const { root, recorder } = await fixture();
+
+  await withEnv(
+    { ALPHA_PANEL_ROOT: undefined, ALPHA_PANEL_FQBN: undefined, ALPHA_ARDUINO_CLI: recorder },
+    () => {
+      const registry = new HandlerRegistry([]);
+      const outcome = registry.add(panel);
+      assert.equal(outcome.registered, false);
+      assert.match(outcome.reason, /ALPHA_PANEL_ROOT is not set/);
+      // The point of all of it: the host is never offered alpha.panel by a
+      // machine that would fail the task.
+      assert.equal(registry.has('alpha.panel'), false);
+      assert.deepEqual(registry.types(), []);
+    },
+  );
+
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: 'esp32:esp32:esp32s3',
+      ALPHA_ARDUINO_CLI: recorder,
+    },
+    () => {
+      const registry = new HandlerRegistry([]);
+      const outcome = registry.add(panel);
+      assert.equal(outcome.registered, true);
+      assert.equal(registry.has('alpha.panel'), true);
+    },
+  );
 });

@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { open } from 'node:fs/promises';
-import { resolve, sep } from 'node:path';
+import { delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
 
@@ -243,6 +243,73 @@ function requireSketch() {
     });
   }
   return { base, sketch };
+}
+
+/**
+ * Whether this machine can actually drive a panel, checked before the agent
+ * offers the type at all.
+ *
+ * `.env.agent` is copied from one machine to the next — that is how a second
+ * machine gets set up — so a laptop with no board, no arduino-cli and no sketch
+ * would otherwise advertise `alpha.panel`, win it on free RAM, and fail it with
+ * an attempt spent and a retry free to land right back there. Being opt-in does
+ * not cover that: the copied file carries ALPHA_EXTRA_HANDLERS too.
+ *
+ * It asks exactly what `run()` asks, the same way — same root, same
+ * sketch-inside-root rule, same FQBN validation, same executable resolved
+ * against PATH — or a machine could pass the check and fail the task, which is
+ * the failure the check exists to prevent.
+ *
+ * It requires everything `Flash` needs, not the smaller set `Ports` or
+ * `Provision` would do with. `alpha.panel` is advertised as one name: a machine
+ * that answers to it is offering the whole type, and flashing is the part that
+ * cannot be recovered from by queueing elsewhere. A machine set up only to
+ * provision is not a case that exists — the board is on the machine that
+ * flashes it.
+ *
+ * It executes nothing. Whether arduino-cli actually talks to the board is not
+ * knowable without trying, and `run()` still reports that honestly.
+ */
+export function available() {
+  try {
+    requireSketch();
+    validateFqbn();
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+
+  const cli = process.env.ALPHA_ARDUINO_CLI ?? 'arduino-cli';
+  if (!resolveExecutable(cli)) {
+    return { ok: false, reason: `arduino-cli not found (${cli}). Set ALPHA_ARDUINO_CLI to its path.` };
+  }
+  return { ok: true };
+}
+
+/**
+ * Where a command would be found, or null.
+ *
+ * `execFile` resolves a bare name against PATH, so the check has to as well or
+ * the default `arduino-cli` would look missing on every machine that has it
+ * installed normally. Windows needs PATHEXT too — the panel is on the Alpha
+ * host, which is the Windows box, and a check that only looked for the bare
+ * name would take the one machine with the board out of the running.
+ */
+function resolveExecutable(command) {
+  if (command.includes('/') || command.includes(sep)) {
+    return existsSync(command) ? command : null;
+  }
+  const extensions =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
+      : [''];
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = join(directory, command + extension);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
 }
 
 /** Builds the argv passed to arduino-cli. Exported so tests can assert on it. */
