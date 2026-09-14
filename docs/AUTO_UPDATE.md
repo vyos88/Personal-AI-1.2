@@ -131,6 +131,81 @@ Same shape — a `StartCalendarInterval` job running
 
 ---
 
+## Leaving it for a week
+
+A scheduled pull keeps the checkout current, and the agent reconnects on its
+own across host restarts and network drops. Neither of them *checks*, and
+neither leaves a record — so a laptop that quietly stopped lending on the first
+evening looks exactly like one that worked all week.
+
+`scripts/watchdog.mjs` is one scheduled run of that check. It updates (via
+`self-update.mjs`, same three rules), restarts the agent **only** with the
+command you gave it, asks whether the coordinator is up, and asks whether this
+machine is in its list of agents — then appends one JSON line to a log.
+
+```bash
+node scripts/watchdog.mjs --name laptop --restart-command "nssm restart alpha-agent"
+```
+
+```
+watchdog: laptop - host up, attached, 2 task(s) running, updated, restarted (exit 0)
+```
+
+| Exit | Meaning |
+|---|---|
+| `0` | attached and current — nothing to do |
+| `1` | a person is needed: host unreachable, or this machine is not attached |
+| `10` | updated and a restart is due, but no `--restart-command` was given |
+
+Two things it is careful about, both of which would otherwise make the check
+worse than useless:
+
+- **A registration in the list is not a working machine.** A killed agent never
+  deregisters, so its row sits in `agents` until the stale sweep 90 seconds
+  later. The watchdog reads `idleMs` and calls anything silent for more than
+  two missed heartbeats `REGISTERED BUT SILENT`, not `attached`.
+- **It never guesses which service to restart.** No `--restart-command`, no
+  restart: it exits 10 and says so. A scheduled task that bounces the wrong
+  service every twelve hours is worse than one that bounces nothing.
+
+Reading `/agents` needs an **operator** key in `ALPHA_ADMIN_TOKEN` — the
+agent's own key cannot, by design. Without one the run still updates and still
+checks the host is up; it just says the attach check was skipped rather than
+pretending it passed.
+
+### Every twelve hours
+
+**Windows** (`scripts\watchdog.cmd`, then a task):
+
+```bat
+node <tunnel>\scripts\watchdog.mjs --name <this machine> --restart-command "nssm restart alpha-agent"
+```
+
+```powershell
+schtasks /Create /TN "alpha-tunnel watchdog" /SC HOURLY /MO 12 ^
+  /TR "<tunnel>\scripts\watchdog.cmd" /RU SYSTEM
+```
+
+**Linux** — the same unit as the self-update above, with the watchdog as its
+`ExecStart` and a twelve-hour timer:
+
+```ini
+# alpha-watchdog.timer
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=12h
+```
+
+**macOS** — `StartInterval` of `43200` in the launchd plist.
+
+The log is the point of all this. A week later:
+
+```bash
+tail -3 watchdog.log
+grep -c '"ok":true' watchdog.log     # runs that found everything healthy
+grep '"ok":false' watchdog.log       # and the ones that did not
+```
+
 ## Keeping a worker laptop awake
 
 An agent that is asleep is not lending anything. This is the part of "always
