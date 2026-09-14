@@ -641,6 +641,36 @@ everything else.
 
 Nothing here survives a restart of the agent. It is a cache, not a database.
 
+## A machine only offers what it can actually do
+
+`alpha.render` needs Blender and the generator script on the machine that runs
+it. Being opt-in (`ALPHA_EXTRA_HANDLERS=alpha-render`) keeps it off machines
+that never asked for it — but not off a laptop set up by copying the host's
+`.env.agent`, which is the usual way a second machine gets configured. That
+laptop advertises `alpha.render`, wins the task on free RAM, and fails it.
+
+So a handler that needs something from the machine is asked before the agent
+offers it. On a laptop with nothing to render with:
+
+```
+WARN  [agent:main] not offering a handler this machine cannot run
+      handler=alpha-render type=alpha.render
+      reason=ALPHA_RENDER_ROOT is not set on this agent, so there is no generator to run
+INFO  [agent] starting capabilities=["echo","grow","sysinfo"]
+```
+
+The machine goes on lending everything else; it just never claims the one thing
+it would fail. `alpha-admin agents` shows it without `alpha.render`, and a
+render queued while no machine offers it waits rather than failing — which is
+the same answer as a type nobody runs, and the right one.
+
+The check asks exactly what a render asks, in the same order: `ALPHA_RENDER_ROOT`
+exists, the generator script resolves inside it, the output directory does too,
+and `ALPHA_BLENDER` resolves — by PATH lookup, since that is how the render
+itself finds it, and with `PATHEXT` on Windows. It runs nothing: whether Blender
+*works* is not knowable without rendering, and a render still reports that
+honestly.
+
 ## Adding a handler
 
 A handler is a module exporting `type`, `run`, and optionally `description`:
