@@ -151,6 +151,27 @@ hold that together:
   hand, a loaded agent takes work anyway — otherwise a fleet that is busy
   everywhere would never run anything.
 
+**A task may name its machine, and naming one narrows nothing else.**
+`targetAgent` on a task restricts the candidates to agents registered under
+that name; `registry.canAdmit` checks it first, so both `candidatesFor` and
+`queue.#findWaiterFor` honour it for free. It exists for work that is only real
+on one box — `alpha.render` needs the GPU and the generator beside it, and a
+laptop running the handler from a copied configuration will take that task and
+fail it. Three properties, all tested:
+
+- **By name, never by agent id.** Ids are minted per registration, so a machine
+  that restarts has a new one and a task queued against it would wait forever.
+- **It is a filter, not a licence.** The named machine still has to offer the
+  type, have the RAM, be under its load ceiling and get its own decline. A task
+  whose machine is absent waits, exactly as one naming a type nobody runs
+  waits — so `POST /tasks` answers with `targetAttached` alongside
+  `agentAvailable`/`memoryAvailable`, because "that machine is not here" and
+  "nobody has the RAM" send an operator to different places. `coversType()`
+  asks the cover question of the named machine only.
+- **A name two machines answer to means either of them.** Same-name machines
+  are legal (see above), so targeting keeps both candidates and ranking picks;
+  refusing the work over an ambiguous label would be worse than running it.
+
 **Auth is capability-based, recomputed per request.** `src/host/auth/service.js`
 resolves a bearer token to a principal whose effective scopes are the
 intersection of the *key's* scopes and its *owner's*. Two invariants depend on
@@ -231,7 +252,11 @@ attributed a concurrent render's output to the wrong task. `--python-exit-code
 1` is load-bearing: without it Blender exits 0 when the generator raises, which
 is the likeliest failure there is. Renders outlive `DEFAULT_LEASE_MS`, so queue
 them with `--lease-ms` *and* `--no-wait`, or the CLI's own poll gives up on a
-task that is running fine.
+task that is running fine. Queue them with `--agent <the rendering machine>`
+too: the handler being opt-in keeps it off machines that never enabled it, but
+not off one that was handed a copy of the host's configuration, and naming the
+machine is what makes a render land where the GPU and the generator actually
+are.
 
 `grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
 rivals, because both were asked for by "3D creatures and plants". They are not.

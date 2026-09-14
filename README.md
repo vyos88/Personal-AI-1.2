@@ -509,6 +509,50 @@ $ npm run admin -- stats --json
 Far apart means work is not being spread. Both high means the fleet really is
 saturated and another machine is the only answer.
 
+### Sending work to one machine
+
+Everything above picks a machine. Some work has no choice of machine: a render
+needs the GPU and the generator script sitting next to it, and a laptop with
+`alpha-render` enabled in a configuration copied from the host will accept that
+task and fail it. So a task may name the machine it has to run on:
+
+```bash
+npm run admin -- task --type alpha.render --agent alpha-host \
+  --payload '{"species":"fern","seed":7}' --lease-ms 900000 --no-wait
+```
+
+`--agent` takes the **NAME** from `alpha-admin agents`, not an agent id — ids
+are minted per registration, so a machine that restarts overnight has a
+different one by morning and a task queued against it would wait for a
+registration that no longer exists.
+
+Naming a machine narrows the candidates and changes nothing else. The named
+machine still has to offer that task type, still has to have the RAM the task
+asked for, still ranks by load among machines sharing its name, and still gets
+to decline. A task whose machine is not attached **waits** for it rather than
+going somewhere else — which is the whole point, and is why the queue response
+separates the three reasons a task can sit there:
+
+```
+$ npm run admin -- task --type alpha.render --agent alpha-host
+warning: no attached agent is called "alpha-host". The task is queued until
+that machine attaches — check `agents` for the names in use.
+```
+
+The other two are unchanged: the machine is here but does not run that type,
+and the machine is here and runs it but has no RAM to spare. `alpha-admin
+tasks` grows a `FOR` column when anything in the list is pinned:
+
+```
+ID                     TYPE          FOR         STATUS  TRIES  DECLINED  CREATED
+task_x4gsncaxwin3jbwa  alpha.render  alpha-host  queued  0      0         2026-09-14 09:12:04
+```
+
+If the name matches two machines — two laptops set up from one copied
+configuration — the task may run on either, and ranking picks between them.
+Refusing the work over an ambiguous label would be the wrong answer; if you
+need one of the two specifically, give it its own `ALPHA_AGENT_NAME`.
+
 ### Running more than one task per machine
 
 An agent runs one task at a time by default. `ALPHA_AGENT_CONCURRENCY=4` lets a

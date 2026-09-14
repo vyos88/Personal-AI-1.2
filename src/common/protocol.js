@@ -143,8 +143,24 @@ export function validateTaskInput(body) {
   const maxAttempts = clampInt(body.maxAttempts, DEFAULT_MAX_ATTEMPTS, 1, 20, 'maxAttempts');
   // 0 means "no memory requirement", which is what almost every task wants.
   const minMemoryMB = clampInt(body.minMemoryMB, 0, 0, 1024 * 1024, 'minMemoryMB');
+  const targetAgent = validateTargetAgent(body.targetAgent);
 
-  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts, minMemoryMB };
+  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts, minMemoryMB, targetAgent };
+}
+
+/**
+ * The machine a task must run on, by the name that machine registered under —
+ * `alpha-admin agents`' NAME column — or null for the usual case, where
+ * placement picks.
+ *
+ * By name rather than by agent id because an id is minted per registration:
+ * the machine that restarts overnight has a different one in the morning, and
+ * a task queued against it would wait for a registration that no longer
+ * exists. A name is what an operator has and what survives.
+ */
+export function validateTargetAgent(targetAgent) {
+  if (targetAgent === undefined || targetAgent === null || targetAgent === '') return null;
+  return requireString(targetAgent, 'targetAgent', { max: 128 });
 }
 
 export function validateRegistration(body) {

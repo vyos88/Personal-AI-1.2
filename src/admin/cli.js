@@ -37,8 +37,10 @@ Keys
   revoke-key <keyId>                                     Revoke one credential
 
 Tasks
-  task --type <t> [--payload <json>] [--min-memory-mb <n>] [--no-wait]
+  task --type <t> [--payload <json>] [--min-memory-mb <n>] [--agent <n>] [--no-wait]
                                                          Queue a task, await result
+                                                         --agent runs it on that machine and no other
+                                                         (the NAME from \`agents\`), e.g. renders on the host
   coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
                                                          Drive the coordination tunnel
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
@@ -181,6 +183,7 @@ const OPTIONS = {
   paths: { type: 'string' },
   'lease-ms': { type: 'string' },
   'min-memory-mb': { type: 'string' },
+  agent: { type: 'string' },
   key: { type: 'string' },
   value: { type: 'string' },
   prefix: { type: 'string' },
@@ -347,18 +350,36 @@ export async function main(argv = process.argv.slice(2)) {
       const body = { type, payload };
       if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
       if (flags['min-memory-mb']) body.minMemoryMB = Number.parseInt(flags['min-memory-mb'], 10);
+      // The machine this has to run on, by name. For work that is only real on
+      // one box — a render needs the GPU and the generator beside it, wherever
+      // else the handler happens to be enabled.
+      if (flags.agent) body.targetAgent = flags.agent;
 
       const queued = await api('/tasks', { method: 'POST', body });
 
       if (!queued.agentAvailable) {
         // Not fatal — it runs as soon as a capable agent attaches — but silence
         // here is how you end up staring at a task that never moves.
-        process.stderr.write(
-          queued.memoryAvailable === false
-            ? `warning: an agent offers "${type}", but none has ${body.minMemoryMB} MB free ` +
-              'right now. The task is queued until one does.\n'
-            : `warning: no attached agent currently offers "${type}". The task is queued.\n`,
-        );
+        // Three reasons a task sits there, and saying the wrong one sends an
+        // operator looking at the wrong machine.
+        const pinnedTo = body.targetAgent;
+        let reason;
+        if (queued.targetAttached === false) {
+          reason =
+            `warning: no attached agent is called "${pinnedTo}". The task is queued until that ` +
+            'machine attaches — check `agents` for the names in use.\n';
+        } else if (queued.memoryAvailable === false) {
+          reason = pinnedTo
+            ? `warning: "${pinnedTo}" offers "${type}" but has no ${body.minMemoryMB} MB to spare ` +
+              'right now. The task is queued until it does.\n'
+            : `warning: an agent offers "${type}", but none has ${body.minMemoryMB} MB free ` +
+              'right now. The task is queued until one does.\n';
+        } else {
+          reason = pinnedTo
+            ? `warning: "${pinnedTo}" is attached but does not offer "${type}". The task is queued.\n`
+            : `warning: no attached agent currently offers "${type}". The task is queued.\n`;
+        }
+        process.stderr.write(reason);
       }
       if (flags['no-wait']) {
         emit(`Queued ${queued.id} (${queued.status}).`, queued);
@@ -375,9 +396,13 @@ export async function main(argv = process.argv.slice(2)) {
         `/tasks?limit=20${flags.status ? `&status=${encodeURIComponent(flags.status)}` : ''}`,
       );
       if (flags.json) return emit('', tasks);
+      // Only shown when something is actually pinned, so the usual listing
+      // stays the width it was.
+      const pinned = tasks.some((t) => t.targetAgent);
       table(tasks, [
         { header: 'ID', value: (t) => t.id },
         { header: 'TYPE', value: (t) => t.type },
+        ...(pinned ? [{ header: 'FOR', value: (t) => t.targetAgent ?? '-' }] : []),
         { header: 'STATUS', value: (t) => t.status },
         { header: 'TRIES', value: (t) => t.attempts },
         // Next to TRIES on purpose: a queued task with tries flat and declines

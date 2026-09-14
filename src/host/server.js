@@ -517,19 +517,26 @@ async function handle(req, res, ctx) {
       const input = validateTaskInput(body);
       // Sampled before enqueueing: enqueue may place the task immediately, and
       // a task holding its own reservation would then report itself unplaceable.
-      const typeCovered = ctx.registry.coveredCapabilities().includes(input.type);
+      // Cover is asked of the machine the task names, when it names one: that a
+      // laptop runs `alpha.render` says nothing about a render queued for the
+      // host.
+      const typeCovered = ctx.registry.coversType(input.type, { agentName: input.targetAgent });
       const placeable = ctx.registry.candidatesFor(input).length > 0;
       const task = ctx.queue.enqueue(input);
       return sendJson(res, 202, {
         id: task.id,
         status: task.status,
         minMemoryMB: task.minMemoryMB,
+        targetAgent: task.targetAgent,
         // Not an error: the task waits until a capable agent attaches. Surfaced
         // so a caller can tell "queued and running" from "queued forever".
         agentAvailable: placeable,
         // Distinguishes the two ways a task can sit there: nobody runs this
         // type at all, or somebody does but has no RAM to spare for it.
         memoryAvailable: !typeCovered || placeable,
+        // And the third way, once a task can name a machine: that machine is
+        // not attached at all. Null when the task named nobody.
+        targetAttached: input.targetAgent ? ctx.registry.hasAgentNamed(input.targetAgent) : null,
       });
     }
 

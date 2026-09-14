@@ -69,7 +69,7 @@ export class TaskQueue {
     }
   }
 
-  enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0 }) {
+  enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0, targetAgent = null }) {
     const task = {
       id: newId('task'),
       type,
@@ -77,6 +77,12 @@ export class TaskQueue {
       leaseMs,
       maxAttempts,
       minMemoryMB,
+      // The machine this task must run on, by name, or null for "wherever
+      // placement decides". Narrows the candidates and nothing else: a named
+      // machine still has to offer the type, have the RAM and be asking for
+      // work, and a task naming a machine that is not attached waits for it
+      // exactly as one naming a type nobody runs waits for a worker.
+      targetAgent,
       status: TaskStatus.QUEUED,
       attempts: 0,
       // How many times an agent has handed this task straight back. Nothing

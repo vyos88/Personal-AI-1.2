@@ -355,9 +355,30 @@ export class AgentRegistry {
   // without a requirement are admitted by every agent and hold nothing.
 
   canAdmit(agentId, task) {
+    // A task that names a machine is offered to that machine and to nothing
+    // else. Checked first because it is exact and free, where everything below
+    // is arithmetic on reports that age.
+    if (!this.#matchesTarget(agentId, task)) return false;
     const needed = requiredBytes(task);
     if (needed === 0) return true;
     return this.offerableBytes(agentId) >= needed;
+  }
+
+  /**
+   * Whether this agent is the machine the task asked for, or the task asked
+   * for no machine in particular.
+   *
+   * Matched on the name, which may belong to more than one machine — two
+   * laptops set up from one copied configuration is the usual way that
+   * happens. That is deliberate: naming `laptop` when two machines answer to
+   * it means "either of those", and ranking picks between them, which is a
+   * better answer than refusing the work.
+   */
+  #matchesTarget(agentId, task) {
+    const target = task?.targetAgent;
+    if (!target) return true;
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    return agent?.name === target;
   }
 
   admit(agentId, task) {
@@ -482,6 +503,28 @@ export class AgentRegistry {
     let total = 0;
     for (const agent of this.#agents.values()) total += this.offerableBytes(agent);
     return total;
+  }
+
+  /**
+   * Whether anything attached would run this type — restricted to one machine
+   * by name when the caller names one, so a task that asks for `alpha.render`
+   * on the host is not told "somebody runs that" on the strength of a laptop
+   * that does.
+   */
+  coversType(type, { agentName = null } = {}) {
+    for (const agent of this.#agents.values()) {
+      if (agentName && agent.name !== agentName) continue;
+      if (agent.capabilities.includes(type)) return true;
+    }
+    return false;
+  }
+
+  /** Whether a machine is attached under this name. */
+  hasAgentNamed(name) {
+    for (const agent of this.#agents.values()) {
+      if (agent.name === name) return true;
+    }
+    return false;
   }
 
   /** Task types at least one attached agent is willing to run. */
