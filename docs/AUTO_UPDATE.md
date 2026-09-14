@@ -290,6 +290,33 @@ come from the Alpha host, where the code actually lives.
 `Status` is useful before then: it says what commit the host's checkout is on
 and how much there is uncommitted, which is the first thing worth knowing.
 
+### Until then: copying Alpha from the host
+
+`scripts/sync-alpha.ps1` is the interim answer, and it is deliberately a copy
+rather than anything cleverer — there is no remote to pull from, so there is
+nothing to be clever with.
+
+```powershell
+# on the host
+.\scripts\sync-alpha.ps1 -Mode Send -To <tailscale-machine-name>
+# then on the laptop
+.\scripts\sync-alpha.ps1 -Mode Receive
+```
+
+It stages with robocopy excludes, then **re-scans the staging area for
+credential-shaped files and refuses to send if it finds any**. Excludes are easy
+to get subtly wrong and a copy is not reviewable the way a commit is, so the
+check is what makes the send safe rather than probably-safe.
+
+`.env` is never in the archive, so each machine keeps its own configuration —
+the host's would point a laptop at the host's hardware and put the host's
+credentials on a second machine. The receiving side backs up to
+`Backups\Alpha-<timestamp>` before overwriting, and stops rather than leaving a
+half-swapped app if the rebuild fails.
+
+This stays manual until the push below happens. That is the whole argument for
+doing it.
+
 ### Getting Alpha into the repo, once
 
 A first push of a directory that has never been in version control is the most
@@ -303,7 +330,7 @@ store.
 So survey it first, on the Alpha host:
 
 ```bash
-node scripts/publish-alpha.mjs --dir C:\alpha
+node scripts/publish-alpha.mjs --dir C:\AlphaData\Alpha
 ```
 
 It reads and reports — **it runs no git command and changes nothing.** You get
@@ -313,3 +340,23 @@ paste in *before* the first `git add`. Then push, by hand, having read it.
 
 Exit 2 means there is something to look at. Exit 0 is not a guarantee: skim the
 file list too.
+
+`scripts/publish-alpha-push.ps1` wraps that audit and, on a second explicit run,
+makes the push itself:
+
+```powershell
+.\scripts\publish-alpha-push.ps1                 # audit only; pushes nothing
+.\scripts\publish-alpha-push.ps1 -Push           # only after you have read it
+```
+
+Even with `-Push` it stops unless the audit exits 0, and then shows the file
+count and waits for the word `PUBLISH` typed in full. It writes the `.gitignore`
+from the audit's own suggested block **before** the first `git add`, which is the
+ordering that matters: written afterwards, the excludes apply to some later
+commit and not to the one that publishes everything. It pushes to a branch,
+never to `main`, and never with `--force`, because `main` already carries an
+unrelated commit.
+
+The two-step shape is not ceremony. A first push of a directory that has never
+been in version control cannot be undone by a later commit — a secret in history
+stays in history, and rotating the credential is the only real fix.

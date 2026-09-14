@@ -233,6 +233,30 @@ is the likeliest failure there is. Renders outlive `DEFAULT_LEASE_MS`, so queue
 them with `--lease-ms` *and* `--no-wait`, or the CLI's own poll gives up on a
 task that is running fine.
 
+`grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
+rivals, because both were asked for by "3D creatures and plants". They are not.
+`alpha.render` drives Blender for minutes on the one machine with a GPU and
+returns a recipe while the image stays put; `grow` expands an L-system in
+process in milliseconds and returns a skeleton small enough to travel. Structure
+against appearance. That is also why `grow` is in `BUILTIN` and
+`alpha.render` is not: `grow` starts no process, opens no socket and touches no
+filesystem, so the opt-in rule above does not reach it.
+
+**The decision, so it is not relitigated: both stay, and they are not merged
+into one task type.** Folding them together would put Blender behind a
+`BUILTIN` name or push a millisecond call behind an opt-in flag, and either
+breaks the rule that keeps external programs off every agent by default. What
+the overlap actually costs is legibility — two names in `alpha-admin agents` —
+so the fix lives in `grow`'s `description`, which is the string `describe()`
+prints at the moment of the confusion.
+
+**Composing them is the obvious next step and is deliberately not done yet.**
+Feeding a `grow` skeleton to Blender would make one pipeline out of the two,
+but `alpha.render` drives a `generate.py` whose `--species --seed` interface is
+fixed and lives outside this repository. Inventing a richer interface here,
+unilaterally, is how the two handlers came to overlap in the first place. That
+change starts on the Python side or not at all.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

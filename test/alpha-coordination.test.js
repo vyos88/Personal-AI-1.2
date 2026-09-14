@@ -277,7 +277,14 @@ test('the handler is not registered by default', async () => {
   const registry = new HandlerRegistry();
   // Running an external program must be opted into explicitly on the host.
   assert.equal(registry.has('alpha.coordination'), false);
-  assert.deepEqual(registry.types(), ['echo', 'sysinfo']);
+  assert.equal(registry.has('alpha.update'), false);
+  assert.equal(registry.has('memory.store'), false);
+  // Deliberately NOT an exhaustive list of what is registered. This test is
+  // about what must not be here; pinning the whole list made it fail for any
+  // new built-in that runs no external program, which is not its subject.
+  for (const type of registry.types()) {
+    assert.ok(typeof registry.get(type).run === 'function');
+  }
 });
 
 // ------------------------------------------------- opt-in via configuration
