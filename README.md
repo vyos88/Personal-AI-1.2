@@ -786,6 +786,40 @@ read from `package.json`, so there is nothing else to keep in step. An agent
 built before this existed reports no version at all; it still attaches, and
 shows as `-`.
 
+### Doing that without anybody remembering to
+
+```bash
+node scripts/self-update.mjs     # one pass, for a scheduler: exit 10 asks for a restart
+node scripts/keep-agent.mjs      # runs the agent and keeps it current, forever
+```
+
+`self-update.mjs` pulls and stops there, because a script a scheduler runs does
+not own the agent process. `keep-agent.mjs` does own it — it starts the agent,
+restarts it when it dies, checks for a release every three hours and restarts it
+onto the new code — so a laptop needs no service manager and no scheduled task
+to stay in the fleet on the current release. It runs the agent *from the
+checkout it is keeping current*, and it stops rather than respawning when the
+host tells its agent to stand down, because respawning is the eviction loop the
+stand-down exists to end.
+
+A laptop can also carry Alpha itself, for when the host is not there:
+
+```bash
+node scripts/standby-alpha.mjs --root C:\AlphaData\Alpha --start scripts\start-alpha.ps1 \
+  --control-url https://example.com
+```
+
+It probes the host's `/healthz`, starts Alpha here after four consecutive
+misses, keeps it up, and stops it when the host answers again. Failover has to
+be a local daemon rather than a handler — the coordinator is the thing that is
+down — so nothing on the network can ask this machine to start a program;
+`--start` is pinned inside `--root` and chosen by this machine's own
+configuration. `--control-url` is what keeps a laptop's own broken Wi-Fi from
+handing the household a second live Alpha.
+
+Both, with the boot-time wiring per platform:
+**[docs/ALWAYS_ON.md](docs/ALWAYS_ON.md)**.
+
 ## Security
 
 - **Keep the host bound to `127.0.0.1` or a Tailscale address.** `0.0.0.0` puts
@@ -862,7 +896,7 @@ src/host/auth/   scopes, scrypt passwords, token minting, store, auth service
 src/agent/       run loop, handler registry, handlers, memory report + store
 src/admin/       alpha-admin CLI
 bin/             alpha-host, alpha-agent, alpha-admin
-scripts/         one-command setup for the host and for a worker
+scripts/         one-command setup, self-update, the agent keeper, the Alpha standby
 test/            integration + unit tests
-docs/            host setup walkthrough
+docs/            host setup, staying current, leaving a laptop on the job
 ```

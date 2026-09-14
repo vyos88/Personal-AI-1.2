@@ -4,7 +4,12 @@ import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
 import { reserveFromEnv, memorySnapshot } from './memory.js';
 import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from './load.js';
-import { MB, DEFAULT_MAX_LOAD, DEFAULT_AGENT_CONCURRENCY } from '../common/protocol.js';
+import {
+  MB,
+  DEFAULT_MAX_LOAD,
+  DEFAULT_AGENT_CONCURRENCY,
+  AGENT_SHUTDOWN_MESSAGE,
+} from '../common/protocol.js';
 import { loadEnv } from '../common/env.js';
 import { createLogger } from '../common/log.js';
 
@@ -142,11 +147,31 @@ log.info('cpu offered to the host', {
   loadAverageAvailable: load.loadAverage1 !== null,
 });
 
+let stopping = false;
+
+function shutdown(why) {
+  // Twice is not better than once: a second SIGINT from an impatient terminal,
+  // or a signal arriving beside a supervisor's message, would start a second
+  // drain and deregister under the first one.
+  if (stopping) return;
+  stopping = true;
+  log.info('shutting down', why);
+  agent.stop().finally(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3_000).unref();
+}
+
 for (const signal of ['SIGINT', 'SIGTERM']) {
-  process.on(signal, () => {
-    log.info('shutting down', { signal });
-    agent.stop().finally(() => process.exit(0));
-    setTimeout(() => process.exit(0), 3_000).unref();
+  process.on(signal, () => shutdown({ signal }));
+}
+
+// Started by a supervisor (scripts/keep-agent.mjs) rather than by hand. It
+// restarts this process to pick up an update, and on Windows it has no signal
+// to ask with — SIGTERM there is a kill, which skips the drain and leaves the
+// host to re-run work that in fact succeeded. So take the same request over the
+// IPC channel the supervisor opened.
+if (process.send) {
+  process.on('message', (message) => {
+    if (message === AGENT_SHUTDOWN_MESSAGE) shutdown({ from: 'supervisor' });
   });
 }
 
