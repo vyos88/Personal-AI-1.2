@@ -655,6 +655,49 @@ report before it disconnects. Disconnecting first turns those reports into
 `410`s, and the host then sits out the whole lease before re-running work that
 had in fact succeeded.
 
+### Shaping the fleet: what each machine takes
+
+Placement already spreads work by RAM and load. What it cannot know is that one
+machine is *for* something — the Alpha host has the GPU, so its cores are worth
+more doing renders than echoing payloads. That is configuration, per machine,
+in `.env.agent`:
+
+```ini
+# The Alpha host: the two things only it can do.
+ALPHA_AGENT_CAPABILITIES=alpha.render,alpha.coordination
+ALPHA_EXTRA_HANDLERS=alpha-render,alpha-coordination
+ALPHA_AGENT_CONCURRENCY=1
+```
+
+```ini
+# The laptop that stays on: everything else, and as much of it as it can hold.
+ALPHA_AGENT_CONCURRENCY=4
+ALPHA_AGENT_MEMORY_RESERVE_MB=2048
+ALPHA_AGENT_MAX_LOAD=0.9
+```
+
+```ini
+# A laptop with less to give: same work, smaller share.
+ALPHA_AGENT_CONCURRENCY=1
+ALPHA_AGENT_MEMORY_RESERVE_MB=4096
+ALPHA_AGENT_MAX_LOAD=0.6
+```
+
+`ALPHA_AGENT_CAPABILITIES` may only *narrow* what a machine offers — an agent
+that claims a type it has no handler for would strand every task of that type,
+so it refuses to start instead.
+
+**Keep `alpha.coordination` on the host.** It is the reason this repository
+exists: it drives `alpha_coordination_tunnel.ps1`, which lives on the Alpha box
+and nowhere else. Narrowing the host to `alpha.render` alone takes the
+coordination tunnel off the air, and nothing else can pick it up.
+
+The cost of narrowing the host is worth stating plainly: a task type only the
+host used to cover now waits when no laptop is attached. `alpha-admin stats`
+answers that in one line — `0 pending` and both laptops reporting means the
+split is working; a pending count that climbs while the laptops sleep means
+they are not.
+
 ### Parking data in the laptop's RAM
 
 The `memstore` handler turns the laptop into a keyed, in-memory store the host
