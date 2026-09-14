@@ -73,7 +73,7 @@ function alphaRoot(t) {
   return dir;
 }
 
-function startStandby(t, { root, host, args = [], port = '' }) {
+function startStandby(t, { root, host, args = [], port = '', startArgs = ['--start', 'scripts/start.mjs'] }) {
   const dir = mkdtempSync(join(tmpdir(), 'alpha-standbylog-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const logFile = join(dir, 'events.log');
@@ -83,7 +83,7 @@ function startStandby(t, { root, host, args = [], port = '' }) {
     [
       STANDBY,
       '--root', root,
-      '--start', 'scripts/start.mjs',
+      ...startArgs,
       '--probe-url', `${host}/healthz`,
       '--probe-ms', '100',
       '--probe-timeout-ms', '1000',
@@ -223,7 +223,7 @@ test('a start script outside the root is refused before anything runs', async (t
   const standby = startStandby(t, {
     root: alphaRoot(t),
     host: host.url,
-    args: ['--start', '../../evil.sh'],
+    startArgs: ['--start', '../../evil.sh'],
   });
 
   assert.equal(await standby.exited, 1);
@@ -255,4 +255,67 @@ test('a control URL that is down too means the fault is here, so it stays put', 
 
   standby.child.kill('SIGTERM');
   assert.equal(await standby.exited, 0);
+});
+
+// --------------------------------------------------- started by `npm run ...`
+
+/**
+ * The shape Alpha actually has: `npm run dev`, where npm is a wrapper and the
+ * server is its *grandchild*. A supervisor that kills only what it spawned
+ * leaves that grandchild holding the port, and the next start fails to bind.
+ */
+function npmRoot(t) {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-npmroot-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  writeFileSync(
+    join(dir, 'package.json'),
+    JSON.stringify({ name: 'alpha-stub', private: true, scripts: { dev: 'node dev-server.mjs' } }),
+  );
+  writeFileSync(
+    join(dir, 'dev-server.mjs'),
+    `
+import { appendFileSync } from 'node:fs';
+const log = process.env.STANDBY_TEST_LOG;
+appendFileSync(log, 'start\\n');
+setInterval(() => appendFileSync(log, 'beat\\n'), 100);
+`,
+  );
+  return dir;
+}
+
+test('Alpha can be started with `npm run <script>`, and stopping it stops the server it spawned', async (t) => {
+  const host = await fakeHost(t);
+  const standby = startStandby(t, {
+    root: npmRoot(t),
+    host: host.url,
+    startArgs: ['--npm-script', 'dev'],
+  });
+
+  host.goDown();
+  await waitFor('the dev server to be beating', () => standby.events().filter((e) => e === 'beat').length >= 2);
+
+  standby.child.kill('SIGTERM');
+  assert.equal(await standby.exited, 0);
+
+  // npm is gone; the question is whether the node process it started is too.
+  const beatsAtExit = standby.events().filter((e) => e === 'beat').length;
+  await new Promise((r) => setTimeout(r, 700));
+  assert.equal(
+    standby.events().filter((e) => e === 'beat').length,
+    beatsAtExit,
+    'the grandchild kept running and would hold the port on the next start',
+  );
+});
+
+test('a script name that is not in the root package.json is refused at startup', async (t) => {
+  const host = await fakeHost(t);
+  const standby = startStandby(t, {
+    root: npmRoot(t),
+    host: host.url,
+    startArgs: ['--npm-script', 'definitely-not-there'],
+  });
+
+  assert.equal(await standby.exited, 1);
+  assert.match(standby.stderr(), /no "definitely-not-there" script/);
+  assert.match(standby.stderr(), /found: dev/);
 });

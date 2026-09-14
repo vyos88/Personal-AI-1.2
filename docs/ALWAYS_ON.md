@@ -122,13 +122,14 @@ still the part of "always on" that is not about software at all.
 ## 2. Run Alpha here when the main host is not answering
 
 ```bash
-node scripts/standby-alpha.mjs --root C:\AlphaData\Alpha --start scripts\start-alpha.ps1
+node scripts/standby-alpha.mjs --root C:\AlphaData\Alpha --npm-script dev `
+  --control-url https://example.com
 ```
 
 It probes the main host every 30 seconds. After four consecutive misses it
 starts Alpha on this machine and keeps it up; when the host answers again it
-stops it. `ALPHA_APP_ROOT` and `ALPHA_APP_START` in `.env.agent` say the same
-thing without the flags.
+stops it. `ALPHA_APP_ROOT` with either `ALPHA_APP_NPM_SCRIPT` or
+`ALPHA_APP_START` in `.env.agent` says the same thing without the flags.
 
 ### This is a daemon, not a handler, and that is the point
 
@@ -143,16 +144,29 @@ can ask this machine to start a program.
 
 ### You have to tell it how Alpha starts
 
-There is no default, and the script is pinned the same way the coordination
-handler's is: **relative to `--root`, no traversal, proven to resolve inside the
-root, run through an interpreter chosen by its extension** (`.ps1`, `.cmd`,
-`.bat`, `.js`, `.mjs`, `.sh`) **as an argv array, never a shell string.** It
-refuses at startup rather than at the moment of the outage if the script is not
-there.
+There is no default, and two ways to say it. Both are checked at startup rather
+than at the moment of the outage, and neither is a command string:
 
-Write the start script so it *becomes* the server rather than launching one and
-returning — a wrapper that exits immediately looks to the supervisor like Alpha
-crashing, and stopping the wrapper will not stop what it spawned.
+- **`--npm-script dev`** — runs `npm run dev` in the root. The root's
+  `package.json` is the allowlist: a name that is not a script there is refused,
+  and the run is `npm` with the argv `['run', '<name>']`, no shell. On Windows
+  it spawns `npm.cmd`, because `npm` there is a shim that cannot be spawned
+  without one (override with `ALPHA_NPM`).
+- **`--start scripts\start-alpha.ps1`** — a script pinned the same way the
+  coordination handler's is: relative to `--root`, no traversal, proven to
+  resolve inside the root, run through an interpreter chosen by its extension
+  (`.ps1`, `.cmd`, `.bat`, `.js`, `.mjs`, `.sh`) as an argv array.
+
+**Stopping stops what Alpha started, not just Alpha.** `npm run dev` is a
+wrapper — the server is its grandchild — so killing only the process that was
+spawned leaves the server holding its port, and the next start fails to bind.
+On Linux and macOS the child is given its own process group and the group is
+signalled; on Windows `taskkill /T` walks the tree. There is a test that starts
+a real `npm run dev`, stops it, and fails if the grandchild is still beating.
+
+One consequence of that process group: if the standby is `kill -9`'d, Alpha
+outlives it. Stop it with Ctrl-C or SIGTERM, which is what a service manager
+sends anyway.
 
 ### Two Alphas is worse than the outage
 
@@ -173,6 +187,7 @@ mitigations, neither perfect and both deliberate:
 |---|---|---|
 | `--root <dir>` | `ALPHA_APP_ROOT` | where Alpha lives on this machine |
 | `--start <script>` | `ALPHA_APP_START` | start script, relative to the root |
+| `--npm-script <name>` | `ALPHA_APP_NPM_SCRIPT` | `npm run <name>` in the root, instead of `--start` |
 | `--probe-url <url>` | `ALPHA_HOST_URL` + `/healthz` | the main host |
 | `--control-url <url>` | — | proof this machine's own network is up |
 | `--local-url <url>` | — | health endpoint of the Alpha *this* machine started |

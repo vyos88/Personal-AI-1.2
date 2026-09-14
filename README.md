@@ -924,7 +924,7 @@ stand-down exists to end.
 A laptop can also carry Alpha itself, for when the host is not there:
 
 ```bash
-node scripts/standby-alpha.mjs --root C:\AlphaData\Alpha --start scripts\start-alpha.ps1 \
+node scripts/standby-alpha.mjs --root C:\AlphaData\Alpha --npm-script dev \
   --control-url https://example.com
 ```
 
@@ -932,8 +932,10 @@ It probes the host's `/healthz`, starts Alpha here after four consecutive
 misses, keeps it up, and stops it when the host answers again. Failover has to
 be a local daemon rather than a handler — the coordinator is the thing that is
 down — so nothing on the network can ask this machine to start a program;
-`--start` is pinned inside `--root` and chosen by this machine's own
-configuration. `--control-url` is what keeps a laptop's own broken Wi-Fi from
+`--start` is pinned inside `--root`, `--npm-script` is a name the root's own
+`package.json` has to define, and both come from this machine's configuration.
+Stopping takes the whole process tree with it, because `npm run dev` is a
+wrapper and the server that holds the port is its grandchild. `--control-url` is what keeps a laptop's own broken Wi-Fi from
 handing the household a second live Alpha.
 
 Both, with the boot-time wiring per platform:

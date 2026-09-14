@@ -250,7 +250,16 @@ because the coordinator is the thing that is down — a standby that promotes by
 task is one that only starts when it is not needed. It follows the external-
 program rules anyway (pinned interpreter by extension, start script that must
 resolve inside `--root`, argv array, never a shell string), and takes nothing
-from the network but whether a health endpoint answered.
+from the network but whether a health endpoint answered. `--npm-script` is the
+same rule with `package.json` as the allowlist — a name it does not define is
+refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
+spawned without a shell.
+
+**Stopping it stops the tree.** `npm run dev` is a wrapper and the server is its
+grandchild; killing only the spawned process leaves the port held and the next
+start fails to bind. POSIX gets its own process group, Windows gets
+`taskkill /T`, and a test starts a real `npm run dev` and fails if the
+grandchild survives.
 
 Its real hazard is split brain: the machine cannot tell "the host is down" from
 "I cannot reach the host". `--control-url` (something up whenever this laptop's

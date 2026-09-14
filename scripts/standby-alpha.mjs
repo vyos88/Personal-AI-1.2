@@ -62,8 +62,8 @@
  *       does not resolve inside it
  */
 
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { execFile, spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -90,6 +90,29 @@ const DEFAULT_STOP_TIMEOUT_MS = 20_000;
 
 const EXIT_OK = 0;
 const EXIT_FAILED = 1;
+
+// npm scripts are named, not pathed, so the root's package.json is the
+// allowlist: `--npm-script dev` runs whatever `dev` is there and nothing else.
+const NPM_SCRIPT_PATTERN = /^[a-z0-9][a-z0-9:._-]{0,63}$/;
+
+/**
+ * `npm run <script>` in the root, which is how most apps actually start.
+ *
+ * The executable is pinned the same way an interpreter is, and on Windows it
+ * has to be `npm.cmd`: `npm` there is a shim, and spawning it without a shell —
+ * which is the whole point — fails with ENOENT. (This is the same execution-
+ * policy corner the README warns about from the other side: PowerShell blocks
+ * `npm.ps1`, so nothing here goes through PowerShell to reach npm.)
+ */
+function npmCommand(script) {
+  if (!NPM_SCRIPT_PATTERN.test(script)) {
+    throw new Error(
+      `--npm-script must be a script name from the root's package.json, got ${JSON.stringify(script)}`,
+    );
+  }
+  const npm = process.env.ALPHA_NPM ?? (process.platform === 'win32' ? 'npm.cmd' : 'npm');
+  return [npm, ['run', script]];
+}
 
 /**
  * Interpreters this will run, chosen by the start script's extension. Pinned,
@@ -122,6 +145,7 @@ function parseArgs(argv) {
   const options = {
     root: process.env.ALPHA_APP_ROOT ?? '',
     start: process.env.ALPHA_APP_START ?? '',
+    npmScript: process.env.ALPHA_APP_NPM_SCRIPT ?? '',
     probeUrl: '',
     controlUrl: '',
     localUrl: '',
@@ -138,6 +162,7 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--root') options.root = argv[++i] ?? '';
     else if (arg === '--start') options.start = argv[++i] ?? '';
+    else if (arg === '--npm-script') options.npmScript = argv[++i] ?? '';
     else if (arg === '--probe-url') options.probeUrl = argv[++i] ?? '';
     else if (arg === '--control-url') options.controlUrl = argv[++i] ?? '';
     else if (arg === '--local-url') options.localUrl = argv[++i] ?? '';
@@ -160,10 +185,37 @@ function parseArgs(argv) {
     options.probeUrl = `${host.replace(/\/+$/, '')}/healthz`;
   }
   if (!options.root) throw new Error('--root (or ALPHA_APP_ROOT) is required');
-  if (!options.start) throw new Error('--start (or ALPHA_APP_START) is required');
+  if (options.start && options.npmScript) {
+    throw new Error('--start and --npm-script name two different ways to start; pick one');
+  }
+  if (!options.start && !options.npmScript) {
+    throw new Error('one of --start (or ALPHA_APP_START) and --npm-script is required');
+  }
 
   const base = resolve(options.root);
   if (!existsSync(base)) throw new Error(`no such directory: ${base}`);
+
+  if (options.npmScript) {
+    // Prove the script exists now rather than at the moment of the outage,
+    // which is the same reason --start is checked here.
+    const manifest = resolve(base, 'package.json');
+    if (!existsSync(manifest)) throw new Error(`no package.json in ${base}`);
+    let scripts;
+    try {
+      scripts = JSON.parse(readFileSync(manifest, 'utf8')).scripts ?? {};
+    } catch (error) {
+      throw new Error(`could not read ${manifest}: ${error.message}`);
+    }
+    if (!Object.hasOwn(scripts, options.npmScript)) {
+      throw new Error(
+        `package.json has no "${options.npmScript}" script (found: ${Object.keys(scripts).join(', ') || 'none'})`,
+      );
+    }
+    options.root = base;
+    options.script = `npm run ${options.npmScript}`;
+    options.command = npmCommand(options.npmScript);
+    return options;
+  }
 
   // Same rule as the coordination handler's script: relative to the root, no
   // traversal, and proven to land inside it after resolution rather than by
@@ -211,6 +263,40 @@ async function reachable(url, timeoutMs) {
 }
 
 /**
+ * Stops the child *and everything it started*.
+ *
+ * `npm run dev` is a wrapper: the server is its grandchild. Kill only the npm
+ * process and the server keeps the port, so the restart this was meant to
+ * perform fails to bind — which is the failure mode of every naive supervisor
+ * of a script that launches something else.
+ *
+ * POSIX: the child was spawned detached, so it leads its own process group and
+ * a negative pid signals the whole group. Windows has no groups worth the name,
+ * so `taskkill /T` walks the tree instead.
+ */
+function killTree(child, { force }) {
+  if (!child.pid) return;
+  if (process.platform === 'win32') {
+    const args = ['/pid', String(child.pid), '/T'];
+    if (force) args.push('/F');
+    execFile('taskkill', args, { windowsHide: true }, () => {});
+    return;
+  }
+  const signal = force ? 'SIGKILL' : 'SIGTERM';
+  try {
+    process.kill(-child.pid, signal);
+  } catch {
+    // The group is already gone, or this platform refused it. The child
+    // itself is still worth a try.
+    try {
+      child.kill(signal);
+    } catch {
+      /* already dead */
+    }
+  }
+}
+
+/**
  * Alpha, as run by this machine. Owns the child it started and nothing else:
  * start() keeps it up until stop() is called, restarting it with backoff if it
  * exits, because a standby whose copy of Alpha died an hour ago is not a
@@ -254,6 +340,10 @@ class LocalAlpha {
         cwd: this.#options.root,
         stdio: ['ignore', 'inherit', 'inherit'],
         windowsHide: true,
+        // Its own process group, so stopping it stops what it started. Not on
+        // Windows, where detached means a new console window rather than a
+        // group — taskkill /T does that job there.
+        detached: process.platform !== 'win32',
       });
       this.#child = child;
       this.#startedAt = Date.now();
@@ -303,14 +393,14 @@ class LocalAlpha {
 
   async #stopChild(child) {
     const exited = child.exited;
-    child.kill('SIGTERM');
+    killTree(child, { force: false });
     const done = await Promise.race([
       exited.then(() => true),
       sleep(this.#options.stopTimeoutMs).then(() => false),
     ]);
     if (!done) {
       log.warn('Alpha did not stop in time; killing it', { pid: child.pid });
-      child.kill('SIGKILL');
+      killTree(child, { force: true });
       await exited;
     }
   }
