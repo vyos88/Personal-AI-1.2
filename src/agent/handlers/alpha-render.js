@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
 
@@ -250,6 +250,68 @@ function timeoutMs() {
     );
   }
   return parsed;
+}
+
+/**
+ * Whether this machine can actually render, asked before the agent offers to.
+ *
+ * The handler is opt-in, which keeps it off machines that never enabled it —
+ * but not off one that was handed a copy of the host's `.env.agent`, which is
+ * how a second laptop usually gets configured. That laptop advertises
+ * `alpha.render`, wins the task on free RAM, and fails it: an attempt spent,
+ * and a retry that can land on the same machine again. A capability claimed is
+ * a promise, so prove it before making it.
+ *
+ * It asks exactly what `run()` asks and in the same way — the same root, the
+ * same script-inside-the-root rule, the same output directory, the same
+ * executable — so a machine cannot pass this and then fail there. Nothing is
+ * executed: Blender is looked up, not run. Whether the binary *works* is not
+ * knowable without a render, and `run()` still reports that honestly.
+ */
+export function available() {
+  try {
+    const root = requireRoot();
+    requireScript(root);
+    insideRoot(root, configured('ALPHA_RENDER_OUTPUT', DEFAULT_OUTPUT), 'ALPHA_RENDER_OUTPUT');
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+
+  const blender = configured('ALPHA_BLENDER', 'blender');
+  if (!resolveExecutable(blender)) {
+    return {
+      ok: false,
+      reason: `Blender not found (${blender}). Set ALPHA_BLENDER to its path.`,
+    };
+  }
+  return { ok: true };
+}
+
+/**
+ * Where a command would be found, or null.
+ *
+ * `execFile` resolves a bare name against PATH, so the check has to as well or
+ * the default `blender` would look missing on every machine that has it
+ * installed normally. Windows needs PATHEXT too: `blender` there is
+ * `blender.exe`, and a check that only looked for the bare name would take the
+ * host's own GPU machine out of the running.
+ */
+function resolveExecutable(command) {
+  if (command.includes('/') || command.includes(sep)) {
+    return existsSync(command) ? command : null;
+  }
+  const extensions =
+    process.platform === 'win32'
+      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
+      : [''];
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = join(directory, command + extension);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
 }
 
 export async function run(payload, { signal, log } = {}) {

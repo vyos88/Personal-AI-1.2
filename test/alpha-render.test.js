@@ -1,16 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, readFile, readdir, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { delimiter, join } from 'node:path';
 
 import {
+  available,
   buildArgs,
   rejectUnsupportedParams,
   run,
   validateSeed,
   validateSpecies,
 } from '../src/agent/handlers/alpha-render.js';
+import * as renderHandler from '../src/agent/handlers/alpha-render.js';
+import { HandlerRegistry } from '../src/agent/handlers/index.js';
 
 const isWindows = process.platform === 'win32';
 
@@ -350,4 +354,162 @@ test('a script or output directory outside the root is refused', async (t) => {
   delete process.env.ALPHA_RENDER_SCRIPT;
   process.env.ALPHA_RENDER_OUTPUT = '../elsewhere';
   await assert.rejects(run({ species: 'beetle', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
+});
+
+// ------------------------------------------- claiming only what it can do
+
+test('a machine with the generator and Blender offers to render', async (t) => {
+  const f = await fixture();
+  useFixture(t, f);
+  assert.deepEqual(available(), { ok: true });
+});
+
+test('a machine missing any part of the setup says which part', async (t) => {
+  const f = await fixture();
+  useFixture(t, f);
+
+  // The likely case, and the reason this exists: `.env.agent` copied from the
+  // host to a laptop that has neither the generator nor Blender.
+  delete process.env.ALPHA_RENDER_ROOT;
+  assert.match(available().reason, /ALPHA_RENDER_ROOT is not set/);
+  assert.equal(available().ok, false);
+
+  process.env.ALPHA_RENDER_ROOT = join(tmpdir(), 'alpha-render-does-not-exist');
+  assert.match(available().reason, /does not exist/);
+
+  // Root is there, generator is not.
+  process.env.ALPHA_RENDER_ROOT = f.root;
+  process.env.ALPHA_RENDER_SCRIPT = 'scripts/missing.py';
+  assert.match(available().reason, /generator script not found/);
+  delete process.env.ALPHA_RENDER_SCRIPT;
+
+  // Everything but the renderer itself.
+  process.env.ALPHA_BLENDER = join(f.root, 'no-such-blender');
+  assert.match(available().reason, /Blender not found/);
+});
+
+test('the check asks the same questions the render will', async (t) => {
+  // A configuration this passes and `run()` then rejects would be worse than
+  // no check at all: the task would fail after being placed, which is exactly
+  // what this is here to prevent.
+  const f = await fixture();
+  useFixture(t, f);
+
+  process.env.ALPHA_RENDER_OUTPUT = '../escape';
+  assert.match(available().reason, /must live inside ALPHA_RENDER_ROOT/);
+  await assert.rejects(run({ species: 'beetle', seed: 1 }), /must live inside ALPHA_RENDER_ROOT/);
+});
+
+test('Blender on PATH counts, because that is how execFile finds it', async (t) => {
+  // The default is the bare name `blender`, which execFile resolves against
+  // PATH. A check that only accepted an absolute path would report the host's
+  // own GPU machine as unable to render.
+  const f = await fixture();
+  useFixture(t, f);
+  if (isWindows) return;
+
+  process.env.ALPHA_BLENDER = 'blender.sh';
+  process.env.PATH = `${f.root}${delimiter}${process.env.PATH}`;
+  assert.equal(available().ok, true);
+
+  process.env.PATH = process.env.PATH.replace(`${f.root}${delimiter}`, '');
+  assert.equal(available().ok, false);
+});
+
+test('a handler that cannot run here is not registered, and says why', async (t) => {
+  const f = await fixture();
+  useFixture(t, f);
+  const registry = new HandlerRegistry([]);
+
+  delete process.env.ALPHA_RENDER_ROOT;
+  const refused = registry.add(renderHandler);
+  assert.equal(refused.registered, false);
+  assert.equal(refused.type, 'alpha.render');
+  assert.match(refused.reason, /ALPHA_RENDER_ROOT/);
+  assert.equal(registry.has('alpha.render'), false);
+
+  // And the same machine, once it has what it needs.
+  process.env.ALPHA_RENDER_ROOT = f.root;
+  assert.equal(registry.add(renderHandler).registered, true);
+  assert.equal(registry.has('alpha.render'), true);
+});
+
+test('a handler with nothing to prove is registered as before', () => {
+  // Every built-in: no external program, so no `available()` and no question
+  // to ask. Adding the check must not make them conditional on anything.
+  const registry = new HandlerRegistry([]);
+  const outcome = registry.add({ type: 'echo', run: async () => ({}) });
+  assert.equal(outcome.registered, true);
+  assert.equal(registry.has('echo'), true);
+});
+
+/** Runs the agent entrypoint as a subprocess and collects its output. */
+function spawnAgent(env, { waitFor, timeoutMs = 15_000 } = {}) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(process.execPath, ['src/agent/index.js'], {
+      cwd: process.cwd(),
+      env: {
+        ...process.env,
+        ALPHA_AGENT_KEY: 'irrelevant-but-present',
+        // Port 1 refuses instantly, so the agent never actually attaches — the
+        // handler list is decided before it dials out.
+        ALPHA_HOST_URL: 'http://127.0.0.1:1',
+        ALPHA_LOG_LEVEL: 'info',
+        ...env,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let output = '';
+    const done = () => {
+      child.kill('SIGKILL');
+      clearTimeout(timer);
+      resolvePromise(output);
+    };
+    const onChunk = (chunk) => {
+      output += chunk;
+      if (waitFor && output.includes(waitFor)) done();
+    };
+    child.stdout.on('data', onChunk);
+    child.stderr.on('data', onChunk);
+    child.on('exit', done);
+    const timer = setTimeout(done, timeoutMs);
+  });
+}
+
+test('an agent asked to render without the means says so and lends anyway', async () => {
+  // The whole point, end to end: this machine keeps working, it just never
+  // claims `alpha.render` for the host to place a render against.
+  const output = await spawnAgent(
+    { ALPHA_EXTRA_HANDLERS: 'alpha-render', ALPHA_RENDER_ROOT: '' },
+    { waitFor: 'starting host=' },
+  );
+
+  assert.match(output, /not offering a handler this machine cannot run/);
+  assert.match(output, /ALPHA_RENDER_ROOT is not set/);
+  // Asserted on the capabilities the agent registers with, which is what the
+  // host places against — not on the handler list, whose descriptions mention
+  // alpha.render by name for readers.
+  const capabilities = /capabilities=(\[[^\]]*\])/.exec(output)?.[1] ?? '';
+  assert.ok(capabilities.length > 0, 'the agent should report its capabilities');
+  assert.equal(capabilities.includes('alpha.render'), false);
+  // Still a working worker for everything else.
+  assert.match(capabilities, /echo/);
+});
+
+test('an agent that can render offers it', async (t) => {
+  if (isWindows) return;
+  const f = await fixture();
+  const output = await spawnAgent(
+    {
+      ALPHA_EXTRA_HANDLERS: 'alpha-render',
+      ALPHA_RENDER_ROOT: f.root,
+      ALPHA_BLENDER: f.blender,
+    },
+    { waitFor: 'starting host=' },
+  );
+
+  assert.match(output, /registered extra handler/);
+  const capabilities = /capabilities=(\[[^\]]*\])/.exec(output)?.[1] ?? '';
+  assert.match(capabilities, /alpha\.render/);
 });
