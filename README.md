@@ -548,6 +548,52 @@ npm run jobs -- --type alpha.render --agent alpha-host --count 3 \
   --payload '{"species":"fern","seed":7}' --lease-ms 900000 --timeout 1800
 ```
 
+### Rendering a batch, and getting the recipes back
+
+The images stay on the machine that made them; the **recipes** come back. One
+command renders a batch and writes the recipe book here:
+
+```bash
+npm run jobs -- --type alpha.render --agent alpha-host --count 6 \
+  --species fern,beetle --seed 0 --lease-ms 900000 --timeout 1800 --save recipes.json
+```
+
+```
+Queueing 6 × alpha.render (fern, beetle, seeds 0–5) for "alpha-host"
+
+  task_sp4mm5tdc2yiq3pr  alpha-host  succeeded 41.2s  tries 1  fern/0 → fern_0.png (182.4 MB)
+  task_j26b4mwp8sdbvcr3  alpha-host  succeeded 39.8s  tries 1  beetle/1 → beetle_1.png (176.1 MB)
+  ...
+
+Wrote 6 result(s) to recipes.json
+
+Ran on: alpha-host 6
+```
+
+`--species` cycles through the list and every job gets its own seed, so a batch
+is six *different* creatures and plants rather than the same one six times.
+Seeds start at `--seed` (default 0), which means re-running the same command
+asks for the same images again — the whole point of a recipe.
+
+`recipes.json` is what a recipe book looks like: species, seed, which machine
+made it, and what it left there. Never the image itself.
+
+```json
+[
+  {
+    "id": "task_sp4mm5tdc2yiq3pr",
+    "status": "succeeded",
+    "machine": "alpha-host",
+    "recipe": { "species": "fern", "seed": 0 },
+    "outputs": [{ "name": "fern_0.png", "path": "…/output/fern_0.png", "bytes": 191234567 }]
+  }
+]
+```
+
+`--lease-ms` and a generous `--timeout` are not optional for real renders: the
+default lease is 60 seconds and a render outlives it, at which point the host
+reclaims a task that is running perfectly well.
+
 ### Sending work to one machine
 
 Everything above picks a machine. Some work has no choice of machine: a render
