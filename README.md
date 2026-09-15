@@ -730,6 +730,47 @@ everything else.
 
 Nothing here survives a restart of the agent. It is a cache, not a database.
 
+## Seeing what is plugged into a machine
+
+A worker reports its RAM and its CPU. It does not report its devices, so "is
+the panel still plugged in, and on which COM port?" could only be answered by
+someone sitting at that laptop — which is the wrong shape for a machine that is
+meant to run unattended.
+
+`device.inventory` makes it a task. Opt in on machines with devices worth
+seeing:
+
+```bash
+ALPHA_EXTRA_HANDLERS=alpha-devices
+```
+
+```bash
+npm run admin -- task --type device.inventory --agent jacks-laptop
+```
+
+```json
+{
+  "machine": "JACKS-LAPTOP",
+  "collectedAt": "2026-09-15T04:00:00.000Z",
+  "counts": { "usb": 24, "serialPorts": 1, "avDevices": 3 },
+  "serialPorts": [{ "port": "COM3", "name": "USB-SERIAL CH340 (COM3)" }],
+  "notWorking": []
+}
+```
+
+`serialPorts` is the reason anyone asks: Windows renumbers COM ports when a
+device re-enumerates, so a board that was unplugged and put back comes up
+somewhere else and anything holding the old number stops finding it.
+`notWorking` is the actionable half — attached but no driver, or needing a
+power cycle.
+
+It wraps `scripts/usb-inventory.ps1`, which is read-only and already writes the
+JSON Alpha's device panels consume, and it **takes no arguments at all**: a
+payload carrying anything is refused rather than ignored, because the script
+accepts nothing and a caller who sent something should be told it meant
+nothing. A machine without PowerShell — a Linux laptop — declines to offer the
+capability rather than failing every task, as with renders.
+
 ## A machine only offers what it can actually do
 
 `alpha.render` needs Blender and the generator script on the machine that runs
