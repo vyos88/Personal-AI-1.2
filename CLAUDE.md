@@ -350,6 +350,32 @@ via the queue's `onTerminal` seam. Four properties hold it up:
   kilobytes of fabricated receipts into `./data/receipts.json` on every
   `npm test` run. Pinned by a test.
 
+`alpha-render-inventory.js` is the sixth external-facing handler and the only
+one that exists because of what the ledger *cannot* know. The ledger records
+from the moment a host started keeping one; every render before that left one
+durable trace, the file on the machine that made it. So this reads the output
+directory and reports it. Four rules it follows:
+
+- **It never parses a seed out of a filename.** The generator names its own
+  file, which is why `alpha.render` reports what appeared rather than
+  predicting a path; reconstructing `fern_7.png` → seed 7 reintroduces exactly
+  that assumption and breaks the first time the naming changes. Counts, bytes
+  and mtimes are what a file can honestly tell you.
+- **It takes no path from the payload**, only an optional `species` filter. A
+  handler that could be told where to look is a directory lister with a task
+  queue in front of it — the same objection `handlers/index.js` raises against
+  a shell handler.
+- **A render in flight is excluded but counted.** `run()`'s `.render-*`
+  staging directory holds a half-written image, which is not output; the
+  number of them is reported, because that is the other half of reading a
+  directory mid-flight.
+- **Its `available()` is weaker than `alpha.render`'s on purpose** — output
+  directory yes, Blender no. A machine whose Blender broke still holds every
+  render it made, and that is exactly when an inventory is wanted. It shares
+  `resolveOutputDir()` with the render handler rather than keeping a second
+  copy of the rule, because a copy that drifts reads a directory the renders
+  do not write to and calls a full machine empty.
+
 `scripts/alpha-manager.mjs` is what a scheduled loop runs, and the three things
 it adds over `run-jobs.mjs` are the three a loop needs: seeds **continue** from
 the ledger instead of repeating (a loop on `--seed 0` re-renders the same six

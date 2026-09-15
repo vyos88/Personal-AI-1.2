@@ -258,3 +258,72 @@ test('an empty report says why it might be empty', async () => {
     await host.close();
   }
 });
+
+/* ── inventory, end to end ───────────────────────────────────────────────── */
+
+// The whole point of the handler: `report` reads what the host was told,
+// `inventory` reads what is really on the machine's disk. A fleet whose ledger
+// is younger than its renders needs the second one to count the first.
+test('inventory reports the images a real agent finds on disk', async (t) => {
+  const { mkdtemp, mkdir, writeFile, rm } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { TunnelAgent } = await import('../src/agent/agent.js');
+  const { HandlerRegistry } = await import('../src/agent/handlers/index.js');
+  const inventory = await import('../src/agent/handlers/alpha-render-inventory.js');
+
+  const renderRoot = await mkdtemp(join(tmpdir(), 'alpha-mgr-inv-'));
+  await mkdir(join(renderRoot, 'output', 'fern'), { recursive: true });
+  await mkdir(join(renderRoot, 'output', 'beetle'), { recursive: true });
+  await writeFile(join(renderRoot, 'output', 'fern', 'fern_0.png'), 'x'.repeat(2048));
+  await writeFile(join(renderRoot, 'output', 'fern', 'fern_1.png'), 'x'.repeat(1024));
+  await writeFile(join(renderRoot, 'output', 'beetle', 'beetle_0.png'), 'x'.repeat(512));
+  // Predates filing by species — the back catalogue.
+  await writeFile(join(renderRoot, 'output', 'legacy.png'), 'x'.repeat(256));
+
+  const before = { ...process.env };
+  process.env.ALPHA_RENDER_ROOT = renderRoot;
+  delete process.env.ALPHA_RENDER_OUTPUT;
+
+  const host = await startHost();
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'render-box',
+    instanceId: 'inst_render_box',
+    handlers: new HandlerRegistry([inventory]),
+    pollWaitMs: 500,
+  });
+  // start() is the run loop, not a handshake: awaiting it here waits forever.
+  const running = agent.start();
+
+  t.after(async () => {
+    process.env = before;
+    await agent.stop({ drainMs: 0 });
+    await running;
+    await host.close();
+    await rm(renderRoot, { recursive: true, force: true });
+  });
+
+  const { fetchJson } = await import('../src/common/http.js');
+  const deadline = Date.now() + 10_000;
+  while (Date.now() < deadline) {
+    const { body } = await fetchJson(`${host.url}/agents`, { token: TOKEN });
+    if (body.agents.length === 1) break;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+
+  const { stdout } = await run(
+    process.execPath,
+    [MANAGER, 'inventory', '--agent', 'render-box'],
+    { env: { ...env(host.url), ALPHA_RENDER_ROOT: renderRoot } },
+  );
+
+  assert.match(stdout, /Images\s+4/);
+  assert.match(stdout, /fern\s+2/);
+  assert.match(stdout, /beetle\s+1/);
+  assert.match(stdout, /\(unfiled\)\s+1/);
+  assert.match(stdout, /rendered before images were filed by species/);
+  // The ledger is empty and the disk is not: say so rather than let the two
+  // numbers quietly disagree.
+  assert.match(stdout, /the host ledger records 0 image\(s\), the disk holds 4/);
+});

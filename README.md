@@ -563,6 +563,10 @@ npm run jobs -- --type alpha.render --agent alpha-host --count 6 \
   --species fern,beetle --seed 0 --lease-ms 900000 --timeout 1800 --save recipes.json
 ```
 
+*Illustrative output — the shape of the answer, not a recorded run. For real
+numbers from this fleet, see `alpha-manager report` and `alpha-manager
+inventory` below.*
+
 ```
 Queueing 6 × alpha.render (fern, beetle, seeds 0–5) for "alpha-host"
 
@@ -683,6 +687,56 @@ A receipt keeps the recipe and what landed, and drops the render's stdout and
 stderr — 16 KB of Blender chatter per render is megabytes a day in a file
 meant to be read. Only a host with a **persistent auth store** keeps a ledger;
 an ephemeral host gets an in-memory one, so tests never write to the real file.
+
+### Counting renders that predate the ledger
+
+The ledger records from the moment it started keeping one — which is none of
+the renders made before it existed. Those left exactly one durable trace: the
+file itself, on the machine that made it. `alpha.render.inventory` reads that
+trace, so the back catalogue is countable:
+
+```bash
+npm run manager -- inventory --agent alpha-host
+```
+
+```
+Renders on disk — alpha-host  (output/)
+
+  Images           412  (68.3 GB on disk)
+  Most recent      2026-09-15T22:41:07.000Z
+  Rendering now    1  (not counted above)
+
+  By species
+    fern             186  31.2 GB
+    beetle           147  24.8 GB
+    (unfiled)         79  12.3 GB
+
+  "(unfiled)" is everything rendered before images were filed by species.
+
+  Note: the host ledger records 38 image(s), the disk holds 412. Anything
+  rendered before the ledger existed is only on disk.
+```
+
+Enable it beside the renderer:
+
+```bash
+ALPHA_EXTRA_HANDLERS=alpha-render,alpha-render-inventory
+```
+
+Two records, answering different questions. The **ledger** is what the host
+was told and covers every machine; the **inventory** is what is really on one
+machine's disk. The inventory is ground truth for images, so the two
+disagreeing is worth knowing about — which is why the command says so rather
+than letting the numbers quietly differ.
+
+It is read-only, takes no path from its payload (only an optional `species`
+filter), and skips the `.render-*` staging directory of a render in flight —
+a half-written image is not output, though the count of them is reported.
+
+Its `available()` is deliberately **weaker** than `alpha.render`'s: it wants
+the output directory and says nothing about Blender. A machine whose Blender
+broke still holds every render it ever made, and that is exactly the machine
+somebody needs an inventory from.
 
 ### Sending work to one machine
 

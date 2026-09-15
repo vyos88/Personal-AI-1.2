@@ -56,6 +56,8 @@ alpha-manager — approve and queue renders on a schedule, and report what lande
 Commands
   render                Approve, then queue a batch. Never waits for it
   report                What the fleet has produced, from the host's ledger
+  inventory             What is actually on the rendering machine's disk,
+                        including everything that predates the ledger
 
 render options
   --species <a,b,...>   Species to cycle through (required)
@@ -75,6 +77,11 @@ render options
 report options
   --since <duration>    Only count work finished inside this window
   --json                The summary as JSON
+
+inventory options
+  --agent <name>        Machine to ask. Defaults to wherever the task lands
+  --species <name>      Only count this species
+  --json                The inventory as JSON
 
   Durations are <n>[m|h|d], e.g. 90m, 24h, 7d.
 
@@ -328,6 +335,89 @@ async function commandReport(flags) {
   }
 }
 
+/**
+ * Ask a machine what is actually on its disk.
+ *
+ * `report` reads the host's ledger, which only knows what it was told and only
+ * since it started keeping one. This asks the machine holding the images, so
+ * it is the only way to count renders that predate the ledger — and afterwards
+ * it stays the ground truth the ledger can be checked against.
+ *
+ * Unlike `render` this does wait: a directory scan is milliseconds, and an
+ * inventory you have to come back for is not worth having.
+ */
+async function commandInventory(flags) {
+  const payload = {};
+  if (flags.species) payload.species = flags.species;
+
+  const body = { type: 'alpha.render.inventory', payload, leaseMs: 60_000 };
+  if (flags.agent) body.targetAgent = flags.agent;
+
+  const queued = await api('/tasks', { method: 'POST', body });
+  if (!queued.agentAvailable) {
+    if (queued.targetAttached === false) {
+      die(`no attached agent is called "${flags.agent}"`);
+    }
+    die(
+      'nothing attached offers "alpha.render.inventory". Enable it on the rendering machine:\n' +
+        '  ALPHA_EXTRA_HANDLERS=alpha-render,alpha-render-inventory',
+    );
+  }
+
+  const deadline = Date.now() + 60_000;
+  let task = queued;
+  while (Date.now() < deadline) {
+    task = await api(`/tasks/${queued.id}`);
+    if (task.status === 'succeeded' || task.status === 'failed' || task.status === 'cancelled') {
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  if (task.status !== 'succeeded') {
+    die(`inventory ${task.status}: ${task.error?.message ?? 'no result'}`);
+  }
+
+  const result = task.result;
+  if (flags.json) {
+    say(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  say(`\nRenders on disk${flags.agent ? ` — ${flags.agent}` : ''}  (${result.outputDir}/)\n`);
+
+  if (result.total === 0) {
+    say('  Nothing. This machine has an output directory and no images in it.');
+    return;
+  }
+
+  say(`  Images           ${result.total}  (${size(result.bytes)} on disk)`);
+  if (result.newest) say(`  Most recent      ${new Date(result.newest).toISOString()}`);
+  if (result.rendersInFlight > 0) {
+    say(`  Rendering now    ${result.rendersInFlight}  (not counted above)`);
+  }
+
+  const rows = Object.entries(result.species).sort((a, b) => b[1].count - a[1].count);
+  say('\n  By species');
+  for (const [name, row] of rows) {
+    say(`    ${name.padEnd(14)} ${String(row.count).padStart(5)}  ${size(row.bytes)}`);
+  }
+
+  if (result.species['(unfiled)']) {
+    say('\n  "(unfiled)" is everything rendered before images were filed by species.');
+  }
+
+  // The two records answering differently is worth knowing about: the ledger
+  // is what the host was told, the disk is what is really there.
+  const summary = await api('/receipts/summary').catch(() => null);
+  if (summary && summary.outputs !== result.total) {
+    say(
+      `\n  Note: the host ledger records ${summary.outputs} image(s), the disk holds ` +
+        `${result.total}. Anything rendered before the ledger existed is only on disk.`,
+    );
+  }
+}
+
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   if (!command || command === '--help' || command === '-h') {
@@ -341,7 +431,8 @@ async function main() {
 
   if (command === 'render') return commandRender(flags);
   if (command === 'report') return commandReport(flags);
-  die(`unknown command ${JSON.stringify(command)}. Try: render, report`);
+  if (command === 'inventory') return commandInventory(flags);
+  die(`unknown command ${JSON.stringify(command)}. Try: render, report, inventory`);
 }
 
 // Importable for tests; only the CLI path runs main().

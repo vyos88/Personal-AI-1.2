@@ -207,6 +207,35 @@ function collectOutputs(stagingDir, destDir) {
 }
 
 /**
+ * The directory finished images are filed under, resolved and bounds-checked.
+ *
+ * Exported so `alpha-render-inventory.js` can ask the *same* question in the
+ * same way rather than keeping a second copy of the rule. A copy that drifts
+ * would have the inventory reading a directory the renders do not write to,
+ * and reporting an empty machine as confidently as a full one.
+ */
+export function resolveOutputDir() {
+  const root = requireRoot();
+  return {
+    root,
+    outputDir: insideRoot(
+      root,
+      configured('ALPHA_RENDER_OUTPUT', DEFAULT_OUTPUT),
+      'ALPHA_RENDER_OUTPUT',
+    ),
+  };
+}
+
+/**
+ * The prefix `run()` gives each render's private staging directory.
+ *
+ * Exported because anything reading the output directory has to skip these:
+ * a render in flight has a `.render-XXXXXX/` sitting in there holding a
+ * half-written image, and counting it reports work that has not happened yet.
+ */
+export const STAGING_PREFIX = '.render-';
+
+/**
  * Where a finished image is filed, under the output directory.
  *
  * Everything used to land in one flat `output/`, which is fine for the first
@@ -366,7 +395,7 @@ export async function run(payload, { signal, log } = {}) {
 
   // Its own directory per render, so what it writes is unambiguously its own
   // even with another render running beside it.
-  const stagingDir = mkdtempSync(resolve(outputDir, '.render-'));
+  const stagingDir = mkdtempSync(resolve(outputDir, STAGING_PREFIX));
 
   const blender = configured('ALPHA_BLENDER', 'blender');
   const args = buildArgs({ script, species, seed, outputDir: stagingDir });
