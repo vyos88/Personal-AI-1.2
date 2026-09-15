@@ -2,7 +2,7 @@ import os from 'node:os';
 
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
-import { reserveFromEnv, memorySnapshot } from './memory.js';
+import { reserveFromEnv, reservePercentFromEnv, memorySnapshot } from './memory.js';
 import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from './load.js';
 import {
   MB,
@@ -90,10 +90,20 @@ for (const name of extraHandlers) {
 // How much RAM this machine keeps for itself. Everything above it is offered
 // to the host, which uses it to decide what work can be placed here.
 let memoryReserveBytes;
+let memoryReservePercent;
 try {
   memoryReserveBytes = reserveFromEnv(process.env.ALPHA_AGENT_MEMORY_RESERVE_MB);
 } catch (error) {
   log.error(`ALPHA_AGENT_MEMORY_RESERVE_MB: ${error.message}`);
+  process.exit(1);
+}
+// The same bargain as a share of this machine, which is the half that survives
+// .env.agent being copied to a laptop with different RAM. 10 means "work me to
+// ninety percent"; 80 means "this machine is here for one pinned job".
+try {
+  memoryReservePercent = reservePercentFromEnv(process.env.ALPHA_AGENT_MEMORY_RESERVE_PERCENT);
+} catch (error) {
+  log.error(`ALPHA_AGENT_MEMORY_RESERVE_PERCENT: ${error.message}`);
   process.exit(1);
 }
 
@@ -124,6 +134,7 @@ try {
     capabilities: capabilities.length ? capabilities : undefined,
     handlers,
     memoryReserveBytes,
+    memoryReservePercent,
     maxLoad,
     concurrency,
   });
@@ -138,11 +149,18 @@ log.info('handlers available', { handlers: handlers.describe() });
 // off the offer as well, so say so rather than leaving an operator wondering
 // why a 16 GB laptop is lending less than its free memory.
 const committedBytes = handlers.committedBytes();
-const snapshot = memorySnapshot({ reserveBytes: memoryReserveBytes, committedBytes });
+const snapshot = memorySnapshot({
+  reserveBytes: memoryReserveBytes,
+  reservePercent: memoryReservePercent,
+  committedBytes,
+});
 log.info('memory offered to the host', {
   totalMB: Math.round(snapshot.totalBytes / MB),
   availableMB: Math.round(snapshot.freeBytes / MB),
-  reservedMB: Math.round(memoryReserveBytes / MB),
+  // What was actually held back, which is the larger of the two reserves —
+  // printing the configured MB alone would explain the wrong number.
+  reservedMB: Math.round(snapshot.reserveBytes / MB),
+  reservePercent: memoryReservePercent,
   handlerBudgetMB: Math.round(committedBytes / MB),
   offerableMB: Math.round(snapshot.offerableBytes / MB),
 });

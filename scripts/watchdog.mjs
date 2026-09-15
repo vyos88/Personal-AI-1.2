@@ -18,17 +18,25 @@
  *   4. attach  — is *this* machine in its list of agents, and is it on the
  *                same release? Needs an operator key; without one this step
  *                says so rather than pretending.
+ *   5. panel   — with --panel-key: is the CrowPanel still reading the host?
+ *                The panel is not an agent — it registers nothing, holds no
+ *                lease and has no row in /agents — so the only evidence it is
+ *                alive is that its own key keeps being used. It polls /stats
+ *                every five seconds, so a key idle for two minutes is a screen
+ *                showing numbers that stopped being true.
  *
  * Every run appends one JSON line to the log, so a week later `tail` tells you
  * what happened and when it stopped.
  *
  * Usage:
  *   node scripts/watchdog.mjs [--name <agent name>] [--restart-command "<cmd>"]
+ *                             [--panel-key <key id or name>]
  *                             [--log <file>] [--no-update] [--json]
  *
  * Exit codes, so a scheduler can alert on them:
  *   0  this machine is attached and current
- *   1  something needs a person: cannot reach the host, or not attached
+ *   1  something needs a person: cannot reach the host, not attached, or the
+ *      panel has gone quiet
  *   10 updated and a restart is needed but no --restart-command was given
  */
 
@@ -57,6 +65,12 @@ const TOKEN = process.env.ALPHA_ADMIN_TOKEN ?? process.env.ALPHA_BOOTSTRAP_TOKEN
 // check that only runs twice a day.
 const SILENT_MS = Math.min(45_000, AGENT_STALE_MS / 2);
 
+// The panel polls /stats every five seconds (firmware/crowpanel: POLL_INTERVAL_MS),
+// so two minutes is roughly twenty missed polls — past a WiFi reconnect, past a
+// reboot, and comfortably clear of one failed request. Anything longer and the
+// screen is showing a frozen report, which is worse than a blank one.
+const PANEL_SILENT_MS = 120_000;
+
 const EXIT_OK = 0;
 const EXIT_NEEDS_A_PERSON = 1;
 const EXIT_RESTART_DUE = 10;
@@ -73,6 +87,9 @@ Options
                           nothing about the running agent
   --log <file>            Append one JSON line per run here.
                           Default: watchdog.log beside this checkout
+  --panel-key <k>         Key id or name the CrowPanel polls with. Its last
+                          use is the receipt that the panel is still reading
+                          the host. Needs a key with keys:read
   --no-update             Check only; do not touch the checkout
   --json                  Print the record instead of a human line
   --help                  This message
@@ -87,6 +104,7 @@ function parseArgs(argv) {
   const options = {
     name: process.env.ALPHA_AGENT_NAME || hostname(),
     restartCommand: null,
+    panelKey: process.env.ALPHA_PANEL_KEY_ID || null,
     log: resolve(ROOT, 'watchdog.log'),
     update: true,
     json: false,
@@ -98,6 +116,7 @@ function parseArgs(argv) {
     else if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--name') options.name = argv[++i] ?? '';
     else if (arg === '--restart-command') options.restartCommand = argv[++i] ?? '';
+    else if (arg === '--panel-key') options.panelKey = argv[++i] ?? '';
     else if (arg === '--log') options.log = resolve(argv[++i] ?? '');
     else throw new Error(`unknown argument ${JSON.stringify(arg)}`);
   }
@@ -171,6 +190,69 @@ async function checkFleet(name) {
   return fleet;
 }
 
+/**
+ * Step 5: is the panel still reading the host?
+ *
+ * `lastUsedAt` on the panel's key is recorded by the auth service on every
+ * verified request, so this asks the one party that can answer — the host —
+ * rather than the laptop the board is plugged into. A COM port existing says
+ * the board has power; it says nothing about whether the screen is live.
+ *
+ * Matched by id first, then by name: the id is what `alpha-admin keys` prints
+ * and never changes, the name is what a person remembers.
+ */
+export function panelFromKeys(keys, { key, now = Date.now(), silentMs = PANEL_SILENT_MS }) {
+  const wanted = String(key);
+  const record =
+    keys.find((entry) => entry.id === wanted) ?? keys.find((entry) => entry.name === wanted);
+
+  if (!record) {
+    return { key: wanted, found: false, connected: false, note: 'no key with that id or name' };
+  }
+  if (record.revokedAt) {
+    // A revoked key is not a quiet panel, it is a panel that is being refused.
+    return { key: record.id, name: record.name ?? null, found: true, revokedAt: record.revokedAt, connected: false, note: 'the panel\'s key is revoked' };
+  }
+
+  // The auth service records this as epoch milliseconds (see
+  // `publicKey` and what `alpha-admin keys` does with it), not as an ISO
+  // string. Reading it as text gives NaN, which compares false against every
+  // threshold — a live panel reported as silent, for ever.
+  const lastUsedAt = record.lastUsedAt ?? null;
+  const usedAtMs = typeof lastUsedAt === 'number' ? lastUsedAt : Date.parse(lastUsedAt ?? '');
+  const silentFor = Number.isFinite(usedAtMs) ? now - usedAtMs : null;
+  return {
+    key: record.id,
+    name: record.name ?? null,
+    found: true,
+    lastUsedAt: Number.isFinite(usedAtMs) ? new Date(usedAtMs).toISOString() : null,
+    silentFor,
+    // Never used at all is not connected: a key minted for a panel that was
+    // never provisioned looks exactly like one whose panel stopped.
+    connected: silentFor !== null && silentFor <= silentMs,
+    note: lastUsedAt ? undefined : 'never used — the panel has not been provisioned with it',
+  };
+}
+
+async function checkPanel(key) {
+  if (!TOKEN) {
+    return { key, connected: null, note: 'no ALPHA_ADMIN_TOKEN, so the panel was not checked' };
+  }
+  try {
+    const { body } = await fetchJson(`${HOST}/keys`, { token: TOKEN, timeoutMs: 10_000 });
+    return panelFromKeys(body.keys ?? [], { key });
+  } catch (error) {
+    return {
+      key,
+      connected: null,
+      note:
+        error instanceof HttpError
+          ? `HTTP ${error.status} from /keys — the watchdog's key needs keys:read`
+          : error.message,
+    };
+  }
+}
+
 async function main() {
   let options;
   try {
@@ -207,9 +289,14 @@ async function main() {
   }
 
   record.fleet = await checkFleet(options.name);
+  if (options.panelKey && record.fleet.reachable) record.panel = await checkPanel(options.panelKey);
+  else if (options.panelKey) record.panel = { key: options.panelKey, connected: null, note: 'host unreachable' };
 
   let exitCode = EXIT_OK;
   if (!record.fleet.reachable || record.fleet.attached === false) exitCode = EXIT_NEEDS_A_PERSON;
+  // A dark panel needs a person as much as a detached laptop does, and for the
+  // same reason: nothing in the fleet will fix it by itself.
+  else if (record.panel?.connected === false) exitCode = EXIT_NEEDS_A_PERSON;
   else if (restartDue) exitCode = EXIT_RESTART_DUE;
   record.ok = exitCode === EXIT_OK;
 
@@ -241,6 +328,18 @@ async function main() {
     );
     if (fleet.error) process.stdout.write(`  ${fleet.error}\n`);
     if (fleet.note) process.stdout.write(`  ${fleet.note}\n`);
+    if (record.panel) {
+      const panel = record.panel;
+      const seen =
+        panel.connected === null
+          ? 'panel not checked'
+          : panel.connected
+            ? `panel reading the host (${Math.round(panel.silentFor / 1000)}s ago)`
+            : panel.silentFor
+              ? `PANEL SILENT for ${Math.round(panel.silentFor / 60_000)} min`
+              : 'PANEL NEVER SEEN';
+      process.stdout.write(`  ${seen}${panel.note ? ` — ${panel.note}` : ''}\n`);
+    }
   }
 
   process.exit(exitCode);

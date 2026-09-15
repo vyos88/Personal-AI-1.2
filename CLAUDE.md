@@ -87,6 +87,16 @@ instant. Two invariants keep the two sides of that accounting honest:
   would break the case it exists to make legible: a task waiting for a machine
   with room is supposed to wait, and looks exactly like one an agent keeps
   refusing — both queued, both with `attempts` flat.
+- **What a machine lends is said as a share of it, not only in megabytes.**
+  `ALPHA_AGENT_MEMORY_RESERVE_PERCENT` is a reserve as a percentage of total
+  RAM, and the larger of it and `..._RESERVE_MB` applies. The MB figure cannot
+  survive `.env.agent` being copied — 512 MB is a tenth of one laptop and a
+  thirty-second of another, so one file gives two machines two different
+  bargains. The percentage is of *total*, not of free: "keep a tenth of this
+  laptop for its owner" is a claim about the machine, and a share of whatever is
+  free right now shrinks exactly when the owner needs it. 100 is legal and means
+  "lend nothing" — a machine present for `--agent`-pinned work only.
+  `docs/FLEET.md` is the per-machine version of this.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.
@@ -240,7 +250,13 @@ the keeper owns it, so it may. Three things it must keep doing:
 It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
 other: the watchdog is one scheduled pass that asks the *host* whether this
 machine is attached and writes the answer down, which nothing running on the
-laptop can answer about itself. Run beside the keeper it wants `--no-update` and
+laptop can answer about itself. `--panel-key` adds the same question about the
+CrowPanel, and it has to be asked of the host for a stronger reason: the panel
+is not an agent at all — it registers nothing, holds no lease and has no row in
+`/agents` — so nothing in the fleet notices when its screen freezes. It does
+read `GET /stats` with a bearer key every five seconds, so that key's
+`lastUsedAt` (epoch ms, not an ISO string) is the receipt, and a key quiet for
+two minutes exits 1 like any other thing needing a person. Run beside the keeper it wants `--no-update` and
 no `--restart-command`, or the two bounce the same worker.
 
 `scripts/standby-alpha.mjs` runs Alpha on a laptop while the host is not

@@ -68,6 +68,9 @@ export class TunnelAgent {
     handlers = new HandlerRegistry(),
     pollWaitMs = MAX_POLL_WAIT_MS,
     memoryReserveBytes = DEFAULT_MEMORY_RESERVE_BYTES,
+    // The same reserve as a share of the machine, for the case a copied
+    // .env.agent cannot cover: see memory.js. The larger of the two applies.
+    memoryReservePercent = 0,
     maxLoad = DEFAULT_MAX_LOAD,
     concurrency = DEFAULT_AGENT_CONCURRENCY,
     loadBackoffMs = LOAD_BACKOFF_MS,
@@ -91,6 +94,7 @@ export class TunnelAgent {
     this.pollWaitMs = pollWaitMs;
     // Held back for this machine's own use and never offered to the host.
     this.memoryReserveBytes = memoryReserveBytes;
+    this.memoryReservePercent = memoryReservePercent;
     // The CPU equivalent of the memory reserve: above this share of its own
     // cores, this machine stops asking for work.
     this.maxLoad = maxLoad;
@@ -135,6 +139,7 @@ export class TunnelAgent {
   memory() {
     return this.#readMemory({
       reserveBytes: this.memoryReserveBytes,
+      reservePercent: this.memoryReservePercent,
       // Budget this agent's own handlers are holding. Read per call rather
       // than once at startup: a memory.store that has filled up is holding
       // real heap, which the machine's free figure already reflects, so only

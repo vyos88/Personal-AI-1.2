@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { open } from 'node:fs/promises';
-import { delimiter, join, resolve, sep } from 'node:path';
+import { basename, delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
 
@@ -138,6 +138,29 @@ export function validatePort(port) {
 }
 
 /**
+ * The name this process has to open the port by.
+ *
+ * COM1 to COM9 are legacy DOS device names and open by name. COM10 and up do
+ * not exist in that namespace at all: the only way to reach them is the device
+ * path `\\\\.\\COM10`, and opening the bare name fails with ENOENT — which reads
+ * as "the board is not there" when it is sitting on the desk, plugged in.
+ *
+ * That is not an edge case here. Windows renumbers COM ports on every
+ * re-enumeration — the failure `device.inventory` exists to make visible — so a
+ * board that has been replugged a few times is *how* a panel ends up on COM12.
+ *
+ * arduino-cli does not go through the DOS namespace, so its argv keeps the
+ * plain name; this is only for the handle this process opens and for
+ * `mode.com`. The low ports keep the name they have always worked under.
+ */
+export function devicePath(port, platform = process.platform) {
+  if (platform !== 'win32') return port;
+  const match = /^COM(\d+)$/.exec(port);
+  if (!match || Number(match[1]) < 10) return port;
+  return `\\\\.\\${port}`;
+}
+
+/**
  * The board id. Read from configuration only — never from the payload. Whoever
  * queues a flash chooses *whether* to flash, not what board the firmware is
  * built for; a wrong FQBN is how you brick a panel from another room.
@@ -263,6 +286,18 @@ function requireSketch() {
       code: 'not_configured',
     });
   }
+  // arduino-cli requires the sketch directory to hold a .ino of the same name,
+  // and refuses the build otherwise. Checking it here is what keeps the rule
+  // that `available()` asks exactly what `run()` asks: a machine whose
+  // ALPHA_PANEL_SKETCH points at a directory arduino-cli would reject should
+  // never advertise alpha.panel and lose a task to it.
+  const main = join(sketch, `${basename(sketch)}.ino`);
+  if (!existsSync(main)) {
+    throw new ProtocolError(`panel sketch at ${sketch} has no ${basename(main)}`, {
+      status: 500,
+      code: 'not_configured',
+    });
+  }
   return { base, sketch };
 }
 
@@ -333,6 +368,49 @@ function resolveExecutable(command) {
   return null;
 }
 
+/**
+ * The serial ports, out of whatever shape this arduino-cli speaks.
+ *
+ * `Ports` is the discovery call — it exists to answer "which port is the panel
+ * on this time", because Windows renumbers them on re-enumeration and the
+ * answer decides what every other action here is queued with. Handing back the
+ * raw blob makes a person read JSON to find one string; this pulls out the
+ * address, and the vid/pid that say *what* is on it.
+ *
+ * Two shapes, because a machine set up last year has the older CLI on it:
+ * v1 answers `{detected_ports:[{port, matching_boards}]}`, v0 a flat array. The
+ * field names are the CLI's own, for the reason `alpha-devices.js` records —
+ * reading for a plausible name that does not exist returns an empty list on
+ * every machine, which looks like "nothing attached" rather than like a bug.
+ *
+ * A CH340 bridge (vid 0x1a86) is the evidence this board is a classic ESP32
+ * rather than an S3, so the recipe for that call travels on the result too.
+ */
+export function summarizePorts(parsed) {
+  const entries = Array.isArray(parsed?.detected_ports)
+    ? parsed.detected_ports.map((entry) => ({
+        port: entry?.port ?? {},
+        boards: Array.isArray(entry?.matching_boards) ? entry.matching_boards : [],
+      }))
+    : Array.isArray(parsed)
+      ? parsed.map((entry) => ({ port: entry ?? {}, boards: Array.isArray(entry?.boards) ? entry.boards : [] }))
+      : null;
+  if (!entries) return null;
+
+  return entries.map(({ port, boards }) => ({
+    address: port.address ?? null,
+    protocol: port.protocol ?? null,
+    label: port.protocol_label ?? port.label ?? null,
+    vid: port.properties?.vid ?? null,
+    pid: port.properties?.pid ?? null,
+    serialNumber: port.properties?.serialNumber ?? null,
+    // `fqbn` in v1, `FQBN` in v0. Advisory either way: a bare ESP32 behind a
+    // CH340 matches no board definition, which is not a problem — the FQBN
+    // this handler builds with comes from configuration, never from here.
+    boards: boards.map((board) => ({ name: board?.name ?? null, fqbn: board?.fqbn ?? board?.FQBN ?? null })),
+  }));
+}
+
 /** Builds the argv passed to arduino-cli. Exported so tests can assert on it. */
 export function buildArgs({ action, sketch, fqbn, port }) {
   if (action === 'Ports') return ['board', 'list', '--format', 'json'];
@@ -389,7 +467,7 @@ export function portConfigArgs(port, platform = process.platform) {
   if (platform === 'win32') {
     return {
       exe: 'mode.com',
-      args: [port, 'BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off'],
+      args: [devicePath(port, platform), 'BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off'],
     };
   }
   // `min 0 time 1` has to come after `raw`, which sets `min 1 time 0` — a read
@@ -454,7 +532,7 @@ export function redact(text, password) {
 async function converse(port, commands, secret, { signal, log } = {}) {
   await configurePort(port, { signal });
 
-  const handle = await open(port, 'r+').catch((error) => {
+  const handle = await open(devicePath(port), 'r+').catch((error) => {
     throw new ProtocolError(`could not open ${port}: ${error.message}`, {
       status: 500,
       code: 'port_unavailable',
@@ -621,9 +699,14 @@ export async function run(payload, { signal, log } = {}) {
       // Older arduino-cli prints a table even with --format json. Hand back the
       // raw text rather than failing the task over a formatting difference.
     }
+    const ports = summarizePorts(boards);
     return {
       action,
       exitCode: result.exitCode,
+      // The answer to the question this action is asked: which addresses are
+      // there, and what is on them.
+      ports,
+      portCount: ports?.length ?? null,
       boards,
       stdout: boards ? undefined : result.stdout.slice(-MAX_OUTPUT),
       stderr: result.stderr.slice(-MAX_OUTPUT),

@@ -14,6 +14,8 @@ import {
   available,
   buildArgs,
   converseOver,
+  devicePath,
+  summarizePorts,
   portConfigArgs,
   redact,
   run,
@@ -573,4 +575,91 @@ test('a late answer to the readiness probe is not read as the next reply', async
 
   assert.equal(outcome.ready, true);
   assert.deepEqual(outcome.replies, [{ cmd: 'wifi', reply: null, timedOut: true }]);
+});
+
+test('a port past COM9 is opened by the path Windows actually has for it', () => {
+  // COM1..COM9 are DOS device names; COM10 and up only exist as \\.\COMn, and
+  // opening the bare name fails with ENOENT — "the board is not there" for a
+  // board that is plugged in. Windows renumbers ports on re-enumeration, so a
+  // few replugs is all it takes to get there.
+  assert.equal(devicePath('COM3', 'win32'), 'COM3');
+  assert.equal(devicePath('COM9', 'win32'), 'COM9');
+  assert.equal(devicePath('COM10', 'win32'), '\\\\.\\COM10');
+  assert.equal(devicePath('COM12', 'win32'), '\\\\.\\COM12');
+  // Nothing changes off Windows, and nothing changes for arduino-cli's argv.
+  assert.equal(devicePath('/dev/ttyUSB0', 'linux'), '/dev/ttyUSB0');
+  assert.equal(devicePath('COM12', 'linux'), 'COM12');
+  assert.equal(portConfigArgs('COM12', 'win32').args[0], '\\\\.\\COM12');
+  assert.deepEqual(buildArgs({ action: 'Flash', sketch: '/s', fqbn: 'esp32:esp32:esp32', port: 'COM12' }).slice(3, 5), [
+    '--port',
+    'COM12',
+  ]);
+});
+
+test('a sketch directory arduino-cli would reject is never advertised', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'alpha-panel-noino-'));
+  const sketch = join(root, 'firmware', 'crowpanel');
+  await mkdir(sketch, { recursive: true });
+  // A directory, but not a sketch: arduino-cli needs <dirname>.ino inside it.
+  await writeFile(join(sketch, 'display.h'), '// only a header\n');
+
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: 'esp32:esp32:esp32',
+      ALPHA_ARDUINO_CLI: undefined,
+    },
+    async () => {
+      const check = available();
+      assert.equal(check.ok, false);
+      assert.match(check.reason, /has no crowpanel\.ino/);
+      // run() refuses on exactly the same footing, which is the rule the check
+      // follows: what available() asks is what run() asks.
+      await assert.rejects(run({ action: 'Compile' }), /has no crowpanel\.ino/);
+    },
+  );
+});
+
+test('Ports answers which address the board is on, whichever CLI is installed', () => {
+  // arduino-cli 1.x.
+  const v1 = summarizePorts({
+    detected_ports: [
+      {
+        matching_boards: [],
+        port: {
+          address: 'COM3',
+          label: 'COM3',
+          protocol: 'serial',
+          protocol_label: 'Serial Port (USB)',
+          properties: { vid: '0x1a86', pid: '0x7523', serialNumber: '' },
+        },
+      },
+    ],
+  });
+  assert.deepEqual(v1, [
+    {
+      address: 'COM3',
+      protocol: 'serial',
+      label: 'Serial Port (USB)',
+      // The CH340 evidence the board choice rests on, on the result rather
+      // than in somebody's memory of a device panel.
+      vid: '0x1a86',
+      pid: '0x7523',
+      serialNumber: '',
+      boards: [],
+    },
+  ]);
+
+  // arduino-cli 0.x, which answers a flat array and spells it FQBN.
+  const v0 = summarizePorts([
+    { address: '/dev/ttyUSB0', protocol: 'serial', protocol_label: 'Serial Port (USB)', boards: [{ name: 'ESP32 Dev Module', FQBN: 'esp32:esp32:esp32' }] },
+  ]);
+  assert.equal(v0[0].address, '/dev/ttyUSB0');
+  assert.deepEqual(v0[0].boards, [{ name: 'ESP32 Dev Module', fqbn: 'esp32:esp32:esp32' }]);
+
+  // Neither shape: say nothing rather than an empty list, which would read as
+  // "no ports" on a machine whose CLI simply printed a table.
+  assert.equal(summarizePorts(null), null);
+  assert.equal(summarizePorts('COM3 serial'), null);
 });
