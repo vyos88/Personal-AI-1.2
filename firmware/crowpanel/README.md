@@ -83,7 +83,8 @@ poll gives up on a task that is running fine.
 One task hands the panel its network and its view of the coordinator:
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
+  --lease-ms 120000 --payload '{
   "action":"Provision",
   "port":"COM3",
   "ssid":"<the new network>",
@@ -98,6 +99,30 @@ the result, never in the logs, and is redacted out of the serial transcript.**
 
 `{"action":"Provision","port":"COM3","ssid":"...","password":"..."}` without a
 host is fine — the panel joins the network and waits.
+
+`--lease-ms` is needed here too, for a different reason than the flash. Opening
+the port resets the board — the CH340 adapter ties DTR to EN — and the sketch's
+`setup()` then spends up to 15 seconds joining WiFi before it reads a byte of
+serial, so the handler waits for the board to answer a harmless `status` before
+it sends anything. Add the board's own 20-second join to that and a provision
+can run past the 60s default lease while working perfectly.
+
+The result says `ready:false` when nothing on the port answered at all. That is
+a different failure from `provisioned:false`: the first means the board is not
+there, is held in bootloader, or is running firmware older than this protocol;
+the second means it is there and the credentials did not work.
+
+**The key needs `agents:read`** — that is the scope `GET /stats` requires, and
+the panel reads nothing else. An operator key covers it; an admin key is not
+needed and the panel is the last place to put one.
+
+## What the panel shows
+
+It draws `GET /stats` as the host answers it, and does no arithmetic of its own:
+agents attached, tasks queued (and how many of those are waiting on RAM rather
+than on a free machine), running, done, failed, with the host version and the
+age of the last poll along the bottom. `running` is the host's `leased` — a task
+an agent is holding right now.
 
 ## Bring it up serial-only first
 

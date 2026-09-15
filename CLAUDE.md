@@ -402,7 +402,33 @@ The serial side is `fs` plus one `stty`/`mode.com` call, because Node's standard
 library can open a serial device but cannot set its baud rate, and this repo has
 no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
-the sketch would be restarting instead of answering.
+the sketch would be restarting instead of answering. Three rules there, each one
+a bug that was in this file:
+
+- **No read may wait forever.** `stty raw` sets `min 1 time 0`, so a read waits
+  for a byte a silent board never sends and the deadline is never looked at —
+  the task then holds its lease until the sweeper takes it away, which is the
+  exact failure the timeout exists to prevent. `min 0 time 1` goes *after*
+  `raw`, and every read is raced against the deadline so Windows, which has no
+  such knob, is covered by the close instead. The same outstanding read is
+  picked up on the next pass: a second read alongside it splits the reply.
+- **The open resets the board, so the conversation starts with `status`.** The
+  first line written otherwise lands in a sketch that is still in `setup()` —
+  which itself spends up to 15s joining WiFi — and is simply lost. The probe
+  repeats until the board answers, and the credentials go only to something that
+  has spoken. `ready:false` in the result is "nothing there", which sends an
+  operator somewhere different from `provisioned:false`.
+- **A reply budget outlasts what the sketch does before replying.** Its `wifi`
+  command joins for 20s before it answers, so a shorter budget here reports a
+  wrong password as silence. That is also why `Provision` wants `--lease-ms`,
+  not only `Flash`.
+
+The panel reads `GET /stats` and draws it, so it reads the host's own key names
+— `queue.byStatus.leased` is what it calls *running* — and a test pins those
+names against a real host. A key the sketch invents is not an error in
+ArduinoJson: it reads as zero, and a screen of zeroes looks like an idle fleet
+rather than like a display reading the wrong endpoint. Same failure as
+`alpha-devices.js`'s `serialPorts`, on a device with no way to report it.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,

@@ -73,7 +73,26 @@ export const ALLOWED_ACTIONS = Object.freeze(['Ports', 'Status', 'Compile', 'Fla
 
 const DEFAULT_SKETCH = 'firmware/crowpanel';
 const CLI_TIMEOUT_MS = 300_000; // A cold ESP32 core build is minutes, not seconds.
-const PROVISION_TIMEOUT_MS = 15_000;
+
+// How long one command may take to answer. It has to outlast the longest thing
+// the sketch does before it replies, which is the 20s join inside its `wifi`
+// command — a shorter budget here reports a wrong password as "the board said
+// nothing", which sends an operator to the cable instead of to the password.
+const REPLY_TIMEOUT_MS = 25_000;
+
+// How long to wait for the board to come back after the port opens, and how
+// often to ask. Opening the port resets the board on every adapter that ties
+// DTR to EN, and the sketch's own setup() joins WiFi (15s) before its loop
+// starts reading serial at all, so "it is not answering yet" is the normal
+// state for the first few seconds of every Provision.
+const READY_TIMEOUT_MS = 30_000;
+const PROBE_INTERVAL_MS = 2_000;
+
+// Neither read below may sit on the port indefinitely: on a raw tty a read with
+// no data waits forever, which is exactly the case — a silent board — the
+// timeouts exist for.
+const READ_SLICE_MS = 250;
+
 const MAX_OUTPUT = 16_000;
 
 // A port name lands in an argv slot where arduino-cli would otherwise accept a
@@ -366,12 +385,23 @@ function arduino(args, { signal } = {}) {
  * invocations are fixed argv with a validated port; neither takes anything from
  * the payload beyond that port.
  */
+export function portConfigArgs(port, platform = process.platform) {
+  if (platform === 'win32') {
+    return {
+      exe: 'mode.com',
+      args: [port, 'BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off'],
+    };
+  }
+  // `min 0 time 1` has to come after `raw`, which sets `min 1 time 0` — a read
+  // that waits for a byte that never arrives. With VMIN 0 and VTIME 1 the read
+  // comes back empty after a tenth of a second instead, which is what lets the
+  // deadline below ever be looked at. A board in bootloader mode, or one
+  // running firmware older than this protocol, is silent by definition.
+  return { exe: 'stty', args: ['-F', port, '115200', 'raw', '-echo', '-hupcl', 'min', '0', 'time', '1'] };
+}
+
 async function configurePort(port, { signal } = {}) {
-  const isWindows = process.platform === 'win32';
-  const exe = isWindows ? 'mode.com' : 'stty';
-  const args = isWindows
-    ? [port, 'BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off']
-    : ['-F', port, '115200', 'raw', '-echo', '-hupcl'];
+  const { exe, args } = portConfigArgs(port);
 
   return new Promise((resolvePromise, rejectPromise) => {
     execFile(exe, args, { signal, timeout: 10_000, windowsHide: true }, (error, stdout, stderr) => {
@@ -417,6 +447,9 @@ export function redact(text, password) {
  * The port is opened once for the whole sequence. Opening it per command would
  * reset the board between them on every adapter that ties DTR to EN — which is
  * most of them — so the sketch would be restarting instead of answering.
+ *
+ * Split in two so the conversation can be tested without a board: `converse`
+ * owns the port, `converseOver` owns the protocol.
  */
 async function converse(port, commands, secret, { signal, log } = {}) {
   await configurePort(port, { signal });
@@ -428,59 +461,149 @@ async function converse(port, commands, secret, { signal, log } = {}) {
     });
   });
 
-  const buffer = Buffer.alloc(4096);
+  try {
+    return await converseOver(handle, commands, secret, { signal, log });
+  } finally {
+    // Closing is also what releases a read still sitting on the port: on
+    // Windows there is no termios knob for a read timeout, so an outstanding
+    // read is ended by the close rather than by a clock.
+    await handle.close().catch(() => {});
+  }
+}
+
+function delay(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+/**
+ * The provisioning conversation itself, against anything with `read` and
+ * `write` — a real serial port, or a fake board in the tests.
+ *
+ * Two things here are about hardware rather than about protocol:
+ *
+ * - **The board is reset by the act of opening the port.** Every CH340-style
+ *   adapter ties DTR to EN, so the sketch reboots the moment this handler
+ *   arrives, and the sketch's own `setup()` then spends up to 15 seconds
+ *   joining WiFi before its loop reads a single byte of serial. A command
+ *   written straight after the open is written into a board that is not
+ *   listening, and is simply lost. So the first thing sent is `status`, which
+ *   changes nothing, repeated until the board answers — the credentials go out
+ *   only once something is there to receive them.
+ * - **No read may block forever.** A read on a raw tty waits for a byte that a
+ *   silent board never sends, so every read is raced against the deadline and
+ *   the *same* outstanding read is picked back up on the next pass. Issuing a
+ *   second read while the first is still pending would split the board's reply
+ *   across two buffers.
+ */
+export async function converseOver(handle, commands, secret, options = {}) {
+  const {
+    signal,
+    log,
+    readyTimeoutMs = READY_TIMEOUT_MS,
+    replyTimeoutMs = REPLY_TIMEOUT_MS,
+    probeIntervalMs = PROBE_INTERVAL_MS,
+  } = options;
+
   let received = '';
   let consumed = 0;
+  let inflight = null;
 
-  // Reads until a JSON line carrying `ok` or `error` shows up, or the deadline
-  // passes. `consumed` keeps the scan from re-matching the previous command's
-  // reply, which would otherwise make every command after the first appear to
-  // succeed instantly.
-  async function awaitReply(deadline) {
-    while (Date.now() < deadline) {
-      if (signal?.aborted) throw new ProtocolError('aborted', { status: 499, code: 'aborted' });
+  function readChunk() {
+    if (!inflight) {
+      const buffer = Buffer.alloc(4096);
+      inflight = handle.read(buffer, 0, buffer.length, null).then(
+        ({ bytesRead }) => buffer.subarray(0, Math.max(bytesRead ?? 0, 0)).toString('utf8'),
+        // A closed or vanished port reads as nothing rather than as a throw:
+        // the caller is already on a deadline, and "no reply" is the answer.
+        () => '',
+      );
+    }
+    return inflight;
+  }
 
-      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null).catch(() => ({
-        bytesRead: 0,
-      }));
-
-      if (bytesRead > 0) {
-        received += buffer.subarray(0, bytesRead).toString('utf8');
-        const lines = received.split('\n');
-        for (let i = consumed; i < lines.length - 1; i++) {
-          const trimmed = lines[i].trim();
-          consumed = i + 1;
-          if (!trimmed.startsWith('{')) continue;
-          try {
-            const reply = JSON.parse(trimmed);
-            if (reply?.ok !== undefined || reply?.error !== undefined) return reply;
-          } catch {
-            // Not a reply of ours — the board's ordinary logging.
-          }
-        }
-      } else {
-        await new Promise((r) => setTimeout(r, 100));
+  // `consumed` keeps the scan from re-matching the previous command's reply,
+  // which would otherwise make every command after the first appear to succeed
+  // instantly. Lines that are not ours — the board's boot banner and its
+  // ordinary logging — are stepped over.
+  //
+  // So is a reply to a command that is no longer the one being waited on. The
+  // readiness probe below can be answered late, after its own window closed,
+  // and that answer would otherwise be read as the reply to whatever was sent
+  // next — reporting a `wifi` command as succeeded on the strength of a
+  // `status` reply. The sketch names the command in every reply for exactly
+  // this; a reply without one is firmware older than that and is taken as-is.
+  function nextReply(expected) {
+    const lines = received.split('\n');
+    for (let i = consumed; i < lines.length - 1; i++) {
+      const trimmed = lines[i].trim();
+      consumed = i + 1;
+      if (!trimmed.startsWith('{')) continue;
+      try {
+        const reply = JSON.parse(trimmed);
+        if (reply?.ok === undefined && reply?.error === undefined) continue;
+        if (reply.cmd !== undefined && reply.cmd !== expected) continue;
+        return reply;
+      } catch {
+        // Not a reply of ours.
       }
     }
     return null;
   }
 
-  try {
-    const replies = [];
-    for (const command of commands) {
-      await handle.write(`${JSON.stringify(command)}\n`);
-      // Logged by name only. The payload of a wifi command is the password.
-      log?.info?.('sent panel command', { port, cmd: command.cmd });
-      const reply = await awaitReply(Date.now() + PROVISION_TIMEOUT_MS);
-      replies.push({ cmd: command.cmd, reply, timedOut: reply === null });
-      // Stop at the first command that fails: handing an unreachable panel a
-      // host and key after its network join failed just buries the real error.
-      if (reply === null || reply.ok !== true) break;
+  async function awaitReply(expected, deadline) {
+    for (;;) {
+      const reply = nextReply(expected);
+      if (reply) return reply;
+      if (signal?.aborted) throw new ProtocolError('aborted', { status: 499, code: 'aborted' });
+
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return null;
+
+      const chunk = await Promise.race([
+        readChunk(),
+        delay(Math.min(remaining, READ_SLICE_MS)).then(() => null),
+      ]);
+      // null means the read is still outstanding — keep it, and look at the
+      // deadline again rather than starting a second one.
+      if (chunk === null) continue;
+      inflight = null;
+      if (chunk) received += chunk;
+      else await delay(50);
     }
-    return { replies, transcript: redact(received, secret).slice(-MAX_OUTPUT) };
-  } finally {
-    await handle.close().catch(() => {});
   }
+
+  async function send(command, deadline) {
+    await handle.write(`${JSON.stringify(command)}\n`);
+    // Logged by name only. The payload of a wifi command is the password.
+    log?.info?.('sent panel command', { cmd: command.cmd });
+    return awaitReply(command.cmd, deadline);
+  }
+
+  const transcript = () => redact(received, secret).slice(-MAX_OUTPUT);
+
+  // Wait for the board to be there before handing it anything that matters.
+  const readyBy = Date.now() + readyTimeoutMs;
+  let ready = null;
+  while (ready === null && Date.now() < readyBy) {
+    ready = await send({ cmd: 'status' }, Math.min(Date.now() + probeIntervalMs, readyBy));
+  }
+
+  if (ready === null) {
+    // Nothing was sent but a status query, so there is no half-provisioned
+    // board here: either it is not running this firmware, or it is not there.
+    return { ready: false, status: null, replies: [], transcript: transcript() };
+  }
+
+  const replies = [];
+  for (const command of commands) {
+    const reply = await send(command, Date.now() + replyTimeoutMs);
+    replies.push({ cmd: command.cmd, reply, timedOut: reply === null });
+    // Stop at the first command that fails: handing an unreachable panel a
+    // host and key after its network join failed just buries the real error.
+    if (reply === null || reply.ok !== true) break;
+  }
+
+  return { ready: true, status: ready, replies, transcript: transcript() };
 }
 
 export async function run(payload, { signal, log } = {}) {
@@ -530,9 +653,14 @@ export async function run(payload, { signal, log } = {}) {
       port,
       ssid,
       host: host ?? null,
+      // Whether anything on the other end of the port answered at all. A board
+      // that never came back is a different problem from one that came back and
+      // could not join, and the two send an operator to different places.
+      ready: outcome.ready,
+      refused: outcome.ready ? undefined : `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`,
       provisioned: wifi?.reply?.ok === true,
       ip: wifi?.reply?.ip ?? null,
-      timedOut: outcome.replies.some((entry) => entry.timedOut),
+      timedOut: !outcome.ready || outcome.replies.some((entry) => entry.timedOut),
       replies: outcome.replies,
       transcript: outcome.transcript,
     };

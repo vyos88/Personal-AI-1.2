@@ -22,8 +22,10 @@
 //   {"cmd":"status"}                               -> {"ok":true,"ssid":...}
 //
 // Every reply carries `ok` or `error`, because that is what the handler waits
-// for before it stops reading. A board that answers nothing looks identical to
-// one that is not there, so silence is the one thing this must not do.
+// for before it stops reading, and `cmd`, so a reply can be matched to the
+// command it answers rather than to whichever command was in flight. A board
+// that answers nothing looks identical to one that is not there, so silence is
+// the one thing this must not do.
 //
 // Libraries (Arduino IDE -> Library Manager):
 //   ArduinoJson    (Benoit Blanchon)
@@ -59,15 +61,16 @@ static uint32_t lastWifiAttempt = 0;
 // report while a poll is in flight or failing, rather than blanking. A display
 // that goes empty when the network hiccups reads as "everything is down".
 struct Report {
-  bool     valid        = false;
-  uint32_t agents       = 0;
-  uint32_t agentsOnline = 0;
-  uint32_t queued       = 0;
-  uint32_t running      = 0;
-  uint32_t completed    = 0;
-  uint32_t failed       = 0;
+  bool     valid     = false;
+  uint32_t agents    = 0;   // attached agents; the host prunes stale ones itself
+  uint32_t queued    = 0;
+  uint32_t running   = 0;   // leased: held by an agent right now
+  uint32_t completed = 0;
+  uint32_t failed    = 0;
+  uint32_t blocked   = 0;   // queued and waiting on memory, not on a machine
+  String   version;
   String   error;
-  uint32_t fetchedAt    = 0;
+  uint32_t fetchedAt = 0;
 };
 
 static Report report;
@@ -153,14 +156,25 @@ static void pollAlpha() {
   http.end();
   if (err) { report.error = "bad json"; return; }
 
-  report.agents       = doc["agents"]["total"]     | doc["agents"]     | 0;
-  report.agentsOnline = doc["agents"]["online"]    | report.agents;
-  report.queued       = doc["tasks"]["queued"]     | doc["queued"]     | 0;
-  report.running      = doc["tasks"]["running"]    | doc["running"]    | 0;
-  report.completed    = doc["tasks"]["completed"]  | doc["completed"]  | 0;
-  report.failed       = doc["tasks"]["failed"]     | doc["failed"]     | 0;
-  report.valid        = true;
-  report.fetchedAt    = millis();
+  // Read with the host's own names, from src/host/server.js:
+  //
+  //   { version, agents: <count>, capabilities: [...],
+  //     queue:  { total, pending, waiters, byStatus: { queued, leased, ... } },
+  //     memory: { offeredBytes, blockedTasks }, load: {...} }
+  //
+  // Guessing at plausible-looking names instead is how a panel ends up showing
+  // a confident row of zeroes, which reads as "the fleet is idle" rather than
+  // as "this display is reading the wrong keys".
+  JsonObject byStatus = doc["queue"]["byStatus"];
+  report.version   = doc["version"]            | "";
+  report.agents    = doc["agents"]             | 0;
+  report.queued    = byStatus["queued"]        | 0;
+  report.running   = byStatus["leased"]        | 0;
+  report.completed = byStatus["succeeded"]     | 0;
+  report.failed    = byStatus["failed"]        | 0;
+  report.blocked   = doc["memory"]["blockedTasks"] | 0;
+  report.valid     = true;
+  report.fetchedAt = millis();
 }
 
 // ------------------------------------------------------------------ rendering
@@ -182,9 +196,12 @@ static void drawReport() {
   } else if (!report.valid) {
     displayLine("host", "waiting", DISPLAY_MUTED);
   } else {
-    displayLine("agents",  String(report.agentsOnline) + " / " + String(report.agents),
-                report.agentsOnline > 0 ? DISPLAY_OK : DISPLAY_BAD);
-    displayLine("queued",  String(report.queued),    DISPLAY_NORMAL);
+    displayLine("agents",  String(report.agents),
+                report.agents > 0 ? DISPLAY_OK : DISPLAY_BAD);
+    // Queued work waiting on RAM rather than on a free machine is worth saying
+    // out loud: it is the one backlog that adding a machine does not clear.
+    displayLine("queued",  report.blocked ? String(report.queued) + "  (" + String(report.blocked) + " on ram)"
+                                          : String(report.queued), DISPLAY_NORMAL);
     displayLine("running", String(report.running),   DISPLAY_NORMAL);
     displayLine("done",    String(report.completed), DISPLAY_MUTED);
     displayLine("failed",  String(report.failed),    report.failed ? DISPLAY_BAD : DISPLAY_MUTED);
@@ -193,7 +210,8 @@ static void drawReport() {
   // Age rather than a clock: the panel has no RTC, and "14s ago" answers the
   // question a wall-clock time on a frozen screen cannot — is this still live?
   if (report.valid) {
-    displayFooter(String((millis() - report.fetchedAt) / 1000) + "s ago");
+    const String age = String((millis() - report.fetchedAt) / 1000) + "s ago";
+    displayFooter(report.version.length() ? "alpha " + report.version + "  " + age : age);
   } else {
     displayFooter("");
   }
@@ -203,27 +221,33 @@ static void drawReport() {
 
 // --------------------------------------------------------------- provisioning
 
-static void reply(const JsonDocument& doc) {
+// Every reply names the command it answers. The handler sends a harmless
+// `status` until the board comes back from the reset that opening the port
+// caused, so a late answer to one of those probes can otherwise arrive while it
+// is waiting for the reply to `wifi` — and be read as one. Naming the command
+// is what lets a stale reply be recognised and dropped.
+static void reply(JsonDocument& doc, const char* cmd) {
+  doc["cmd"] = cmd;
   serializeJson(doc, Serial);
   Serial.println();
   Serial.flush();
 }
 
-static void replyError(const char* message) {
+static void replyError(const char* message, const char* cmd) {
   JsonDocument doc;
   doc["error"] = message;
-  reply(doc);
+  reply(doc, cmd);
 }
 
 static void handleCommand(const String& line) {
   JsonDocument in;
-  if (deserializeJson(in, line)) { replyError("bad json"); return; }
+  if (deserializeJson(in, line)) { replyError("bad json", ""); return; }
 
   const char* cmd = in["cmd"] | "";
 
   if (strcmp(cmd, "wifi") == 0) {
     const char* ssid = in["ssid"] | "";
-    if (strlen(ssid) == 0) { replyError("ssid required"); return; }
+    if (strlen(ssid) == 0) { replyError("ssid required", cmd); return; }
     saveWifi(String(ssid), String(in["password"] | ""));
 
     // Join straight away and report the outcome, so the task that sent the
@@ -236,18 +260,18 @@ static void handleCommand(const String& line) {
     out["ssid"] = wifiSsid;
     if (joined) out["ip"] = WiFi.localIP().toString();
     else        out["error"] = "join failed";
-    reply(out);
+    reply(out, cmd);
     return;
   }
 
   if (strcmp(cmd, "alpha") == 0) {
     const char* host = in["host"] | "";
-    if (strlen(host) == 0) { replyError("host required"); return; }
+    if (strlen(host) == 0) { replyError("host required", cmd); return; }
     saveAlpha(String(host), String(in["key"] | ""));
     JsonDocument out;
     out["ok"] = true;
     out["host"] = alphaHost;
-    reply(out);
+    reply(out, cmd);
     return;
   }
 
@@ -261,11 +285,11 @@ static void handleCommand(const String& line) {
     // Whether a key is set, never the key itself. The panel is the last place
     // a credential should be readable from.
     out["keyed"] = alphaKey.length() > 0;
-    reply(out);
+    reply(out, cmd);
     return;
   }
 
-  replyError("unknown cmd");
+  replyError("unknown cmd", cmd);
 }
 
 static void pumpSerial() {
