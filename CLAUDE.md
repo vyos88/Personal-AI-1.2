@@ -314,6 +314,44 @@ own field names (`serialPorts`, not a plausible-reading `ports`) because the
 first version read a name that does not exist and returned an empty list on
 every machine, which looks like "nothing attached" rather than like a bug.
 
+`alpha-panel.js` is the fifth, and the only one that drives hardware. It
+flashes and provisions the CrowPanel over USB from whichever machine the board
+is plugged into — the handler is opt-in and `available()` refuses a machine
+without the sketch and arduino-cli, so the one that offers `alpha.panel` is the
+one holding the board, and a task reaches it with `--agent <that machine>`. It
+drives
+`arduino-cli`, under the same rules as the coordination handler: pinned
+executable, pinned sketch that must resolve inside `ALPHA_PANEL_ROOT`,
+allowlisted action, argv array. The payload chooses an action and at most which
+serial port; it never names a path, a board or a flag. There is deliberately no
+action that erases flash, reads it back, or flashes a binary the payload chose —
+that last one is arbitrary code execution on the microcontroller, the hardware
+form of the remote shell `handlers/index.js` forbids. Two things it does that
+are worth keeping:
+
+- **Credentials are runtime data, never build input.** `Provision` sends WiFi
+  SSID and password down the wire to a sketch that is already running, and the
+  sketch stores them in NVS itself. Baking them in with `--build-property` would
+  put the password in an argv every process listing can read, in build artifacts
+  on disk, and would mean a reflash per network change. The password is never
+  logged, never in the result, and `redact()` takes it out of the serial
+  transcript — there is a test pinning that.
+- **`Flash` compiles first and stops if that fails.** Uploading after a failed
+  build either flashes a stale binary from the cache or half-writes the board.
+  A build failure is reported as a build failure, not as a failed flash.
+- **It implements `available()`.** It requires everything `Flash` needs — root,
+  sketch inside it, a valid FQBN, arduino-cli on PATH — not the smaller set
+  `Ports` or `Provision` would do with, because `alpha.panel` is advertised as
+  one name and a machine answering to it is offering the whole type. A machine
+  set up only to provision is not a case that exists: the board is on the
+  machine that flashes it.
+
+The serial side is `fs` plus one `stty`/`mode.com` call, because Node's standard
+library can open a serial device but cannot set its baud rate, and this repo has
+no runtime dependencies. The port is opened once for a whole command sequence:
+opening per command resets the board on every adapter that ties DTR to EN, so
+the sketch would be restarting instead of answering.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
