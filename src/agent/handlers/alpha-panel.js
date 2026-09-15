@@ -53,7 +53,7 @@ import { ProtocolError } from '../../common/protocol.js';
 export const type = 'alpha.panel';
 
 export const description =
-  'Drives the CrowPanel on this machine: lists serial ports, compiles and flashes the pinned sketch, and provisions its WiFi credentials.';
+  'Drives the CrowPanel on this machine: lists the boards arduino-cli recognises, compiles and flashes the pinned sketch, and provisions its WiFi credentials. For what is physically attached regardless of driver, see device.inventory.';
 
 /**
  * What this handler will do, narrowest first.

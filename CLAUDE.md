@@ -404,6 +404,25 @@ no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
 the sketch would be restarting instead of answering.
 
+**`device.inventory` and `alpha.panel Ports` overlap, and both stay.** They are
+the same shape of question asked of two different authorities, which is why one
+cannot replace the other:
+
+- `device.inventory` is what **Windows** sees — every USB device, with cameras
+  and capture hardware, and crucially the ones whose `status` is not `OK`.
+- `alpha.panel Ports` is what **arduino-cli** recognises as a flashable board.
+
+A board with a missing or broken driver is *absent entirely* from `board list`
+while sitting right there in `device.inventory`, flagged not working. So when a
+flash fails with "no board", `Ports` can only repeat that nothing is there and
+`device.inventory` is the one that says why — and after a replug renumbers the
+COM port, it is also the one that says where it went. Reaching for the wrong one
+turns a driver problem into a hunt for a cable.
+
+Same fix as `grow` against `alpha.render`: the overlap costs legibility, not
+correctness, so it is spent on the two `description` strings, which is what
+`describe()` and `alpha-admin agents` print at the moment of the confusion.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

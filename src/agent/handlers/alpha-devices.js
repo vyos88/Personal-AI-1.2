@@ -39,7 +39,7 @@ import { ProtocolError } from '../../common/protocol.js';
 export const type = 'device.inventory';
 
 export const description =
-  'Reports this machine\'s USB devices, serial/COM ports and capture hardware. Read-only; takes no arguments.';
+  'Reports this machine\'s USB devices, serial/COM ports and capture hardware, as Windows sees them — including a device attached but not working. Read-only; takes no arguments. For whether a board is flashable, see alpha.panel Ports.';
 
 const SCRIPT = 'scripts/usb-inventory.ps1';
 const OUTPUT = 'scripts/usb-inventory.json';
