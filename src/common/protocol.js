@@ -52,6 +52,14 @@ export const DEFAULT_AGENT_CONCURRENCY = 1;
 // the host it is gone. Kept under the entrypoint's 3s force-exit budget.
 export const SHUTDOWN_DRAIN_MS = 2_000;
 
+// What a supervisor sends its agent child over the IPC channel to ask for the
+// same clean shutdown a SIGTERM asks for. It exists because Windows — where the
+// host and most of these laptops actually run — has no signal that means "stop
+// cleanly": child.kill('SIGTERM') terminates the process outright, skipping the
+// drain above, so a task that had already finished gets re-run. An IPC message
+// carries the request on every platform.
+export const AGENT_SHUTDOWN_MESSAGE = 'alpha:shutdown';
+
 export const MB = 1024 * 1024;
 
 export const TaskStatus = {
