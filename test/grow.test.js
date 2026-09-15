@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 
 import { PRESETS, expand, normalizeRecipe, run, walk } from '../src/agent/handlers/grow.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
+import { createLogger } from '../src/common/log.js';
 import { ProtocolError } from '../src/common/protocol.js';
 
 /** Every axis has real extent, which is the difference between 3D and a drawing. */
@@ -188,4 +189,24 @@ test('the result carries the recipe that produced it', async () => {
   const result = await run({ preset: 'kelp', seed: 11 });
   const again = await run(result.recipe);
   assert.deepEqual(again.nodes, result.nodes);
+});
+
+test('grow logs through the logger the agent actually hands it', async () => {
+  // src/agent/agent.js passes `log.child(task.type)` — an object, never a
+  // callable. `log?.(...)` therefore threw "log is not a function" on every
+  // real task while this suite stayed green, because nothing here passed a
+  // logger at all. Use the real one, so the shape is the shape.
+  const log = createLogger('test:grow').child('grow');
+  assert.equal(typeof log, 'object', 'the agent hands handlers an object logger');
+
+  const lines = [];
+  const result = await run(
+    { preset: 'fern', seed: 3 },
+    { log: { ...log, info: (message, fields) => lines.push({ message, fields }) } },
+  );
+
+  assert.ok(result.stats.segments > 0);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0].message, /fern/);
+  assert.equal(lines[0].fields.segments, result.stats.segments);
 });
