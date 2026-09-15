@@ -34,6 +34,10 @@ import { ProtocolError } from '../../common/protocol.js';
  *   ALPHA_BLENDER         Blender executable. Defaults to `blender`
  *   ALPHA_RENDER_OUTPUT   Where images are written, relative to root.
  *                         Defaults to `output`
+ *   ALPHA_RENDER_FILE_BY  How finished images are filed under that directory:
+ *                         `species` (default) puts each one in `output/<species>/`,
+ *                         `species-day` adds a `YYYY-MM-DD` level under it, and
+ *                         `flat` keeps the old single-directory behaviour
  *   ALPHA_RENDER_SPECIES  Optional comma-separated allowlist of species. Unset
  *                         means any well-formed name is passed through
  *   ALPHA_RENDER_TIMEOUT_MS  Hard ceiling on one render. Defaults to 10
@@ -188,18 +192,47 @@ function requireScript(root) {
  * moved into the shared output directory, which is what anyone looking for
  * images actually browses.
  */
-function collectOutputs(stagingDir, outputDir) {
+function collectOutputs(stagingDir, destDir) {
   const produced = [];
   for (const entry of readdirSync(stagingDir, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
     const from = resolve(stagingDir, entry.name);
-    const to = resolve(outputDir, entry.name);
+    const to = resolve(destDir, entry.name);
     // Same recipe, same name: a re-run replaces its own output rather than
     // accumulating copies.
     renameSync(from, to);
     produced.push({ name: entry.name, path: to, bytes: statSync(to).size });
   }
   return produced.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * Where a finished image is filed, under the output directory.
+ *
+ * Everything used to land in one flat `output/`, which is fine for the first
+ * dozen renders and unusable by the thousandth: a directory holding every
+ * species and every seed since the beginning answers no question anyone asks.
+ * Filing by species is the default because species is how renders are asked
+ * for — `--species fern,beetle` — so it is also how they are looked for.
+ *
+ * The species is already validated against NAME_PATTERN before this runs, so
+ * it cannot contain a separator, `..`, or anything else that would climb out
+ * of the output directory. That ordering is load-bearing, not incidental.
+ */
+export function fileDestination(outputDir, species, { now = new Date() } = {}) {
+  const mode = configured('ALPHA_RENDER_FILE_BY', 'species');
+  if (mode === 'flat') return outputDir;
+  if (mode === 'species') return join(outputDir, species);
+  if (mode === 'species-day') {
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate(),
+    ).padStart(2, '0')}`;
+    return join(outputDir, species, day);
+  }
+  throw new ProtocolError(
+    `ALPHA_RENDER_FILE_BY must be "species", "species-day" or "flat" (got ${JSON.stringify(mode)})`,
+    { status: 500, code: 'not_configured' },
+  );
 }
 
 /**
@@ -399,7 +432,9 @@ export async function run(payload, { signal, log } = {}) {
 
   // A zero exit with no image is the worse failure, because it would otherwise
   // be reported as a success carrying a recipe that reproduces nothing.
-  const outputs = collectOutputs(stagingDir, outputDir);
+  const destination = fileDestination(outputDir, species);
+  mkdirSync(destination, { recursive: true });
+  const outputs = collectOutputs(stagingDir, destination);
   rmSync(stagingDir, { recursive: true, force: true });
   if (outputs.length === 0) {
     throw new ProtocolError(

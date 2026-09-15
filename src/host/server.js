@@ -4,6 +4,7 @@ import { TaskQueue } from './queue.js';
 import { AgentRegistry } from './registry.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
+import { ReceiptStore } from './receipts.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
 import { bearerFrom } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
@@ -31,7 +32,26 @@ export function createHost({
   auth,
   token,
   registry = new AgentRegistry(),
-  queue = new TaskQueue({ admission: registry }),
+  // The ledger of finished work. Built before the queue below, because the
+  // default queue is wired to write to it as tasks finish.
+  //
+  // Whether it persists follows whether the *credentials* do. A host whose
+  // auth store is in memory cannot outlive its process, so a durable ledger
+  // for it is meaningless — and worse than meaningless, because every such
+  // host writes into the one real file: defaulting this to the live path
+  // regardless put several kilobytes of fabricated receipts into
+  // ./data/receipts.json on every `npm test` run — both via `token`, which
+  // builds an ephemeral service, and via an `auth` whose store is in memory.
+  // Pass `receipts` explicitly to override.
+  receipts = new ReceiptStore(auth?.store?.persistent ? {} : { path: null }),
+  queue = new TaskQueue({
+    admission: registry,
+    // The queue forgets; this is what remembers. Resolving the agent's *name*
+    // here rather than in the store is deliberate: the registration is still
+    // live at this instant, and a minute later the id is unresolvable.
+    onTerminal: (task) =>
+      receipts.record(task, { agentName: registry.get?.(task.agentId)?.name ?? null }),
+  }),
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
   // test should take.
@@ -46,7 +66,13 @@ export function createHost({
     throw new Error('createHost requires either an AuthService (`auth`) or a bootstrap `token`');
   }
 
-  const ready = auth ? Promise.resolve(authService) : authService.load();
+  // Both stores have to be readable before the first request is served. A
+  // receipt ledger that cannot be read does not stop the host — see
+  // ReceiptStore.load — so this only ever rejects on the auth store.
+  const ready = Promise.all([
+    auth ? Promise.resolve(authService) : authService.load(),
+    receipts.loaded ? Promise.resolve(receipts) : receipts.load(),
+  ]).then(() => authService);
 
   /**
    * Every listener shares one queue, registry and auth service — they are the
@@ -55,7 +81,9 @@ export function createHost({
   function makeServer() {
     const created = http.createServer((req, res) => {
       ready
-        .then(() => handle(req, res, { auth: authService, queue, registry, heartbeatIntervalMs }))
+        .then(() =>
+          handle(req, res, { auth: authService, queue, registry, receipts, heartbeatIntervalMs }),
+        )
         .catch((error) => {
           log.error('unhandled request error', { message: error.message, url: req.url });
           if (!res.headersSent) sendJson(res, 500, { error: 'internal_error' });
@@ -146,7 +174,7 @@ export function createHost({
     }
   }
 
-  return { server, servers, listen, queue, registry, auth: authService, ready, close };
+  return { server, servers, listen, queue, registry, receipts, auth: authService, ready, close };
 }
 
 async function handle(req, res, ctx) {
@@ -567,6 +595,38 @@ async function handle(req, res, ctx) {
         if (!task) return sendJson(res, 404, { error: 'unknown_task' });
         return sendJson(res, 200, { id: task.id, status: task.status });
       }
+    }
+
+    /**
+     * The ledger of finished work, which outlives the queue that ran it.
+     *
+     * `/tasks` answers "what is the coordinator doing"; it is the live Map and
+     * it is empty after a restart. This answers "what has this fleet actually
+     * done", which is the question a person asks the morning after.
+     */
+    if (method === 'GET' && url.pathname === '/receipts') {
+      require(SCOPES.TASKS_READ);
+      const limit = Number.parseInt(url.searchParams.get('limit') ?? '100', 10);
+      const sinceRaw = Number.parseInt(url.searchParams.get('since') ?? '', 10);
+      return sendJson(res, 200, {
+        receipts: ctx.receipts.list({
+          type: url.searchParams.get('type') ?? null,
+          status: url.searchParams.get('status') ?? null,
+          since: Number.isFinite(sinceRaw) ? sinceRaw : null,
+          limit: Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 1000) : 100,
+        }),
+        stored: ctx.receipts.size,
+      });
+    }
+
+    if (method === 'GET' && url.pathname === '/receipts/summary') {
+      require(SCOPES.TASKS_READ);
+      const sinceRaw = Number.parseInt(url.searchParams.get('since') ?? '', 10);
+      return sendJson(
+        res,
+        200,
+        ctx.receipts.summary({ since: Number.isFinite(sinceRaw) ? sinceRaw : null }),
+      );
     }
 
     if (method === 'GET' && url.pathname === '/agents') {

@@ -46,10 +46,37 @@ export class TaskQueue {
   #waiters = new Set();
   #sweeper = null;
 
-  constructor({ sweepIntervalMs = 5_000, now = () => Date.now(), admission = OPEN_ADMISSION } = {}) {
+  constructor({
+    sweepIntervalMs = 5_000,
+    now = () => Date.now(),
+    admission = OPEN_ADMISSION,
+    // Called once with each task that reaches a terminal status, so a host can
+    // write it down before the Map forgets it. The queue stays in memory on
+    // purpose; this is the seam that lets the *record* outlive it.
+    onTerminal = null,
+  } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
     this.now = now;
     this.admission = admission;
+    this.onTerminal = onTerminal;
+  }
+
+  /**
+   * Announces a finished task, and never lets the announcement break it.
+   *
+   * A ledger write that throws — a full disk, a read-only mount — must not
+   * turn a task that genuinely succeeded into a 500 for the agent reporting
+   * it, which would cost the lease and re-run work that was already done. The
+   * record is the expendable half of this pair.
+   */
+  #finished(task) {
+    if (!this.onTerminal) return task;
+    try {
+      this.onTerminal(task);
+    } catch (error) {
+      log.warn('could not record finished task', { taskId: task.id, message: error.message });
+    }
+    return task;
   }
 
   start() {
@@ -171,7 +198,7 @@ export class TaskQueue {
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
     log.info('task succeeded', { taskId, agentId, attempts: task.attempts });
-    return task;
+    return this.#finished(task);
   }
 
   fail(taskId, agentId, error) {
@@ -185,6 +212,7 @@ export class TaskQueue {
       task.finishedAt = this.now();
       task.leaseExpiresAt = null;
       log.warn('task failed permanently', { taskId, agentId, attempts: task.attempts });
+      this.#finished(task);
     } else {
       task.error = normalized;
       this.#requeue(task, 'agent reported failure');
@@ -234,7 +262,7 @@ export class TaskQueue {
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
     log.info('task cancelled', { taskId });
-    return task;
+    return this.#finished(task);
   }
 
   /** Reclaims tasks whose holder never reported back. */
@@ -254,6 +282,7 @@ export class TaskQueue {
         task.finishedAt = now;
         task.leaseExpiresAt = null;
         log.warn('task abandoned', { taskId: task.id, agentId: task.agentId });
+        this.#finished(task);
       } else {
         this.#requeue(task, 'lease expired');
       }

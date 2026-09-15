@@ -599,6 +599,91 @@ made it, and what it left there. Never the image itself.
 default lease is 60 seconds and a render outlives it, at which point the host
 reclaims a task that is running perfectly well.
 
+### Rendering on a schedule, and what it produced
+
+`run-jobs` is the right shape for a person at a keyboard. A loop that renders
+unattended needs three things it does not have, which is what `alpha-manager`
+adds:
+
+```bash
+npm run manager -- render --species fern,beetle --count 4 \
+  --agent alpha-host --max-per-window 40
+```
+
+```
+Approved 4 render(s) (12/40 used in the last 24h) for "alpha-host"
+  fern/7
+  beetle/3
+  fern/8
+  beetle/4
+
+Queued 4. Not waiting — read them with: alpha-manager report
+```
+
+**It continues rather than repeating.** Seeds carry on from the highest already
+recorded for that species, so every pass is new creatures. A loop built on
+`run-jobs --seed 0` re-renders seeds 0–5 forever — recipes are reproducible,
+which is exactly why a fixed start is wrong for a loop.
+
+**It approves before it queues.** `--allow` bounds *what* may be rendered;
+`--max-per-window` bounds *how much* per `--window` (default 24h). A pass that
+would overrun the quota is refused whole and exits 3, rather than queueing
+part of it — "I rendered some of what you asked" is a worse answer for an
+unattended job. `--dry-run` prints the batch and queues nothing.
+
+**It never waits.** A render outlives any sensible scheduled pass, so the
+manager queues with a lease that covers the work and exits. Read the result
+later:
+
+```bash
+npm run manager -- report --since 24h
+```
+
+```
+Alpha fleet — what has actually been produced in the last 24h
+
+  Tasks finished   38
+    succeeded      36
+    failed         2
+
+  Images produced  36  (6.21 GB on disk)
+
+  By species
+    fern           19
+    beetle         17
+
+  By machine
+    alpha-host     38
+
+  2 failed. See: alpha-admin tasks, or /receipts?status=failed
+```
+
+### Where the images go
+
+Finished images are filed under their species —
+`output/fern/fern_7.png` — rather than dropped in one flat directory. One
+directory holding every species and every seed since the beginning answers no
+question anyone asks. `ALPHA_RENDER_FILE_BY=species-day` adds a date level,
+and `flat` restores the old behaviour.
+
+### The receipt ledger
+
+The task queue is in memory, so `/tasks` is empty after a restart and every
+record of what ran went with it. Finished tasks are now also appended to a
+ledger at `ALPHA_RECEIPT_STORE` (default `./data/receipts.json`), which is what
+`report` reads and what lets seeds continue.
+
+| Endpoint | Scope | What it answers |
+|---|---|---|
+| `GET /tasks` | `tasks:read` | What the coordinator is doing **now** |
+| `GET /receipts` | `tasks:read` | What this fleet has **done**, across restarts |
+| `GET /receipts/summary` | `tasks:read` | The same, counted by species, machine and status |
+
+A receipt keeps the recipe and what landed, and drops the render's stdout and
+stderr — 16 KB of Blender chatter per render is megabytes a day in a file
+meant to be read. Only a host with a **persistent auth store** keeps a ledger;
+an ephemeral host gets an in-memory one, so tests never write to the real file.
+
 ### Sending work to one machine
 
 Everything above picks a machine. Some work has no choice of machine: a render
