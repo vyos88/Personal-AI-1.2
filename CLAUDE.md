@@ -299,6 +299,21 @@ fixed and lives outside this repository. Inventing a richer interface here,
 unilaterally, is how the two handlers came to overlap in the first place. That
 change starts on the Python side or not at all.
 
+`alpha-devices.js` is the fourth external-program handler, and the narrowest.
+`device.inventory` wraps `scripts/usb-inventory.ps1` — already in the repo,
+already the JSON Alpha's device panels consume — so that "is the panel still
+plugged in, and on which COM port?" is a task rather than a trip to the laptop.
+Windows renumbers COM ports on re-enumeration, so a replug moves a board and
+whatever had the old number saved stops finding it; that is the failure this
+exists to make visible. It tightens the external-program rules by one notch:
+**no arguments at all.** The script takes none, so a payload carrying any key
+is refused rather than ignored — `{ port: 'COM3; shutdown /r' }` should be told
+it meant nothing, and the safest version of "payload data never reaches a
+shell" is one with no path for it to travel. `summarize()` uses the script's
+own field names (`serialPorts`, not a plausible-reading `ports`) because the
+first version read a name that does not exist and returned an empty list on
+every machine, which looks like "nothing attached" rather than like a bug.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
