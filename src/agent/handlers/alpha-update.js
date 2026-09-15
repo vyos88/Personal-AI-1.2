@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { deprioritize, taskPriorityFromEnv } from '../priority.js';
 
 /**
  * Reports and advances the Alpha working copy on the host, by queued task.
@@ -125,7 +126,7 @@ export function buildArgs(root, args) {
 function git(root, args, { signal } = {}) {
   const exe = process.env.ALPHA_GIT ?? 'git';
   return new Promise((resolvePromise, rejectPromise) => {
-    execFile(
+    const child = execFile(
       exe,
       buildArgs(root, args),
       { cwd: root, signal, timeout: GIT_TIMEOUT_MS, maxBuffer: 4 * 1024 * 1024, windowsHide: true },
@@ -149,6 +150,10 @@ function git(root, args, { signal } = {}) {
         });
       },
     );
+
+    // Below the machine's own work. See src/agent/priority.js: an external
+    // program a task started must never be the reason its machine feels dead.
+    deprioritize(child, { level: taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY) });
   });
 }
 

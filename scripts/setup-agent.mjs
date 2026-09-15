@@ -54,6 +54,9 @@ Options
   --max-load <n>      Share of this machine's cores above which it stops
                       asking for work. Default: ${DEFAULT_MAX_LOAD}
   --concurrency <n>   Tasks to run at once here. Default: ${DEFAULT_AGENT_CONCURRENCY}
+  --personal          This machine is somebody's desk: it never takes work
+                      while it is over its load ceiling, instead of giving in
+                      after a minute of standing aside
   --memstore          Also let the host park data in this machine's RAM
   --memstore-mb <n>   Budget for that store. Default: the agent's own default
   --capabilities <l>  Comma-separated task types to accept. Default: all
@@ -72,6 +75,7 @@ const OPTIONS = {
   'reserve-mb': { type: 'string' },
   'max-load': { type: 'string' },
   concurrency: { type: 'string' },
+  personal: { type: 'boolean' },
   memstore: { type: 'boolean' },
   'memstore-mb': { type: 'string' },
   capabilities: { type: 'string' },
@@ -141,6 +145,7 @@ export function renderAgentEnv({
   reserveMB,
   maxLoad = DEFAULT_MAX_LOAD,
   concurrency = DEFAULT_AGENT_CONCURRENCY,
+  personal = false,
   capabilities = '',
   memstore = false,
   memstoreMB = null,
@@ -163,7 +168,24 @@ export function renderAgentEnv({
     '# Tasks to run here at once. Raise it on a machine with cores to spare —',
     '# the ceiling above stops it overcommitting.',
     `ALPHA_AGENT_CONCURRENCY=${concurrency}`,
+    '',
+    '# What a running task may take from this machine. The ceiling above only',
+    '# stops work arriving; this is what keeps the work that did arrive off',
+    '# whoever is sitting here. below_normal yields to the desktop instantly;',
+    '# `off` gives a dedicated worker back its full speed.',
+    'ALPHA_AGENT_TASK_PRIORITY=below_normal',
   ];
+  if (personal) {
+    lines.push(
+      '',
+      '# Somebody uses this machine. By default an agent that has stood aside',
+      '# for a minute takes the work anyway, so the queue is not stalled by a',
+      '# fleet that is busy everywhere — which on a laptop means being handed a',
+      '# task precisely because its owner is already using it. Off here.',
+      '# At least one machine in the fleet should leave this at the default.',
+      'ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=off',
+    );
+  }
   if (capabilities) {
     lines.push('', '# Only these task types are accepted from the host.', `ALPHA_AGENT_CAPABILITIES=${capabilities}`);
   }
@@ -422,6 +444,7 @@ async function main() {
       reserveMB: Math.round(reserveBytes / MB),
       maxLoad,
       concurrency,
+      personal: Boolean(flags.personal),
       capabilities: flags.capabilities ?? '',
       memstore: Boolean(flags.memstore),
       memstoreMB,

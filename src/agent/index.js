@@ -3,11 +3,13 @@ import os from 'node:os';
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
 import { reserveFromEnv, memorySnapshot } from './memory.js';
-import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from './load.js';
+import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv, throttleMaxFromEnv } from './load.js';
+import { taskPriorityFromEnv, renderThreadsFromEnv } from './priority.js';
 import {
   MB,
   DEFAULT_MAX_LOAD,
   DEFAULT_AGENT_CONCURRENCY,
+  LOAD_THROTTLE_MAX_MS,
   AGENT_SHUTDOWN_MESSAGE,
 } from '../common/protocol.js';
 import { loadEnv } from '../common/env.js';
@@ -115,6 +117,39 @@ try {
   process.exit(1);
 }
 
+// How long this machine stands aside before taking work anyway. `off` on a
+// laptop somebody uses; the default everywhere else, or work queued while the
+// whole fleet is busy would wait for a quiet moment that never comes.
+let throttleMaxMs;
+try {
+  throttleMaxMs = throttleMaxFromEnv(
+    process.env.ALPHA_AGENT_LOAD_THROTTLE_MAX_MS,
+    LOAD_THROTTLE_MAX_MS,
+  );
+} catch (error) {
+  log.error(`ALPHA_AGENT_LOAD_THROTTLE_MAX_MS: ${error.message}`);
+  process.exit(1);
+}
+
+// What the external programs handlers run are niced to. Read here as well as
+// at the spawn site so a typo is a startup failure on this machine rather than
+// a task that fails somewhere down the line — and so the effective value is in
+// the log an operator is already reading when they ask why a laptop is busy.
+let taskPriority;
+let renderThreads;
+try {
+  taskPriority = taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY);
+} catch (error) {
+  log.error(`ALPHA_AGENT_TASK_PRIORITY: ${error.message}`);
+  process.exit(1);
+}
+try {
+  renderThreads = renderThreadsFromEnv(process.env.ALPHA_RENDER_THREADS);
+} catch (error) {
+  log.error(`ALPHA_RENDER_THREADS: ${error.message}`);
+  process.exit(1);
+}
+
 let agent;
 try {
   agent = new TunnelAgent({
@@ -126,6 +161,7 @@ try {
     memoryReserveBytes,
     maxLoad,
     concurrency,
+    throttleMaxMs,
   });
 } catch (error) {
   log.error(error.message);
@@ -153,9 +189,20 @@ log.info('cpu offered to the host', {
   loadFactor: load.loadFactor,
   maxLoad,
   concurrency,
+  // null means this machine never takes work above its ceiling.
+  takesWorkAnywayAfterMs: Number.isFinite(throttleMaxMs) ? throttleMaxMs : null,
   // Worth saying out loud on Windows, where os.loadavg() does not exist and
   // the whole picture comes from sampled CPU ticks.
   loadAverageAvailable: load.loadAverage1 !== null,
+});
+
+// The other half of not making this machine unusable: what a task's external
+// programs are allowed to take once one is actually running. Placement stops
+// work arriving; this is what keeps the work that did arrive off the owner's
+// screen. See src/agent/priority.js.
+log.info('how much of this machine a running task may take', {
+  taskPriority,
+  renderThreads: renderThreads || 'auto',
 });
 
 let stopping = false;

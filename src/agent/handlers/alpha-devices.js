@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { deprioritize, taskPriorityFromEnv } from '../priority.js';
 
 /**
  * Reports what is physically plugged into this machine, as a task.
@@ -194,7 +195,7 @@ export async function run(payload, { signal, log } = {}) {
   log?.info?.('reading this machine\'s devices', {});
 
   const { code, stderr } = await new Promise((resolvePromise, rejectPromise) => {
-    execFile(
+    const child = execFile(
       shell,
       args,
       {
@@ -226,6 +227,10 @@ export async function run(payload, { signal, log } = {}) {
         resolvePromise({ code: error?.code ?? 0, stdout: out ?? '', stderr: err ?? '' });
       },
     );
+
+    // Below the machine's own work. See src/agent/priority.js: an external
+    // program a task started must never be the reason its machine feels dead.
+    deprioritize(child, { level: taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY) });
   });
 
   // The script is read-only and sets $ErrorActionPreference = 'SilentlyContinue',

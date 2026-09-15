@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, st
 import { delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { deprioritize, renderThreadsFromEnv, taskPriorityFromEnv } from '../priority.js';
 
 /**
  * Generates a 3D creature or plant by driving Blender's Python API, so the
@@ -39,6 +40,20 @@ import { ProtocolError } from '../../common/protocol.js';
  *   ALPHA_RENDER_TIMEOUT_MS  Hard ceiling on one render. Defaults to 10
  *                         minutes — but the task's own lease usually bites
  *                         first, see below
+ *   ALPHA_RENDER_THREADS  Cores Blender may use. Defaults to all but one, so
+ *                         the machine's owner keeps a core. 0 means "let
+ *                         Blender decide", for a box with no desktop to protect
+ *   ALPHA_AGENT_TASK_PRIORITY  Scheduling priority for the render process.
+ *                         Defaults to below_normal — see src/agent/priority.js
+ *
+ * **A render must not make the machine it runs on unusable.** Blender saturates
+ * every core for the whole render, and at ordinary priority it competes with the
+ * desktop compositor on equal terms — which is a laptop whose screen tears and
+ * whose input lags for ten minutes. Neither `ALPHA_AGENT_MAX_LOAD` nor
+ * `ALPHA_AGENT_CONCURRENCY` helps: the first only stops the agent asking for
+ * *more* work and the second counts tasks, and one render is one task. So the
+ * process is dropped below normal priority and capped a core short of the
+ * machine. See src/agent/priority.js for why it is both and not either.
  *
  * **Renders outlive the default lease.** `DEFAULT_LEASE_MS` is 60s and the
  * agent aborts a handler shortly before the host would reclaim its task, so a
@@ -210,13 +225,18 @@ function collectOutputs(stagingDir, outputDir) {
  * per-parameter flag, which is why `run` refuses a payload carrying `params`
  * instead of quietly dropping them.
  */
-export function buildArgs({ script, species, seed, outputDir }) {
+export function buildArgs({ script, species, seed, outputDir, threads = 0 }) {
   const args = [
     '--background',
     // No user preferences, add-ons or startup file: a render that depends on
     // whatever this machine's Blender was last configured with is not
     // reproducible from a recipe, which is the only thing this returns.
     '--factory-startup',
+    // Leaves the machine's owner a core. Blender takes every core it can see
+    // otherwise, and a laptop with all of them spoken for is one whose desktop
+    // stutters for the length of the render. Omitted entirely at 0, which is
+    // Blender's own "use what you find" and what a dedicated render box wants.
+    ...(threads > 0 ? ['--threads', String(threads)] : []),
     // Without this Blender exits 0 when the generator raises — verified: a
     // script whose first line throws still exits 0, and with this it exits 1.
     // That is the likeliest failure there is, and the exit-code guard below
@@ -237,6 +257,25 @@ export function buildArgs({ script, species, seed, outputDir }) {
   ];
 
   return args;
+}
+
+/**
+ * The two knobs that keep a render from taking the machine over, read together.
+ *
+ * Wrapped in a ProtocolError because a typo in either is a misconfiguration of
+ * this machine, not a failed render — and `available()` asks this exact
+ * question, so a machine with `ALPHA_AGENT_TASK_PRIORITY=belownormal` never
+ * advertises `alpha.render` and then fails every task of it.
+ */
+function containment() {
+  try {
+    return {
+      threads: renderThreadsFromEnv(process.env.ALPHA_RENDER_THREADS),
+      priority: taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY),
+    };
+  } catch (error) {
+    throw new ProtocolError(error.message, { status: 500, code: 'not_configured' });
+  }
 }
 
 function timeoutMs() {
@@ -273,6 +312,10 @@ export function available() {
     const root = requireRoot();
     requireScript(root);
     insideRoot(root, configured('ALPHA_RENDER_OUTPUT', DEFAULT_OUTPUT), 'ALPHA_RENDER_OUTPUT');
+    // Same question run() asks, for the same reason as every other check here:
+    // a machine that would refuse the render on a bad thread count or priority
+    // name should not be offering to do renders.
+    containment();
   } catch (error) {
     return { ok: false, reason: error.message };
   }
@@ -336,13 +379,14 @@ export async function run(payload, { signal, log } = {}) {
   const stagingDir = mkdtempSync(resolve(outputDir, '.render-'));
 
   const blender = configured('ALPHA_BLENDER', 'blender');
-  const args = buildArgs({ script, species, seed, outputDir: stagingDir });
+  const { threads, priority } = containment();
+  const args = buildArgs({ script, species, seed, outputDir: stagingDir, threads });
 
-  log?.info?.('rendering', { species, seed });
+  log?.info?.('rendering', { species, seed, threads: threads || 'auto', priority });
 
   const startedAt = Date.now();
   const { stdout, stderr, code } = await new Promise((resolvePromise, rejectPromise) => {
-    execFile(
+    const child = execFile(
       blender,
       args,
       {
@@ -383,6 +427,11 @@ export async function run(payload, { signal, log } = {}) {
         resolvePromise({ stdout: out ?? '', stderr: err ?? '', code: error?.code ?? 0 });
       },
     );
+
+    // Below the machine's own work, so the desktop keeps its slice for the
+    // whole render. Advisory and best effort — see src/agent/priority.js — so
+    // a refusal here never touches the render's outcome.
+    deprioritize(child, { level: priority, log });
   });
 
   // Unlike the coordination tunnel, where a non-zero exit is the script

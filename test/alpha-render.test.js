@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, readFile, readdir, chmod } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import os, { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
 import {
@@ -27,13 +27,14 @@ const isWindows = process.platform === 'win32';
  * parses it. `writeImage: false` stands in for a generator that exits cleanly
  * having produced nothing, which is the failure worth catching.
  */
-async function fixture({ exitCode = 0, stderr = '', writeImage = true } = {}) {
+async function fixture({ exitCode = 0, stderr = '', writeImage = true, recordNice = false } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'alpha-render-'));
   await mkdir(join(root, 'scripts'), { recursive: true });
   await mkdir(join(root, 'output'), { recursive: true });
   await writeFile(join(root, 'scripts', 'generate.py'), '# stub generator\n');
 
   const argvLog = join(root, 'argv.json');
+  const niceLog = join(root, 'nice.txt');
   const blender = join(root, isWindows ? 'blender.cmd' : 'blender.sh');
 
   if (isWindows) {
@@ -55,7 +56,7 @@ async function fixture({ exitCode = 0, stderr = '', writeImage = true } = {}) {
         `process.exit(${exitCode});`,
       ].join('\n'),
     );
-    return { root, argvLog, blender: process.execPath, blenderArgs: [shim] };
+    return { root, argvLog, niceLog, blender: process.execPath, blenderArgs: [shim] };
   }
 
   await writeFile(
@@ -80,11 +81,15 @@ async function fixture({ exitCode = 0, stderr = '', writeImage = true } = {}) {
         ? '[ -n "$dir" ] && printf png > "$dir/$sp-$sd.png"'
         : ': # deliberately writes nothing',
       stderr ? `printf %s ${JSON.stringify(stderr)} >&2` : ':',
+      // Last, so the handler has long since had its chance to renice us: this
+      // is the scheduler's own answer to "what did that render actually run
+      // at", read from inside the process the handler spawned.
+      recordNice ? `ps -o nice= -p $$ > ${JSON.stringify(niceLog)} 2>/dev/null || :` : ':',
       `exit ${exitCode}`,
     ].join('\n'),
   );
   await chmod(blender, 0o755);
-  return { root, argvLog, blender, blenderArgs: [] };
+  return { root, argvLog, niceLog, blender, blenderArgs: [] };
 }
 
 /**
@@ -102,6 +107,8 @@ function useFixture(t, f) {
   delete process.env.ALPHA_RENDER_OUTPUT;
   delete process.env.ALPHA_RENDER_SPECIES;
   delete process.env.ALPHA_RENDER_TIMEOUT_MS;
+  delete process.env.ALPHA_RENDER_THREADS;
+  delete process.env.ALPHA_AGENT_TASK_PRIORITY;
   t.after(() => {
     for (const key of Object.keys(process.env)) {
       if (!(key in previous)) delete process.env[key];
@@ -252,6 +259,85 @@ test('a blank environment variable means unset, not empty', (t) => {
   // and every file in it would be reported as this render's output.
   process.env.ALPHA_RENDER_OUTPUT = '   ';
   assert.doesNotThrow(() => buildArgs({ script: 's', species: 'a', seed: 1, outputDir: 'd' }));
+});
+
+// ---------------------------------------- not taking the machine over with it
+
+test('the argv caps Blender a core short of the machine', () => {
+  const args = buildArgs({
+    script: '/r/scripts/generate.py',
+    species: 'beetle',
+    seed: 1234,
+    outputDir: '/r/output',
+    threads: 3,
+  });
+
+  assert.deepEqual(
+    args.slice(args.indexOf('--threads'), args.indexOf('--threads') + 2),
+    ['--threads', '3'],
+  );
+  // Blender reads its own options in order and stops at the bare `--`, so the
+  // cap has to be ahead of both --python and the generator's arguments or it
+  // would be handed to the script instead of applied.
+  assert.ok(args.indexOf('--threads') < args.indexOf('--python'));
+  assert.ok(args.indexOf('--threads') < args.indexOf('--'));
+});
+
+test('a dedicated render box can hand Blender the whole machine', () => {
+  const args = buildArgs({
+    script: '/r/scripts/generate.py',
+    species: 'beetle',
+    seed: 1,
+    outputDir: '/r/output',
+    threads: 0,
+  });
+
+  // Omitted rather than passed as 0. `--threads 0` is Blender's autodetect and
+  // would work, but a flag that is not there cannot be misread later as a cap
+  // of none.
+  assert.ok(!args.includes('--threads'));
+});
+
+test('a render runs below the machine\'s own work, on a core less than all of them', async (t) => {
+  if (isWindows) return; // see useFixture
+  const f = await fixture({ recordNice: true });
+  useFixture(t, f);
+  process.env.ALPHA_RENDER_THREADS = '2';
+
+  await run({ species: 'beetle', seed: 7 });
+
+  // The cap really reached Blender, through a process boundary.
+  const argv = await recordedArgv(f.argvLog);
+  assert.deepEqual(
+    argv.slice(argv.indexOf('--threads'), argv.indexOf('--threads') + 2),
+    ['--threads', '2'],
+  );
+
+  // And the process itself really ran nicer than the agent that spawned it.
+  // Asked of the scheduler from inside the render, not of the argument we
+  // passed: this is the half that keeps a laptop's desktop responsive, and a
+  // test that only checked the argv would pass with the renice removed.
+  const nice = Number((await readFile(f.niceLog, 'utf8')).trim());
+  assert.ok(Number.isFinite(nice), 'the fixture recorded its own nice value');
+  assert.ok(nice > os.getPriority(process.pid), `render ran at ${nice}, no nicer than the agent`);
+});
+
+test('a machine that cannot read those settings does not offer to render', async (t) => {
+  const f = await fixture();
+  useFixture(t, f);
+  assert.deepEqual(available(), { ok: true });
+
+  // A typo here would otherwise be found at task time — an attempt spent, and
+  // a retry free to land on the same machine. Same rule as every other check
+  // in available(): ask exactly what run() asks.
+  process.env.ALPHA_AGENT_TASK_PRIORITY = 'belownormal';
+  assert.equal(available().ok, false);
+  assert.match(available().reason, /task priority must be one of/);
+
+  delete process.env.ALPHA_AGENT_TASK_PRIORITY;
+  process.env.ALPHA_RENDER_THREADS = 'all';
+  assert.equal(available().ok, false);
+  assert.match(available().reason, /between 0 and 1024/);
 });
 
 // --------------------------------------------------------------- running it

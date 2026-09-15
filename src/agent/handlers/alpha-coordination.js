@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { isAbsolute, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { deprioritize, taskPriorityFromEnv } from '../priority.js';
 
 /**
  * Drives Alpha's coordination tunnel (`scripts/alpha_coordination_tunnel.ps1`)
@@ -205,7 +206,7 @@ export async function run(payload, { signal, log } = {}) {
   log?.info?.('running coordination tunnel', { action, actor, paths: paths.length });
 
   const { stdout, stderr, code } = await new Promise((resolvePromise, rejectPromise) => {
-    execFile(
+    const child = execFile(
       shell,
       args,
       { cwd: root, signal, timeout: 120_000, maxBuffer: 4 * 1024 * 1024, windowsHide: true },
@@ -224,6 +225,10 @@ export async function run(payload, { signal, log } = {}) {
         resolvePromise({ stdout: out ?? '', stderr: err ?? '', code: error?.code ?? 0 });
       },
     );
+
+    // Below the machine's own work. See src/agent/priority.js: an external
+    // program a task started must never be the reason its machine feels dead.
+    deprioritize(child, { level: taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY), log });
   });
 
   return {

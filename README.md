@@ -202,6 +202,9 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | `512` | RAM kept for this machine; the rest is offered to the host. |
 | `ALPHA_AGENT_MAX_LOAD` | agent | `0.85` | Share of its own cores above which this machine stops asking for work. |
 | `ALPHA_AGENT_CONCURRENCY` | agent | `1` | Tasks this machine will run at once. |
+| `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS` | agent | `60000` | How long it stands aside over that ceiling before taking work anyway. `off` never takes it. |
+| `ALPHA_AGENT_TASK_PRIORITY` | agent | `below_normal` | Scheduling priority for the external programs handlers run. `off` leaves them at normal. |
+| `ALPHA_RENDER_THREADS` | agent | all but one core | Cores Blender may use. `0` lets Blender take the machine. |
 | `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`, `alpha-update`. |
 | `ALPHA_GIT` | agent | `git` | git executable, for `alpha.update` and self-update. |
 | `ALPHA_UPDATE_REMOTE` | agent | `origin` | Remote `alpha.update` consults. |
@@ -503,6 +506,41 @@ out of the running. This is a pause, not a refusal: it keeps heartbeating, and
 picks work up again the moment its load drops. If *every* machine is over its
 ceiling, an agent that has stood aside for a minute with nothing in hand takes
 a task anyway — a busy fleet should run work late, never not at all.
+
+On a laptop somebody is sitting in front of, that last rule is the wrong one:
+the machine is over its ceiling *because* its owner is using it, and handing it
+the task a minute later is precisely the behaviour that gets an agent
+uninstalled. `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=off` turns the bound off for one
+machine — `setup-agent --personal` writes it — and leaves the default in place
+everywhere else. Keep at least one machine on the default, or work queued
+during a busy spell waits for a quiet moment that may never come.
+
+### What a task may take once it is already running
+
+Everything above is about whether work *arrives* on a machine. None of it says
+anything about the ten minutes afterwards, and that is the part the machine's
+owner experiences. A Blender render holds every core for the length of the
+render; `ALPHA_AGENT_MAX_LOAD` only stops the agent asking for *more*, and
+`ALPHA_AGENT_CONCURRENCY` counts tasks, and one render is one task. At ordinary
+priority those render threads compete with the desktop compositor on equal
+terms, which is a screen that tears and a keyboard that lags.
+
+So two things bound a running task, and neither is enough alone:
+
+- **Priority.** Every external program a handler runs — Blender, `arduino-cli`,
+  PowerShell, git — is dropped to `below_normal` (`ALPHA_AGENT_TASK_PRIORITY`).
+  The compositor and whatever the owner has in front of them both run at normal
+  and preempt it immediately. Deliberately not `low`, which on Windows is
+  `IDLE_PRIORITY_CLASS` and starves a render to a crawl on a machine doing
+  anything at all. This decides who wins a contended core.
+- **Core count.** A render is capped one core short of the machine
+  (`ALPHA_RENDER_THREADS`). This decides how many cores are contended at all —
+  "three cores busy, one free" is a very different laptop from "all four busy,
+  even if politely".
+
+Set `ALPHA_AGENT_TASK_PRIORITY=off` and `ALPHA_RENDER_THREADS=0` on a dedicated
+render box: there is no desktop on it to protect, and the headroom is just
+slower renders.
 
 `alpha-admin stats` shows whether the fleet is unbalanced or genuinely full:
 
