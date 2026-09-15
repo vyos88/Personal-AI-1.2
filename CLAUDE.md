@@ -299,6 +299,14 @@ same rule with `package.json` as the allowlist — a name it does not define is
 refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
 spawned without a shell.
 
+**The public way in moves with Alpha.** `--cloudflared <tunnel>` runs a named
+Cloudflare tunnel for exactly as long as this machine is promoted, under the
+same supervision as Alpha itself — a tunnel that died is a public address
+pointing at nothing, and one left running beside a demoted Alpha is worse. The
+name is all it accepts: cloudflared also takes `--token <secret>`, and an argv
+is readable by every process on the machine, which is the same reason the
+panel's WiFi password never travels that way.
+
 **Stopping it stops the tree.** `npm run dev` is a wrapper and the server is its
 grandchild; killing only the spawned process leaves the port held and the next
 start fails to bind. POSIX gets its own process group, Windows gets
