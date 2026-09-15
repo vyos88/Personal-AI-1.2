@@ -11,6 +11,7 @@ export const SCOPES = Object.freeze({
   TASKS_WRITE: 'tasks:write',
   TASKS_CANCEL: 'tasks:cancel',
   AGENTS_READ: 'agents:read',
+  FLEET_PAUSE: 'fleet:pause',
   AGENT_CONNECT: 'agent:connect',
   USERS_READ: 'users:read',
   USERS_WRITE: 'users:write',
@@ -31,6 +32,9 @@ export const SCOPE_PRESETS = Object.freeze({
     SCOPES.TASKS_WRITE,
     SCOPES.TASKS_CANCEL,
     SCOPES.AGENTS_READ,
+    // Stopping the fleet is an operator's call, not an admin's: the person who
+    // notices the laptops have become unusable is the person at one of them.
+    SCOPES.FLEET_PAUSE,
     SCOPES.KEYS_WRITE,
   ],
   agent: [SCOPES.AGENT_CONNECT],

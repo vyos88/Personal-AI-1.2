@@ -610,6 +610,8 @@ node --test test/alpha-coordination.test.js
 | Agent logs `410`, then re-registers | Coordinator restarted or pruned it | Normal. No action needed |
 | Task stays `queued`, `agentAvailable: false` | No attached agent offers that type | Check `ALPHA_EXTRA_HANDLERS` is set on the agent |
 | Task stays `queued` with agents attached and idle | Every agent is over `ALPHA_AGENT_MAX_LOAD` | Expected; one takes it within a minute. `stats` shows the loads |
+| Task stays `queued`, `fleetPaused: true`, agents idle | Somebody paused the fleet | `stats` shows why; `node src/admin/run.js resume` starts it again |
+| A laptop is unusable while a task runs on it | The task's external program is not being niced | Check `ALPHA_AGENT_TASK_PRIORITY` is not `off`; `ALPHA_RENDER_THREADS` caps a render's cores |
 | One machine takes everything, the other nothing | The idle one is not reporting load, or is on an old version | `agents` — a `-` in `CPU` says which. Update it so both run the same version |
 | `CPU` shows `-` for a machine | No load report yet, or it went stale | Normal for a few seconds after attaching. Persisting means the agent stopped heartbeating |
 | `ALPHA_REPO_ROOT is not set` | Agent cannot see the Alpha working copy | Set it in the agent's environment, not the coordinator's |

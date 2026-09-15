@@ -171,6 +171,19 @@ export function validateTargetAgent(targetAgent) {
   return requireString(targetAgent, 'targetAgent', { max: 128 });
 }
 
+/**
+ * The note an operator leaves when they stop the fleet.
+ *
+ * Optional, because "stop now" should never be held up by a form — but worth
+ * having, because a paused fleet found by somebody else is otherwise a mystery
+ * with no way to tell "deliberately, while I sort the laptops out" from
+ * "somebody paused this last week and forgot".
+ */
+export function validatePauseReason(reason) {
+  if (reason === undefined || reason === null || reason === '') return null;
+  return requireString(reason, 'reason', { max: 500 });
+}
+
 export function validateRegistration(body) {
   if (!body || typeof body !== 'object') {
     throw new ProtocolError('registration body must be a JSON object');
