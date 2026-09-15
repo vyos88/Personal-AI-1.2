@@ -4,6 +4,7 @@ import { open } from 'node:fs/promises';
 import { delimiter, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { deprioritize, taskPriorityFromEnv } from '../priority.js';
 
 /**
  * Drives the CrowPanel (ESP32) attached to this machine, by queued task.
@@ -330,7 +331,7 @@ export function buildArgs({ action, sketch, fqbn, port }) {
 function arduino(args, { signal } = {}) {
   const exe = process.env.ALPHA_ARDUINO_CLI ?? 'arduino-cli';
   return new Promise((resolvePromise, rejectPromise) => {
-    execFile(
+    const child = execFile(
       exe,
       args,
       { signal, timeout: CLI_TIMEOUT_MS, maxBuffer: 8 * 1024 * 1024, windowsHide: true },
@@ -354,6 +355,12 @@ function arduino(args, { signal } = {}) {
         });
       },
     );
+
+    // Below the machine's own work. See src/agent/priority.js: an external
+    // program a task started must never be the reason its machine feels dead.
+    // arduino-cli is the one here that matters — it compiles in subprocesses of
+    // its own, which inherit this.
+    deprioritize(child, { level: taskPriorityFromEnv(process.env.ALPHA_AGENT_TASK_PRIORITY) });
   });
 }
 

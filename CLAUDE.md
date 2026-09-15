@@ -43,7 +43,7 @@ Three planes share one HTTP server (`src/host/server.js`):
 
 | Plane | Entry | Notes |
 |---|---|---|
-| Work | `/tasks`, `/agent/*` | queue + registry, both in memory |
+| Work | `/tasks`, `/agent/*`, `/fleet/*` | queue + registry, both in memory |
 | Access | `/invites`, `/users`, `/keys`, `/auth/login` | persisted to `ALPHA_AUTH_STORE` |
 | Health | `/healthz` | the only unauthenticated GET |
 
@@ -147,9 +147,74 @@ hold that together:
 - **Unknown load is never read as idle.** A missing, unmeasurable (Windows has
   no load average) or stale report ranks mid-scale. Reading it as zero would
   make the quietest *reporter* beat the quietest *machine*.
-- **Standing aside is bounded.** After `LOAD_THROTTLE_MAX_MS` with nothing in
-  hand, a loaded agent takes work anyway — otherwise a fleet that is busy
-  everywhere would never run anything.
+- **Standing aside is bounded, and the bound is per machine.** After
+  `LOAD_THROTTLE_MAX_MS` with nothing in hand, a loaded agent takes work
+  anyway — otherwise a fleet that is busy everywhere would never run anything.
+  That is the right default and the wrong behaviour on a laptop somebody is
+  sitting at: it is over its ceiling *because* its owner is using it, so
+  conscripting it a minute later lands the work on the one machine that had
+  already said it could not absorb it.
+  `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=off` (`Infinity`, so the existing `>=`
+  needs no special case) turns the bound off there; `setup-agent --personal`
+  writes it. The default stays, because a fleet where every machine opted out
+  is one where work queued during a busy spell waits for a quiet moment that
+  may never come.
+
+**Placement bounds whether work arrives. Nothing bounded what it did once it
+got here, and that is the part a machine's owner experiences.** A render holds
+every core for its whole length; `ALPHA_AGENT_MAX_LOAD` only stops the agent
+asking for *more*, and `ALPHA_AGENT_CONCURRENCY` counts tasks, of which a
+render is one. At ordinary priority those threads compete with the desktop
+compositor as equals — a screen that tears, a keyboard that lags, and an owner
+who turns the agent off. `src/agent/priority.js` is the answer and it is two
+things, because either alone still leaves the machine noticeably worse than
+idle:
+
+- **Every external program a handler runs is niced** (`deprioritize`, via
+  `os.setPriority` — standard library, so no dependency). All five external
+  handlers do it at the spawn site. `below_normal`, deliberately not `low`,
+  which on Windows is `IDLE_PRIORITY_CLASS` and starves a render on a machine
+  doing anything at all. It is **advisory**: EPERM and a child that already
+  exited are both logged and swallowed, because a render at normal priority is
+  worse for the laptop but still a correct render. Nothing may come to depend
+  on it having worked.
+- **A render is capped a core short of the machine** (`--threads`, ahead of
+  `--python` or Blender hands it to the script instead). Priority decides who
+  wins a contended core; this decides how many are contended at all.
+
+`alpha-render`'s `available()` validates both, by the rule that already governs
+it: the check asks *exactly* what `run()` asks, so a machine that would refuse
+the render on a typo'd priority name never advertises `alpha.render` in the
+first place. A dedicated render box sets `ALPHA_AGENT_TASK_PRIORITY=off` and
+`ALPHA_RENDER_THREADS=0` — it has no desktop to protect, and the headroom is
+just slower renders.
+
+**Pausing the fleet stops dispatch and *only* dispatch.** `queue.pause()` is
+the switch for when the machines lending their cores have become unusable, and
+what makes it usable is how little it does. Three things it must keep not
+doing, each of which would make it useless for the case it exists for:
+
+- **Work in hand finishes.** A paused fleet does not touch a lease. Abandoning
+  a render mid-frame would cost an attempt and a re-run of work that was going
+  to succeed — the same failure `stop()`'s drain exists to avoid.
+- **Agents stay attached and keep reporting.** `lease()` skips its scan of
+  `#pending` but still *parks* the waiter, so the poll — which is what carries
+  memory and load — keeps arriving. The usual reason to pause is to see what
+  the fleet looks like with nothing being dispatched; a pause that hung up on
+  the long poll would blind the operator it is for.
+- **`POST /tasks` still accepts work**, and answers `fleetPaused` beside
+  `agentAvailable`/`memoryAvailable`/`targetAttached`. Those three exist so a
+  queued task that is not moving can say why; a pause is a fourth way, and the
+  only one where the honest answer is "a capable machine with room is right
+  there and somebody stopped the fleet".
+
+Two gates, not one, and both are pinned by a test that fails without it:
+`#findWaiterFor` covers `enqueue` and `#requeue`, and `lease()`'s scan of
+`#pending` covers a poll arriving while work is already queued. Missing the
+second means a laptop that reconnects mid-pause is handed the entire backlog,
+which is the precise opposite of what was asked for. In memory like the queue
+it guards, so a host restart clears it — consistent, since the queue is gone
+too.
 
 **A task may name its machine, and naming one narrows nothing else.**
 `targetAgent` on a task restricts the candidates to agents registered under

@@ -354,6 +354,13 @@ export class TunnelAgent {
    * its ceiling, nobody would ever ask and the queue would sit there — so an
    * agent that has been throttled for `throttleMaxMs` with nothing in flight
    * takes a task anyway. Late beats never.
+   *
+   * `throttleMaxMs` of `Infinity` turns that bound off for this machine, which
+   * is what a laptop somebody is sitting in front of wants: it is over its
+   * ceiling *because* its owner is using it, and taking the task a minute later
+   * lands the work on the one machine that had already said it could not
+   * absorb it. See `throttleMaxFromEnv`. The comparison below is why no special
+   * case is needed — nothing is ever `>= Infinity`.
    */
   async #napIfOverloaded() {
     const { loadFactor } = this.load();
@@ -378,6 +385,9 @@ export class TunnelAgent {
         loadFactor: round2(loadFactor),
         maxLoad: this.maxLoad,
         backoffMs: this.loadBackoffMs,
+        // Whether this machine will eventually give in, so an operator reading
+        // the log knows which of the two behaviours it is configured for.
+        takesWorkAnywayAfterMs: Number.isFinite(this.throttleMaxMs) ? this.throttleMaxMs : null,
       });
     } else if (this.#inFlight === 0 && now - this.#throttledSince >= this.throttleMaxMs) {
       // Nothing has taken this work in a minute of us standing aside. Either

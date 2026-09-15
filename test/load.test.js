@@ -7,7 +7,7 @@ import { AgentRegistry } from '../src/host/registry.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { LoadSampler } from '../src/agent/load.js';
-import { maxLoadFromEnv, concurrencyFromEnv } from '../src/agent/load.js';
+import { maxLoadFromEnv, concurrencyFromEnv, throttleMaxFromEnv } from '../src/agent/load.js';
 import { fetchJson } from '../src/common/http.js';
 import {
   TaskStatus,
@@ -16,6 +16,7 @@ import {
   LOAD_REPORT_STALE_MS,
   UNKNOWN_LOAD_FACTOR,
   DEFAULT_MAX_LOAD,
+  LOAD_THROTTLE_MAX_MS,
   validateRegistration,
   validateLoadReport,
   ProtocolError,
@@ -157,6 +158,24 @@ test('the load ceiling and concurrency are read from the environment with limits
   assert.equal(concurrencyFromEnv('4', 1), 4);
   assert.throws(() => concurrencyFromEnv('0', 1), /between 1 and 64/);
   assert.throws(() => concurrencyFromEnv('2.5', 1), /between 1 and 64/);
+});
+
+test('a machine can be told never to take work over its ceiling', () => {
+  assert.equal(throttleMaxFromEnv(undefined, LOAD_THROTTLE_MAX_MS), LOAD_THROTTLE_MAX_MS);
+  assert.equal(throttleMaxFromEnv('', LOAD_THROTTLE_MAX_MS), LOAD_THROTTLE_MAX_MS);
+  assert.equal(throttleMaxFromEnv('5000', LOAD_THROTTLE_MAX_MS), 5_000);
+
+  // Infinity rather than a sentinel, so the comparison in #napIfOverloaded
+  // needs no special case — nothing is ever `>= Infinity`.
+  assert.equal(throttleMaxFromEnv('off', LOAD_THROTTLE_MAX_MS), Infinity);
+  assert.equal(throttleMaxFromEnv('never', LOAD_THROTTLE_MAX_MS), Infinity);
+  assert.equal(throttleMaxFromEnv('OFF', LOAD_THROTTLE_MAX_MS), Infinity);
+
+  // Not 0: someone typing that means "never give in", and reading it as a
+  // zero-millisecond bound would mean "give in immediately" — the exact
+  // opposite, and silently.
+  assert.throws(() => throttleMaxFromEnv('none', LOAD_THROTTLE_MAX_MS), /"off"/);
+  assert.throws(() => throttleMaxFromEnv('-1', LOAD_THROTTLE_MAX_MS), /whole number/);
 });
 
 // ------------------------------------------------------------------ registry
@@ -442,6 +461,48 @@ test('a fleet that is loaded everywhere runs work late rather than never', async
   });
 
   const { body: queued } = await enqueue(host.url, { type: 'echo', payload: { value: 2 } });
+  const finished = await waitForTask(host.url, queued.id);
+  assert.equal(finished.status, TaskStatus.SUCCEEDED);
+});
+
+test('a laptop whose owner opted out is never conscripted, however long the queue waits', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  // The sibling test above is the same setup with the bound left on: there,
+  // the agent gives in after 300ms and runs the task. The whole difference is
+  // this machine having been told not to.
+  const loaded = fakeSampler(0.99);
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'someones-desk',
+    handlers: new HandlerRegistry(),
+    maxLoad: 0.5,
+    loadSampler: loaded,
+    loadBackoffMs: 50,
+    throttleMaxMs: Infinity,
+  });
+  const running = agent.start();
+  t.after(async () => {
+    await agent.stop();
+    await running;
+  });
+
+  const deadline = Date.now() + 5_000;
+  while (!agent.agentId && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+  assert.ok(agent.agentId, 'it still attaches and still lends its memory');
+
+  const { body: queued } = await enqueue(host.url, { type: 'echo', payload: { value: 3 } });
+  // Well past the 300ms the bounded agent gives in after, and past several
+  // backoff rounds, so this is the valve staying shut rather than a slow start.
+  await new Promise((r) => setTimeout(r, 1_000));
+  const { body: stillQueued } = await fetchJson(`${host.url}/tasks/${queued.id}`, { token: TOKEN });
+  assert.equal(stillQueued.status, TaskStatus.QUEUED, 'it never gave in');
+
+  // Still a pause and not a refusal: the moment its owner stops using it, it
+  // takes the work that was waiting.
+  loaded.state.loadFactor = 0.05;
   const finished = await waitForTask(host.url, queued.id);
   assert.equal(finished.status, TaskStatus.SUCCEEDED);
 });

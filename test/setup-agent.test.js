@@ -8,9 +8,10 @@ import {
   renderAgentEnv,
   serviceHint,
 } from '../scripts/setup-agent.mjs';
-import { maxLoadFromEnv, concurrencyFromEnv } from '../src/agent/load.js';
+import { maxLoadFromEnv, concurrencyFromEnv, throttleMaxFromEnv } from '../src/agent/load.js';
+import { taskPriorityFromEnv } from '../src/agent/priority.js';
 import { reserveFromEnv } from '../src/agent/memory.js';
-import { MB } from '../src/common/protocol.js';
+import { MB, LOAD_THROTTLE_MAX_MS } from '../src/common/protocol.js';
 
 const gb = (n) => n * 1024 * MB;
 
@@ -72,6 +73,29 @@ test('the written configuration carries the load ceiling and concurrency', () =>
   });
   assert.match(tuned, /^ALPHA_AGENT_MAX_LOAD=0\.6$/m);
   assert.match(tuned, /^ALPHA_AGENT_CONCURRENCY=4$/m);
+});
+
+test('every enrolled machine gets a priority a running task cannot escape', () => {
+  // The ceiling above only governs whether work *arrives*. Nothing in the
+  // original configuration said anything about what the work does once it is
+  // here, which is the ten minutes the machine's owner actually experiences.
+  const env = renderAgentEnv({ hostUrl: 'http://h:1', key: 'k', reserveMB: 512 });
+  assert.match(env, /^ALPHA_AGENT_TASK_PRIORITY=below_normal$/m);
+  assert.equal(taskPriorityFromEnv(/^ALPHA_AGENT_TASK_PRIORITY=(.*)$/m.exec(env)[1]), 'below_normal');
+});
+
+test('a machine somebody sits at is never conscripted off the back of its own load', () => {
+  const shared = renderAgentEnv({ hostUrl: 'http://h:1', key: 'k', reserveMB: 512 });
+  // The default stays the default: a fleet where every machine opted out is
+  // one where work queued during a busy spell waits for a quiet moment that
+  // may never arrive.
+  assert.doesNotMatch(shared, /ALPHA_AGENT_LOAD_THROTTLE_MAX_MS/);
+
+  const desk = renderAgentEnv({ hostUrl: 'http://h:1', key: 'k', reserveMB: 512, personal: true });
+  const value = /^ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=(.*)$/m.exec(desk)[1];
+  assert.equal(value, 'off');
+  // And what setup wrote is what the agent reads, same as every other setting.
+  assert.equal(throttleMaxFromEnv(value, LOAD_THROTTLE_MAX_MS), Infinity);
 });
 
 test('what setup writes is what the agent will actually start with', () => {

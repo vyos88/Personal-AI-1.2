@@ -121,6 +121,7 @@ hash of it is stored, so a lost invite has to be reissued, not recovered.
 | `tasks:write` | Queue tasks |
 | `tasks:cancel` | Cancel queued tasks |
 | `agents:read` | See attached agents and stats |
+| `fleet:pause` | Stop and start the whole fleet handing out work |
 | `agent:connect` | Attach as a worker and pull tasks |
 | `users:read` | List users and their keys |
 | `users:write` | Enable/disable users, change their scopes, revoke their keys |
@@ -130,8 +131,15 @@ hash of it is stored, so a lost invite has to be reissued, not recovered.
 | `admin` | Everything above, including granting `admin` to others |
 
 Presets bundle the common cases: `admin`, `operator` (queue and cancel work,
-see agents, issue own keys), `agent` (just `agent:connect`), `viewer`
-(read-only). `--scopes '*'` is accepted as a spelling of `admin`.
+see agents, pause the fleet, issue own keys), `agent` (just `agent:connect`),
+`viewer` (read-only). `--scopes '*'` is accepted as a spelling of `admin`.
+
+`fleet:pause` is in `operator` because the person who notices the laptops have
+become unusable is the person sitting at one of them, not whoever holds
+`admin`. It was added after the preset existed, so **an operator key issued
+before it will not have it** — effective scopes are the key's own, not the
+preset's as it stands today. Reissue the key, or use an admin one, which
+implies every scope and so needs nothing done to it.
 
 Two rules keep grants from drifting upward:
 
@@ -202,6 +210,9 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_AGENT_MEMORY_RESERVE_MB` | agent | `512` | RAM kept for this machine; the rest is offered to the host. |
 | `ALPHA_AGENT_MAX_LOAD` | agent | `0.85` | Share of its own cores above which this machine stops asking for work. |
 | `ALPHA_AGENT_CONCURRENCY` | agent | `1` | Tasks this machine will run at once. |
+| `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS` | agent | `60000` | How long it stands aside over that ceiling before taking work anyway. `off` never takes it. |
+| `ALPHA_AGENT_TASK_PRIORITY` | agent | `below_normal` | Scheduling priority for the external programs handlers run. `off` leaves them at normal. |
+| `ALPHA_RENDER_THREADS` | agent | all but one core | Cores Blender may use. `0` lets Blender take the machine. |
 | `ALPHA_EXTRA_HANDLERS` | agent | — | Comma-separated opt-in handlers, e.g. `memstore`, `alpha-update`. |
 | `ALPHA_GIT` | agent | `git` | git executable, for `alpha.update` and self-update. |
 | `ALPHA_UPDATE_REMOTE` | agent | `origin` | Remote `alpha.update` consults. |
@@ -264,6 +275,8 @@ needs `Authorization: Bearer <token>` and the scope listed.
 | `GET` | `/tasks`, `/tasks/:id` | `tasks:read` |
 | `POST` | `/tasks/:id/cancel` | `tasks:cancel` |
 | `GET` | `/agents`, `/stats` | `agents:read` |
+| `POST` | `/fleet/pause` | `fleet:pause` |
+| `POST` | `/fleet/resume` | `fleet:pause` |
 
 **Agent plane** (used by the worker, all requiring `agent:connect`)
 
@@ -504,6 +517,41 @@ picks work up again the moment its load drops. If *every* machine is over its
 ceiling, an agent that has stood aside for a minute with nothing in hand takes
 a task anyway — a busy fleet should run work late, never not at all.
 
+On a laptop somebody is sitting in front of, that last rule is the wrong one:
+the machine is over its ceiling *because* its owner is using it, and handing it
+the task a minute later is precisely the behaviour that gets an agent
+uninstalled. `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=off` turns the bound off for one
+machine — `setup-agent --personal` writes it — and leaves the default in place
+everywhere else. Keep at least one machine on the default, or work queued
+during a busy spell waits for a quiet moment that may never come.
+
+### What a task may take once it is already running
+
+Everything above is about whether work *arrives* on a machine. None of it says
+anything about the ten minutes afterwards, and that is the part the machine's
+owner experiences. A Blender render holds every core for the length of the
+render; `ALPHA_AGENT_MAX_LOAD` only stops the agent asking for *more*, and
+`ALPHA_AGENT_CONCURRENCY` counts tasks, and one render is one task. At ordinary
+priority those render threads compete with the desktop compositor on equal
+terms, which is a screen that tears and a keyboard that lags.
+
+So two things bound a running task, and neither is enough alone:
+
+- **Priority.** Every external program a handler runs — Blender, `arduino-cli`,
+  PowerShell, git — is dropped to `below_normal` (`ALPHA_AGENT_TASK_PRIORITY`).
+  The compositor and whatever the owner has in front of them both run at normal
+  and preempt it immediately. Deliberately not `low`, which on Windows is
+  `IDLE_PRIORITY_CLASS` and starves a render to a crawl on a machine doing
+  anything at all. This decides who wins a contended core.
+- **Core count.** A render is capped one core short of the machine
+  (`ALPHA_RENDER_THREADS`). This decides how many cores are contended at all —
+  "three cores busy, one free" is a very different laptop from "all four busy,
+  even if politely".
+
+Set `ALPHA_AGENT_TASK_PRIORITY=off` and `ALPHA_RENDER_THREADS=0` on a dedicated
+render box: there is no desktop on it to protect, and the headroom is just
+slower renders.
+
 `alpha-admin stats` shows whether the fleet is unbalanced or genuinely full:
 
 ```
@@ -513,6 +561,45 @@ $ npm run admin -- stats --json
 
 Far apart means work is not being spread. Both high means the fleet really is
 saturated and another machine is the only answer.
+
+### Stopping the whole fleet
+
+Everything above is a dial. Sometimes the answer is a switch: the machines
+lending their cores have become unusable, and you want work to stop *now*
+while you work out why.
+
+```bash
+node src/admin/run.js pause --reason "laptops unusable, looking into it"
+node src/admin/run.js resume
+```
+
+Pausing stops one thing — tasks being handed out — and deliberately nothing
+else:
+
+- **What is already running finishes.** A render mid-frame keeps its lease and
+  reports its result normally. Pausing is about the next task; a pause that
+  killed the current one would cost an attempt and a re-run of work that was
+  going to succeed. `pause` prints how many tasks are still running, because
+  that is the first thing you want to know if you are pausing to rescue the
+  machine one of them is on.
+- **Agents stay attached and keep reporting.** They go on polling and getting
+  nothing back, and memory and load ride the poll — so `agents` and `stats`
+  stay live for the whole pause. That is the point: the usual reason to pause
+  is to look at what the fleet is doing with nothing being dispatched, and a
+  pause that took it off the air would defeat itself.
+- **Queueing still works.** `POST /tasks` is accepted and the task waits; the
+  response says `fleetPaused: true` so nothing sits there unexplained. `stats`
+  says it too, under `queue.fleet`.
+
+Resuming dispatches what built up straight away rather than leaving it to the
+next poll, and says how many it placed.
+
+Two things worth knowing. The pause lives in memory, like the queue it guards,
+so **a host restart clears it** — which is consistent rather than careless,
+since a restarted host has lost the queued work too. And it is fleet-wide:
+to stop one machine rather than all of them, narrow its
+`ALPHA_AGENT_CAPABILITIES`, or set `ALPHA_AGENT_LOAD_THROTTLE_MAX_MS=off` so
+it never takes work while its owner is using it.
 
 ### Putting a batch of work on the fleet
 

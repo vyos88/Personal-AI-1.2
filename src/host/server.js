@@ -13,6 +13,7 @@ import {
   MAX_POLL_WAIT_MS,
   validateRegistration,
   validateTaskInput,
+  validatePauseReason,
   validateMemoryReport,
   memoryReportFromQuery,
   validateLoadReport,
@@ -510,6 +511,32 @@ async function handle(req, res, ctx) {
       }
     }
 
+    // ----------------------------------------------------------- fleet plane
+    //
+    // One switch that stops work being handed out, so an operator whose
+    // machines have become unusable has something to reach for that is not
+    // "go to each laptop and stop its keeper". It stops dispatch and nothing
+    // else — running tasks finish, agents stay attached and keep reporting,
+    // and `POST /tasks` still accepts work. See TaskQueue.pause().
+    if (method === 'POST' && url.pathname === '/fleet/pause') {
+      require(SCOPES.FLEET_PAUSE);
+      const body = await readJson(req);
+      const fleet = ctx.queue.pause({ reason: validatePauseReason(body?.reason) });
+      return sendJson(res, 200, {
+        ...fleet,
+        // What the pause did *not* stop, said plainly in the response: somebody
+        // pausing because a laptop is unusable needs to know a render is still
+        // running on it, and that it will be allowed to finish.
+        stillRunning: ctx.queue.leasedCount(),
+        pendingTasks: ctx.queue.stats().pending,
+      });
+    }
+
+    if (method === 'POST' && url.pathname === '/fleet/resume') {
+      require(SCOPES.FLEET_PAUSE);
+      return sendJson(res, 200, ctx.queue.resume());
+    }
+
     // ------------------------------------------------------------ task plane
     if (method === 'POST' && url.pathname === '/tasks') {
       require(SCOPES.TASKS_WRITE);
@@ -537,6 +564,11 @@ async function handle(req, res, ctx) {
         // And the third way, once a task can name a machine: that machine is
         // not attached at all. Null when the task named nobody.
         targetAttached: input.targetAgent ? ctx.registry.hasAgentNamed(input.targetAgent) : null,
+        // The fourth, and the only one that is nobody's fault: a capable agent
+        // with room is attached and the task still will not move, because
+        // somebody stopped the fleet. Without this the answer above reads
+        // `agentAvailable: true` and the task sits there unexplained.
+        fleetPaused: ctx.queue.paused,
       });
     }
 

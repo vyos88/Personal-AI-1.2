@@ -45,6 +45,10 @@ export class TaskQueue {
   #pending = [];
   #waiters = new Set();
   #sweeper = null;
+  // Set while the fleet is paused. Everything else about the host keeps
+  // working; this is the one thing it stops. See pause().
+  #pausedAt = null;
+  #pauseReason = null;
 
   constructor({ sweepIntervalMs = 5_000, now = () => Date.now(), admission = OPEN_ADMISSION } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
@@ -67,6 +71,104 @@ export class TaskQueue {
     for (const waiter of [...this.#waiters]) {
       this.#resolveWaiter(waiter, null);
     }
+  }
+
+  /**
+   * Stops handing work out, fleet-wide, without stopping anything else.
+   *
+   * The lever an operator reaches for when the machines lending their cores
+   * have become unusable and the question is "what is this thing actually
+   * doing to my laptops". Every other control is per machine and takes effect
+   * where that machine is: `ALPHA_AGENT_CAPABILITIES` narrows one agent,
+   * stopping the keeper needs a shell on the laptop, and both need doing again
+   * afterwards. This is one call on the host and one to undo it.
+   *
+   * It is deliberately the *narrowest* thing that deserves the name. Paused:
+   *
+   * - **work already running is untouched.** A render mid-frame keeps its
+   *   lease, finishes, and reports normally. Pausing is about the next task,
+   *   never about killing the current one — a pause that abandoned in-flight
+   *   work would cost an attempt and a re-run of something that succeeded.
+   * - **agents stay attached and keep reporting.** They go on polling and
+   *   getting 204s, and memory and load ride the poll, so `alpha-admin agents`
+   *   stays live throughout. That is the point: the reason to pause is usually
+   *   to watch what the fleet looks like with nothing being dispatched, and a
+   *   pause that blinded the operator would defeat itself.
+   * - **queueing still works.** `POST /tasks` is accepted and the task waits.
+   *   Refusing would push the decision onto whoever queued it, who is not the
+   *   person who paused.
+   *
+   * In memory, like the queue it guards, so a host restart clears it. That is
+   * consistent rather than sloppy: the queue is in memory too, so a restarted
+   * host has nothing queued to dispatch anyway.
+   */
+  pause({ reason = null } = {}) {
+    if (this.#pausedAt === null) {
+      this.#pausedAt = this.now();
+      log.warn('fleet paused — no further tasks will be dispatched', {
+        reason,
+        pending: this.#pending.length,
+        // Named so the log says plainly that these are not being stopped.
+        stillRunning: this.leasedCount(),
+      });
+    }
+    // A second pause updates the reason rather than refusing: re-pausing with
+    // a better explanation is a reasonable thing to do and losing the note
+    // would be worse than overwriting it.
+    this.#pauseReason = reason;
+    return this.fleet();
+  }
+
+  /**
+   * Starts handing work out again, and drains what built up while paused.
+   *
+   * The drain is what makes resume feel like resume. Without it every queued
+   * task would sit until its next poll came round — up to MAX_POLL_WAIT_MS of
+   * a fleet that is demonstrably idle and demonstrably has work, which reads
+   * as the pause not having lifted.
+   */
+  resume() {
+    if (this.#pausedAt === null) return { ...this.fleet(), dispatched: 0 };
+    this.#pausedAt = null;
+    this.#pauseReason = null;
+
+    // Oldest first, and over a copy: the loop splices placed tasks out of
+    // #pending, so iterating it directly would skip entries.
+    let dispatched = 0;
+    for (const task of [...this.#pending]) {
+      const waiter = this.#findWaiterFor(task);
+      if (!waiter) continue;
+      const index = this.#pending.indexOf(task);
+      if (index !== -1) this.#pending.splice(index, 1);
+      this.#assign(task, waiter.agentId);
+      this.#resolveWaiter(waiter, task);
+      dispatched += 1;
+    }
+
+    log.info('fleet resumed', { dispatched, stillPending: this.#pending.length });
+    return { ...this.fleet(), dispatched };
+  }
+
+  /** Whether work is being handed out, and why not if it is not. */
+  fleet() {
+    return {
+      paused: this.#pausedAt !== null,
+      reason: this.#pauseReason,
+      since: this.#pausedAt,
+    };
+  }
+
+  get paused() {
+    return this.#pausedAt !== null;
+  }
+
+  /** Tasks an agent is holding right now — the ones a pause does not touch. */
+  leasedCount() {
+    let count = 0;
+    for (const task of this.#tasks.values()) {
+      if (task.status === TaskStatus.LEASED) count += 1;
+    }
+    return count;
   }
 
   enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0, targetAgent = null }) {
@@ -130,7 +232,11 @@ export class TaskQueue {
     // against — the other machine is not parked, or it would have been handed
     // the task at enqueue time. An agent too loaded to be a good target
     // declines by not asking; see the agent's own load ceiling.
-    const index = this.#pending.findIndex(
+    // Skipped while paused, so the agent falls through to parking below rather
+    // than being handed queued work. Parking rather than returning immediately
+    // is deliberate: the poll is what carries this machine's memory and load,
+    // so a paused fleet is still a fleet an operator can watch.
+    const index = this.#pausedAt !== null ? -1 : this.#pending.findIndex(
       (task) => wanted.has(task.type) && this.admission.canAdmit(agentId, task),
     );
     if (index !== -1) {
@@ -280,7 +386,17 @@ export class TaskQueue {
     for (const task of this.#tasks.values()) {
       byStatus[task.status] = (byStatus[task.status] ?? 0) + 1;
     }
-    return { total: this.#tasks.size, pending: this.#pending.length, waiters: this.#waiters.size, byStatus };
+    return {
+      total: this.#tasks.size,
+      pending: this.#pending.length,
+      waiters: this.#waiters.size,
+      byStatus,
+      // Here rather than only on its own endpoint: "tasks are queued and every
+      // agent is idle" has two very different explanations, and an operator
+      // reading stats should not have to know to go and ask elsewhere which
+      // one they are looking at.
+      fleet: this.fleet(),
+    };
   }
 
   #assign(task, agentId) {
@@ -315,6 +431,12 @@ export class TaskQueue {
    * behaves exactly as it did before ranking existed: first waiter wins.
    */
   #findWaiterFor(task) {
+    // The single gate for enqueue and requeue. Answering "nobody" while paused
+    // is all a pause has to do on this path: the caller parks the task in
+    // #pending exactly as it would with no capable agent attached, so nothing
+    // downstream needs to know the fleet is paused.
+    if (this.#pausedAt !== null) return null;
+
     let best = null;
     let bestRank = Number.POSITIVE_INFINITY;
     for (const waiter of this.#waiters) {

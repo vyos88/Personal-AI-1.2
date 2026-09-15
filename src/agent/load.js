@@ -168,6 +168,41 @@ export function maxLoadFromEnv(value, fallback) {
   return parsed;
 }
 
+/**
+ * How long this machine stands aside before taking work anyway, from the
+ * environment.
+ *
+ * `LOAD_THROTTLE_MAX_MS` exists so a fleet that is busy everywhere runs work
+ * late rather than never: after a minute over its ceiling with nothing in hand,
+ * an agent takes a task regardless. That is right for a machine whose only job
+ * is being a worker, and wrong for one somebody is sitting in front of — the
+ * laptop is over its ceiling *because its owner is using it*, and conscripting
+ * it a minute later is exactly the behaviour that gets an agent uninstalled.
+ *
+ * So the bound stays the default and becomes configurable, with `off` (or
+ * `never`) meaning this machine never takes work above its ceiling. That is a
+ * per-machine decision: at least one machine in the fleet should leave it at
+ * the default, or work queued while everything is busy waits for a quiet
+ * moment that may not come.
+ *
+ * Returns `Infinity` for `off`, which the comparison it feeds handles without
+ * a special case — and never 0, which would read as "give in immediately",
+ * the precise opposite of what someone typing it would mean.
+ */
+export function throttleMaxFromEnv(value, fallback) {
+  if (value === undefined || value === null || String(value).trim() === '') return fallback;
+  const raw = String(value).trim().toLowerCase();
+  if (raw === 'off' || raw === 'never') return Infinity;
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(
+      'load throttle max must be a whole number of milliseconds, or "off" to never take ' +
+        `work over the ceiling (got ${JSON.stringify(value)})`,
+    );
+  }
+  return parsed;
+}
+
 /** How many tasks this machine will run at once, read from the environment. */
 export function concurrencyFromEnv(value, fallback) {
   if (value === undefined || value === null || String(value).trim() === '') return fallback;

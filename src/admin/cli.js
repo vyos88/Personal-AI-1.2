@@ -48,6 +48,11 @@ Tasks
   agents                                                 List attached agents, their free RAM, CPU load and version
   stats                                                  Fleet summary: queue, capacity, how work is spread
 
+Fleet
+  pause [--reason <why>]                                 Stop handing out work. Running tasks finish,
+                                                         agents stay attached and keep reporting
+  resume                                                 Hand work out again, and dispatch what queued up
+
 Borrowed memory
   mem --action stats                                     Store usage on the agent
   mem --action put --key <k> --value <json> [--ttl-ms <n>]
@@ -180,6 +185,7 @@ const OPTIONS = {
   action: { type: 'string' },
   actor: { type: 'string' },
   message: { type: 'string' },
+  reason: { type: 'string' },
   paths: { type: 'string' },
   'lease-ms': { type: 'string' },
   'min-memory-mb': { type: 'string' },
@@ -357,7 +363,16 @@ export async function main(argv = process.argv.slice(2)) {
 
       const queued = await api('/tasks', { method: 'POST', body });
 
-      if (!queued.agentAvailable) {
+      // Checked before the placement warnings below, and separately from them:
+      // while the fleet is paused a capable agent with room is attached and the
+      // task still will not move, so every one of those reads `agentAvailable:
+      // true` and says nothing. This is the only thing worth saying here.
+      if (queued.fleetPaused) {
+        process.stderr.write(
+          'warning: the fleet is paused, so this task will not be handed out to anyone. ' +
+            'It runs on `resume` — see `stats` for why it was paused.\n',
+        );
+      } else if (!queued.agentAvailable) {
         // Not fatal — it runs as soon as a capable agent attaches — but silence
         // here is how you end up staring at a task that never moves.
         // Three reasons a task sits there, and saying the wrong one sends an
@@ -460,6 +475,36 @@ export async function main(argv = process.argv.slice(2)) {
       return;
     }
 
+    // The switch you reach for when the machines lending their cores have
+    // become unusable. Deliberately not a kill: what is running finishes, the
+    // agents stay attached, and `agents`/`stats` keep showing live figures —
+    // so "pause and then look at where the load actually is" works, which is
+    // the reason to reach for it in the first place.
+    case 'pause': {
+      const fleet = await api('/fleet/pause', {
+        method: 'POST',
+        body: { reason: flags.reason ?? null },
+      });
+      if (flags.json) return emit('', fleet);
+      emit('Fleet paused — no further tasks will be handed out.');
+      if (fleet.reason) emit(`  reason         ${fleet.reason}`);
+      // The two numbers somebody pausing in a hurry actually needs. A render
+      // still running on the laptop they are trying to rescue is the first
+      // thing they will ask about, and it is not being stopped.
+      emit(`  still running  ${fleet.stillRunning} task(s), which will finish normally`);
+      emit(`  queued         ${fleet.pendingTasks} task(s), waiting for \`resume\``);
+      emit('\nAgents stay attached and keep reporting, so `agents` and `stats` stay live.');
+      return;
+    }
+
+    case 'resume': {
+      const fleet = await api('/fleet/resume', { method: 'POST' });
+      if (flags.json) return emit('', fleet);
+      emit('Fleet resumed — work is being handed out again.');
+      emit(`  dispatched     ${fleet.dispatched} task(s) straight away`);
+      return;
+    }
+
     // The fleet at a glance. The question it exists to answer is the one you
     // ask when work feels slow: is it piling onto one machine, or are they
     // genuinely all busy? `busiest` next to `idlest` is what says which.
@@ -469,6 +514,13 @@ export async function main(argv = process.argv.slice(2)) {
 
       const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '-');
       emit(`Alpha ${stats.version} — ${stats.agents} agent(s) attached`);
+      // First line after the header, because it explains away everything
+      // below it: idle agents and a queue that is not moving is alarming
+      // unless you know somebody stopped the fleet on purpose.
+      if (stats.queue.fleet?.paused) {
+        emit(`  PAUSED         ${stats.queue.fleet.reason ?? 'no reason given'}`);
+        emit('                 nothing is being handed out; `resume` starts it again');
+      }
       emit(`  capabilities   ${stats.capabilities.join(', ') || '(none)'}`);
       emit(`  queue          ${stats.queue.pending} pending, ${stats.queue.waiters} agent(s) waiting`);
       emit(`  offered RAM    ${mb(stats.memory.offeredBytes)}${
