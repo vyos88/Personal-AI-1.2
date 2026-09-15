@@ -299,10 +299,27 @@ fixed and lives outside this repository. Inventing a richer interface here,
 unilaterally, is how the two handlers came to overlap in the first place. That
 change starts on the Python side or not at all.
 
-`alpha-panel.js` is the fourth, and the only one that drives hardware. It
-flashes and provisions the CrowPanel hanging off the **Alpha host's** USB (not a
-laptop's — the board is on the same Windows box that runs the coordinator, so
-these tasks are queued against the host's own agent), through
+`alpha-devices.js` is the fourth external-program handler, and the narrowest.
+`device.inventory` wraps `scripts/usb-inventory.ps1` — already in the repo,
+already the JSON Alpha's device panels consume — so that "is the panel still
+plugged in, and on which COM port?" is a task rather than a trip to the laptop.
+Windows renumbers COM ports on re-enumeration, so a replug moves a board and
+whatever had the old number saved stops finding it; that is the failure this
+exists to make visible. It tightens the external-program rules by one notch:
+**no arguments at all.** The script takes none, so a payload carrying any key
+is refused rather than ignored — `{ port: 'COM3; shutdown /r' }` should be told
+it meant nothing, and the safest version of "payload data never reaches a
+shell" is one with no path for it to travel. `summarize()` uses the script's
+own field names (`serialPorts`, not a plausible-reading `ports`) because the
+first version read a name that does not exist and returned an empty list on
+every machine, which looks like "nothing attached" rather than like a bug.
+
+`alpha-panel.js` is the fifth, and the only one that drives hardware. It
+flashes and provisions the CrowPanel over USB from whichever machine the board
+is plugged into — the handler is opt-in and `available()` refuses a machine
+without the sketch and arduino-cli, so the one that offers `alpha.panel` is the
+one holding the board, and a task reaches it with `--agent <that machine>`. It
+drives
 `arduino-cli`, under the same rules as the coordination handler: pinned
 executable, pinned sketch that must resolve inside `ALPHA_PANEL_ROOT`,
 allowlisted action, argv array. The payload chooses an action and at most which
