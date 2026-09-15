@@ -73,6 +73,14 @@ a machine with no Blender, no sketch or no arduino-cli never advertises the type
 in the first place, which is what covers an *unpinned* render on a laptop
 holding a copy of the host's configuration.
 
+## When the host is off
+
+`docs/HOST_DOWN.md` is the runbook: run the coordinator on a laptop, point the
+panel and the workers at it, and let both move home on their own when the host
+answers again. The two settings that make that automatic are
+`ALPHA_HOST_URL=<primary>,<standby>` on each agent and
+`connect-panel.mjs --standby-host` on the panel.
+
 ## One Alpha at a time
 
 `standby-alpha.mjs` runs Alpha on the reserve laptop **only while the host is

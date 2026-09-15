@@ -147,11 +147,21 @@ test('credentials are bounded, and a newline can never split the line protocol',
 });
 
 test('the report target is a plain http URL and carries no credentials', () => {
-  assert.deepEqual(validateAlphaTarget({}), { host: null, key: '' });
+  assert.deepEqual(validateAlphaTarget({}), { host: null, standbyHost: null, key: '' });
   assert.deepEqual(validateAlphaTarget({ host: 'http://100.1.2.3:8787' }), {
     host: 'http://100.1.2.3:8787',
+    standbyHost: null,
     key: '',
   });
+
+  // The standby is where Alpha runs while the host is off, and it is held to
+  // exactly the same rules as the primary.
+  assert.deepEqual(
+    validateAlphaTarget({ host: 'http://100.1.2.3:8787', standbyHost: 'http://192.168.1.50:8787/' }),
+    { host: 'http://100.1.2.3:8787', standbyHost: 'http://192.168.1.50:8787', key: '' },
+  );
+  assert.throws(() => validateAlphaTarget({ host: 'http://h:1', standbyHost: 'ftp://x/' }), /"standbyHost" must be an http/);
+  assert.throws(() => validateAlphaTarget({ standbyHost: 'http://h:1' }), /without a "host"/);
 
   // A trailing slash would make the sketch request "//stats".
   assert.equal(validateAlphaTarget({ host: 'http://100.1.2.3:8787/' }).host, 'http://100.1.2.3:8787');

@@ -37,6 +37,10 @@ if (!process.env.ALPHA_AGENT_KEY && process.env.ALPHA_TUNNEL_TOKEN) {
   log.warn('using the shared ALPHA_TUNNEL_TOKEN; issue this agent its own ALPHA_AGENT_KEY');
 }
 
+// One address, or several separated by commas: primary first, then wherever
+// else a coordinator might be answering — a laptop running the standby while
+// the host is off. The agent tries them in order and comes back to the primary
+// on its own.
 const hostUrl = process.env.ALPHA_HOST_URL;
 if (!hostUrl) {
   log.error('ALPHA_HOST_URL is not set. Point it at the coordinator, e.g. http://alpha-host:8787');

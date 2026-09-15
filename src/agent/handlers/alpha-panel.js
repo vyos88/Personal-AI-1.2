@@ -219,40 +219,56 @@ export function validateCredentials(payload) {
  * because it is the address the panel will hand a bearer key to — an http(s)
  * URL with no credentials, no query and no fragment in it.
  */
+function validateReportUrl(value, field) {
+  if (typeof value !== 'string') throw new ProtocolError(`"${field}" must be a string`);
+
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new ProtocolError(`"${field}" must be an absolute URL, got ${JSON.stringify(value)}`);
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new ProtocolError(`"${field}" must be an http or https URL`);
+  }
+  if (url.username || url.password) {
+    throw new ProtocolError(`"${field}" must not carry credentials in the URL`);
+  }
+  if (url.search || url.hash) {
+    throw new ProtocolError(`"${field}" must not carry a query string or fragment`);
+  }
+  // Trailing slash removed once here so the sketch can append "/stats" without
+  // producing a double slash that some routers answer with a 301 the panel
+  // does not follow.
+  return url.origin + url.pathname.replace(/\/$/, '');
+}
+
 export function validateAlphaTarget(payload) {
   const host = payload?.host;
+  const standbyHost = payload?.standbyHost;
   const key = payload?.key;
 
   if (host === undefined || host === null || host === '') {
     if (key) throw new ProtocolError('"key" was given without a "host" to use it against');
-    return { host: null, key: '' };
+    if (standbyHost) throw new ProtocolError('"standbyHost" was given without a "host"');
+    return { host: null, standbyHost: null, key: '' };
   }
-  if (typeof host !== 'string') throw new ProtocolError('"host" must be a string');
 
-  let url;
-  try {
-    url = new URL(host);
-  } catch {
-    throw new ProtocolError(`"host" must be an absolute URL, got ${JSON.stringify(host)}`);
-  }
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-    throw new ProtocolError('"host" must be an http or https URL');
-  }
-  if (url.username || url.password) {
-    throw new ProtocolError('"host" must not carry credentials in the URL');
-  }
-  if (url.search || url.hash) {
-    throw new ProtocolError('"host" must not carry a query string or fragment');
-  }
+  const primary = validateReportUrl(host, 'host');
+  // Optional, and the same rules: it is the laptop running Alpha while the host
+  // is off, so the panel keeps showing live numbers through a failover instead
+  // of going dark. A fleet without one simply has none.
+  const standby =
+    standbyHost === undefined || standbyHost === null || standbyHost === ''
+      ? null
+      : validateReportUrl(standbyHost, 'standbyHost');
+
   if (key !== undefined && key !== null && typeof key !== 'string') {
     throw new ProtocolError('"key" must be a string');
   }
   if (/[\r\n]/.test(key ?? '')) throw new ProtocolError('"key" must not contain a newline');
 
-  // Trailing slash removed once here so the sketch can append "/stats" without
-  // producing a double slash that some routers answer with a 301 the panel
-  // does not follow.
-  return { host: url.origin + url.pathname.replace(/\/$/, ''), key: key ?? '' };
+  return { host: primary, standbyHost: standby, key: key ?? '' };
 }
 
 function requireSketch() {
@@ -716,14 +732,14 @@ export async function run(payload, { signal, log } = {}) {
   if (action === 'Provision') {
     const port = validatePort(payload?.port);
     const { ssid, password } = validateCredentials(payload);
-    const { host, key } = validateAlphaTarget(payload);
+    const { host, standbyHost, key } = validateAlphaTarget(payload);
 
     // Host and key first, then the network. The sketch answers the wifi command
     // only after it has tried to join, so putting it last means the single
     // reply the operator reads is the one that says whether the panel is
     // actually on the network.
     const commands = [];
-    if (host) commands.push({ cmd: 'alpha', host, key });
+    if (host) commands.push({ cmd: 'alpha', host, host2: standbyHost ?? '', key });
     commands.push({ cmd: 'wifi', ssid, password });
 
     const outcome = await converse(port, commands, password, { signal, log });
@@ -736,6 +752,7 @@ export async function run(payload, { signal, log } = {}) {
       port,
       ssid,
       host: host ?? null,
+      standbyHost: standbyHost ?? null,
       // Whether anything on the other end of the port answered at all. A board
       // that never came back is a different problem from one that came back and
       // could not join, and the two send an operator to different places.

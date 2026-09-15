@@ -22,6 +22,12 @@ import {
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
+// How often an agent that failed over to a standby looks to see whether the
+// primary is back. Long, and only checked while the agent is holding no tasks:
+// coming home costs a re-registration, and doing that during work would leave
+// leases with a coordinator the agent has walked away from.
+const PRIMARY_RECHECK_MS = 60_000;
+
 const log = createLogger('agent');
 
 /**
@@ -43,6 +49,9 @@ const log = createLogger('agent');
  */
 export class TunnelAgent {
   #agentId = null;
+  // Which of hostUrls this agent is attached to. 0 is the primary.
+  #hostIndex = 0;
+  #lastPrimaryCheck = 0;
   #abort = new AbortController();
   #heartbeatTimer = null;
   #running = false;
@@ -58,6 +67,10 @@ export class TunnelAgent {
 
   constructor({
     hostUrl,
+    // The standbys, if this fleet has any: a laptop running the coordinator
+    // while the host is off is only useful if the workers can find it. Given
+    // as an array, or as one comma-separated string.
+    hostUrls,
     token,
     name = os.hostname(),
     // Which worker this is, stably across restarts — see identity.js. Passed
@@ -77,16 +90,22 @@ export class TunnelAgent {
     throttleMaxMs = LOAD_THROTTLE_MAX_MS,
     // Injectable so a test can put this machine under a load it does not
     // actually have. Anything with a snapshot() will do.
+    // How often an agent working off a standby looks to see whether the
+    // primary is back. Only checked while it is holding no tasks.
+    primaryRecheckMs = PRIMARY_RECHECK_MS,
     loadSampler = new LoadSampler(),
     // The same seam for memory. The interesting case — the host places work on
     // a reading that has since moved — is temporal, so it cannot be reached
     // with a machine's real figures.
     memoryReader = memorySnapshot,
   }) {
-    if (!hostUrl) throw new Error('TunnelAgent requires hostUrl');
+    if (!hostUrl && !hostUrls) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
 
-    this.hostUrl = hostUrl.replace(/\/+$/, '');
+    // Primary first, then anywhere else a coordinator might be answering. One
+    // entry is the ordinary case and behaves exactly as it always did.
+    this.hostUrls = normalizeHosts(hostUrls ?? hostUrl);
+    if (this.hostUrls.length === 0) throw new Error('TunnelAgent requires hostUrl');
     this.token = token;
     this.name = name;
     this.instanceId = instanceId ?? instanceIdFor({ name });
@@ -97,6 +116,7 @@ export class TunnelAgent {
     this.memoryReservePercent = memoryReservePercent;
     // The CPU equivalent of the memory reserve: above this share of its own
     // cores, this machine stops asking for work.
+    this.primaryRecheckMs = primaryRecheckMs;
     this.maxLoad = maxLoad;
     this.concurrency = Math.max(1, concurrency);
     this.loadBackoffMs = loadBackoffMs;
@@ -148,6 +168,22 @@ export class TunnelAgent {
     });
   }
 
+  /**
+   * The coordinator this agent is talking to right now.
+   *
+   * A getter rather than a field because the answer changes: when the primary
+   * stops answering the agent registers with the next host on the list, and
+   * every URL it builds has to follow it there.
+   */
+  get hostUrl() {
+    return this.hostUrls[this.#hostIndex];
+  }
+
+  /** Whether this agent is working off a standby rather than the primary. */
+  get onStandby() {
+    return this.#hostIndex > 0;
+  }
+
   /** How busy this machine's CPUs are, sampled at most every couple of seconds. */
   load() {
     return this.#load.snapshot();
@@ -184,6 +220,11 @@ export class TunnelAgent {
         // towards an expiry the host will read as a dead worker.
         await this.#awaitSlot();
         if (!this.#running) break;
+        // Working off a standby? Look in on the primary now and then, and go
+        // back to it the moment it answers. Failover with no way home is a
+        // fleet that quietly stays on the laptop after the host comes back.
+        if (await this.#returnToPrimary()) continue;
+
         // Too busy to be a good target — nap instead of asking, so the task
         // goes to the other machine.
         if (await this.#napIfOverloaded()) continue;
@@ -211,6 +252,15 @@ export class TunnelAgent {
           log.error('host rejected the token — check ALPHA_TUNNEL_TOKEN matches on both sides');
           this.#running = false;
           throw error;
+        }
+
+        // Not an answer at all — the coordinator is unreachable rather than
+        // unhappy. With somewhere else to try, drop the registration so the
+        // next pass goes back through the list from the primary down; without
+        // one, this is the ordinary reconnect it has always been.
+        if (!(error instanceof HttpError) && this.hostUrls.length > 1 && this.#agentId) {
+          log.warn('lost the coordinator, will look for one', { host: this.hostUrl });
+          this.#agentId = null;
         }
 
         const delay = backoffDelay(failures++);
@@ -247,26 +297,56 @@ export class TunnelAgent {
 
     // Best effort: let the host drop us immediately rather than waiting for the
     // stale sweep, so queued work is not offered to a process that has exited.
-    if (this.#agentId) {
-      try {
-        await fetchJson(`${this.hostUrl}/agent/${this.#agentId}`, {
-          method: 'DELETE',
-          token: this.token,
-          timeoutMs: 3_000,
-        });
-      } catch {
-        // The host may already be gone; nothing useful to do here.
-      }
-    }
+    await this.#deregister();
   }
 
+  /**
+   * Registers with the first coordinator that answers, primary first.
+   *
+   * Always from the top of the list, so an agent that failed over to a laptop
+   * comes home the moment the host is back — there is no separate demotion to
+   * get wrong. A host that *answers* and refuses is not failed over from: a bad
+   * token or a protocol mismatch will say the same thing on the standby, and
+   * moving on would bury the reason under a second, less useful error.
+   */
   async #register() {
+    let lastError = null;
+    for (let index = 0; index < this.hostUrls.length; index++) {
+      this.#hostIndex = index;
+      try {
+        await this.#registerWith();
+        if (this.onStandby) {
+          log.warn('registered with a standby coordinator, not the primary', {
+            host: this.hostUrl,
+            primary: this.hostUrls[0],
+          });
+        }
+        return;
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        lastError = error;
+        if (this.hostUrls.length > 1) {
+          log.warn('coordinator did not answer, trying the next one', {
+            host: this.hostUrl,
+            message: error.message,
+          });
+        }
+      }
+    }
+    this.#hostIndex = 0;
+    throw lastError;
+  }
+
+  async #registerWith() {
     const memory = this.memory();
     const load = this.load();
     const { body } = await fetchJson(`${this.hostUrl}/agent/register`, {
       method: 'POST',
       token: this.token,
-      retries: 4,
+      // With somewhere else to try, spend the patience on the next host rather
+      // than on this one: four retries against a laptop that is off is four
+      // minutes of a fleet with no coordinator.
+      retries: this.hostUrls.length > 1 ? 1 : 4,
       body: {
         protocolVersion: PROTOCOL_VERSION,
         name: this.name,
@@ -557,6 +637,58 @@ export class TunnelAgent {
    * registration they were leased to is gone, and the host's sweeper will
    * requeue the work.
    */
+  /**
+   * Goes back to the primary coordinator once it is answering again.
+   *
+   * Only while idle: a re-registration mid-task leaves the lease with a
+   * coordinator this agent has stopped talking to, and the task is re-run
+   * somewhere else while it is still running here.
+   *
+   * `/healthz` is the right question — it is the one endpoint that needs no
+   * credential, so "is it back" never depends on this agent's token being
+   * valid on the primary.
+   */
+  async #returnToPrimary() {
+    if (!this.onStandby || this.#inFlight > 0) return false;
+    if (Date.now() - this.#lastPrimaryCheck < this.primaryRecheckMs) return false;
+    this.#lastPrimaryCheck = Date.now();
+
+    const primary = this.hostUrls[0];
+    try {
+      const { body } = await fetchJson(`${primary}/healthz`, { timeoutMs: 5_000 });
+      if (!body?.ok) return false;
+    } catch {
+      return false; // still down, stay where the work is
+    }
+
+    log.info('primary coordinator is back, moving off the standby', {
+      standby: this.hostUrl,
+      primary,
+    });
+    await this.#deregister();
+    this.#agentId = null;
+    this.#hostIndex = 0;
+    return true;
+  }
+
+  /**
+   * Best effort "I am gone" to whichever coordinator this agent is attached to.
+   * It may already have vanished — that is the usual reason for saying it.
+   */
+  async #deregister() {
+    if (!this.#agentId) return;
+    try {
+      await fetchJson(`${this.hostUrl}/agent/${this.#agentId}`, {
+        method: 'DELETE',
+        token: this.token,
+        timeoutMs: 3_000,
+      });
+    } catch {
+      // Nothing useful to do: the point of the call is to save the host a
+      // stale sweep, not to be sure it heard.
+    }
+  }
+
   async #standDown() {
     if (this.#stoodDown) return;
     this.#stoodDown = true;
@@ -622,4 +754,23 @@ function isStandDown(error) {
 /** Load figures are for humans reading logs; full float precision is noise. */
 function round2(value) {
   return value === null ? null : Math.round(value * 100) / 100;
+}
+
+/**
+ * The coordinators to try, in order, with no duplicates and no trailing
+ * slashes. Accepts an array or one comma-separated string, because
+ * `ALPHA_HOST_URL` is a single value in every `.env.agent` that already exists
+ * and adding a standby should not mean rewriting it.
+ */
+export function normalizeHosts(input) {
+  const list = Array.isArray(input) ? input : String(input ?? '').split(',');
+  const seen = new Set();
+  const hosts = [];
+  for (const entry of list) {
+    const url = String(entry ?? '').trim().replace(/\/+$/, '');
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    hosts.push(url);
+  }
+  return hosts;
 }

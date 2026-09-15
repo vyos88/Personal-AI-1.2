@@ -73,6 +73,9 @@ Options
   --ssid <n>        WiFi network for the panel. Default: ALPHA_PANEL_WIFI_SSID
   --port <p>        Serial port. Default: whichever port looks like the board
   --host <url>      What the panel should read. Default: ALPHA_HOST_URL
+  --standby-host    Where Alpha runs while the host is off. The panel reads the
+                    primary and falls back, so the screen stays live through a
+                    failover. Default: ALPHA_STANDBY_URL
   --key <token>     The panel's credential. Default: mint one (needs an admin
                     token) named by --key-name
   --key-name <n>    Name for a minted key. Default: crowpanel
@@ -93,6 +96,7 @@ function parseArgs(argv) {
     ssid: process.env.ALPHA_PANEL_WIFI_SSID ?? null,
     port: process.env.ALPHA_PANEL_PORT ?? null,
     host: hostUrl(),
+    standbyHost: process.env.ALPHA_STANDBY_URL ?? null,
     key: null,
     keyName: 'crowpanel',
     flash: false,
@@ -109,6 +113,7 @@ function parseArgs(argv) {
     else if (arg === '--ssid') options.ssid = argv[++i] ?? '';
     else if (arg === '--port') options.port = argv[++i] ?? '';
     else if (arg === '--host') options.host = argv[++i] ?? '';
+    else if (arg === '--standby-host') options.standbyHost = argv[++i] ?? '';
     else if (arg === '--key') options.key = argv[++i] ?? '';
     else if (arg === '--key-name') options.keyName = argv[++i] ?? '';
     else if (arg === '--log') options.log = resolve(argv[++i] ?? '');
@@ -224,7 +229,12 @@ async function main() {
   const say = (line) => {
     if (!options.json) process.stdout.write(`${line}\n`);
   };
-  const record = { at: new Date().toISOString(), host: options.host, steps: {} };
+  const record = {
+    at: new Date().toISOString(),
+    host: options.host,
+    standbyHost: options.standbyHost ?? null,
+    steps: {},
+  };
 
   // --- verify only -------------------------------------------------------
   if (options.verifyOnly) {
@@ -311,7 +321,15 @@ async function main() {
 
   const before = (await readKey(keyId).catch(() => null))?.lastUsedAt ?? null;
   const provisioned = await panel.run(
-    { action: 'Provision', port, ssid, password, host: options.host, key: keyToken },
+    {
+      action: 'Provision',
+      port,
+      ssid,
+      password,
+      host: options.host,
+      standbyHost: options.standbyHost ?? undefined,
+      key: keyToken,
+    },
     {},
   );
   record.steps.provision = {
@@ -331,6 +349,7 @@ async function main() {
     return finish(record, options, say, 1);
   }
   say(`provision : joined ${ssid} as ${provisioned.ip}`);
+  if (options.standbyHost) say(`provision : standby ${options.standbyHost} stored as the fallback`);
 
   // --- 6. the only evidence that counts -----------------------------------
   say('verify    : waiting for the panel to read the host...');

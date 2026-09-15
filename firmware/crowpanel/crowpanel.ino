@@ -17,8 +17,12 @@
 // Provisioning protocol — newline-delimited JSON in, newline-delimited JSON out:
 //
 //   {"cmd":"wifi","ssid":"...","password":"..."}   -> {"ok":true,"ip":"..."}
-//   {"cmd":"alpha","host":"http://100.x.y.z:8787","key":"alpha_key_..."}
+//   {"cmd":"alpha","host":"http://...","host2":"http://...","key":"alpha_key_..."}
 //                                                  -> {"ok":true}
+//
+//      host2 is the standby: the laptop that runs Alpha while the host is off.
+//      The panel reads the primary and falls back, so the screen keeps showing
+//      live numbers through a failover instead of going dark.
 //   {"cmd":"status"}                               -> {"ok":true,"ssid":...}
 //
 // Every reply carries `ok` or `error`, because that is what the handler waits
@@ -52,7 +56,9 @@ static Preferences prefs;
 static String wifiSsid;
 static String wifiPassword;
 static String alphaHost;
+static String alphaStandby;   // where Alpha runs while the host is off
 static String alphaKey;
+static bool   onStandby = false;
 
 static uint32_t lastPoll = 0;
 static uint32_t lastWifiAttempt = 0;
@@ -82,6 +88,7 @@ static void loadSettings() {
   wifiSsid     = prefs.getString("ssid", "");
   wifiPassword = prefs.getString("pass", "");
   alphaHost    = prefs.getString("host", "");
+  alphaStandby = prefs.getString("host2", "");
   alphaKey     = prefs.getString("key", "");
   prefs.end();
 }
@@ -95,12 +102,14 @@ static void saveWifi(const String& ssid, const String& password) {
   wifiPassword = password;
 }
 
-static void saveAlpha(const String& host, const String& key) {
+static void saveAlpha(const String& host, const String& standby, const String& key) {
   prefs.begin("alpha", false);
   prefs.putString("host", host);
+  prefs.putString("host2", standby);
   prefs.putString("key", key);
   prefs.end();
   alphaHost = host;
+  alphaStandby = standby;
   alphaKey = key;
 }
 
@@ -125,21 +134,15 @@ static bool joinWifi(uint32_t timeoutMs) {
 
 // ------------------------------------------------------------------ reporting
 
-// Reads GET /stats off the coordinator. That endpoint is the one that already
-// summarises the queue and the registry, so the panel does no arithmetic of its
-// own — whatever the host calls "running" is what the screen says.
-static void pollAlpha() {
-  report.error = "";
-
-  if (WiFi.status() != WL_CONNECTED) { report.error = "no wifi"; return; }
-  if (alphaHost.length() == 0)       { report.error = "no host"; return; }
-
+// One attempt against one coordinator. Returns false if it could not be read,
+// with report.error saying why — the caller decides whether to try the other.
+static bool pollOne(const String& base) {
   HTTPClient http;
   http.setTimeout(HTTP_TIMEOUT_MS);
   http.setConnectTimeout(HTTP_TIMEOUT_MS);
 
-  String url = alphaHost + "/stats";
-  if (!http.begin(url)) { report.error = "bad url"; return; }
+  String url = base + "/stats";
+  if (!http.begin(url)) { report.error = "bad url"; return false; }
   if (alphaKey.length()) http.addHeader("Authorization", "Bearer " + alphaKey);
 
   const int status = http.GET();
@@ -148,13 +151,13 @@ static void pollAlpha() {
     // and was turned away, which is a different job from "the host is down".
     report.error = (status == 401 || status == 403) ? "unauthorized" : ("http " + String(status));
     http.end();
-    return;
+    return false;
   }
 
   JsonDocument doc;
   const DeserializationError err = deserializeJson(doc, http.getStream());
   http.end();
-  if (err) { report.error = "bad json"; return; }
+  if (err) { report.error = "bad json"; return false; }
 
   // Read with the host's own names, from src/host/server.js:
   //
@@ -175,6 +178,34 @@ static void pollAlpha() {
   report.blocked   = doc["memory"]["blockedTasks"] | 0;
   report.valid     = true;
   report.fetchedAt = millis();
+  report.error     = "";
+  return true;
+}
+
+// Reads GET /stats. That endpoint already summarises the queue and the
+// registry, so the panel does no arithmetic of its own — whatever the host
+// calls "running" is what the screen says.
+//
+// The primary first, every time, then the standby. Always starting at the
+// primary is what brings the panel home when the host comes back: there is no
+// separate "the host is up again" signal to miss, and the cost of being wrong
+// is one failed request every five seconds.
+static void pollAlpha() {
+  report.error = "";
+
+  if (WiFi.status() != WL_CONNECTED) { report.error = "no wifi"; return; }
+  if (alphaHost.length() == 0)       { report.error = "no host"; return; }
+
+  if (pollOne(alphaHost)) { onStandby = false; return; }
+
+  if (alphaStandby.length()) {
+    const String primaryError = report.error;
+    if (pollOne(alphaStandby)) { onStandby = true; return; }
+    // Neither answered: name the primary's failure, which is the one that
+    // explains why the fleet is on a laptop at all.
+    report.error = primaryError;
+  }
+  onStandby = false;
 }
 
 // ------------------------------------------------------------------ rendering
@@ -211,7 +242,10 @@ static void drawReport() {
   // question a wall-clock time on a frozen screen cannot — is this still live?
   if (report.valid) {
     const String age = String((millis() - report.fetchedAt) / 1000) + "s ago";
-    displayFooter(report.version.length() ? "alpha " + report.version + "  " + age : age);
+    // Reading the standby is not an error, but it is not the normal state
+    // either, and a screen that does not say so hides a host that is off.
+    const String where = onStandby ? "  [standby]" : "";
+    displayFooter((report.version.length() ? "alpha " + report.version + "  " + age : age) + where);
   } else {
     displayFooter("");
   }
@@ -267,10 +301,12 @@ static void handleCommand(const String& line) {
   if (strcmp(cmd, "alpha") == 0) {
     const char* host = in["host"] | "";
     if (strlen(host) == 0) { replyError("host required", cmd); return; }
-    saveAlpha(String(host), String(in["key"] | ""));
+    // host2 is optional: a fleet with no standby simply has none.
+    saveAlpha(String(host), String(in["host2"] | ""), String(in["key"] | ""));
     JsonDocument out;
     out["ok"] = true;
     out["host"] = alphaHost;
+    out["host2"] = alphaStandby;
     reply(out, cmd);
     return;
   }
@@ -282,6 +318,7 @@ static void handleCommand(const String& line) {
     out["connected"] = WiFi.status() == WL_CONNECTED;
     if (WiFi.status() == WL_CONNECTED) out["ip"] = WiFi.localIP().toString();
     out["host"] = alphaHost;
+    out["host2"] = alphaStandby;
     // Whether a key is set, never the key itself. The panel is the last place
     // a credential should be readable from.
     out["keyed"] = alphaKey.length() > 0;

@@ -103,6 +103,34 @@ instant. Two invariants keep the two sides of that accounting honest:
   `memory.store` is the one that does — its *unused* budget only, since what it
   already holds is real heap and has left `freeBytes` on its own.
 
+**An agent may be given more than one coordinator, and comes home by itself.**
+`ALPHA_HOST_URL` takes a comma-separated list, primary first: the agent
+registers with the first that answers, which is what makes
+`scripts/standby-alpha.mjs` worth running — a laptop running Alpha while the
+host is off is no use if every worker still dials the machine that is not
+there. Three things hold it together, all tested in `test/failover.test.js`:
+
+- **Registration always starts at the top of the list**, so there is no
+  separate demotion to get wrong: the moment the primary answers, that is where
+  the next registration goes.
+- **A host that answers and refuses is not failed over from.** A 401 or a
+  protocol mismatch will say the same thing on the standby, and moving on would
+  bury the reason under a second, less useful error. Only an unreachable
+  coordinator moves the agent along.
+- **Coming home happens between tasks.** An agent on a standby checks the
+  primary's `/healthz` (the one endpoint needing no credential) at most once a
+  minute and only while holding nothing, then deregisters from the standby
+  before re-registering — moving mid-task would leave a lease with a
+  coordinator it had walked away from, and the work would be re-run elsewhere
+  while it was still running here.
+
+The panel follows the same shape from the other side: `host2` in its NVS is the
+standby, it reads the primary first on every poll, and the footer says
+`[standby]` while it is on the fallback. `docs/HOST_DOWN.md` is the runbook, and
+the thing it exists to stop people losing an evening to: **the panel is not on
+the tailnet.** It is on WiFi, so a `100.x` address does not exist for it and
+both URLs it is given have to be reachable from that network.
+
 **One registration per worker.** Agents dial out, so a worker that crashed and
 came back is indistinguishable on the wire from a new machine: it registers,
 gets a fresh id, and the dead registration goes on lending the same RAM and
