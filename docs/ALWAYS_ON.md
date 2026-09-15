@@ -16,6 +16,7 @@ alternatives to each other so much as different lengths of the same rope:
 |---|---|---|---|
 | `self-update.mjs` | one pass, from a scheduler | no — exits 10 to ask | no |
 | `watchdog.mjs` | one pass, from a scheduler | only with `--restart-command` | one JSON line per run |
+| `install-watch-task.ps1` | once, to put the above on a timer | no | the task it creates |
 | `keep-agent.mjs` | forever | yes | its log |
 | `standby-alpha.mjs` | forever | no — owns *Alpha* instead | its log |
 

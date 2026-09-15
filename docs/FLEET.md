@@ -94,9 +94,26 @@ not a quorum, and not HA.
 **On the Alpha host, every 30 minutes** — is this machine attached, and is the
 panel still reading the host?
 
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-watch-task.ps1 `
+  -Name alpha-host -PanelKey <key id> -Minutes 30
+```
+
+That derives every path from the checkout, so there is nothing to edit, and
+re-running it replaces the task rather than adding a second one. `-WhatIfOnly`
+prints the `schtasks` line instead of running it, if you would rather install it
+by hand:
+
 ```bat
 schtasks /Create /TN "alpha-tunnel watch" /SC MINUTE /MO 30 ^
   /TR "node C:\alpha\scripts\watchdog.mjs --no-update --name alpha-host --panel-key <key id> --log C:\alpha\watchdog.log"
+```
+
+Prove it once rather than trusting it:
+
+```powershell
+schtasks /Run /TN "alpha-tunnel watch"
+Get-Content C:\alpha\watchdog.log -Tail 1
 ```
 
 `--panel-key` is the credential the panel polls `/stats` with; `alpha-admin keys`
