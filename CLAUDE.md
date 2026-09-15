@@ -215,6 +215,58 @@ say so at each site; this is the short list.
   drains first, then aborts, then deregisters. Deregistering up front makes
   every in-flight result a 410, and the host re-runs work that succeeded.
 
+## Two supervisors, and why neither is a handler
+
+`scripts/keep-agent.mjs` runs the agent on a laptop, restarts it when it dies,
+and every three hours fast-forwards the checkout and restarts it onto the new
+code. It shells out to `self-update.mjs` rather than reimplementing the three
+rules. The division of labour is the whole design: `self-update.mjs` exits 10 to
+*ask* for a restart because a scheduled script does not own the agent process;
+the keeper owns it, so it may. Three things it must keep doing:
+
+- **Stop, never respawn, when its agent stood down.** The agent exits 0 in
+  exactly one case nobody asked for — `410 stand_down`, another process on this
+  machine now holds the registration. Respawning is the eviction loop the
+  stand-down exists to end, so the keeper exits with it. That is why an
+  unexpected exit 0 is not a crash.
+- **Ask over IPC, not SIGTERM.** `AGENT_SHUTDOWN_MESSAGE` exists because Windows
+  has no signal meaning "drain and stop"; a killed agent costs a lease and a
+  re-run of work that succeeded. The entrypoint listens only when `process.send`
+  is there, so nothing changes for an agent started by hand.
+- **Run the agent from the checkout it updates**, not from beside itself. That
+  is also the test seam — the suite puts a stub at `src/agent/index.js` in a
+  temp repo and watches the *new* one start.
+
+It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
+other: the watchdog is one scheduled pass that asks the *host* whether this
+machine is attached and writes the answer down, which nothing running on the
+laptop can answer about itself. Run beside the keeper it wants `--no-update` and
+no `--restart-command`, or the two bounce the same worker.
+
+`scripts/standby-alpha.mjs` runs Alpha on a laptop while the host is not
+answering, and stops it when the host is back. It is a local daemon and
+deliberately **not** a handler: failover cannot be driven over the tunnel,
+because the coordinator is the thing that is down — a standby that promotes by
+task is one that only starts when it is not needed. It follows the external-
+program rules anyway (pinned interpreter by extension, start script that must
+resolve inside `--root`, argv array, never a shell string), and takes nothing
+from the network but whether a health endpoint answered. `--npm-script` is the
+same rule with `package.json` as the allowlist — a name it does not define is
+refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
+spawned without a shell.
+
+**Stopping it stops the tree.** `npm run dev` is a wrapper and the server is its
+grandchild; killing only the spawned process leaves the port held and the next
+start fails to bind. POSIX gets its own process group, Windows gets
+`taskkill /T`, and a test starts a real `npm run dev` and fails if the
+grandchild survives.
+
+Its real hazard is split brain: the machine cannot tell "the host is down" from
+"I cannot reach the host". `--control-url` (something up whenever this laptop's
+network is) is what keeps a dropped link from producing a second live Alpha, and
+demotion is on by default so a split heals when the link does. Neither is a
+quorum, and the docs say so rather than implying this is HA.
+
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally

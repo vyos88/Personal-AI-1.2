@@ -19,6 +19,8 @@
     "admin": "node src/admin/run.js",
     "setup:host": "node scripts/setup-host.mjs",
     "setup:agent": "node scripts/setup-agent.mjs",
+    "keep": "node scripts/keep-agent.mjs",
+    "standby": "node scripts/standby-alpha.mjs",
     "jobs": "node scripts/run-jobs.mjs"
   },
   "dependencies": {},

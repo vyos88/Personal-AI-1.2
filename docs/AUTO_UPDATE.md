@@ -53,6 +53,13 @@ good moment, is your machine's business, not a script's.
 node scripts/self-update.mjs            # from the repo root
 ```
 
+> **Or skip the scheduler entirely.** `node scripts/keep-agent.mjs` runs the
+> agent *and* does this check every three hours, restarting the worker itself
+> when the pull moves something — it can, because it owns the process it
+> started. One command per laptop, no scheduled task, no service for the agent.
+> See [ALWAYS_ON.md](ALWAYS_ON.md). The rest of this section is for machines
+> that run the agent some other way.
+
 ```
 self-update: now on 4977f08 — Carry the memory report on the poll
 self-update: restart the agent to pick this up
@@ -167,6 +174,13 @@ worse than useless:
 - **It never guesses which service to restart.** No `--restart-command`, no
   restart: it exits 10 and says so. A scheduled task that bounces the wrong
   service every twelve hours is worse than one that bounces nothing.
+
+**Running the keeper too?** Then give the watchdog `--no-update` and no
+`--restart-command`. The keeper already pulls and owns the agent process; a
+scheduled task bouncing a service the keeper is supervising is two things
+fighting over one worker. What the watchdog still contributes — asking the host
+whether this machine is actually attached, and writing it down — is the half no
+supervisor on the laptop can do, because it is the host's answer.
 
 Reading `/agents` needs an **operator** key in `ALPHA_ADMIN_TOKEN` — the
 agent's own key cannot, by design. Without one the run still updates and still
@@ -391,6 +405,12 @@ half-swapped app if the rebuild fails.
 
 This stays manual until the push below happens. That is the whole argument for
 doing it.
+
+It is also what a standby laptop runs on. `scripts/standby-alpha.mjs` starts
+Alpha here when the host stops answering (see [ALWAYS_ON.md](ALWAYS_ON.md)), and
+what it starts is whatever `sync-alpha.ps1` last copied over — so a copy that is
+three weeks old will come up three weeks old. Sync after anything worth failing
+over to, and start it by hand once: a standby nobody has ever run is untested.
 
 ### Getting Alpha into the repo, once
 
