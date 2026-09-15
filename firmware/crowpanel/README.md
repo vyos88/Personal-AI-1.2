@@ -52,6 +52,27 @@ why `display.h` is TFT_eSPI rather than an RGB driver.
 Confirm it with `arduino-cli board listall esp32`; `Ports` will also report what
 the CLI thinks is attached.
 
+## The short way: one command
+
+On the machine the board is plugged into:
+
+```bash
+setx ALPHA_PANEL_WIFI_PASSWORD "<the password>"   # once, and never in argv
+node scripts/connect-panel.mjs --ssid "<the network>" --flash
+```
+
+It finds the port (the CH340 bridge is the panel), compiles and uploads, mints
+the panel a key scoped to `agents:read` and nothing else, sends the credentials
+down the wire, and then **waits for the host to see that key being used**. That
+last step is the only evidence that counts: a flash that worked and a join that
+worked still leave a dark screen if the panel cannot reach the coordinator.
+
+Exit 0 means the panel is reading the host, and the last line tells you how to
+keep it that way. `--verify-only` re-asks that question later without touching
+the board.
+
+The rest of this section is the same sequence by hand, one queued task at a time.
+
 ## Flashing
 
 The host is Windows, where PowerShell's execution policy blocks `npm.ps1` — so

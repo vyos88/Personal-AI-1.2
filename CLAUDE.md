@@ -439,6 +439,18 @@ a bug that was in this file:
   wrong password as silence. That is also why `Provision` wants `--lease-ms`,
   not only `Flash`.
 
+`scripts/connect-panel.mjs` is the whole sequence as one command, run on the
+machine the board is on — port, flash, key, provision, verify. The last step is
+the only one that decides its exit code, and that is the point: a flash that
+worked, a join that worked and a `provisioned:true` still leave a dark screen if
+the panel cannot reach the coordinator. So it waits for the panel's key to be
+*used* on the host, and waits for a use newer than the provisioning rather than
+any use at all — "this key worked last Tuesday" is not a connected panel. It
+mints that key itself, scoped to `agents:read` and nothing else: the screen on
+the wall must not hold a credential that could queue work. It picks the port by
+the CH340 bridge and refuses to guess between two candidates, because flashing
+the wrong board is not something the next command can undo.
+
 The panel reads `GET /stats` and draws it, so it reads the host's own key names
 — `queue.byStatus.leased` is what it calls *running* — and a test pins those
 names against a real host. A key the sketch invents is not an error in

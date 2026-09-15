@@ -89,6 +89,16 @@ whenever this laptop's network is, a dropped link produces a second live Alpha.
 Demotion is on by default so a split heals when the link does. This is failover,
 not a quorum, and not HA.
 
+## Getting the panel connected in the first place
+
+```bash
+node scripts/connect-panel.mjs --ssid "<network>" --flash
+```
+
+Port, flash, key, provision, and then the step that decides the exit code:
+waiting for the host to see the panel's key being used. `--verify-only` asks
+that last question on its own, any time.
+
 ## The two scheduled runs, and the receipts they leave
 
 **On the Alpha host, every 30 minutes** — is this machine attached, and is the
