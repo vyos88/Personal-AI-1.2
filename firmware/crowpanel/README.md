@@ -52,6 +52,16 @@ why `display.h` is TFT_eSPI rather than an RGB driver.
 Confirm it with `arduino-cli board listall esp32`; `Ports` will also report what
 the CLI thinks is attached.
 
+## The shortest way
+
+```bash
+node scripts/panel-up.mjs --ssid "<the network>"
+```
+
+Address, coordinator, key, port, provision, verify — on the machine the board
+is plugged into, with nothing else set up first. Use this when the panel is
+already flashed and just needs a network and something to read.
+
 ## The short way: one command
 
 On the machine the board is plugged into:

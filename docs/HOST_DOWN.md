@@ -13,6 +13,27 @@ everything else is, because a `100.x` tailnet address does not exist for it.
 
 Same network, LAN address. That is the rule.
 
+## The whole thing in one command
+
+On the laptop the board is plugged into:
+
+```powershell
+node scripts/panel-up.mjs --ssid "<the wifi>"
+```
+
+It works out this machine's LAN address, starts a coordinator here if none is
+answering (bound to that address, logging to `coordinator.log`), mints the panel
+a key scoped to `agents:read`, finds the serial port, sends the credentials, and
+then waits for the coordinator to see that key being used. Exit 0 means the
+screen is live. It asks for the WiFi password rather than taking it as an
+argument.
+
+Add `--primary http://<the host>:8787` and the panel learns both addresses: it
+reads the host first and falls back here, so it comes home on its own.
+
+The rest of this page is the same thing step by step, for when one of them
+needs doing differently.
+
 ## 1. Run the coordinator here
 
 ```powershell
