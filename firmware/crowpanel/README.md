@@ -52,6 +52,55 @@ why `display.h` is TFT_eSPI rather than an RGB driver.
 Confirm it with `arduino-cli board listall esp32`; `Ports` will also report what
 the CLI thinks is attached.
 
+## The shortest way
+
+```bash
+node scripts/panel-up.mjs --ssid "<the network>"
+```
+
+More than one network — the house WiFi and a hotspot, say — is the same command
+with `--ssid` repeated. It asks for each password in turn, the board keeps up to
+four, and it joins whichever one it can actually hear:
+
+```bash
+node scripts/panel-up.mjs --ssid "house" --ssid "hotspot"
+```
+
+Two read-only commands for when something is wrong:
+
+```bash
+node scripts/panel-up.mjs --list-ports   # what is plugged into this machine
+node scripts/panel-up.mjs --scan         # what the board can hear from where it is
+```
+
+`--scan` is the one that settles "wrong password or wrong room": it asks the
+panel's own radio, which is not the same radio as the laptop beside it.
+
+Address, coordinator, key, port, provision, verify — on the machine the board
+is plugged into, with nothing else set up first. Use this when the panel is
+already flashed and just needs a network and something to read.
+
+## The short way: one command
+
+On the machine the board is plugged into:
+
+```bash
+setx ALPHA_PANEL_WIFI_PASSWORD "<the password>"   # once, and never in argv
+node scripts/connect-panel.mjs --ssid "<the network>" --flash
+```
+
+It finds the port (the CH340 bridge is the panel), compiles and uploads, mints
+the panel a key scoped to `agents:read` and nothing else, sends the credentials
+down the wire, and then **waits for the host to see that key being used**. That
+last step is the only evidence that counts: a flash that worked and a join that
+worked still leave a dark screen if the panel cannot reach the coordinator.
+
+Exit 0 means the panel is reading the host, and the last line tells you how to
+keep it that way. `--verify-only` re-asks that question later without touching
+the board.
+
+The rest of this section is the same sequence by hand, one queued task at a time.
+
 ## Flashing
 
 The host is Windows, where PowerShell's execution policy blocks `npm.ps1` — so
@@ -83,7 +132,8 @@ poll gives up on a task that is running fine.
 One task hands the panel its network and its view of the coordinator:
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
+  --lease-ms 120000 --payload '{
   "action":"Provision",
   "port":"COM3",
   "ssid":"<the new network>",
@@ -98,6 +148,53 @@ the result, never in the logs, and is redacted out of the serial transcript.**
 
 `{"action":"Provision","port":"COM3","ssid":"...","password":"..."}` without a
 host is fine — the panel joins the network and waits.
+
+`--lease-ms` is needed here too, for a different reason than the flash. Opening
+the port resets the board — the CH340 adapter ties DTR to EN — and the sketch's
+`setup()` then spends up to 15 seconds joining WiFi before it reads a byte of
+serial, so the handler waits for the board to answer a harmless `status` before
+it sends anything. Add the board's own 20-second join to that and a provision
+can run past the 60s default lease while working perfectly.
+
+The result says `ready:false` when nothing on the port answered at all. That is
+a different failure from `provisioned:false`: the first means the board is not
+there, is held in bootloader, or is running firmware older than this protocol;
+the second means it is there and the credentials did not work.
+
+**The key needs `agents:read`** — that is the scope `GET /stats` requires, and
+the panel reads nothing else. An operator key covers it; an admin key is not
+needed and the panel is the last place to put one.
+
+## Several networks, and how it picks
+
+The panel keeps up to four sets of credentials and chooses by signal, not by
+the order they were given: it scans, keeps the ones it can see, and tries the
+strongest first. A network it cannot see is skipped rather than waited on —
+except when it can see none of them, which is also what a hidden SSID looks
+like, and then it tries them all in order.
+
+A wrong password comes back as `CONNECT_FAILED` long before the join timeout,
+so one bad entry costs a second rather than the whole budget. When none of them
+work the reply names every SSID it tried, so the answer is "none of these three"
+rather than "it did not work".
+
+Reflashing does not lose what the board already had: the previous firmware's
+single network is migrated into the new list the first time this one boots.
+
+## What the panel shows
+
+It draws `GET /stats` as the host answers it, and does no arithmetic of its own:
+agents attached, tasks queued (and how many of those are waiting on RAM rather
+than on a free machine), running, done, failed, with the host version and the
+age of the last poll along the bottom. `running` is the host's `leased` — a task
+an agent is holding right now.
+
+The WiFi line names the network it actually joined and how good the signal is in
+words rather than only in dBm. A report older than twenty seconds is still shown
+— it is the last true thing the panel knew — but drawn muted and marked
+`[stale]`, because a frozen screen that looks live is the one failure a status
+display must not have. `[standby]` in the footer means it is reading the
+fallback coordinator rather than the host.
 
 ## Bring it up serial-only first
 

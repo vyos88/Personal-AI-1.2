@@ -8,7 +8,7 @@ import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { MemoryStore } from '../src/agent/memstore.js';
 import * as memstoreHandler from '../src/agent/handlers/memstore.js';
-import { memorySnapshot, reserveFromEnv } from '../src/agent/memory.js';
+import { memorySnapshot, reserveFromEnv, reservePercentFromEnv } from '../src/agent/memory.js';
 import { fetchJson } from '../src/common/http.js';
 import {
   TaskStatus,
@@ -793,6 +793,38 @@ test('a memory snapshot never offers more than is free, and holds back the reser
 
   const reserved = memorySnapshot({ reserveBytes: snapshot.freeBytes + gb(1) });
   assert.equal(reserved.offerableBytes, 0);
+});
+
+test('a reserve said as a share of the machine scales with the machine', () => {
+  // The case the MB figure cannot cover: .env.agent is copied from one laptop
+  // to the next, and 512 MB is a tenth of one machine and a thirty-second of
+  // another. A percentage means the same thing wherever the file lands.
+  const plain = memorySnapshot({ reserveBytes: 0 });
+  const tenth = memorySnapshot({ reserveBytes: 0, reservePercent: 10 });
+  assert.equal(tenth.reserveBytes, Math.floor(plain.totalBytes * 0.1));
+  assert.equal(tenth.offerableBytes, Math.max(0, plain.freeBytes - tenth.reserveBytes));
+
+  // The larger of the two wins: the MB figure is a floor, not an alternative.
+  // A machine told to keep 1% still never lends its last half gigabyte.
+  const both = memorySnapshot({ reserveBytes: gb(1), reservePercent: 1 });
+  assert.equal(both.reserveBytes, Math.max(gb(1), Math.floor(plain.totalBytes * 0.01)));
+
+  // 100% is a machine that is here for pinned work and nothing else.
+  assert.equal(memorySnapshot({ reserveBytes: 0, reservePercent: 100 }).offerableBytes, 0);
+  // And the report stays honest about what the machine actually has.
+  assert.equal(memorySnapshot({ reservePercent: 100 }).freeBytes, plain.freeBytes);
+});
+
+test('the reserve percentage is read from the environment, or refused', () => {
+  assert.equal(reservePercentFromEnv(undefined), 0);
+  assert.equal(reservePercentFromEnv(''), 0);
+  assert.equal(reservePercentFromEnv('10'), 10);
+  assert.equal(reservePercentFromEnv('100'), 100);
+  // A typo here silently changes what a machine lends, so it is refused at
+  // startup rather than clamped into something plausible.
+  assert.throws(() => reservePercentFromEnv('101'), /between 0 and 100/);
+  assert.throws(() => reservePercentFromEnv('-1'), /between 0 and 100/);
+  assert.throws(() => reservePercentFromEnv('most of it'), /between 0 and 100/);
 });
 
 test('the reserve is read from the environment in MB', () => {

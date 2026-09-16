@@ -7,6 +7,26 @@ Two long-running processes, both meant to be started once and forgotten:
 | `node scripts/keep-agent.mjs` | an agent, always here and always on the current release |
 | `node scripts/standby-alpha.mjs` | Alpha itself, but only while the main host is not answering |
 
+### Leaving a laptop working, across reboots
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\install-always-on.ps1 `
+  -AlphaRoot C:\alpha -CloudflareTunnel alpha-home -ControlUrl http://192.168.1.1/
+```
+
+Two scheduled tasks at logon: the agent keeper, so this machine takes work from
+the host whenever it is on, and the standby, so Alpha runs here — with the
+public tunnel beside it — while the host is not answering. Without `-AlphaRoot`
+it installs the agent only, which is the right thing on a machine that lends
+capacity and nothing else.
+
+**The tunnel moves with Alpha.** `standby-alpha.mjs --cloudflared <tunnel>` runs
+the named tunnel for exactly as long as this machine is the one serving. A
+tunnel left up beside a demoted Alpha is a public address pointing at nothing,
+and two machines running the same tunnel is worse again. A name, never
+`--token`: cloudflared reads the credential from its own configuration here,
+and an argv is readable by every process on the box.
+
 ### Which script is which
 
 Four scripts now touch "is this laptop still doing its job", and they are not
@@ -16,6 +36,8 @@ alternatives to each other so much as different lengths of the same rope:
 |---|---|---|---|
 | `self-update.mjs` | one pass, from a scheduler | no — exits 10 to ask | no |
 | `watchdog.mjs` | one pass, from a scheduler | only with `--restart-command` | one JSON line per run |
+| `install-watch-task.ps1` | once, to put the above on a timer | no | the task it creates |
+| `install-always-on.ps1` | once, to start the two below at logon | no | the tasks it creates |
 | `keep-agent.mjs` | forever | yes | its log |
 | `standby-alpha.mjs` | forever | no — owns *Alpha* instead | its log |
 

@@ -87,11 +87,49 @@ instant. Two invariants keep the two sides of that accounting honest:
   would break the case it exists to make legible: a task waiting for a machine
   with room is supposed to wait, and looks exactly like one an agent keeps
   refusing — both queued, both with `attempts` flat.
+- **What a machine lends is said as a share of it, not only in megabytes.**
+  `ALPHA_AGENT_MEMORY_RESERVE_PERCENT` is a reserve as a percentage of total
+  RAM, and the larger of it and `..._RESERVE_MB` applies. The MB figure cannot
+  survive `.env.agent` being copied — 512 MB is a tenth of one laptop and a
+  thirty-second of another, so one file gives two machines two different
+  bargains. The percentage is of *total*, not of free: "keep a tenth of this
+  laptop for its owner" is a claim about the machine, and a share of whatever is
+  free right now shrinks exactly when the owner needs it. 100 is legal and means
+  "lend nothing" — a machine present for `--agent`-pinned work only.
+  `docs/FLEET.md` is the per-machine version of this.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.
   `memory.store` is the one that does — its *unused* budget only, since what it
   already holds is real heap and has left `freeBytes` on its own.
+
+**An agent may be given more than one coordinator, and comes home by itself.**
+`ALPHA_HOST_URL` takes a comma-separated list, primary first: the agent
+registers with the first that answers, which is what makes
+`scripts/standby-alpha.mjs` worth running — a laptop running Alpha while the
+host is off is no use if every worker still dials the machine that is not
+there. Three things hold it together, all tested in `test/failover.test.js`:
+
+- **Registration always starts at the top of the list**, so there is no
+  separate demotion to get wrong: the moment the primary answers, that is where
+  the next registration goes.
+- **A host that answers and refuses is not failed over from.** A 401 or a
+  protocol mismatch will say the same thing on the standby, and moving on would
+  bury the reason under a second, less useful error. Only an unreachable
+  coordinator moves the agent along.
+- **Coming home happens between tasks.** An agent on a standby checks the
+  primary's `/healthz` (the one endpoint needing no credential) at most once a
+  minute and only while holding nothing, then deregisters from the standby
+  before re-registering — moving mid-task would leave a lease with a
+  coordinator it had walked away from, and the work would be re-run elsewhere
+  while it was still running here.
+
+The panel follows the same shape from the other side: `host2` in its NVS is the
+standby, it reads the primary first on every poll, and the footer says
+`[standby]` while it is on the fallback. `docs/HOST_DOWN.md` is the runbook, and
+the thing it exists to stop people losing an evening to: **the panel is not on
+the tailnet.** It is on WiFi, so a `100.x` address does not exist for it and
+both URLs it is given have to be reachable from that network.
 
 **One registration per worker.** Agents dial out, so a worker that crashed and
 came back is indistinguishable on the wire from a new machine: it registers,
@@ -240,7 +278,13 @@ the keeper owns it, so it may. Three things it must keep doing:
 It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
 other: the watchdog is one scheduled pass that asks the *host* whether this
 machine is attached and writes the answer down, which nothing running on the
-laptop can answer about itself. Run beside the keeper it wants `--no-update` and
+laptop can answer about itself. `--panel-key` adds the same question about the
+CrowPanel, and it has to be asked of the host for a stronger reason: the panel
+is not an agent at all — it registers nothing, holds no lease and has no row in
+`/agents` — so nothing in the fleet notices when its screen freezes. It does
+read `GET /stats` with a bearer key every five seconds, so that key's
+`lastUsedAt` (epoch ms, not an ISO string) is the receipt, and a key quiet for
+two minutes exits 1 like any other thing needing a person. Run beside the keeper it wants `--no-update` and
 no `--restart-command`, or the two bounce the same worker.
 
 `scripts/standby-alpha.mjs` runs Alpha on a laptop while the host is not
@@ -254,6 +298,14 @@ from the network but whether a health endpoint answered. `--npm-script` is the
 same rule with `package.json` as the allowlist — a name it does not define is
 refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
 spawned without a shell.
+
+**The public way in moves with Alpha.** `--cloudflared <tunnel>` runs a named
+Cloudflare tunnel for exactly as long as this machine is promoted, under the
+same supervision as Alpha itself — a tunnel that died is a public address
+pointing at nothing, and one left running beside a demoted Alpha is worse. The
+name is all it accepts: cloudflared also takes `--token <secret>`, and an argv
+is readable by every process on the machine, which is the same reason the
+panel's WiFi password never travels that way.
 
 **Stopping it stops the tree.** `npm run dev` is a wrapper and the server is its
 grandchild; killing only the spawned process leaves the port held and the next
@@ -402,7 +454,79 @@ The serial side is `fs` plus one `stty`/`mode.com` call, because Node's standard
 library can open a serial device but cannot set its baud rate, and this repo has
 no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
-the sketch would be restarting instead of answering.
+the sketch would be restarting instead of answering. Three rules there, each one
+a bug that was in this file:
+
+- **No read may wait forever.** `stty raw` sets `min 1 time 0`, so a read waits
+  for a byte a silent board never sends and the deadline is never looked at —
+  the task then holds its lease until the sweeper takes it away, which is the
+  exact failure the timeout exists to prevent. `min 0 time 1` goes *after*
+  `raw`, and every read is raced against the deadline so Windows, which has no
+  such knob, is covered by the close instead. The same outstanding read is
+  picked up on the next pass: a second read alongside it splits the reply.
+- **The open resets the board, so the conversation starts with `status`.** The
+  first line written otherwise lands in a sketch that is still in `setup()` —
+  which itself spends up to 15s joining WiFi — and is simply lost. The probe
+  repeats until the board answers, and the credentials go only to something that
+  has spoken. `ready:false` in the result is "nothing there", which sends an
+  operator somewhere different from `provisioned:false`.
+- **A reply budget outlasts what the sketch does before replying.** Its `wifi`
+  command joins for 20s before it answers, so a shorter budget here reports a
+  wrong password as silence. That is also why `Provision` wants `--lease-ms`,
+  not only `Flash`.
+
+`scripts/connect-panel.mjs` is the whole sequence as one command, run on the
+machine the board is on — port, flash, key, provision, verify. The last step is
+the only one that decides its exit code, and that is the point: a flash that
+worked, a join that worked and a `provisioned:true` still leave a dark screen if
+the panel cannot reach the coordinator. So it waits for the panel's key to be
+*used* on the host, and waits for a use newer than the provisioning rather than
+any use at all — "this key worked last Tuesday" is not a connected panel. It
+mints that key itself, scoped to `agents:read` and nothing else: the screen on
+the wall must not hold a credential that could queue work. It picks the port by
+the CH340 bridge and refuses to guess between two candidates, because flashing
+the wrong board is not something the next command can undo.
+
+**The panel knows several networks, and picks by signal rather than by order.**
+It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
+handler so an operator hears "at most four" instead of silently losing the
+fifth), scans, keeps the ones it can see and tries the strongest first — the
+house WiFi provisioned first is the wrong first choice in a room where only the
+hotspot reaches. Three things that follow:
+
+- **A network the scan did not find is skipped, unless none of them were
+  found.** That case is also what a hidden SSID looks like, so it falls back to
+  trying everything in the order given rather than concluding there is nothing
+  here.
+- **`Provision` takes `networks: [...]`, and a bad entry fails the whole
+  command.** A panel holding three of the four networks somebody meant is the
+  kind of half-success nobody notices until they are in the wrong room. The
+  single `ssid`/`password` form still means a list of one.
+- **Every password is redacted, not just the first.** `redact()` takes an array
+  and replaces longest-first, or a password that contains another is left half
+  visible.
+
+**`Scan` is the action that settles "wrong password or wrong room".** It asks
+the board's own radio what it can hear from where the panel actually sits, which
+is not what the laptop beside it hears. `panel-up.mjs` runs it automatically
+when a join fails, and `--scan` runs it on its own. Reflashing does not cost a
+board its credentials: the previous firmware's single network is migrated into
+the list on first boot.
+
+**Serial ports are read from two sources per platform.** On Windows `mode.com`
+lists only ports it can *open*, so a board held by a serial monitor — the usual
+reason a flash fails — is missing from it; the registry's `SERIALCOMM` device
+map has it either way, and the difference between the two is reported as "in use
+by another program?" rather than as no board at all. On POSIX `/dev/serial/by-id`
+supplies the label (`usb-1a86_...` is the CH340 this panel is behind) while the
+port opened is the node it resolves to.
+
+The panel reads `GET /stats` and draws it, so it reads the host's own key names
+— `queue.byStatus.leased` is what it calls *running* — and a test pins those
+names against a real host. A key the sketch invents is not an error in
+ArduinoJson: it reads as zero, and a screen of zeroes looks like an idle fleet
+rather than like a display reading the wrong endpoint. Same failure as
+`alpha-devices.js`'s `serialPorts`, on a device with no way to report it.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -73,7 +73,33 @@ function alphaRoot(t) {
   return dir;
 }
 
-function startStandby(t, { root, host, args = [], port = '', startArgs = ['--start', 'scripts/start.mjs'] }) {
+/**
+ * A stand-in for cloudflared: it records being run, with its argv, and records
+ * being stopped. The real one holds a public hostname open, which is exactly
+ * why it must not outlive the promotion that started it.
+ */
+function stubCloudflared(t) {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-cloudflared-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const log = join(dir, 'tunnel.log');
+  const runner = join(dir, 'run.mjs');
+  writeFileSync(
+    runner,
+    `import { appendFileSync } from 'node:fs';\n` +
+      `appendFileSync(${JSON.stringify(log)}, 'run ' + process.argv.slice(2).join(' ') + '\\n');\n` +
+      `process.on('SIGTERM', () => { appendFileSync(${JSON.stringify(log)}, 'stop\\n'); process.exit(0); });\n` +
+      `setInterval(() => {}, 1000);\n`,
+  );
+  const exe = join(dir, 'cloudflared');
+  writeFileSync(exe, `#!/bin/sh\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(runner)} "$@"\n`);
+  chmodSync(exe, 0o755);
+  return {
+    exe,
+    lines: () => (existsSync(log) ? readFileSync(log, 'utf8').split('\n').filter(Boolean) : []),
+  };
+}
+
+function startStandby(t, { root, host, args = [], port = '', env = {}, startArgs = ['--start', 'scripts/start.mjs'] }) {
   const dir = mkdtempSync(join(tmpdir(), 'alpha-standbylog-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const logFile = join(dir, 'events.log');
@@ -99,6 +125,7 @@ function startStandby(t, { root, host, args = [], port = '', startArgs = ['--sta
         STANDBY_TEST_DIR: dir,
         STANDBY_TEST_PORT: port,
         ALPHA_LOG_LEVEL: 'error',
+        ...env,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
     },
@@ -318,4 +345,44 @@ test('a script name that is not in the root package.json is refused at startup',
   assert.equal(await standby.exited, 1);
   assert.match(standby.stderr(), /no "definitely-not-there" script/);
   assert.match(standby.stderr(), /found: dev/);
+});
+
+// ------------------------------------------------------------------- the way in
+
+test('the public tunnel runs while this machine is serving, and not after', { skip: process.platform === 'win32' }, async (t) => {
+  const host = await fakeHost(t);
+  const root = alphaRoot(t);
+  const cloudflared = stubCloudflared(t);
+
+  const standby = startStandby(t, {
+    root,
+    host: host.url,
+    args: ['--cloudflared', 'alpha-home'],
+    env: { ALPHA_CLOUDFLARED: cloudflared.exe },
+  });
+
+  // Nothing while the host is up: the tunnel belongs to whoever is serving.
+  await new Promise((r) => setTimeout(r, 500));
+  assert.deepEqual(cloudflared.lines(), []);
+
+  host.goDown();
+  await waitFor('Alpha to start here', () => standby.events().includes('start'));
+  const started = await waitFor('the tunnel to be run', () =>
+    cloudflared.lines().find((line) => line.startsWith('run ')),
+  );
+  // Named tunnel, nothing else: no token in an argv every process can read.
+  assert.equal(started, 'run tunnel run alpha-home');
+
+  host.comeBack();
+  await waitFor('Alpha to be stopped', () => standby.events().includes('stop'));
+  await waitFor('the tunnel to be stopped', () => cloudflared.lines().includes('stop'));
+});
+
+test('a tunnel name that could be an argument is refused at startup', async (t) => {
+  const host = await fakeHost(t);
+  const root = alphaRoot(t);
+  const standby = startStandby(t, { root, host: host.url, args: ['--cloudflared', '--token x'] });
+
+  assert.equal(await standby.exited, 1);
+  assert.match(standby.stderr(), /--cloudflared must be a tunnel name or id/);
 });
