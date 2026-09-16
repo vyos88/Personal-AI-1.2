@@ -366,30 +366,6 @@ own field names (`serialPorts`, not a plausible-reading `ports`) because the
 first version read a name that does not exist and returned an empty list on
 every machine, which looks like "nothing attached" rather than like a bug.
 
-`wifi-survey.js` is the sixth, and the one whose name has to be read
-carefully. `wifi.survey` runs `netsh wlan show networks mode=bssid` and returns
-every access point the machine can hear, per radio: BSSID, signal, band,
-channel. It follows `alpha-devices`' tightening — **no arguments at all**,
-since the argv is a constant, so `{ ssid: 'home' }` is refused rather than
-returning everything and looking like a filter that matched. Three things it
-gets right on purpose:
-
-- **It measures attenuation; it does not see through walls.** A WiFi chip
-  reports one number per AP and nothing about what is between them. Two
-  surveys from two rooms differ by what the wall costs, in dB, and that is a
-  real and useful measurement — but through-wall *imaging* needs channel state
-  information from specific chipsets, or radar. The `description` says so,
-  because the name alone invites the other reading.
-- **Signal is carried in dBm as well as Windows' percentage.** The mapping is
-  linear (0% is -100 dBm, 100% is -50 dBm); keeping both means a survey can be
-  compared with one taken by anything else, while still showing what the
-  machine actually said.
-- **An unreadable answer is not an empty one.** netsh's output is localised, so
-  on a non-English Windows the labels are words this parser does not know and
-  the survey would return zero networks — indistinguishable from a room with no
-  WiFi. It throws instead, with the first 300 characters of what it got. Same
-  failure `alpha-devices` records for `serialPorts`, caught before it ships.
-
 `alpha-panel.js` is the fifth, and the only one that drives hardware. It
 flashes and provisions the CrowPanel over USB from whichever machine the board
 is plugged into — the handler is opt-in and `available()` refuses a machine
@@ -427,6 +403,30 @@ library can open a serial device but cannot set its baud rate, and this repo has
 no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
 the sketch would be restarting instead of answering.
+
+`wifi-survey.js` is the sixth, and the one whose name has to be read
+carefully. `wifi.survey` runs `netsh wlan show networks mode=bssid` and returns
+every access point the machine can hear, per radio: BSSID, signal, band,
+channel. It follows `alpha-devices`' tightening — **no arguments at all**,
+since the argv is a constant, so `{ ssid: 'home' }` is refused rather than
+returning everything and looking like a filter that matched. Three things it
+gets right on purpose:
+
+- **It measures attenuation; it does not see through walls.** A WiFi chip
+  reports one number per AP and nothing about what is between them. Two
+  surveys from two rooms differ by what the wall costs, in dB, and that is a
+  real and useful measurement — but through-wall *imaging* needs channel state
+  information from specific chipsets, or radar. The `description` says so,
+  because the name alone invites the other reading.
+- **Signal is carried in dBm as well as Windows' percentage.** The mapping is
+  linear (0% is -100 dBm, 100% is -50 dBm); keeping both means a survey can be
+  compared with one taken by anything else, while still showing what the
+  machine actually said.
+- **An unreadable answer is not an empty one.** netsh's output is localised, so
+  on a non-English Windows the labels are words this parser does not know and
+  the survey would return zero networks — indistinguishable from a room with no
+  WiFi. It throws instead, with the first 300 characters of what it got. Same
+  failure `alpha-devices` records for `serialPorts`, caught before it ships.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
