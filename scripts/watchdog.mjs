@@ -126,6 +126,25 @@ async function update() {
   return { ran: true, updated: false, failed: true, note: result.stdout || result.stderr };
 }
 
+/**
+ * Same-name machines are legal (two agents deliberately run on one box, or a
+ * superseded registration lingering until the stale sweep), so `/agents` can
+ * hold more than one row for `name`. Only the live one's version is worth
+ * reporting: picking an arbitrary row — the first one registered, say — can
+ * report a dead process's stale version as this machine's, drift or no drift
+ * has actually changed. "Live" is exactly the same freshest-heartbeat test
+ * `attached`/`stale` already use, so both halves of this check agree on which
+ * row is the one that is actually still talking.
+ */
+export function pickLive(agents, name) {
+  let live = null;
+  for (const agent of agents) {
+    if (agent.name !== name) continue;
+    if (!live || (agent.idleMs ?? Infinity) < (live.idleMs ?? Infinity)) live = agent;
+  }
+  return live;
+}
+
 /** Step 3 and 4: the coordinator, and this machine's place in it. */
 async function checkFleet(name) {
   const fleet = { reachable: false, attached: null, version: null, drifted: null, agents: null };
@@ -150,11 +169,11 @@ async function checkFleet(name) {
   try {
     const { body } = await fetchJson(`${HOST}/agents`, { token: TOKEN, timeoutMs: 10_000 });
     const mine = body.agents.filter((agent) => agent.name === name);
+    const live = pickLive(body.agents, name);
     fleet.agents = body.agents.length;
-    fleet.version = mine[0]?.version ?? null;
+    fleet.version = live?.version ?? null;
     fleet.drifted = Boolean(fleet.version && body.hostVersion && fleet.version !== body.hostVersion);
     fleet.inFlight = mine.reduce((total, agent) => total + (agent.inFlight ?? 0), 0);
-    fleet.idleMs = mine.length ? Math.min(...mine.map((agent) => agent.idleMs ?? Infinity)) : null;
     // A registration in the list is not a working machine. A killed agent
     // never deregisters, so its row sits there until the stale sweep at
     // AGENT_STALE_MS — and a watchdog that read that row as "attached" would
@@ -162,8 +181,8 @@ async function checkFleet(name) {
     // exactly the window a twelve-hourly check is most likely to land in.
     // A live agent heartbeats every twenty seconds, so anything past two
     // missed beats has stopped talking.
-    fleet.silentFor = fleet.idleMs;
-    fleet.stale = mine.length > 0 && fleet.idleMs > SILENT_MS;
+    fleet.silentFor = live?.idleMs ?? null;
+    fleet.stale = mine.length > 0 && fleet.silentFor > SILENT_MS;
     fleet.attached = mine.length > 0 && !fleet.stale;
   } catch (error) {
     fleet.error = error instanceof HttpError ? `HTTP ${error.status} from /agents` : error.message;
@@ -246,7 +265,12 @@ async function main() {
   process.exit(exitCode);
 }
 
-main().catch((error) => {
-  process.stderr.write(`watchdog: ${error.stack ?? error.message}\n`);
-  process.exit(EXIT_NEEDS_A_PERSON);
-});
+// Guarded so `pickLive` can be imported and unit-tested — the pure part of
+// this file — without also running a scheduled check against a live host and
+// calling process.exit() out from under the test.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    process.stderr.write(`watchdog: ${error.stack ?? error.message}\n`);
+    process.exit(EXIT_NEEDS_A_PERSON);
+  });
+}
