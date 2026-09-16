@@ -430,6 +430,27 @@ test('binding an address this machine does not have fails clearly', async () => 
   await host.close();
 });
 
+test('retrying listen() after a partial bind does not choke on the address that already came up', async (t) => {
+  const host = createHost({ token: TOKEN });
+  t.after(() => host.close());
+
+  // First attempt: 127.0.0.1 binds immediately, the second address does not
+  // exist on this machine — the same shape as loopback succeeding while
+  // Tailscale has not yet assigned the tailnet address.
+  await assert.rejects(
+    () => host.listen({ port: 0, binds: ['127.0.0.1', '203.0.113.99'] }),
+    (error) => error.code === 'EADDRNOTAVAIL' || error.code === 'EINVAL',
+  );
+
+  // Retrying — as listenWhenAvailable() does every couple of seconds — must
+  // not re-call .listen() on the server that already succeeded. Before the
+  // fix this threw ERR_SERVER_ALREADY_LISTEN, which index.js could not tell
+  // apart from a real failure and exited on.
+  const addresses = await host.listen({ port: 0, binds: ['127.0.0.1', '127.0.0.2'] });
+  assert.equal(addresses[0].address, '127.0.0.1');
+  assert.equal(addresses[1].address, '127.0.0.2');
+});
+
 test('the coordinator waits for an address that is not up yet, then binds', async (t) => {
   // 127.0.0.2 exists, so stand in for "Tailscale not up yet" with an address
   // this machine genuinely does not have, and give up quickly.

@@ -214,6 +214,22 @@ say so at each site; this is the short list.
 - **An agent must not deregister while tasks are still reporting.** `stop()`
   drains first, then aborts, then deregisters. Deregistering up front makes
   every in-flight result a 410, and the host re-runs work that succeeded.
+- **`ALPHA_HOST_BIND` must name *this* machine's own tailnet address, never a
+  copied or remembered one.** Found live on the Alpha host itself: `.env` had
+  it set to a different machine's `100.x` address entirely (leftover from an
+  earlier setup pass), so `listenWhenAvailable()` retried forever against an
+  address that could never come up on this box — indistinguishable at a glance
+  from the ordinary "Tailscale hasn't assigned it yet" boot-time wait the retry
+  loop exists for. Worse, the moment loopback (`127.0.0.1`) bound successfully
+  while the wrong tailnet address kept failing, the very next retry re-called
+  `.listen()` on the already-bound loopback server and crashed the whole
+  process on `ERR_SERVER_ALREADY_LISTEN` — a second, previously-unfound bug,
+  now fixed in `listen()` (`src/host/server.js`) by skipping any server that
+  is already `.listening`, with a regression test in `test/tunnel.test.js`.
+  Checking `$env:ALPHA_HOST_BIND` (an OS-level environment variable silently
+  wins over `.env` — `process.loadEnvFile()` never overrides one) and
+  `tailscale ip -4` against each other is the fast way to catch this before it
+  costs another debugging session.
 
 ## Two supervisors, and why neither is a handler
 
