@@ -327,6 +327,63 @@ too. Two halves of the same problem: `--agent` decides where a render goes, and
 the first place — the second is what covers an *unpinned* render on a laptop
 holding a copy of the host's configuration.
 
+**The queue forgets; the ledger remembers.** `src/host/queue.js` is one
+in-memory Map, deliberately — but that meant the *answer* died with it, and
+after a restart there was no way to say how many renders ran last night or
+which species came back. Terminal tasks now also go to `src/host/receipts.js`
+via the queue's `onTerminal` seam. Four properties hold it up:
+
+- **It is the expendable half.** A ledger write that throws — full disk,
+  read-only mount — must never turn a task that genuinely succeeded into a 500
+  for the agent reporting it, which would cost the lease and re-run finished
+  work. `#finished()` swallows and logs.
+- **A corrupt file does not stop the host.** The opposite of `AuthStore`, and
+  for the opposite reason: overwriting credentials silently un-revokes access,
+  whereas blocking the coordinator over a damaged *history* file is worse than
+  losing the history. The bad file is moved aside and kept, never deleted.
+- **The agent's name is resolved at record time, not read time.** A receipt
+  outlives the registration that ran the work, and ids are minted per
+  registration — a minute later there is nothing to look up.
+- **Persistence follows the auth store's.** A host whose credentials are in
+  memory cannot outlive its process, so a durable ledger for it is meaningless
+  and actively harmful: defaulting it to the real path regardless put
+  kilobytes of fabricated receipts into `./data/receipts.json` on every
+  `npm test` run. Pinned by a test.
+
+`alpha-render-inventory.js` is the sixth external-facing handler and the only
+one that exists because of what the ledger *cannot* know. The ledger records
+from the moment a host started keeping one; every render before that left one
+durable trace, the file on the machine that made it. So this reads the output
+directory and reports it. Four rules it follows:
+
+- **It never parses a seed out of a filename.** The generator names its own
+  file, which is why `alpha.render` reports what appeared rather than
+  predicting a path; reconstructing `fern_7.png` → seed 7 reintroduces exactly
+  that assumption and breaks the first time the naming changes. Counts, bytes
+  and mtimes are what a file can honestly tell you.
+- **It takes no path from the payload**, only an optional `species` filter. A
+  handler that could be told where to look is a directory lister with a task
+  queue in front of it — the same objection `handlers/index.js` raises against
+  a shell handler.
+- **A render in flight is excluded but counted.** `run()`'s `.render-*`
+  staging directory holds a half-written image, which is not output; the
+  number of them is reported, because that is the other half of reading a
+  directory mid-flight.
+- **Its `available()` is weaker than `alpha.render`'s on purpose** — output
+  directory yes, Blender no. A machine whose Blender broke still holds every
+  render it made, and that is exactly when an inventory is wanted. It shares
+  `resolveOutputDir()` with the render handler rather than keeping a second
+  copy of the rule, because a copy that drifts reads a directory the renders
+  do not write to and calls a full machine empty.
+
+`scripts/alpha-manager.mjs` is what a scheduled loop runs, and the three things
+it adds over `run-jobs.mjs` are the three a loop needs: seeds **continue** from
+the ledger instead of repeating (a loop on `--seed 0` re-renders the same six
+forever), an allowlist and a per-window quota **approve** before anything is
+queued, and it **never waits** — a render outlives any sensible pass. A pass
+that would overrun the quota is refused whole rather than trimmed, because "I
+rendered some of what you asked" is the worse answer for an unattended job.
+
 `grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
 rivals, because both were asked for by "3D creatures and plants". They are not.
 `alpha.render` drives Blender for minutes on the one machine with a GPU and
