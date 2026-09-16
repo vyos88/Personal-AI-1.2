@@ -30,7 +30,7 @@
 
 import { execFile, spawn } from 'node:child_process';
 import { openSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
+import { readdir, realpath } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -57,13 +57,17 @@ panel-up — make the panel show live data, from this machine
   node scripts/panel-up.mjs --ssid "the wifi"
 
 Options
-  --ssid <n>       WiFi network for the panel. Default: ALPHA_PANEL_WIFI_SSID
+  --ssid <n>       WiFi network for the panel. Repeat it for more than one:
+                   the board keeps up to four and joins whichever it can
+                   actually hear. Default: ALPHA_PANEL_WIFI_SSID
   --port <p>       Serial port. Default: the one serial port on this machine
   --address <ip>   This machine's LAN address. Default: worked out from the
                    network interfaces
   --primary <url>  The usual coordinator, if it is not this machine. The panel
                    then reads that first and falls back to here
   --no-serve       Do not start a coordinator; fail if none is answering
+  --list-ports     Print the serial ports on this machine and stop
+  --scan           Ask the board which WiFi networks it can see, and stop
   --help           This message
 
   Password: ALPHA_PANEL_WIFI_PASSWORD, or you will be asked
@@ -114,17 +118,76 @@ export function parseModeOutput(text) {
   return [...String(text ?? '').matchAll(/device\s+(COM\d+)\s*:/gi)].map((match) => match[1]);
 }
 
-async function listPorts() {
-  if (process.platform === 'win32') {
-    const out = await new Promise((r) =>
-      execFile('mode.com', [], { timeout: 10_000, windowsHide: true }, (error, stdout) =>
-        r(stdout ?? ''),
-      ),
-    );
-    return parseModeOutput(out);
+/**
+ * COM ports out of the registry's own device map.
+ *
+ * `mode.com` is not the whole truth on Windows: it lists devices it can open,
+ * so a port held by another program — a serial monitor somebody left running,
+ * which is the usual reason a flash fails — can be missing from it. The device
+ * map has the port either way, which turns "no serial ports here" into "COM3
+ * is there, something else has it".
+ *
+ *     \Device\VCP0    REG_SZ    COM3
+ */
+export function parseSerialComm(text) {
+  return [...String(text ?? '').matchAll(/REG_SZ\s+(COM\d+)\s*$/gim)].map((match) => match[1]);
+}
+
+/** What a USB serial adapter calls itself, when the system knows. */
+async function usbLabels() {
+  const labels = new Map();
+  const byId = '/dev/serial/by-id';
+  const entries = await readdir(byId).catch(() => []);
+  for (const entry of entries) {
+    // The names here are the useful part — "usb-1a86_USB_Serial-if00-port0" is
+    // the CH340 the panel is behind — but they are symlinks, and the port this
+    // handler can open is the node they point at.
+    const target = await realpath(join(byId, entry)).catch(() => null);
+    if (target) labels.set(target, entry);
   }
-  const entries = await readdir('/dev').catch(() => []);
-  return entries.filter((name) => /^(ttyUSB|ttyACM|cu\.usb)/.test(name)).map((name) => `/dev/${name}`);
+  return labels;
+}
+
+/**
+ * Every serial port this machine has, with a label where one exists.
+ *
+ * Two sources on each platform rather than one, because the failure being
+ * diagnosed is usually "the port is not where I expect it": a board that moved
+ * to COM12 on a replug, or one held open by a monitor.
+ */
+export async function listPorts() {
+  if (process.platform === 'win32') {
+    const [mode, registry] = await Promise.all([
+      new Promise((r) =>
+        execFile('mode.com', [], { timeout: 10_000, windowsHide: true }, (error, stdout) => r(stdout ?? '')),
+      ),
+      new Promise((r) =>
+        execFile(
+          'reg.exe',
+          ['query', 'HKLM\\HARDWARE\\DEVICEMAP\\SERIALCOMM'],
+          { timeout: 10_000, windowsHide: true },
+          (error, stdout) => r(stdout ?? ''),
+        ),
+      ),
+    ]);
+    const open = new Set(parseModeOutput(mode));
+    const known = new Set([...open, ...parseSerialComm(registry)]);
+    return [...known]
+      .sort((a, b) => Number(a.slice(3)) - Number(b.slice(3)))
+      .map((address) => ({
+        address,
+        // A port in the device map that mode cannot open is a port something
+        // else is holding — worth saying, because it looks like a missing board.
+        label: open.has(address) ? null : 'in use by another program?',
+      }));
+  }
+
+  const [entries, labels] = await Promise.all([readdir('/dev').catch(() => []), usbLabels()]);
+  return entries
+    .filter((name) => /^(ttyUSB|ttyACM|cu\.usb)/.test(name))
+    .map((name) => `/dev/${name}`)
+    .sort()
+    .map((address) => ({ address, label: labels.get(address) ?? null }));
 }
 
 const healthy = async (url) => {
@@ -231,17 +294,21 @@ function ask(question, { hidden = false } = {}) {
 
 function parseArgs(argv) {
   const options = {
-    ssid: process.env.ALPHA_PANEL_WIFI_SSID ?? null,
+    ssids: process.env.ALPHA_PANEL_WIFI_SSID ? [process.env.ALPHA_PANEL_WIFI_SSID] : [],
     port: process.env.ALPHA_PANEL_PORT ?? null,
     address: null,
     primary: process.env.ALPHA_PRIMARY_URL ?? null,
     serve: true,
+    listPorts: false,
+    scan: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--no-serve') options.serve = false;
     else if (arg === '--help' || arg === '-h') options.help = true;
-    else if (arg === '--ssid') options.ssid = argv[++i] ?? '';
+    else if (arg === '--ssid') options.ssids.push(argv[++i] ?? '');
+    else if (arg === '--list-ports') options.listPorts = true;
+    else if (arg === '--scan') options.scan = true;
     else if (arg === '--port') options.port = argv[++i] ?? '';
     else if (arg === '--address') options.address = argv[++i] ?? '';
     else if (arg === '--primary') options.primary = argv[++i] ?? '';
@@ -265,6 +332,51 @@ async function main() {
     process.stdout.write(`${line}\n`);
     process.exit(1);
   };
+
+  /** The port to talk to, or a reason there is not one. */
+  async function pickPort() {
+    if (options.port) return options.port;
+    const ports = await listPorts();
+    if (ports.length === 0) {
+      stop('port       : no serial ports here. Is the board plugged into this machine?');
+    }
+    if (ports.length > 1) {
+      const names = ports.map((entry) => entry.address + (entry.label ? ` (${entry.label})` : ''));
+      stop(`port       : ${ports.length} serial ports — name one with --port\n             ${names.join('\n             ')}`);
+    }
+    if (ports[0].label && ports[0].label.includes('in use')) {
+      say(`port       : ${ports[0].address} — ${ports[0].label}`);
+    }
+    return ports[0].address;
+  }
+
+  // --- read-only: what is plugged in ------------------------------------
+  if (options.listPorts) {
+    const ports = await listPorts();
+    if (ports.length === 0) {
+      say('no serial ports on this machine.');
+      say('The board shows up as one when it is plugged in and its driver is there —');
+      say(process.platform === 'win32' ? 'a CH340 on Windows needs the CH341SER driver.' : 'on Linux it is /dev/ttyUSB0 and needs no driver.');
+      process.exit(1);
+    }
+    for (const entry of ports) {
+      say(`${entry.address}${entry.label ? `   ${entry.label}` : ''}`);
+    }
+    process.exit(0);
+  }
+
+  // --- read-only: what the board can hear -------------------------------
+  if (options.scan) {
+    const port = await pickPort();
+    say(`scanning   : asking the board on ${port} what it can see...`);
+    const scan = await panel.run({ action: 'Scan', port }, {});
+    if (!scan.ready) stop(`scan       : nothing on ${port} answered. Wrong port, or the board needs flashing`);
+    if (!scan.networks?.length) stop('scan       : the board sees no networks at all from where it is');
+    for (const network of scan.networks) {
+      say(`  ${String(network.rssi).padStart(4)} dBm  ${network.ssid}${network.open ? '  (open)' : ''}`);
+    }
+    process.exit(0);
+  }
 
   // 1. address
   const address = options.address ?? lanAddress();
@@ -312,34 +424,37 @@ async function main() {
   }
 
   // 4. port
-  let port = options.port;
-  if (!port) {
-    const ports = await listPorts();
-    if (ports.length === 0) {
-      stop('port       : no serial ports here. Is the board plugged into this machine?');
-    }
-    if (ports.length > 1) {
-      stop(`port       : ${ports.length} serial ports (${ports.join(', ')}) — name one with --port`);
-    }
-    port = ports[0];
-  }
+  const port = await pickPort();
   say(`port       : ${port}`);
 
   // 5. provision
-  const ssid = options.ssid || (await ask('wifi ssid  : '));
-  if (!ssid) stop('provision  : no SSID given');
-  const password =
-    process.env.ALPHA_PANEL_WIFI_PASSWORD ?? (await ask('wifi pass   : ', { hidden: true }));
+  const ssids = options.ssids.filter(Boolean);
+  if (ssids.length === 0) {
+    const asked = await ask('wifi ssid  : ');
+    if (!asked) stop('provision  : no SSID given');
+    ssids.push(asked);
+  }
 
-  say(`provision  : sending ${ssid} and ${here} to the board...`);
+  // One password per network, asked for in turn. The first can come from the
+  // environment, which is what a scripted run uses; the rest are asked for,
+  // because an argv is readable by every process on the machine and four
+  // passwords on a command line is four of them.
+  const networks = [];
+  for (const [index, ssid] of ssids.entries()) {
+    const fromEnv = index === 0 ? process.env.ALPHA_PANEL_WIFI_PASSWORD : undefined;
+    const password = fromEnv ?? (await ask(`pass (${ssid})  : `, { hidden: true }));
+    networks.push({ ssid, password });
+  }
+
+  const names = networks.map((network) => network.ssid).join(', ');
+  say(`provision  : sending ${names} and ${here} to the board...`);
   let provisioned;
   try {
     provisioned = await panel.run(
       {
         action: 'Provision',
         port,
-        ssid,
-        password,
+        networks,
         // With a --primary the panel learns both, so it follows the fleet home
         // when the main host comes back instead of staying on this laptop.
         host: options.primary ?? here,
@@ -356,9 +471,26 @@ async function main() {
     stop(`provision  : nothing on ${port} answered. Wrong port, or the board needs flashing`);
   }
   if (!provisioned.provisioned) {
-    stop(`provision  : the board is there but did not join ${ssid} — check the password`);
+    // Ask the board what it can hear before blaming the password. "None of
+    // these is in range" and "that password is wrong" are different mornings,
+    // and only the board can tell them apart.
+    say(`provision  : the board is there but joined none of ${names}`);
+    const scan = await panel.run({ action: 'Scan', port }, {}).catch(() => null);
+    if (scan?.networks?.length) {
+      say('provision  : what the board can actually see from where it is:');
+      for (const network of scan.networks.slice(0, 8)) {
+        const known = networks.some((entry) => entry.ssid === network.ssid);
+        say(`               ${String(network.rssi).padStart(4)} dBm  ${network.ssid}${known ? '   <- you gave me this one, so it is the password' : ''}`);
+      }
+    } else if (scan) {
+      say('provision  : and it can see no networks at all — the radio or the place, not the password');
+    }
+    process.exit(1);
   }
-  say(`provision  : joined ${ssid} as ${provisioned.ip}`);
+  say(`provision  : joined ${provisioned.ssid} as ${provisioned.ip}${provisioned.rssi ? ` (${provisioned.rssi} dBm)` : ''}`);
+  if (networks.length > 1) {
+    say(`provision  : ${networks.length} networks stored — it will pick whichever it can hear`);
+  }
 
   // 6. verify — the only step that decides anything
   say('verify     : waiting for the panel to read the coordinator...');

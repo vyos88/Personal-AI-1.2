@@ -11,7 +11,7 @@ import { execFile } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lanAddress, parseModeOutput } from '../scripts/panel-up.mjs';
+import { lanAddress, listPorts, parseModeOutput, parseSerialComm } from '../scripts/panel-up.mjs';
 import { createHost } from '../src/host/server.js';
 import { AuthService } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
@@ -60,6 +60,34 @@ test('serial ports are found without arduino-cli installed', () => {
   );
   assert.deepEqual(parseModeOutput('no devices here'), []);
   assert.deepEqual(parseModeOutput(undefined), []);
+});
+
+test('a COM port held by something else is still reported as being there', () => {
+  // The registry's device map has the port whether or not anything can open
+  // it, and mode.com only lists what it can open. A serial monitor somebody
+  // left running is the usual reason a flash fails, and without this it looks
+  // exactly like an unplugged board.
+  const registry = [
+    '',
+    'HKEY_LOCAL_MACHINE\\HARDWARE\\DEVICEMAP\\SERIALCOMM',
+    '    \\Device\\Serial0    REG_SZ    COM1',
+    '    \\Device\\VCP0       REG_SZ    COM3',
+    '',
+  ].join('\r\n');
+  assert.deepEqual(parseSerialComm(registry), ['COM1', 'COM3']);
+  assert.deepEqual(parseSerialComm('no such key'), []);
+  assert.deepEqual(parseSerialComm(undefined), []);
+});
+
+test('the ports this machine has come back with whatever label there is', async () => {
+  const ports = await listPorts();
+  // No board in this container, so the list is empty — the shape is what
+  // matters, and that it does not throw on a machine with no /dev/serial.
+  assert.ok(Array.isArray(ports));
+  for (const entry of ports) {
+    assert.equal(typeof entry.address, 'string');
+    assert.ok(entry.label === null || typeof entry.label === 'string');
+  }
 });
 
 test('it uses a coordinator that is already up, and mints the panel a narrow key', async (t) => {

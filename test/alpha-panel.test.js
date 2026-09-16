@@ -12,6 +12,8 @@ import * as panel from '../src/agent/handlers/alpha-panel.js';
 import {
   ALLOWED_ACTIONS,
   available,
+  buildProvisionCommands,
+  validateNetworks,
   buildArgs,
   converseOver,
   devicePath,
@@ -68,7 +70,7 @@ async function fixture() {
 }
 
 test('the allowlist is exactly what is documented, and nothing else runs', () => {
-  assert.deepEqual([...ALLOWED_ACTIONS], ['Ports', 'Status', 'Compile', 'Flash', 'Provision']);
+  assert.deepEqual([...ALLOWED_ACTIONS], ['Ports', 'Status', 'Scan', 'Compile', 'Flash', 'Provision']);
   for (const action of ALLOWED_ACTIONS) assert.equal(validateAction(action), action);
 
   // Ports is the harmless one, so it is what an empty payload means.
@@ -672,4 +674,88 @@ test('Ports answers which address the board is on, whichever CLI is installed', 
   // "no ports" on a machine whose CLI simply printed a table.
   assert.equal(summarizePorts(null), null);
   assert.equal(summarizePorts('COM3 serial'), null);
+});
+
+test('a panel may be told about several networks, and a bad one fails the lot', () => {
+  // One network is still a list of one: that is what every existing caller
+  // sends, and what one WiFi actually needs.
+  assert.deepEqual(validateNetworks({ ssid: 'house', password: 'hunter22x' }), [
+    { ssid: 'house', password: 'hunter22x' },
+  ]);
+
+  assert.deepEqual(
+    validateNetworks({
+      networks: [
+        { ssid: 'house', password: 'hunter22x' },
+        { ssid: 'hotspot', password: '' },
+      ],
+    }),
+    [
+      { ssid: 'house', password: 'hunter22x' },
+      { ssid: 'hotspot', password: '' },
+    ],
+  );
+
+  // A bad entry fails the command rather than being dropped: a panel holding
+  // three of the four networks somebody meant is a half-success nobody notices
+  // until they are in the wrong room.
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'house', password: 'hunter22x' }, { ssid: '', password: 'x' }] }),
+    /"ssid" is required/,
+  );
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'a', password: 'hunter22x' }, { ssid: 'a', password: 'other-one' }] }),
+    /names "a" twice/,
+  );
+  assert.throws(() => validateNetworks({ networks: [] }), /at least one network/);
+  assert.throws(() => validateNetworks({ networks: 'house' }), /must be an array/);
+  assert.throws(
+    () =>
+      validateNetworks({
+        networks: [1, 2, 3, 4, 5].map((n) => ({ ssid: `net${n}`, password: 'hunter22x' })),
+      }),
+    /at most 4/,
+  );
+
+  // The newline rule holds for every entry, not just the first: one would
+  // split the line protocol and leave half a password in the board's buffer.
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'a', password: 'ok-password' }, { ssid: 'b\nc', password: '' }] }),
+    /must not contain a newline/,
+  );
+});
+
+test('every password in a provision is taken out of the transcript', () => {
+  // Four networks is four secrets, and a transcript is only redacted if all of
+  // them are.
+  assert.equal(
+    redact('joined with hunter22x after trying swordfish99', ['hunter22x', 'swordfish99']),
+    'joined with *** after trying ***',
+  );
+  // A password that contains another must not be left half visible by the
+  // shorter one being replaced inside it.
+  assert.equal(redact('secret-longer', ['secret', 'secret-longer']), '***');
+  assert.equal(redact('nothing here', ['', null, undefined]), 'nothing here');
+});
+
+test('the provisioning conversation is the shape the firmware agrees to', () => {
+  const networks = [
+    { ssid: 'house', password: 'hunter22x' },
+    { ssid: 'hotspot', password: '' },
+  ];
+
+  assert.deepEqual(
+    buildProvisionCommands({ networks, host: 'http://h:8787', standbyHost: 'http://l:8787', key: 'alpha_key_x' }),
+    [
+      { cmd: 'alpha', host: 'http://h:8787', host2: 'http://l:8787', key: 'alpha_key_x' },
+      { cmd: 'wifi', networks },
+    ],
+  );
+
+  // No host is a legitimate provision: the panel joins the network and waits.
+  assert.deepEqual(buildProvisionCommands({ networks, host: null }), [{ cmd: 'wifi', networks }]);
+
+  // The networks go last, because the reply to that one is the answer.
+  const commands = buildProvisionCommands({ networks, host: 'http://h:1' });
+  assert.equal(commands.at(-1).cmd, 'wifi');
 });

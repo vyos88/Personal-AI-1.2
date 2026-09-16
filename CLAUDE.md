@@ -487,6 +487,40 @@ the wall must not hold a credential that could queue work. It picks the port by
 the CH340 bridge and refuses to guess between two candidates, because flashing
 the wrong board is not something the next command can undo.
 
+**The panel knows several networks, and picks by signal rather than by order.**
+It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
+handler so an operator hears "at most four" instead of silently losing the
+fifth), scans, keeps the ones it can see and tries the strongest first — the
+house WiFi provisioned first is the wrong first choice in a room where only the
+hotspot reaches. Three things that follow:
+
+- **A network the scan did not find is skipped, unless none of them were
+  found.** That case is also what a hidden SSID looks like, so it falls back to
+  trying everything in the order given rather than concluding there is nothing
+  here.
+- **`Provision` takes `networks: [...]`, and a bad entry fails the whole
+  command.** A panel holding three of the four networks somebody meant is the
+  kind of half-success nobody notices until they are in the wrong room. The
+  single `ssid`/`password` form still means a list of one.
+- **Every password is redacted, not just the first.** `redact()` takes an array
+  and replaces longest-first, or a password that contains another is left half
+  visible.
+
+**`Scan` is the action that settles "wrong password or wrong room".** It asks
+the board's own radio what it can hear from where the panel actually sits, which
+is not what the laptop beside it hears. `panel-up.mjs` runs it automatically
+when a join fails, and `--scan` runs it on its own. Reflashing does not cost a
+board its credentials: the previous firmware's single network is migrated into
+the list on first boot.
+
+**Serial ports are read from two sources per platform.** On Windows `mode.com`
+lists only ports it can *open*, so a board held by a serial monitor — the usual
+reason a flash fails — is missing from it; the registry's `SERIALCOMM` device
+map has it either way, and the difference between the two is reported as "in use
+by another program?" rather than as no board at all. On POSIX `/dev/serial/by-id`
+supplies the label (`usb-1a86_...` is the CH340 this panel is behind) while the
+port opened is the node it resolves to.
+
 The panel reads `GET /stats` and draws it, so it reads the host's own key names
 — `queue.byStatus.leased` is what it calls *running* — and a test pins those
 names against a real host. A key the sketch invents is not an error in

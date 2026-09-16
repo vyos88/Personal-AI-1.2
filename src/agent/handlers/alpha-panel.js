@@ -59,6 +59,9 @@ export const description =
  * What this handler will do, narrowest first.
  *
  * - `Ports` and `Status` read and change nothing.
+ * - `Scan` asks the board which WiFi networks *it* can see. The laptop beside
+ *   it is not the same radio in the same place, and provisioning a panel with
+ *   a network it cannot hear is the failure that looks like a wrong password.
  * - `Compile` builds the pinned sketch and touches no hardware, so it answers
  *   "would a flash even work?" without writing to the board.
  * - `Flash` writes that same pinned sketch to the board.
@@ -69,7 +72,14 @@ export const description =
  * arbitrary code execution on the microcontroller — the hardware equivalent of
  * the remote shell `handlers/index.js` says must never appear here.
  */
-export const ALLOWED_ACTIONS = Object.freeze(['Ports', 'Status', 'Compile', 'Flash', 'Provision']);
+export const ALLOWED_ACTIONS = Object.freeze([
+  'Ports',
+  'Status',
+  'Scan',
+  'Compile',
+  'Flash',
+  'Provision',
+]);
 
 const DEFAULT_SKETCH = 'firmware/crowpanel';
 const CLI_TIMEOUT_MS = 300_000; // A cold ESP32 core build is minutes, not seconds.
@@ -109,6 +119,10 @@ const FQBN_PATTERN = /^[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+:[A-Za-z0-9_.-]+(:[A-Za-z0
 const MAX_SSID_BYTES = 32;
 const MAX_PASSWORD_LENGTH = 63;
 const MIN_PASSWORD_LENGTH = 8;
+// What the firmware stores (PANEL_MAX_NETWORKS). Kept in step by hand, and the
+// board is the one that enforces it — this only turns "silently forgot the
+// fourth" into an answer that comes back on the task.
+const MAX_NETWORKS = 4;
 
 export function validateAction(action) {
   // Ports is the harmless one, so it is what an empty payload means.
@@ -209,6 +223,49 @@ export function validateCredentials(payload) {
     }
   }
   return { ssid, password };
+}
+
+/**
+ * The networks this panel should know, best-effort first.
+ *
+ * A panel that knows one network is dark wherever that network is not: the
+ * laptop it reports on moves between the house WiFi and a hotspot, and the
+ * board on the shelf does not. So `Provision` takes a list — `networks: [...]`
+ * — and the single `ssid`/`password` form still means a list of one, because
+ * that is what every existing caller sends and what one WiFi actually needs.
+ *
+ * Each entry is validated exactly as a single credential is; a bad one in the
+ * list fails the whole command rather than being dropped, since a panel
+ * provisioned with three of the four networks somebody meant is the kind of
+ * half-success nobody notices until they are in the wrong room.
+ */
+export function validateNetworks(payload) {
+  const list = payload?.networks;
+
+  if (list === undefined || list === null) {
+    // One network, the way it has always been sent.
+    return [validateCredentials(payload)];
+  }
+  if (!Array.isArray(list)) throw new ProtocolError('"networks" must be an array');
+  if (list.length === 0) throw new ProtocolError('"networks" must name at least one network');
+  if (list.length > MAX_NETWORKS) {
+    throw new ProtocolError(
+      `"networks" must be at most ${MAX_NETWORKS} — the board stores that many, and every one it tries and fails is seconds the screen is dark`,
+    );
+  }
+
+  const networks = list.map((entry) => validateCredentials(entry));
+  const seen = new Set();
+  for (const network of networks) {
+    // Two entries for one SSID means one of the two passwords is wrong and
+    // nobody knows which. Refusing is the only answer that cannot be silently
+    // the wrong one.
+    if (seen.has(network.ssid)) {
+      throw new ProtocolError(`"networks" names ${JSON.stringify(network.ssid)} twice`);
+    }
+    seen.add(network.ssid);
+  }
+  return networks;
 }
 
 /**
@@ -427,6 +484,23 @@ export function summarizePorts(parsed) {
   }));
 }
 
+/**
+ * The line-protocol commands a Provision sends, in the order they have to go.
+ *
+ * Host and key first, then the networks: the sketch answers `wifi` only after
+ * it has tried to join, so putting it last means the single reply an operator
+ * reads is the one that says whether the panel is actually on a network.
+ *
+ * Exported for the same reason `buildArgs` is — this is the shape the firmware
+ * agrees to, and the two are only in step if something pins it.
+ */
+export function buildProvisionCommands({ networks, host, standbyHost, key }) {
+  const commands = [];
+  if (host) commands.push({ cmd: 'alpha', host, host2: standbyHost ?? '', key: key ?? '' });
+  commands.push({ cmd: 'wifi', networks });
+  return commands;
+}
+
 /** Builds the argv passed to arduino-cli. Exported so tests can assert on it. */
 export function buildArgs({ action, sketch, fqbn, port }) {
   if (action === 'Ports') return ['board', 'list', '--format', 'json'];
@@ -525,8 +599,15 @@ async function configurePort(port, { signal } = {}) {
 /** Never let a password reach a log line, a task result or an error message. */
 export function redact(text, password) {
   if (!text) return '';
-  if (!password) return text;
-  return text.split(password).join('***');
+  // One secret or several: a provision that carries four networks carries four
+  // passwords, and a transcript is only redacted if every one of them is.
+  const secrets = (Array.isArray(password) ? password : [password]).filter(Boolean);
+  // Longest first, so a password that contains another is not left half
+  // visible by the shorter one being replaced inside it.
+  secrets.sort((a, b) => b.length - a.length);
+  let out = String(text);
+  for (const secret of secrets) out = out.split(secret).join('***');
+  return out;
 }
 
 /**
@@ -729,28 +810,57 @@ export async function run(payload, { signal, log } = {}) {
     };
   }
 
-  if (action === 'Provision') {
+  if (action === 'Scan') {
+    // Read-only, and the one question only the board can answer: what this
+    // radio hears from where the panel actually sits.
     const port = validatePort(payload?.port);
-    const { ssid, password } = validateCredentials(payload);
-    const { host, standbyHost, key } = validateAlphaTarget(payload);
+    const outcome = await converse(port, [{ cmd: 'scan' }], '', { signal, log });
+    const scan = outcome.replies.find((entry) => entry.cmd === 'scan');
+    const networks = scan?.reply?.networks ?? null;
 
-    // Host and key first, then the network. The sketch answers the wifi command
-    // only after it has tried to join, so putting it last means the single
-    // reply the operator reads is the one that says whether the panel is
-    // actually on the network.
-    const commands = [];
-    if (host) commands.push({ cmd: 'alpha', host, host2: standbyHost ?? '', key });
-    commands.push({ cmd: 'wifi', ssid, password });
-
-    const outcome = await converse(port, commands, password, { signal, log });
-    const wifi = outcome.replies.find((entry) => entry.cmd === 'wifi');
-
-    // The SSID is which network, not a secret, and naming it is the whole
-    // report. The password is not here and never will be.
     return {
       action,
       port,
-      ssid,
+      ready: outcome.ready,
+      refused: outcome.ready
+        ? undefined
+        : `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`,
+      // Strongest first, because the answer people want from a scan is "which
+      // of these should I provision".
+      networks: Array.isArray(networks)
+        ? [...networks].sort((a, b) => (b?.rssi ?? -999) - (a?.rssi ?? -999))
+        : null,
+      timedOut: !outcome.ready || outcome.replies.some((entry) => entry.timedOut),
+      transcript: outcome.transcript,
+    };
+  }
+
+  if (action === 'Provision') {
+    const port = validatePort(payload?.port);
+    const networks = validateNetworks(payload);
+    const { host, standbyHost, key } = validateAlphaTarget(payload);
+    const passwords = networks.map((network) => network.password);
+
+    // Host and key first, then the networks. The sketch answers the wifi
+    // command only after it has tried to join, so putting it last means the
+    // single reply the operator reads is the one that says whether the panel is
+    // actually on a network.
+    const commands = buildProvisionCommands({ networks, host, standbyHost, key });
+
+    const outcome = await converse(port, commands, passwords, { signal, log });
+    const wifi = outcome.replies.find((entry) => entry.cmd === 'wifi');
+
+    // Which networks, not which passwords. The SSIDs are the whole report and
+    // the secrets are not here — not in the result, not in the log, and taken
+    // back out of the transcript.
+    return {
+      action,
+      port,
+      // The one it actually joined, which is not necessarily the first asked
+      // for: the board picks by signal from where it is.
+      ssid: wifi?.reply?.ssid ?? null,
+      networks: networks.map((network) => network.ssid),
+      rssi: wifi?.reply?.rssi ?? null,
       host: host ?? null,
       standbyHost: standbyHost ?? null,
       // Whether anything on the other end of the port answered at all. A board
@@ -760,6 +870,9 @@ export async function run(payload, { signal, log } = {}) {
       refused: outcome.ready ? undefined : `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`,
       provisioned: wifi?.reply?.ok === true,
       ip: wifi?.reply?.ip ?? null,
+      // What it tried and could not join, straight from the board: "none of
+      // these three" is a different morning from "that password is wrong".
+      tried: wifi?.reply?.tried ?? null,
       timedOut: !outcome.ready || outcome.replies.some((entry) => entry.timedOut),
       replies: outcome.replies,
       transcript: outcome.transcript,
