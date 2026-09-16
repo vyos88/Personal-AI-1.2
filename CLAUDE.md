@@ -172,6 +172,34 @@ fail it. Three properties, all tested:
   are legal (see above), so targeting keeps both candidates and ranking picks;
   refusing the work over an ambiguous label would be worse than running it.
 
+**A receipt reaches the rest of the fleet by being pulled, never pushed.**
+`src/host/receipts.js` is a small, bounded, in-memory feed: a handler opts a
+successful result into it by returning a `broadcast` field, the result route
+records it (`ReceiptLog.push`), and every *other* attached agent picks up
+what it missed on its own next heartbeat (`ReceiptLog.pull`). `alpha.coordination`
+is the motivating case — a `Post` that actually landed (`code === 0`) sets
+`broadcast: { actor, message, paths }`, so a receipt one machine posts to
+Alpha's tunnel is not invisible to the laptops that are not the one holding
+it. This exists because "the host updates all the devices" cannot mean the
+host reaching into an agent — see "All connections are outbound from the
+agent" above — so it has to mean the opposite: agents keep asking, and the
+host keeps something ready to hand back. Three things worth knowing:
+
+- **Delivery is on the order of a heartbeat, not instant.** That is the
+  deliberate cost of never needing an inbound connection to a worker, the same
+  trade the rest of this repo makes everywhere else.
+- **A cursor is per agent *id*, not per machine, and starts at "now."**
+  `attach()` is called at registration and sets the cursor to whatever is
+  current then — a fresh id (a new machine, or a restarted one; ids are minted
+  per registration, same as everywhere else in this file) has no business
+  replaying receipts from before it existed. An id nobody attached pulls
+  nothing, which is the safe default rather than "everything."
+- **A malformed broadcast degrades the receipt, never the task.** `sanitizeBroadcast`
+  returns `null` for anything that is not a plain, JSON-serializable object
+  under 8 KB — a circular structure, an array, a giant string — and the result
+  route simply skips pushing it. The task the receipt rode in on has already
+  succeeded by that point; a receipt is a courtesy, not part of its contract.
+
 **Auth is capability-based, recomputed per request.** `src/host/auth/service.js`
 resolves a bearer token to a principal whose effective scopes are the
 intersection of the *key's* scopes and its *owner's*. Two invariants depend on

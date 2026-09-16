@@ -2,6 +2,7 @@ import http from 'node:http';
 
 import { TaskQueue } from './queue.js';
 import { AgentRegistry } from './registry.js';
+import { ReceiptLog, sanitizeBroadcast } from './receipts.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
@@ -32,6 +33,10 @@ export function createHost({
   token,
   registry = new AgentRegistry(),
   queue = new TaskQueue({ admission: registry }),
+  // Fleet-wide receipts, delivered to every other agent on its own next
+  // heartbeat. See receipts.js — this never reaches into an agent, it only
+  // gives each one something new to pull.
+  receipts = new ReceiptLog(),
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
   // test should take.
@@ -55,7 +60,7 @@ export function createHost({
   function makeServer() {
     const created = http.createServer((req, res) => {
       ready
-        .then(() => handle(req, res, { auth: authService, queue, registry, heartbeatIntervalMs }))
+        .then(() => handle(req, res, { auth: authService, queue, registry, receipts, heartbeatIntervalMs }))
         .catch((error) => {
           log.error('unhandled request error', { message: error.message, url: req.url });
           if (!res.headersSent) sendJson(res, 500, { error: 'internal_error' });
@@ -146,7 +151,7 @@ export function createHost({
     }
   }
 
-  return { server, servers, listen, queue, registry, auth: authService, ready, close };
+  return { server, servers, listen, queue, registry, receipts, auth: authService, ready, close };
 }
 
 async function handle(req, res, ctx) {
@@ -369,6 +374,11 @@ async function handle(req, res, ctx) {
         userId: principal.userId,
         keyId: principal.keyId ?? null,
       });
+      // Caught up to now rather than replayed from the beginning of the
+      // host's uptime — a fresh id (this registration's, or a restarted
+      // machine's) has no business hearing about receipts from before it
+      // existed.
+      ctx.receipts.attach(agent.id);
       return sendJson(res, 201, {
         agentId: agent.id,
         protocolVersion: PROTOCOL_VERSION,
@@ -425,11 +435,16 @@ async function handle(req, res, ctx) {
           // is or is not being given work.
           inFlight: agent.inFlight,
           rank: ctx.registry.rank(agentId),
+          // Receipts other agents posted since this one last asked. This is
+          // the whole of how a receipt reaches the rest of the fleet — pulled
+          // here, never pushed to anyone.
+          broadcasts: ctx.receipts.pull(agentId),
         });
       }
 
       if (method === 'DELETE' && segments.length === 2) {
         ctx.registry.deregister(agentId);
+        ctx.receipts.detach(agentId);
         return sendJson(res, 200, { ok: true });
       }
 
@@ -506,6 +521,15 @@ async function handle(req, res, ctx) {
           ? ctx.queue.complete(taskId, agentId, body.result ?? null)
           : ctx.queue.fail(taskId, agentId, body.error ?? { message: 'agent reported failure' });
         ctx.registry.recordOutcome(agentId, succeeded);
+        // A handler may opt a successful result into the fleet-wide feed by
+        // including a `broadcast` field. Only on success: a failed task ran
+        // nothing worth telling the rest of the fleet about.
+        if (succeeded) {
+          const broadcast = sanitizeBroadcast(body.result?.broadcast);
+          if (broadcast) {
+            ctx.receipts.push({ agentId, agentName: agent.name, type: task.type, taskId, broadcast });
+          }
+        }
         return sendJson(res, 200, { ok: true, status: task.status });
       }
     }

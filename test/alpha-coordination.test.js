@@ -213,6 +213,30 @@ test('a real invocation passes exactly the expected argv', async () => {
   ]);
 });
 
+test('a successful Post opts into the fleet-wide receipt feed; nothing else does', async () => {
+  const { root, stub } = await fixture();
+
+  const posted = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Post', actor: 'claude-remote', message: 'claimed it', paths: ['a.py'] }),
+  );
+  assert.deepEqual(posted.broadcast, { actor: 'claude-remote', message: 'claimed it', paths: ['a.py'] });
+
+  const status = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Status', actor: 'claude-remote' }),
+  );
+  assert.equal('broadcast' in status, false);
+});
+
+test('a Post that failed to land is not broadcast — nothing was actually posted', async () => {
+  const { root, stub } = await fixture({ exitCode: 1, stderr: 'refused' });
+
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Post', actor: 'claude-remote', message: 'claimed it' }),
+  );
+  assert.equal(result.exitCode, 1);
+  assert.equal('broadcast' in result, false);
+});
+
 test('a non-zero exit is reported as data, not thrown', async () => {
   const { root, stub } = await fixture({ exitCode: 3, stderr: 'claim refused' });
 

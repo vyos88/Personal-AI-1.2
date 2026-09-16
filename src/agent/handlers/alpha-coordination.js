@@ -226,7 +226,7 @@ export async function run(payload, { signal, log } = {}) {
     );
   });
 
-  return {
+  const result = {
     action,
     actor,
     paths,
@@ -234,4 +234,14 @@ export async function run(payload, { signal, log } = {}) {
     stdout: stdout.slice(-16_000),
     stderr: stderr.slice(-16_000),
   };
+
+  // A receipt that actually landed is worth telling the rest of the fleet
+  // about — every other attached agent picks this up on its next heartbeat
+  // (see src/host/receipts.js). A non-zero exit wrote nothing, so there is
+  // nothing to broadcast.
+  if (action === 'Post' && code === 0) {
+    result.broadcast = { actor, message, paths };
+  }
+
+  return result;
 }

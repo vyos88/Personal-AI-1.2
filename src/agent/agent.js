@@ -574,7 +574,7 @@ export class TunnelAgent {
     this.#heartbeatTimer = setInterval(async () => {
       if (!this.#agentId) return;
       try {
-        await fetchJson(`${this.hostUrl}/agent/${this.#agentId}/heartbeat`, {
+        const { body } = await fetchJson(`${this.hostUrl}/agent/${this.#agentId}/heartbeat`, {
           method: 'POST',
           token: this.token,
           timeoutMs: 10_000,
@@ -584,6 +584,17 @@ export class TunnelAgent {
           // attractive as an idle one.
           body: { memory: this.memory(), load: this.load() },
         });
+        // Receipts other agents posted since our last beat. This is the only
+        // way this machine learns about them — the host never reaches in to
+        // tell it, this machine asks every time it checks in anyway.
+        for (const receipt of body?.broadcasts ?? []) {
+          log.info('fleet update', {
+            fromAgent: receipt.agentName ?? receipt.agentId,
+            type: receipt.type,
+            taskId: receipt.taskId,
+            broadcast: receipt.broadcast,
+          });
+        }
       } catch (error) {
         // A heartbeat is the other request that can be told to stand down, and
         // the one place it must not be treated as an ordinary 410: clearing
