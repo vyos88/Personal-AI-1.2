@@ -88,6 +88,15 @@ export function createHost({
    * over Tailscale without also putting it on 0.0.0.0: loopback keeps working
    * for an agent on this machine — including when Tailscale is down — while
    * the tailnet address serves everyone else.
+   *
+   * Callable more than once with the same binds, and has to be: at boot,
+   * loopback binds immediately while the tailnet address is still waiting on
+   * Tailscale, and `listenWhenAvailable()` in index.js retries the whole call
+   * every couple of seconds until the laggard comes up. A server already
+   * `.listening` is left alone rather than re-listened on — Node throws
+   * `ERR_SERVER_ALREADY_LISTEN` for that, which used to reach index.js as an
+   * unrecognised error and kill the coordinator on the very next retry after
+   * the first address succeeded, which defeated the wait this exists for.
    */
   async function listen({ port, binds = ['127.0.0.1'] }) {
     const addresses = Array.isArray(binds) ? binds : [binds];
@@ -96,17 +105,17 @@ export function createHost({
     while (servers.length < addresses.length) servers.push(makeServer());
 
     await Promise.all(
-      addresses.map(
-        (address, index) =>
-          new Promise((resolve, reject) => {
-            const target = servers[index];
-            target.once('error', reject);
-            target.listen(port, address, () => {
-              target.off('error', reject);
-              resolve();
-            });
-          }),
-      ),
+      addresses.map((address, index) => {
+        const target = servers[index];
+        if (target.listening) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          target.once('error', reject);
+          target.listen(port, address, () => {
+            target.off('error', reject);
+            resolve();
+          });
+        });
+      }),
     );
     return servers.map((entry) => entry.address());
   }
