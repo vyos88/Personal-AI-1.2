@@ -295,6 +295,25 @@ async function handle(req, res, ctx) {
           user: await ctx.auth.setUserScopes(userId, body?.scopes, principal),
         });
       }
+
+      // Recovery for a user who cannot supply their current password — the
+      // admin-side counterpart to /me/password. Authorization is this scope,
+      // not the old secret.
+      if (method === 'POST' && segments[2] === 'password' && segments[3] === 'reset' && segments.length === 4) {
+        require(SCOPES.USERS_WRITE);
+        const body = await readJson(req);
+        const { user, temporaryPassword } = await ctx.auth.adminResetPassword({
+          userId,
+          newPassword: body?.newPassword,
+          by: principal,
+        });
+        return sendJson(res, 200, {
+          user,
+          // Present only when the caller did not supply their own — shown
+          // exactly once, the same as an invite or key token.
+          ...(temporaryPassword ? { temporaryPassword } : {}),
+        });
+      }
     }
 
     // ------------------------------------------------------------------- keys

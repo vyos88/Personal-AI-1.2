@@ -30,6 +30,8 @@ Users
   disable-user <userId>                                  Revoke all access at once
   enable-user <userId>                                   Restore access
   set-scopes <userId> --scopes <s>                       Replace a user's scopes
+  reset-password <userId> [--new-password <p>]           Recover an account with no working password;
+                                                         prints a one-time temporary password if you don't supply one
 
 Keys
   issue-key --user <userId> [--scopes <s>] [--name <n>] [--expires-days <n>]
@@ -188,6 +190,7 @@ const OPTIONS = {
   value: { type: 'string' },
   prefix: { type: 'string' },
   'ttl-ms': { type: 'string' },
+  'new-password': { type: 'string' },
   'no-wait': { type: 'boolean' },
   timeout: { type: 'string' },
   json: { type: 'boolean' },
@@ -550,6 +553,23 @@ export async function main(argv = process.argv.slice(2)) {
         body: { scopes: flags.scopes },
       });
       emit(`User ${result.user.email} now has: ${result.user.scopes.join(', ')}`, result);
+      return;
+    }
+
+    case 'reset-password': {
+      if (!positionals[1]) fail('reset-password requires a user id');
+      const result = await api(`/users/${positionals[1]}/password/reset`, {
+        method: 'POST',
+        body: flags['new-password'] ? { newPassword: flags['new-password'] } : {},
+      });
+      if (flags.json) return emit('', result);
+      process.stdout.write(`Password reset for ${result.user.email}. Every existing session was ended.\n`);
+      if (result.temporaryPassword) {
+        process.stdout.write(
+          `\nTemporary password (shown once, cannot be retrieved again):\n\n  ${result.temporaryPassword}\n\n` +
+            `Have them log in with it and set their own.\n`,
+        );
+      }
       return;
     }
 

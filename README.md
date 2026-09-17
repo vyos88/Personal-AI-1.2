@@ -150,6 +150,15 @@ Two rules keep grants from drifting upward:
 | Restore it | `npm run admin -- enable-user <userId>` |
 | Change what someone can do | `npm run admin -- set-scopes <userId> --scopes viewer` |
 | Withdraw an unredeemed invite | `npm run admin -- revoke-invite <inviteId>` |
+| Recover an account with no working password | `npm run admin -- reset-password <userId>` |
+
+`reset-password` is the admin-side counterpart to `/me/password`: it needs
+`users:write`, not the old password, so it is the way in when that is lost —
+without it, the only route back was the bootstrap token. Every existing
+session for that user ends with it (the same as a self-service password
+change); their other API keys are untouched. Leave off `--new-password` and
+it generates one and prints it once — it is never stored or logged in
+plaintext, so write it down before doing anything else.
 
 For another **device of your own**, issue a second key rather than creating a
 second account — no extra password to manage, and it revokes independently:
@@ -252,6 +261,7 @@ needs `Authorization: Bearer <token>` and the scope listed.
 | `GET` | `/users`, `/users/:id` | `users:read` |
 | `POST` | `/users/:id/status` | `users:write` |
 | `POST` | `/users/:id/scopes` | `users:write` |
+| `POST` | `/users/:id/password/reset` | `users:write` |
 | `POST` | `/keys` | `keys:write` (plus `users:write` for someone else) |
 | `GET` | `/keys` | own keys; `users:read` for everyone's |
 | `DELETE` | `/keys/:id` | own keys; `users:write` for someone else's |

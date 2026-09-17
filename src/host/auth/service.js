@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { AuthStore } from './store.js';
 import { hashPassword, verifyPassword, assertPasswordAcceptable } from './passwords.js';
 import {
@@ -524,6 +526,51 @@ export class AuthService {
     });
     log.info('user scopes changed', { userId, scopes: normalized, by: by?.label });
     return publicUser(this.store.data.users[userId]);
+  }
+
+  /**
+   * Resets a user's password without the current one — the admin-side
+   * counterpart to `changePassword`, and the recovery path for an account
+   * whose password is lost or forgotten. There is deliberately no other way to
+   * get in: authorization for this is the caller's own scope (checked by the
+   * server route, the same as `setUserStatus`/`setUserScopes`), not knowledge
+   * of the old secret.
+   *
+   * `newPassword` is optional. Omit it and a random one is generated and
+   * returned exactly once, the same way an invite or key token is — it is
+   * never stored or logged in plaintext, only its hash is.
+   */
+  async adminResetPassword({ userId, newPassword, by }) {
+    const user = this.store.data.users[userId];
+    if (!user) throw new ProtocolError('unknown user', { status: 404, code: 'unknown_user' });
+
+    const generated = newPassword === undefined || newPassword === null;
+    const password = generated ? randomBytes(24).toString('base64url') : newPassword;
+    assertPasswordAcceptable(password);
+    const passwordHash = await hashPassword(password);
+    const now = this.now();
+
+    await this.store.mutate((data) => {
+      data.users[userId].passwordHash = passwordHash;
+      data.users[userId].updatedAt = now;
+      // Same reasoning as changePassword: a reset is itself a response to a
+      // lost or suspected-compromised credential, so every existing session
+      // dies with it. Non-session API keys survive — they belong to running
+      // agents and are revoked separately if that is ever the intent.
+      for (const key of Object.values(data.apiKeys)) {
+        if (key.userId === userId && key.kind === TokenKind.SESSION && !key.revokedAt) {
+          key.revokedAt = now;
+        }
+      }
+    });
+
+    log.info('password reset by admin', { userId, by: by?.label });
+    return {
+      user: publicUser(this.store.data.users[userId]),
+      // Only present when this method chose the password itself — a caller
+      // who supplied one already knows it.
+      temporaryPassword: generated ? password : undefined,
+    };
   }
 
   async changePassword({ userId, currentPassword, newPassword }) {
