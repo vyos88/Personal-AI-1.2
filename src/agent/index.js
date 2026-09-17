@@ -60,6 +60,16 @@ const extraHandlers = (process.env.ALPHA_EXTRA_HANDLERS ?? '')
   .map((entry) => entry.trim())
   .filter(Boolean);
 
+// Printed unconditionally, including when empty. `.env.agent` only takes
+// effect on the next process start, so "I edited the file" and "this process
+// saw the edit" are two different facts — a machine that should be offering
+// `alpha-devices` and silently isn't should show that gap here, in the one
+// line an operator is already looking at, rather than needing to notice the
+// handler's own absence from `handlers available` further down.
+log.info('extra handlers configured', {
+  ALPHA_EXTRA_HANDLERS: extraHandlers.length ? extraHandlers.join(',') : '(none)',
+});
+
 for (const name of extraHandlers) {
   // Restricted charset: this becomes an import specifier, so no traversal,
   // no absolute paths, no reaching outside the handlers directory.

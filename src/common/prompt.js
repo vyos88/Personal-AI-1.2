@@ -24,7 +24,24 @@ export function promptSecret(prompt) {
     process.stdout.write(prompt);
     const stdin = process.stdin;
     const wasRaw = stdin.isRaw;
-    stdin.setRawMode(true);
+    try {
+      stdin.setRawMode(true);
+    } catch (error) {
+      // isTTY lied, or this console does not actually support raw mode (seen
+      // in some Windows terminal wrappers). Falling through to the non-TTY
+      // path below at least reads a line instead of hanging with a prompt on
+      // screen and no way to answer it.
+      process.stdout.write(
+        `\n(this terminal cannot hide input; it will be visible as you type)\n`,
+      );
+      const rl = createInterface({ input: process.stdin });
+      rl.once('line', (line) => {
+        resolve(line);
+        rl.close();
+      });
+      rl.once('close', () => resolve(''));
+      return;
+    }
     stdin.resume();
     stdin.setEncoding('utf8');
 
