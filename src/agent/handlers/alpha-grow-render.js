@@ -345,7 +345,16 @@ export function renderPage({ nodes, edges, bounds, kind, width, height, backgrou
     for (var e = 0; e < edges.length; e += 1) {
       var edge = edges[e];
       var a = screen[edge[0]], b = screen[edge[1]];
-      var radius = edge[2] || 0.05;
+      // grow.js's own taper ('!') shrinks an edge's radius multiplicatively
+      // every iteration, so a deeply tapered tip legitimately rounds to
+      // exactly 0 -- "edge[2] || 0.05" read that genuine 0 as "missing" and
+      // substituted a radius almost 15x the whole organism's span on a
+      // tightly-scaled recipe, filling the canvas solid. The 1px floor two
+      // lines down already guarantees a tapered segment stays visible, so
+      // there is no missing case left for a fallback to paper over. (No
+      // backticks in this comment: it lives inside renderPage()'s own
+      // template-literal return value, where one would end the string early.)
+      var radius = typeof edge[2] === 'number' ? edge[2] : 0;
       ctx.lineWidth = Math.max(1, radius * scale * 2);
       ctx.beginPath();
       ctx.moveTo(a[0], a[1]);

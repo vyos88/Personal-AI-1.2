@@ -176,6 +176,77 @@ test('the page draws before the load event a screenshot waits for', () => {
   assert.match(html, /#b5533c/);
 });
 
+test('an edge tapered to exactly zero radius stays a thin line, not a filled canvas', async (t) => {
+  // grow.js's own taper ('!') shrinks a radius multiplicatively every
+  // iteration, so a deeply tapered edge legitimately rounds to 0 -- not
+  // "missing", just thin. `edge[2] || 0.05` used to read that genuine 0 as
+  // absent and substitute a radius meant for a full-size organism, which on
+  // a tightly-scaled recipe (a real one: a dense many-iteration rosette)
+  // was tens of times the whole organism's span and filled the canvas solid
+  // green. Reproduced here directly against a real browser rather than
+  // trusting the fix by reading the source: a tiny two-node organism whose
+  // one edge has radius exactly 0, screenshotted, and the corner checked --
+  // it must be the background colour, not the stroke colour a giant
+  // fallback radius would have painted there.
+  const browser = resolveBrowser();
+  if (!browser) return; // no Chromium/Chrome/Edge on this machine's PATH
+
+  const background = '#eef2ec';
+  const html = renderPage({
+    nodes: [[0, 0, 0], [0.001, 0, 0]],
+    edges: [[0, 1, 0]],
+    bounds: boundsOf([[0, 0, 0], [0.001, 0, 0]]),
+    kind: 'plant',
+    width: 200,
+    height: 200,
+    background,
+  });
+
+  const dir = await mkdtemp(join(tmpdir(), 'grow-render-zero-radius-'));
+  const htmlPath = join(dir, 'page.html');
+  const pngPath = join(dir, 'shot.png');
+  await writeFile(htmlPath, html);
+
+  const { execFileSync } = await import('node:child_process');
+  execFileSync(browser.path, [
+    ...(process.getuid?.() === 0 ? ['--no-sandbox'] : []),
+    '--headless',
+    '--disable-gpu',
+    '--disable-dev-shm-usage',
+    '--hide-scrollbars',
+    '--force-device-scale-factor=1',
+    '--window-size=200,200',
+    '--virtual-time-budget=5000',
+    `--screenshot=${pngPath}`,
+    `file://${htmlPath}`,
+  ]);
+
+  // The corner is a single pixel: crop to 1x1 to read it without adding an
+  // image-decoding dependency this repo otherwise has no use for. Reading
+  // that pixel back out just means walking the (now tiny) chunk list for
+  // IDAT and inflating it -- cropPngTopLeft always writes its IDAT with
+  // filter type "None" (see its own comment), so raw[1..3] are the R,G,B
+  // bytes directly, with no per-scanline unfiltering to redo here.
+  const corner = cropPngTopLeft(await readFile(pngPath), 1, 1);
+  let offset = 8;
+  let idat = null;
+  while (offset + 8 <= corner.length) {
+    const length = corner.readUInt32BE(offset);
+    const type = corner.toString('ascii', offset + 4, offset + 8);
+    if (type === 'IDAT') idat = corner.subarray(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+  }
+  const { inflateSync } = await import('node:zlib');
+  const raw = inflateSync(idat);
+  const [r, g, b] = [raw[1], raw[2], raw[3]]; // byte 0 is the filter-type byte
+  const bg = [
+    parseInt(background.slice(1, 3), 16),
+    parseInt(background.slice(3, 5), 16),
+    parseInt(background.slice(5, 7), 16),
+  ];
+  assert.deepEqual([r, g, b], bg, `corner should be the background colour, got rgb(${r},${g},${b})`);
+});
+
 // ---------------------------------------------------------------- the crop
 
 test('cropping keeps every pixel in the kept region and drops the rest', async (t) => {
