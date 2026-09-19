@@ -12,6 +12,7 @@ import {
   run,
   validateSeed,
   validateSpecies,
+  fileDestination,
 } from '../src/agent/handlers/alpha-render.js';
 import * as renderHandler from '../src/agent/handlers/alpha-render.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
@@ -269,7 +270,9 @@ test('a render returns the recipe and leaves the image on the machine', async (t
   assert.equal(result.outputs.length, 1);
   assert.equal(result.outputs[0].name, 'beetle-1234.png');
   assert.equal(result.outputs[0].bytes, 3);
-  assert.match(result.outputs[0].path, /output[\\/]beetle-1234\.png$/);
+  // Filed under its species, not dropped in one flat directory — see
+  // fileDestination and the two tests below.
+  assert.match(result.outputs[0].path, /output[\\/]beetle[\\/]beetle-1234\.png$/);
   assert.ok(typeof result.renderedInMs === 'number');
 
   // And the arguments really reached the generator in the shape buildArgs
@@ -512,4 +515,27 @@ test('an agent that can render offers it', async (t) => {
   assert.match(output, /registered extra handler/);
   const capabilities = /capabilities=(\[[^\]]*\])/.exec(output)?.[1] ?? '';
   assert.match(capabilities, /alpha\.render/);
+});
+
+// One flat `output/` is fine for the first dozen renders and unusable by the
+// thousandth. Species is how renders are asked for, so it is how they are
+// filed and how they are looked for.
+test('finished images are filed under their species by default', () => {
+  delete process.env.ALPHA_RENDER_FILE_BY;
+  assert.equal(fileDestination('/r/output', 'fern'), join('/r/output', 'fern'));
+});
+
+test('filing can be flat, or split by day, and anything else is refused', () => {
+  process.env.ALPHA_RENDER_FILE_BY = 'flat';
+  assert.equal(fileDestination('/r/output', 'fern'), '/r/output');
+
+  process.env.ALPHA_RENDER_FILE_BY = 'species-day';
+  assert.equal(
+    fileDestination('/r/output', 'fern', { now: new Date(2026, 8, 15) }),
+    join('/r/output', 'fern', '2026-09-15'),
+  );
+
+  process.env.ALPHA_RENDER_FILE_BY = 'by-vibes';
+  assert.throws(() => fileDestination('/r/output', 'fern'), /ALPHA_RENDER_FILE_BY/);
+  delete process.env.ALPHA_RENDER_FILE_BY;
 });

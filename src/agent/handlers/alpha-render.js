@@ -34,6 +34,10 @@ import { ProtocolError } from '../../common/protocol.js';
  *   ALPHA_BLENDER         Blender executable. Defaults to `blender`
  *   ALPHA_RENDER_OUTPUT   Where images are written, relative to root.
  *                         Defaults to `output`
+ *   ALPHA_RENDER_FILE_BY  How finished images are filed under that directory:
+ *                         `species` (default) puts each one in `output/<species>/`,
+ *                         `species-day` adds a `YYYY-MM-DD` level under it, and
+ *                         `flat` keeps the old single-directory behaviour
  *   ALPHA_RENDER_SPECIES  Optional comma-separated allowlist of species. Unset
  *                         means any well-formed name is passed through
  *   ALPHA_RENDER_TIMEOUT_MS  Hard ceiling on one render. Defaults to 10
@@ -188,18 +192,76 @@ function requireScript(root) {
  * moved into the shared output directory, which is what anyone looking for
  * images actually browses.
  */
-function collectOutputs(stagingDir, outputDir) {
+function collectOutputs(stagingDir, destDir) {
   const produced = [];
   for (const entry of readdirSync(stagingDir, { withFileTypes: true })) {
     if (!entry.isFile()) continue;
     const from = resolve(stagingDir, entry.name);
-    const to = resolve(outputDir, entry.name);
+    const to = resolve(destDir, entry.name);
     // Same recipe, same name: a re-run replaces its own output rather than
     // accumulating copies.
     renameSync(from, to);
     produced.push({ name: entry.name, path: to, bytes: statSync(to).size });
   }
   return produced.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/**
+ * The directory finished images are filed under, resolved and bounds-checked.
+ *
+ * Exported so `alpha-render-inventory.js` can ask the *same* question in the
+ * same way rather than keeping a second copy of the rule. A copy that drifts
+ * would have the inventory reading a directory the renders do not write to,
+ * and reporting an empty machine as confidently as a full one.
+ */
+export function resolveOutputDir() {
+  const root = requireRoot();
+  return {
+    root,
+    outputDir: insideRoot(
+      root,
+      configured('ALPHA_RENDER_OUTPUT', DEFAULT_OUTPUT),
+      'ALPHA_RENDER_OUTPUT',
+    ),
+  };
+}
+
+/**
+ * The prefix `run()` gives each render's private staging directory.
+ *
+ * Exported because anything reading the output directory has to skip these:
+ * a render in flight has a `.render-XXXXXX/` sitting in there holding a
+ * half-written image, and counting it reports work that has not happened yet.
+ */
+export const STAGING_PREFIX = '.render-';
+
+/**
+ * Where a finished image is filed, under the output directory.
+ *
+ * Everything used to land in one flat `output/`, which is fine for the first
+ * dozen renders and unusable by the thousandth: a directory holding every
+ * species and every seed since the beginning answers no question anyone asks.
+ * Filing by species is the default because species is how renders are asked
+ * for — `--species fern,beetle` — so it is also how they are looked for.
+ *
+ * The species is already validated against NAME_PATTERN before this runs, so
+ * it cannot contain a separator, `..`, or anything else that would climb out
+ * of the output directory. That ordering is load-bearing, not incidental.
+ */
+export function fileDestination(outputDir, species, { now = new Date() } = {}) {
+  const mode = configured('ALPHA_RENDER_FILE_BY', 'species');
+  if (mode === 'flat') return outputDir;
+  if (mode === 'species') return join(outputDir, species);
+  if (mode === 'species-day') {
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate(),
+    ).padStart(2, '0')}`;
+    return join(outputDir, species, day);
+  }
+  throw new ProtocolError(
+    `ALPHA_RENDER_FILE_BY must be "species", "species-day" or "flat" (got ${JSON.stringify(mode)})`,
+    { status: 500, code: 'not_configured' },
+  );
 }
 
 /**
@@ -333,7 +395,7 @@ export async function run(payload, { signal, log } = {}) {
 
   // Its own directory per render, so what it writes is unambiguously its own
   // even with another render running beside it.
-  const stagingDir = mkdtempSync(resolve(outputDir, '.render-'));
+  const stagingDir = mkdtempSync(resolve(outputDir, STAGING_PREFIX));
 
   const blender = configured('ALPHA_BLENDER', 'blender');
   const args = buildArgs({ script, species, seed, outputDir: stagingDir });
@@ -399,7 +461,9 @@ export async function run(payload, { signal, log } = {}) {
 
   // A zero exit with no image is the worse failure, because it would otherwise
   // be reported as a success carrying a recipe that reproduces nothing.
-  const outputs = collectOutputs(stagingDir, outputDir);
+  const destination = fileDestination(outputDir, species);
+  mkdirSync(destination, { recursive: true });
+  const outputs = collectOutputs(stagingDir, destination);
   rmSync(stagingDir, { recursive: true, force: true });
   if (outputs.length === 0) {
     throw new ProtocolError(

@@ -373,7 +373,7 @@ export function walk(recipe, symbols, { signal } = {}) {
   return { nodes, edges };
 }
 
-function boundsOf(nodes) {
+export function boundsOf(nodes) {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
   for (const n of nodes) {
@@ -413,7 +413,7 @@ export async function run(payload, context = {}) {
     segments: edges.length,
     bounds: boundsOf(nodes),
   };
-  log?.(`grew ${recipe.kind} "${recipe.name}" seed ${recipe.seed}: ${stats.segments} segments`);
+  log?.info(`grew ${recipe.kind} "${recipe.name}" seed ${recipe.seed}: ${stats.segments} segments`);
 
   if (recipe.format === 'stats') return { recipe, stats };
   if (recipe.format === 'obj') return { recipe, stats, obj: toObj(recipe, nodes, edges) };
