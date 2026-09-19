@@ -213,6 +213,10 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_RENDER_OUTPUT` | agent | `output` | Where images are written, relative to the root. |
 | `ALPHA_RENDER_SPECIES` | agent | any well-formed name | Comma-separated allowlist of species this machine generates. |
 | `ALPHA_RENDER_TIMEOUT_MS` | agent | `600000` | Ceiling on one render; the task's lease usually bites first. |
+| `ALPHA_GROW_RENDER_ROOT` | agent | — | Directory renders are written under. Required by `alpha-grow-render`. |
+| `ALPHA_GROW_RENDER_OUTPUT` | agent | `output` | Where finished images are written, relative to the root. |
+| `ALPHA_GROW_RENDER_BROWSER` | agent | probes common names | Browser executable, e.g. `chromium`, `google-chrome`. |
+| `ALPHA_GROW_RENDER_TIMEOUT_MS` | agent | `30000` | Ceiling on one render. |
 | `ALPHA_PANEL_ROOT` | agent | — | Root holding the CrowPanel sketch. Required by `alpha-panel`. |
 | `ALPHA_PANEL_SKETCH` | agent | `firmware/crowpanel` | Sketch directory, relative to the root. |
 | `ALPHA_PANEL_FQBN` | agent | — | Board id, e.g. `esp32:esp32:esp32`. Required to compile or flash. |
@@ -669,6 +673,47 @@ Finished images are filed under their species —
 directory holding every species and every seed since the beginning answers no
 question anyone asks. `ALPHA_RENDER_FILE_BY=species-day` adds a date level,
 and `flat` restores the old behaviour.
+
+### A snapshot of a `grow` organism, without Blender
+
+`alpha.render` is a GPU render that takes minutes and needs Blender and a
+generator script it drives outside this repository. `grow` (see below) returns
+a skeleton in milliseconds but no picture. `alpha.grow-render` is the machine
+in between: it draws that skeleton itself — project the nodes to 2D, stroke
+the edges on a `<canvas>` — and gets an ordinary installed browser to turn that
+into a PNG in headless mode. No Blender, no GPU, no 3D library of its own; just
+whatever Chromium, Chrome or Edge is already on the machine.
+
+```bash
+ALPHA_GROW_RENDER_ROOT=/srv/alpha ALPHA_EXTRA_HANDLERS=alpha-grow-render npm run agent
+
+npm run admin -- task --type alpha.grow-render --agent a-laptop \
+  --payload '{"preset":"tree","seed":42,"width":800,"height":600}'
+```
+
+The result carries the same kind of thing `alpha.render` does — the recipe,
+and what landed and how big it is — because the same reasoning applies: the
+image stays on the machine that made it.
+
+```json
+{
+  "recipe": { "kind": "plant", "name": "tree", "seed": 42, "…": "…" },
+  "outputs": [{ "name": "tree-seed42-94493c1c16.png", "bytes": 29074 }]
+}
+```
+
+Any `grow` recipe field works in the payload (`preset`, or `axiom`/`rules` for
+a custom one), plus `width`/`height` (64-2048px, default 800x600) and an
+optional `background` colour. The filename carries a short hash of the whole
+recipe, not just its name and seed, because two custom recipes both named
+"custom" are still two different organisms and neither should overwrite the
+other's picture.
+
+It is opt-in like `alpha-render` and asks exactly what it needs before
+offering to run: the output directory, and a browser it can find — either
+`ALPHA_GROW_RENDER_BROWSER` or the first of `chromium`, `chromium-browser`,
+`google-chrome`, `google-chrome-stable`, `microsoft-edge`,
+`microsoft-edge-stable`, `msedge`, `chrome` that PATH resolves.
 
 ### The receipt ledger
 
