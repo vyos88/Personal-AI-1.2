@@ -269,11 +269,32 @@ the same default. Every one of those four now talks to a port with nothing behin
 it, and each fails in its own unhelpful way: `alpha-admin` cannot connect, the
 watchdog reports `HOST UNREACHABLE` and exits 1 about a fleet that is fine, and
 `alpha-manager` — the one likeliest to be on a schedule — fails its pass quietly
-into a log. Set it explicitly:
+into a log. Set it explicitly, and **not to the same value everywhere**:
 
 ```ini
+# on every machine EXCEPT the coordinator's own
 ALPHA_HOST_URL=http://<LAPTOP_TS_IP>:8787
+
+# on the laptop now running the coordinator
+ALPHA_HOST_URL=http://127.0.0.1:8787
 ```
+
+Loopback on the coordinator's own machine, for the same reason step 4 keeps
+`127.0.0.1` in the bind list: a connection that never leaves the machine should
+not be routed through Tailscale, and should not break when Tailscale does. Two
+concrete ways the tailnet address bites here, both on the machine least able to
+afford it:
+
+- **At boot, `100.x` is not assigned yet.** That is why the coordinator itself
+  waits (`ALPHA_BIND_WAIT_MS`). A scheduled `alpha-manager` or watchdog pass
+  firing in that window resolves nothing and fails, against a coordinator
+  running fine on the same box.
+- **A dropped link becomes a self-inflicted outage.** Tailscale going down
+  should cost this machine nothing — it *is* the coordinator. Pointed at its own
+  tailnet address, every local pass fails until the link returns.
+
+`alpha-admin` run by hand on the laptop wants the same loopback value, which is
+what step 6's verification uses.
 
 **Then strip the coordinator's own keys from that file.** `ALPHA_HOST_PORT`,
 `ALPHA_HOST_BIND`, `ALPHA_AUTH_STORE` and especially `ALPHA_BOOTSTRAP_TOKEN`
@@ -285,11 +306,13 @@ in place next to it is half a retirement.
 
 ### 6. Verify
 
-From the laptop:
+From the laptop. It reads `.env` beside the checkout, so with step 5b done these
+need no environment at all; set them explicitly only if you are checking before
+writing that file:
 
-```bash
-export ALPHA_HOST_URL=http://127.0.0.1:8787
-export ALPHA_ADMIN_TOKEN=alpha_key_...      # your existing admin key
+```powershell
+$env:ALPHA_HOST_URL  = 'http://127.0.0.1:8787'
+$env:ALPHA_ADMIN_TOKEN = 'alpha_key_...'      # your existing admin key
 node src/admin/run.js whoami
 node src/admin/run.js agents
 ```
@@ -302,15 +325,22 @@ agent has polled.
 
 End to end, with a task that actually runs on the Alpha box:
 
-```bash
+```powershell
 node src/admin/run.js task --type sysinfo --agent <alpha-host-agent-name>
-node src/admin/run.js coord --action Status
+node src/admin/run.js coord --action Status --actor migration-check
 ```
 
 `sysinfo` proves dispatch and result reporting across the new link.
 `coord` proves the coordination tunnel still reaches the Alpha working copy from
 a coordinator that is no longer on it — the one thing this move could plausibly
 have broken, and the reason the agent stayed put.
+
+`--actor` is **required** and the command fails without it (`coord requires
+--actor`); it accepts 1-64 characters of letters, digits, dot, dash or
+underscore, or set `ALPHA_COORDINATION_ACTOR` once in `.env`. `Status` is the
+right probe because it is the read-only action — it reports the tunnel's state
+without claiming a path or releasing anyone else's claim, so it is safe to run
+against a live Alpha mid-migration.
 
 Re-queue anything step 1 showed you dropping.
 
