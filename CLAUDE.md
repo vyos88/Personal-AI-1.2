@@ -501,6 +501,25 @@ cannot be spawned without a shell, and a shell is exactly what must not stand
 between a prompt and the process — so PATH resolution tries native extensions
 first and refuses a shim with the remedy in the reason.
 
+`alpha-music.js` is the seventh, and the second that returns a recipe.
+`alpha.music` takes exactly what Alpha's Music Creator panel collects —
+genre, subgenre, bpm, key, vocals, seed, durationSec — checks the names against
+`src/common/musicGenres.js` (the vocabulary the panel's `musicGenres.ts`
+mirrors), and hands them to a Python generator. Three rules it adds:
+
+- **A genre suggests a BPM, never pins one.** A missing `bpm` takes the
+  subgenre's `defaultBpm`; a given one always wins. `bpmTypical` in the
+  result is informational and nothing reads it.
+- **`vocals: true` is refused unless `ALPHA_MUSIC_VOCALS=1`.** The obvious
+  local generator (MusicGen) cannot sing, and a recipe saying "vocals" for an
+  instrumental track is the `alpha.render` `params` mistake again. `vocals`
+  must be stated either way, so the recipe always says which it is.
+- **Unknown payload keys are refused, not dropped**, for the same reason.
+
+Unlike `alpha.render`, the generator contract is defined *here*
+(`buildArgs`, pinned by tests), because no generator existed before it. The
+Python side has to match it; if either changes, change both together.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
