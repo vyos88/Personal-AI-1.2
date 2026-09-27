@@ -39,6 +39,12 @@ import { findGenre, findSubgenre, isBpmTypical, isValidKey } from '../../common/
  * It must write its audio into DIR, name the file itself, and exit non-zero
  * on failure. The handler reports what landed there.
  *
+ * `scripts/generate_music.py` in this repository implements it with MusicGen,
+ * so ALPHA_MUSIC_ROOT can simply be this checkout (its dependencies are in
+ * `scripts/requirements-music.txt`, installed on the generating machine only).
+ * `ALPHA_MUSIC_DRY_RUN=1` makes it write a click track at the requested BPM
+ * on the key's tonic, with no model, which is how the tests drive it.
+ *
  * External-program rules, as for every handler of this kind: pinned
  * interpreter, pinned script that must resolve inside ALPHA_MUSIC_ROOT,
  * validated values, argv array. It is NOT registered by default — enable it on

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { copyFile, mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -170,4 +171,71 @@ test('a machine missing part of the setup says which part and is not registered'
   process.env.ALPHA_MUSIC_PYTHON = join(root, 'no-python-here');
   assert.match(available().reason, /Python not found/);
   assert.equal(new HandlerRegistry([]).add(music).registered, false);
+});
+
+// The real generator, in its dry-run mode: the handler's argv against the
+// script's argparse is the contract, and this is the only test that has both
+// sides of it in the room. Skipped where there is no Python.
+const REPO = join(import.meta.dirname, '..');
+const pythonCommand = ['python3', 'python'].find((name) => {
+  const probe = spawnSync(name, ['--version'], { encoding: 'utf8' });
+  return probe.status === 0 && /Python 3/.test(probe.stdout + probe.stderr);
+});
+
+async function realGenerator(t) {
+  if (!pythonCommand) {
+    t.skip('no Python 3 on this machine');
+    return null;
+  }
+  isolateEnv(t);
+  const root = await mkdtemp(join(tmpdir(), 'alpha-music-real-'));
+  await mkdir(join(root, 'scripts'));
+  await copyFile(join(REPO, 'scripts', 'generate_music.py'), join(root, 'scripts', 'generate_music.py'));
+  process.env.ALPHA_MUSIC_ROOT = root;
+  process.env.ALPHA_MUSIC_PYTHON = pythonCommand;
+  const saved = process.env.ALPHA_MUSIC_DRY_RUN;
+  process.env.ALPHA_MUSIC_DRY_RUN = '1';
+  t.after(() => {
+    if (saved === undefined) delete process.env.ALPHA_MUSIC_DRY_RUN;
+    else process.env.ALPHA_MUSIC_DRY_RUN = saved;
+  });
+  return root;
+}
+
+test('the real generator accepts the handler\'s argv and writes a WAV of the asked length', async (t) => {
+  const root = await realGenerator(t);
+  if (!root) return;
+  const result = await run({ ...BASE, genre: 'R&B / Soul', subgenre: 'Neo-Soul', durationSec: 4 });
+  const names = result.outputs.map((output) => output.name);
+  assert.deepEqual(names, ['neo-soul_85bpm_f-minor_seed7_4s.json', 'neo-soul_85bpm_f-minor_seed7_4s.wav']);
+
+  const wav = await readFile(result.outputs[1].path);
+  assert.equal(wav.toString('ascii', 0, 4), 'RIFF');
+  const rate = wav.readUInt32LE(24);
+  const channels = wav.readUInt16LE(22);
+  const dataBytes = wav.readUInt32LE(40);
+  assert.equal(dataBytes / 2 / channels / rate, 4);
+
+  const sidecar = JSON.parse(await readFile(result.outputs[0].path, 'utf8'));
+  assert.deepEqual(sidecar.recipe, result.recipe);
+  assert.match(sidecar.prompt, /Neo-Soul .*85 BPM, in F minor, instrumental/);
+});
+
+test('the real generator refuses vocals even if the machine claims it can sing', async (t) => {
+  const root = await realGenerator(t);
+  if (!root) return;
+  process.env.ALPHA_MUSIC_VOCALS = '1';
+  await assert.rejects(run({ ...BASE, vocals: true }), /exited 3.*instrumental only/);
+});
+
+test('the real generator fails loudly without its model dependencies', async (t) => {
+  const root = await realGenerator(t);
+  if (!root) return;
+  delete process.env.ALPHA_MUSIC_DRY_RUN;
+  const probe = spawnSync(pythonCommand, ['-c', 'import torch, transformers'], { encoding: 'utf8' });
+  if (probe.status === 0) {
+    t.skip('torch and transformers are installed here; this checks the machine without them');
+    return;
+  }
+  await assert.rejects(run(BASE), /exited 1.*requirements-music\.txt/);
 });

@@ -517,8 +517,12 @@ mirrors), and hands them to a Python generator. Three rules it adds:
 - **Unknown payload keys are refused, not dropped**, for the same reason.
 
 Unlike `alpha.render`, the generator contract is defined *here*
-(`buildArgs`, pinned by tests), because no generator existed before it. The
-Python side has to match it; if either changes, change both together.
+(`buildArgs`, pinned by tests), and so is the generator:
+`scripts/generate_music.py` (MusicGen via `transformers`, imported lazily).
+A test runs the handler against the real script in its `ALPHA_MUSIC_DRY_RUN`
+mode, so the two cannot drift apart; if either changes, change both together.
+The script refuses `--vocals` itself too, and every failure path exits
+non-zero, because a clean exit is what the handler reads as success.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,

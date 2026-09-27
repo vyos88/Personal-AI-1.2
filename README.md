@@ -208,7 +208,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. Unused budget is withheld from what this machine offers. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
 | `ALPHA_RENDER_ROOT` | agent | — | Directory holding the Blender generator script. Required by `alpha-render`. |
-| `ALPHA_MUSIC_ROOT` | agent | — | Directory holding the music generator (`scripts/generate_music.py`). Required by `alpha-music`; see the header of `src/agent/handlers/alpha-music.js` for the generator contract. |
+| `ALPHA_MUSIC_ROOT` | agent | — | Directory holding the music generator (`scripts/generate_music.py`, which ships in this repo, so this checkout works). Required by `alpha-music`. Install the model's dependencies there with `pip install -r scripts/requirements-music.txt`. |
 | `ALPHA_RENDER_SCRIPT` | agent | `scripts/generate.py` | Generator script, relative to the root. |
 | `ALPHA_BLENDER` | agent | `blender` | Blender executable. |
 | `ALPHA_RENDER_OUTPUT` | agent | `output` | Where images are written, relative to the root. |
