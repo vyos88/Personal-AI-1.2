@@ -243,6 +243,46 @@ scripted equivalent and is safe to run beside a running agent — its attach che
 passes a throwaway `ALPHA_AGENT_INSTANCE_ID` precisely so that proving the
 configuration does not supersede the agent already lending from that machine.
 
+**`.env.agent` is the right file, and `.env` does not override it.** The agent
+loads `.env.agent` first and `.env` second (`src/agent/index.js:21-22`), and
+`process.loadEnvFile` does not overwrite a variable that is already set — so the
+*first* file to define `ALPHA_HOST_URL` wins. On a machine holding both, the
+agent's own file takes precedence, which is what you want and worth knowing,
+because the opposite assumption sends you editing the wrong file and concluding
+the change did not take.
+
+### 5b. Repoint `.env` as well, on every machine that has one
+
+This is the step the agent's own configuration hides. Four tools read
+`ALPHA_HOST_URL` from `.env` and never look at `.env.agent`:
+
+| Tool | Loads | On the old host, now points at |
+|---|---|---|
+| `alpha-admin` (`src/admin/cli.js:9`) | `.env` | loopback — nothing listening |
+| `scripts/watchdog.mjs:46` | `.env` | loopback |
+| `scripts/run-jobs.mjs:23` | `.env` | loopback |
+| `scripts/alpha-manager.mjs:42` | `.env` | loopback |
+
+On the Alpha host `.env` was the *coordinator's* configuration, so
+`ALPHA_HOST_URL` there was `http://127.0.0.1:8787` — or absent, which resolves to
+the same default. Every one of those four now talks to a port with nothing behind
+it, and each fails in its own unhelpful way: `alpha-admin` cannot connect, the
+watchdog reports `HOST UNREACHABLE` and exits 1 about a fleet that is fine, and
+`alpha-manager` — the one likeliest to be on a schedule — fails its pass quietly
+into a log. Set it explicitly:
+
+```ini
+ALPHA_HOST_URL=http://<LAPTOP_TS_IP>:8787
+```
+
+**Then strip the coordinator's own keys from that file.** `ALPHA_HOST_PORT`,
+`ALPHA_HOST_BIND`, `ALPHA_AUTH_STORE` and especially `ALPHA_BOOTSTRAP_TOKEN`
+describe a coordinator this machine no longer runs. Leaving them costs nothing
+while nothing reads them — but this is the machine with three ways to start a
+coordinator again (step 2), and a revived one would come up on the old port
+*with a live break-glass token*. Retiring the service and leaving its credentials
+in place next to it is half a retirement.
+
 ### 6. Verify
 
 From the laptop:
@@ -296,3 +336,33 @@ things follow:
 Neither is HA, and this document is not claiming otherwise. `standby-alpha.mjs`
 covers *Alpha* being down, not the coordinator; nothing here adds a quorum, and a
 laptop holding the fleet's queue is a laptop whose lid matters.
+
+### The lid, and why the existing advice reads differently now
+
+`docs/AUTO_UPDATE.md` already has the power settings, under **Keeping a worker
+laptop awake**, and the commands there are unchanged — use them. What changes is
+the reasoning around them, because every reassurance in that section is a
+property of a *worker*, not of a coordinator:
+
+| When the lid closes | Worker laptop | Coordinator laptop |
+|---|---|---|
+| Who notices | the host prunes it after `AGENT_STALE_MS` | every agent at once; nobody is left to notice |
+| Work in flight | lease expires, requeued elsewhere — **nothing is lost** | the queue **was** on this machine, in memory; it is gone |
+| Recovery | rejoins on its own when it wakes, no manual step | agents reconnect, but the queue does not come back |
+| Blast radius | one machine's capacity | the whole fleet, plus every `alpha-admin` and scheduled pass |
+
+So the worker section's "nothing is lost — that is what leases are for" does not
+transfer. Leases protect work *held by an agent* from that agent vanishing;
+nothing protects the queue from the machine the queue lives on vanishing. On
+Laptop41 the power settings stop being hygiene and become the thing standing
+between a closed lid and a fleet-wide outage.
+
+One deliberate piece of that advice to re-read rather than copy: **"Only on mains
+power."** For a worker, leaving the battery settings alone is correct — a machine
+about to disappear should not be taking work, and dropping out of the fleet is
+the right behaviour. For the coordinator it is the opposite: unplugging Laptop41
+now ends the fleet on the battery timeout. The commands stay AC-scoped (disabling
+sleep on battery still flattens the machine, which fixes nothing), so the real
+mitigation is not a power setting at all — it is that **the coordinator belongs on
+a machine that stays plugged in**, and Laptop41 has to be treated as that machine
+rather than as a laptop that happens to run it.
