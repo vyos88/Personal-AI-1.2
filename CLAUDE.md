@@ -461,8 +461,10 @@ no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
 the sketch would be restarting instead of answering.
 
-`codex-exec.js` is the sixth, and the one that breaks the pattern the other
-five hold. `codex.exec` hands a prompt to the Codex CLI on the machine that has
+`codex-exec.js` is the sixth external-*program* handler — the sequence
+`alpha-coordination`, `alpha-update`, `alpha-render`, `alpha-devices`,
+`alpha-panel`, and now this, distinct from the external-*facing* count above —
+and the one that breaks the pattern the other five hold. `codex.exec` hands a prompt to the Codex CLI on the machine that has
 it and returns what Codex said, so another coding agent is reachable by task
 rather than by a person carrying messages between two laptops. Every other
 handler here narrows a payload until what is left is data; this one hands a
