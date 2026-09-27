@@ -218,6 +218,12 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_PANEL_FQBN` | agent | — | Board id, e.g. `esp32:esp32:esp32`. Required to compile or flash. |
 | `ALPHA_PANEL_PORT` | agent | — | Default serial port for the panel, e.g. `COM3`. |
 | `ALPHA_ARDUINO_CLI` | agent | `arduino-cli` | arduino-cli executable. |
+| `ALPHA_CODEX_ROOT` | agent | — | Directory Codex works in. Required by `codex-exec`. |
+| `ALPHA_CODEX` | agent | `codex` | Codex executable. On Windows, the native binary — not the npm `.cmd`. |
+| `ALPHA_CODEX_SANDBOX` | agent | `read-only` | Sandbox mode passed to Codex. Empty passes no flag. |
+| `ALPHA_CODEX_MODEL` | agent | Codex's default | Model Codex should use. |
+| `ALPHA_CODEX_SKIP_GIT_CHECK` | agent | — | Set to `1` when the root is not a git checkout. |
+| `ALPHA_CODEX_TIMEOUT_MS` | agent | `600000` | Ceiling on one Codex call; raise the task's lease with it. |
 | `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
@@ -944,6 +950,60 @@ and `ALPHA_BLENDER` resolves — by PATH lookup, since that is how the render
 itself finds it, and with `PATHEXT` on Windows. It runs nothing: whether Blender
 *works* is not knowable without rendering, and a render still reports that
 honestly.
+
+## Talking to another coding agent
+
+Codex runs on one laptop, Alpha on another, and until now the only way to get a
+question from one to the other was a person carrying it. `codex.exec` makes it a
+task: the prompt goes into the queue, the agent on the machine that has Codex
+runs it non-interactively, and the answer comes back as the task result. No open
+port on that laptop, and nobody sitting at it.
+
+Opt in on the machine that has Codex, and tell it where to work:
+
+```bash
+ALPHA_EXTRA_HANDLERS=codex-exec
+ALPHA_CODEX_ROOT=C:\path\to\the\checkout
+```
+
+Then, from the host or anywhere with the CLI:
+
+```bash
+npm run admin -- codex --agent jacks-laptop \
+  --prompt "Read src/host/queue.js and tell me what happens to a task whose lease expires twice"
+```
+
+```json
+{
+  "output": "A task whose lease expires is requeued by the sweeper ...",
+  "truncated": false,
+  "exitCode": 0,
+  "durationMs": 48213,
+  "sandbox": "read-only",
+  "model": null
+}
+```
+
+`codex` leases ten minutes, because Codex thinks for longer than the 60s default
+and a reclaimed task is requeued forever. Long messages are better sent as a
+file than fought through a shell:
+
+```bash
+npm run admin -- codex --agent jacks-laptop --prompt-file ./question.md --no-wait
+npm run admin -- tasks          # read the answer when it lands
+```
+
+**The payload carries a prompt and nothing else.** Not a model, not a directory,
+not a sandbox mode, not a flag — those belong to whoever owns that laptop, and a
+task naming one is refused rather than ignored. The sandbox defaults to
+`read-only`: a task queued against `codex.exec` is a request to an AI agent with
+filesystem access on that machine, so widening it is a decision made on the
+machine, in the open. `available()` refuses a machine where Codex is not
+installed, or whose root is not a checkout, so a laptop set up from a copy of
+someone else's `.env.agent` never advertises a capability it cannot keep.
+
+docs/CODEX_BRIDGE.md has the full round trip, including the Windows `.cmd`
+corner and what a two-way conversation looks like.
 
 ## Adding a handler
 
