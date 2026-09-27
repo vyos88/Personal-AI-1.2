@@ -1,4 +1,4 @@
-import { createReadStream, existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync, appendFileSync } from 'node:fs';
+import { createReadStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync, statSync, writeFileSync, appendFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -144,6 +144,10 @@ export function createMusicBridge({
   cacheDir = join(tmpdir(), 'alpha-music-bridge'),
   chunkTimeoutMs = 60_000,
   pollMs = 150,
+  // How many tracks the cache keeps. The generating machine still holds every
+  // one, so an evicted track only costs a re-fetch; an unbounded cache costs
+  // the bridge's disk, a few MB per track, for as long as it runs.
+  cacheMaxTracks = 50,
 }) {
   if (!hostUrl) throw new Error('the music bridge needs the coordinator URL (ALPHA_HOST_URL)');
   if (!token) throw new Error('the music bridge needs a tunnel key with tasks:read and tasks:write');
@@ -257,6 +261,18 @@ export function createMusicBridge({
 
   const downloads = new Map();
 
+  /** Drops the least recently fetched tracks beyond cacheMaxTracks, never `keep`. */
+  function pruneCache(keep) {
+    const tracks = readdirSync(cacheDir)
+      .filter((name) => !name.endsWith('.part'))
+      .map((name) => ({ path: join(cacheDir, name), mtimeMs: statSync(join(cacheDir, name)).mtimeMs }))
+      .sort((a, b) => b.mtimeMs - a.mtimeMs);
+    for (const track of tracks.slice(cacheMaxTracks)) {
+      // A download being played right now must not vanish from under it.
+      if (track.path !== keep && !downloads.has(track.path)) rmSync(track.path, { force: true });
+    }
+  }
+
   async function audio(req, res, taskId) {
     const task = await musicTask(taskId);
     if (!task) return send(res, 404, { error: 'unknown_task' });
@@ -282,6 +298,7 @@ export function createMusicBridge({
         downloads.set(dest, pending);
       }
       await pending;
+      pruneCache(dest);
     }
     return serveFile(req, res, dest, AUDIO_TYPES[track.name.split('.').pop().toLowerCase()]);
   }

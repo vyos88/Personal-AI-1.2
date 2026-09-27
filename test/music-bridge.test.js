@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdtemp, mkdir, readFile, readdir } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -183,7 +183,11 @@ test('click to WAV to playback: bridge, coordinator, agent and the real generato
 
   const host = await startHost(t);
   const cacheDir = await mkdtemp(join(tmpdir(), 'music-cache-'));
-  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box', cacheDir, pollMs: 20 });
+  // An older cached track, to be evicted when the cache is full.
+  const stale = join(cacheDir, 'task_old-older.wav');
+  await writeFile(stale, 'RIFF');
+  await utimes(stale, new Date(0), new Date(0));
+  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box', cacheDir, pollMs: 20, cacheMaxTracks: 1 });
   await mkdir(join(root, 'output'));
   const handlers = new HandlerRegistry([]);
   assert.equal(handlers.add(music).registered, true);
@@ -229,5 +233,5 @@ test('click to WAV to playback: bridge, coordinator, agent and the real generato
   assert.equal(ranged.headers.get('content-range'), `bytes 100-199/${original.length}`);
   assert.ok(Buffer.from(await ranged.arrayBuffer()).equals(original.subarray(100, 200)));
   assert.equal(host.queue.list({}).filter((task) => task.type === 'alpha.music.audio').length, 2, 'a replay re-fetched over the tunnel');
-  assert.deepEqual(await readdir(cacheDir), [`${queued.taskId}-rollers_174bpm_f-minor_seed7_20s.wav`]);
+  assert.deepEqual(await readdir(cacheDir), [`${queued.taskId}-rollers_174bpm_f-minor_seed7_20s.wav`], 'the full cache kept the new track and evicted the old one');
 });

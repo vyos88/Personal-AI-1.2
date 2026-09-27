@@ -18,6 +18,7 @@
  *   ALPHA_MUSIC_BRIDGE_BIND        default 127.0.0.1
  *   ALPHA_MUSIC_BRIDGE_PORT        default 8790
  *   ALPHA_MUSIC_BRIDGE_CACHE       where fetched tracks are kept (default: the OS temp dir)
+ *   ALPHA_MUSIC_BRIDGE_CACHE_TRACKS  how many tracks it keeps (default 50; older ones are re-fetched)
  */
 
 import { loadEnv } from '../src/common/env.js';
@@ -33,6 +34,12 @@ const env = (name, fallback) => {
 const leaseMs = Number(env('ALPHA_MUSIC_LEASE_MS', DEFAULT_LEASE_MS));
 const port = Number(env('ALPHA_MUSIC_BRIDGE_PORT', 8790));
 const bind = env('ALPHA_MUSIC_BRIDGE_BIND', '127.0.0.1');
+// Checked here, not trusted: NaN would reach slice() as 0 and empty the cache.
+const cacheTracks = env('ALPHA_MUSIC_BRIDGE_CACHE_TRACKS', null);
+if (cacheTracks !== null && (!Number.isInteger(Number(cacheTracks)) || Number(cacheTracks) < 1)) {
+  console.error('ALPHA_MUSIC_BRIDGE_CACHE_TRACKS must be a whole number, 1 or more');
+  process.exit(1);
+}
 if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 3_600_000) {
   console.error('ALPHA_MUSIC_LEASE_MS must be 1000-3600000 milliseconds');
   process.exit(1);
@@ -46,6 +53,7 @@ try {
     targetAgent: env('ALPHA_MUSIC_AGENT', null),
     leaseMs,
     ...(env('ALPHA_MUSIC_BRIDGE_CACHE', null) ? { cacheDir: env('ALPHA_MUSIC_BRIDGE_CACHE', null) } : {}),
+    ...(cacheTracks !== null ? { cacheMaxTracks: Number(cacheTracks) } : {}),
   });
 } catch (error) {
   console.error(error.message);
