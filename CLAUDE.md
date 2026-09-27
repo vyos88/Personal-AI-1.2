@@ -524,6 +524,15 @@ mode, so the two cannot drift apart; if either changes, change both together.
 The script refuses `--vocals` itself too, and every failure path exits
 non-zero, because a clean exit is what the handler reads as success.
 
+Alpha's Generate button reaches it through `src/bridge/music.js`
+(`scripts/music-bridge.mjs`), because a tunnel token in a web page is readable
+by anyone who can open the page. The bridge holds a `tasks:read,tasks:write`
+key server-side and narrows it further than any scope can: it queues
+`alpha.music` only, with lease and target machine from its own configuration,
+validates with the handler's own `validateSettings`, reads back music tasks
+only, binds loopback and sends no CORS header. It leaves `vocals` to the agent,
+since it cannot know which machine will run the task.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

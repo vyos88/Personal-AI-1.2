@@ -102,9 +102,12 @@ export function canSing() {
 
 /**
  * Turns a panel payload into a recipe, or refuses it. Exported so tests can
- * pin every refusal without a generator.
+ * pin every refusal without a generator, and so `src/bridge/music.js` refuses
+ * the same things before queueing. The bridge passes `allowVocals: true`: it
+ * does not know which machine will run the task, so whether that machine can
+ * sing is the agent's question, asked here with the default.
  */
-export function validateSettings(payload) {
+export function validateSettings(payload, { allowVocals = canSing() } = {}) {
   if (payload === null || typeof payload !== 'object' || Array.isArray(payload)) {
     throw new ProtocolError('payload must be an object of music settings');
   }
@@ -145,7 +148,7 @@ export function validateSettings(payload) {
   if (typeof payload.vocals !== 'boolean') {
     throw new ProtocolError('"vocals" must be true or false, so the recipe says which it is');
   }
-  if (payload.vocals && !canSing()) {
+  if (payload.vocals && !allowVocals) {
     throw new ProtocolError(
       'this machine\'s generator is instrumental only; ask for "vocals": false, or set ' +
         'ALPHA_MUSIC_VOCALS=1 on a machine whose generator can sing',
