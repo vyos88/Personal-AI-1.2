@@ -16,6 +16,7 @@ can move the coordinator later without touching the agent."*
 |---|---|---|
 | coordinator (`node src/host/index.js`) | **yes** | listens; holds queue + accounts, nothing machine-specific |
 | `data/auth.json` | **yes, by hand** | the only copy of your accounts — see below |
+| `data/receipts.json` | **yes, by hand** | the ledger; leaving it behind resets a quota gate — see below |
 | agent on the Alpha host (`node src/agent/index.js`) | **no** | must stay |
 | queued and in-flight tasks | **no** | the queue is in memory |
 
@@ -61,6 +62,35 @@ Two guards worth knowing before you copy:
   credential, so a bad copy fails loudly instead of quietly widening access.
 - Copy it while the old coordinator is **stopped**. Copying a file that is being
   written is how you get the unparseable store above.
+
+## The second file: `data/receipts.json`
+
+`auth.json` is the one that voids credentials if you lose it, so it gets the
+attention. There is a second stateful file, and leaving it behind fails quietly
+rather than loudly.
+
+The receipt ledger (`src/host/receipts.js`, `ALPHA_RECEIPT_STORE`, default
+`./data/receipts.json`) is the durable record of every task that finished — the
+queue is in memory, so without it "how many renders ran last night" has no
+answer after a restart. Nothing reads it to make a *dispatch* decision, which is
+why a corrupt ledger does not stop the coordinator the way a corrupt auth store
+does. But `scripts/alpha-manager.mjs` reads it for two things, and both degrade
+silently if the new coordinator starts with an empty one:
+
+- **Seed continuation.** The manager continues seeds from the highest already
+  recorded for a species, precisely so a scheduled pass makes new creatures
+  rather than re-rendering the same ones. An empty ledger restarts the sequence,
+  and the fleet spends its next passes reproducing renders it already has.
+- **The quota gate.** `--max-per-window` refuses a pass when that many renders
+  already finished inside `--window`. It counts them *from the ledger*. An empty
+  ledger reads as "nothing has run", so the quota resets to its full allowance
+  the moment the new coordinator comes up — the bound is briefly not a bound, on
+  exactly the unattended loop it exists to cap.
+
+So copy it alongside `auth.json`. The same rule applies — copy it with the old
+coordinator stopped — and the failure mode is gentler: a ledger the new host
+cannot parse is moved aside, kept, and the ledger starts empty *loudly*, rather
+than blocking the coordinator.
 
 ## Runbook
 
@@ -116,17 +146,35 @@ nssm set alpha-agent DependOnService ""
 nssm restart alpha-agent
 ```
 
+**Then check for `run-coordinator.cmd`.** It is the unelevated way to keep the
+coordinator up — a `:loop` that restarts `node src\host\index.js` after any
+exit, by design, *"instead of leaving the host silently absent"*. If the old host
+was started that way rather than by service, nothing in the two commands above
+touches it: the loop notices node has gone and brings the retired coordinator
+straight back, on a ten-second delay, and you get the two-coordinator split
+anyway. Close the window it runs in, or end the `cmd.exe` holding the loop —
+killing only `node` is what the loop exists to survive. Check Task Scheduler and
+the `shell:startup` folder for it too, since it needs no elevation to be there.
+
+Counting the service, its auto-start, and this loop, there are three independent
+ways the old coordinator comes back. Verify rather than assume: from the laptop,
+`curl http://<OLD_HOST_TS_IP>:8787/healthz` should fail to connect. `/healthz` is
+the only unauthenticated GET, so it answers this without a token.
+
 The agent service itself keeps running. It is going to keep doing exactly what it
 did; it just dials somewhere new in step 5.
 
 ### 3. Copy the store to the laptop
 
+Both stateful files, not just the accounts:
+
 ```powershell
-Copy-Item C:\services\alpha-tunnel\data\auth.json \\LAPTOP41\...\alpha-tunnel\data\auth.json
+Copy-Item C:\services\alpha-tunnel\data\auth.json     \\LAPTOP41\...\alpha-tunnel\data\auth.json
+Copy-Item C:\services\alpha-tunnel\data\receipts.json \\LAPTOP41\...\alpha-tunnel\data\receipts.json
 ```
 
-Any transport is fine. Keep a copy on the old host as your rollback, and treat
-the file as a secret in transit — it is hashes and scrypt digests rather than
+Any transport is fine. Keep copies on the old host as your rollback, and treat
+`auth.json` as a secret in transit — it is hashes and scrypt digests rather than
 plaintext, but it is still the whole access surface of the fleet.
 
 ### 4. Bring the coordinator up on the laptop
@@ -160,6 +208,12 @@ It logs the addresses it bound. Two failures to recognise:
 
 It may also wait rather than fail: `ALPHA_BIND_WAIT_MS` exists because at boot
 Tailscale has not yet assigned `100.x`. A port genuinely in use still fails fast.
+
+Once it proves out, keep it up deliberately rather than in a terminal — see
+*What this move does not give you* below. If you use `run-coordinator.cmd` for
+that, **edit the path in it**: it hard-codes `cd /d C:\services\alpha-tunnel`,
+and on a laptop whose checkout is elsewhere the loop will restart node in the
+wrong directory every ten seconds, reading a different `.env` or none.
 
 ### 5. Repoint every agent
 
