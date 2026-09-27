@@ -15,6 +15,9 @@ export const MUSIC_GENRES = [
       { name: 'Techno', bpmRange: [120, 150], defaultBpm: 130 },
       { name: 'Trance', bpmRange: [125, 150], defaultBpm: 138 },
       { name: 'Drum and Bass', bpmRange: [160, 180], defaultBpm: 174 },
+      // Rollers: the smooth, rolling-bassline end of Drum and Bass — tighter
+      // tempo band than the parent genre, not a different genre.
+      { name: 'Rollers', bpmRange: [170, 178], defaultBpm: 174 },
       { name: 'Dubstep', bpmRange: [135, 145], defaultBpm: 140 },
       { name: 'Ambient', bpmRange: [60, 90], defaultBpm: 70 },
       { name: 'Synthwave', bpmRange: [80, 118], defaultBpm: 100 },
@@ -170,4 +173,27 @@ export function isBpmTypical(genreName, subgenreName, bpm) {
   if (!subgenre) return null;
   const [min, max] = subgenre.bpmRange;
   return bpm >= min && bpm <= max;
+}
+
+// Musical key: a root note plus a mode. Independent of genre — no genre here
+// pins a key, the same reason no genre pins a fixed BPM. "Drum and Bass" says
+// nothing about major or minor; that choice belongs to the person making the
+// track.
+const KEY_ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const KEY_MODES = ['major', 'minor'];
+
+export const MUSIC_KEYS = KEY_ROOTS.flatMap((root) =>
+  KEY_MODES.map((mode) => ({ root, mode, name: `${root} ${mode}` })),
+);
+
+export function listKeys() {
+  return MUSIC_KEYS.map((key) => key.name);
+}
+
+export function findKey(keyName) {
+  return MUSIC_KEYS.find((key) => key.name === keyName) ?? null;
+}
+
+export function isValidKey(keyName) {
+  return findKey(keyName) !== null;
 }
