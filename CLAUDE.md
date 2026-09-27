@@ -327,6 +327,63 @@ too. Two halves of the same problem: `--agent` decides where a render goes, and
 the first place — the second is what covers an *unpinned* render on a laptop
 holding a copy of the host's configuration.
 
+**The queue forgets; the ledger remembers.** `src/host/queue.js` is one
+in-memory Map, deliberately — but that meant the *answer* died with it, and
+after a restart there was no way to say how many renders ran last night or
+which species came back. Terminal tasks now also go to `src/host/receipts.js`
+via the queue's `onTerminal` seam. Four properties hold it up:
+
+- **It is the expendable half.** A ledger write that throws — full disk,
+  read-only mount — must never turn a task that genuinely succeeded into a 500
+  for the agent reporting it, which would cost the lease and re-run finished
+  work. `#finished()` swallows and logs.
+- **A corrupt file does not stop the host.** The opposite of `AuthStore`, and
+  for the opposite reason: overwriting credentials silently un-revokes access,
+  whereas blocking the coordinator over a damaged *history* file is worse than
+  losing the history. The bad file is moved aside and kept, never deleted.
+- **The agent's name is resolved at record time, not read time.** A receipt
+  outlives the registration that ran the work, and ids are minted per
+  registration — a minute later there is nothing to look up.
+- **Persistence follows the auth store's.** A host whose credentials are in
+  memory cannot outlive its process, so a durable ledger for it is meaningless
+  and actively harmful: defaulting it to the real path regardless put
+  kilobytes of fabricated receipts into `./data/receipts.json` on every
+  `npm test` run. Pinned by a test.
+
+`alpha-render-inventory.js` is the sixth external-facing handler and the only
+one that exists because of what the ledger *cannot* know. The ledger records
+from the moment a host started keeping one; every render before that left one
+durable trace, the file on the machine that made it. So this reads the output
+directory and reports it. Four rules it follows:
+
+- **It never parses a seed out of a filename.** The generator names its own
+  file, which is why `alpha.render` reports what appeared rather than
+  predicting a path; reconstructing `fern_7.png` → seed 7 reintroduces exactly
+  that assumption and breaks the first time the naming changes. Counts, bytes
+  and mtimes are what a file can honestly tell you.
+- **It takes no path from the payload**, only an optional `species` filter. A
+  handler that could be told where to look is a directory lister with a task
+  queue in front of it — the same objection `handlers/index.js` raises against
+  a shell handler.
+- **A render in flight is excluded but counted.** `run()`'s `.render-*`
+  staging directory holds a half-written image, which is not output; the
+  number of them is reported, because that is the other half of reading a
+  directory mid-flight.
+- **Its `available()` is weaker than `alpha.render`'s on purpose** — output
+  directory yes, Blender no. A machine whose Blender broke still holds every
+  render it made, and that is exactly when an inventory is wanted. It shares
+  `resolveOutputDir()` with the render handler rather than keeping a second
+  copy of the rule, because a copy that drifts reads a directory the renders
+  do not write to and calls a full machine empty.
+
+`scripts/alpha-manager.mjs` is what a scheduled loop runs, and the three things
+it adds over `run-jobs.mjs` are the three a loop needs: seeds **continue** from
+the ledger instead of repeating (a loop on `--seed 0` re-renders the same six
+forever), an allowlist and a per-window quota **approve** before anything is
+queued, and it **never waits** — a render outlives any sensible pass. A pass
+that would overrun the quota is refused whole rather than trimmed, because "I
+rendered some of what you asked" is the worse answer for an unattended job.
+
 `grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
 rivals, because both were asked for by "3D creatures and plants". They are not.
 `alpha.render` drives Blender for minutes on the one machine with a GPU and
@@ -403,6 +460,46 @@ library can open a serial device but cannot set its baud rate, and this repo has
 no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
 the sketch would be restarting instead of answering.
+
+`codex-exec.js` is the sixth external-*program* handler — the sequence
+`alpha-coordination`, `alpha-update`, `alpha-render`, `alpha-devices`,
+`alpha-panel`, and now this, distinct from the external-*facing* count above —
+and the one that breaks the pattern the other five hold. `codex.exec` hands a prompt to the Codex CLI on the machine that has
+it and returns what Codex said, so another coding agent is reachable by task
+rather than by a person carrying messages between two laptops. Every other
+handler here narrows a payload until what is left is data; this one hands a
+string to an agent with a shell on that machine, which is the category
+`handlers/index.js` refuses outright. It stays a handler and not a remote shell
+with extra steps on four counts, and each is load-bearing:
+
+- **The payload is a prompt and nothing else.** Not the executable, the
+  directory, the model, the sandbox mode or any flag — all of those are the
+  machine's configuration. `rejectUnsupportedKeys` refuses the extra key rather
+  than dropping it, for the reason `alpha-devices` refuses arguments: someone who
+  sent `{ prompt, sandbox: 'danger-full-access' }` should be told it meant
+  nothing, not left believing it widened.
+- **The sandbox defaults to `read-only`,** and widening it is done on the laptop
+  rather than by the task that arrived over the network.
+- **The working directory is `cwd`, not a flag.** Every CLI honours it and no
+  version can rename it, so the one part of the contract that cannot drift
+  doesn't. `buildArgs` holds the part that can, pinned by tests — the
+  `alpha-coordination` rule: if the CLI changes, both change together.
+- **`available()` refuses a machine that cannot do it,** including one whose root
+  is not a git checkout, because Codex refuses to run outside one and every task
+  would fail on a machine that looks perfectly configured.
+
+Two failures it will not report as success, both borrowed from `alpha.render`: a
+non-zero exit (Codex did not answer) and a *clean* exit with no output, which
+would otherwise hand back a successful conversation with nothing in it. A long
+answer comes back as its tail with `truncated: true`, because the answer is at
+the end of a transcript. Like a render, a Codex call outlives
+`DEFAULT_LEASE_MS`, so `alpha-admin codex` leases ten minutes for you and
+`--prompt-file` exists because these prompts are paragraphs and a shell that ate
+a newline would change the question without saying so. On Windows, `ALPHA_CODEX`
+must be the native binary: the npm install puts a `.cmd` shim on PATH, a `.cmd`
+cannot be spawned without a shell, and a shell is exactly what must not stand
+between a prompt and the process — so PATH resolution tries native extensions
+first and refuses a shim with the remedy in the reason.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
