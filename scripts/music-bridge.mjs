@@ -17,6 +17,7 @@
  *   ALPHA_MUSIC_LEASE_MS           lease per track (default 600000; generation outlives 60s)
  *   ALPHA_MUSIC_BRIDGE_BIND        default 127.0.0.1
  *   ALPHA_MUSIC_BRIDGE_PORT        default 8790
+ *   ALPHA_MUSIC_BRIDGE_CACHE       where fetched tracks are kept (default: the OS temp dir)
  */
 
 import { loadEnv } from '../src/common/env.js';
@@ -44,6 +45,7 @@ try {
     token: env('ALPHA_MUSIC_BRIDGE_TOKEN', null),
     targetAgent: env('ALPHA_MUSIC_AGENT', null),
     leaseMs,
+    ...(env('ALPHA_MUSIC_BRIDGE_CACHE', null) ? { cacheDir: env('ALPHA_MUSIC_BRIDGE_CACHE', null) } : {}),
   });
 } catch (error) {
   console.error(error.message);

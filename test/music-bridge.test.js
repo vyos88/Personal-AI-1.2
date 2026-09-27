@@ -4,7 +4,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { copyFile, mkdtemp, mkdir } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -12,6 +12,7 @@ import { createHost } from '../src/host/server.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import * as music from '../src/agent/handlers/alpha-music.js';
+import * as musicAudio from '../src/agent/handlers/alpha-music-audio.js';
 import { createMusicBridge, describeTask } from '../src/bridge/music.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
@@ -125,6 +126,25 @@ test('no CORS header: another origin cannot queue work through the bridge', asyn
   assert.equal(headers.get('access-control-allow-origin'), null);
 });
 
+test('playback is refused with the reason before a track exists, or with no music machine', async (t) => {
+  const host = await startHost(t);
+  const untargeted = await startBridge(t, host.url);
+  const { body } = await post(untargeted, SETTINGS);
+  let response = await get(untargeted, `/music/tasks/${body.taskId}/audio`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'not_ready');
+
+  const task = host.queue.get(body.taskId);
+  Object.assign(task, { status: 'succeeded', result: { recipe: SETTINGS, outputs: [{ name: 'x.wav', bytes: 4 }] } });
+  response = await get(untargeted, `/music/tasks/${body.taskId}/audio`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'no_music_machine');
+  assert.equal((await get(untargeted, `/music/tasks/${body.taskId}`)).body.playback, 'no_music_machine');
+
+  Object.assign(task, { result: { recipe: SETTINGS, outputs: [{ name: '../../auth.json', bytes: 4 }] } });
+  assert.equal((await get(untargeted, `/music/tasks/${body.taskId}/audio`)).body.error, 'no_audio');
+});
+
 test('task status names outputs but not paths on the generating machine', () => {
   const view = describeTask({
     id: 't1',
@@ -143,7 +163,7 @@ test('task status names outputs but not paths on the generating machine', () => 
 
 const python = ['python3', 'python'].find((name) => spawnSync(name, ['--version']).status === 0);
 
-test('click to WAV: bridge, coordinator, agent and the real generator', { skip: !python && 'no Python 3' }, async (t) => {
+test('click to WAV to playback: bridge, coordinator, agent and the real generator', { skip: !python && 'no Python 3' }, async (t) => {
   const saved = Object.fromEntries(
     ['ALPHA_MUSIC_ROOT', 'ALPHA_MUSIC_PYTHON', 'ALPHA_MUSIC_DRY_RUN', 'ALPHA_MUSIC_SCRIPT', 'ALPHA_MUSIC_OUTPUT', 'ALPHA_MUSIC_VOCALS'].map((name) => [name, process.env[name]]),
   );
@@ -162,9 +182,12 @@ test('click to WAV: bridge, coordinator, agent and the real generator', { skip: 
   process.env.ALPHA_MUSIC_DRY_RUN = '1';
 
   const host = await startHost(t);
-  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box' });
+  const cacheDir = await mkdtemp(join(tmpdir(), 'music-cache-'));
+  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box', cacheDir, pollMs: 20 });
+  await mkdir(join(root, 'output'));
   const handlers = new HandlerRegistry([]);
   assert.equal(handlers.add(music).registered, true);
+  assert.equal(handlers.add(musicAudio).registered, true);
   const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, name: 'music-box', handlers, pollWaitMs: 500 });
   const running = agent.start();
   t.after(async () => {
@@ -172,7 +195,8 @@ test('click to WAV: bridge, coordinator, agent and the real generator', { skip: 
     await running;
   });
 
-  const { body: queued } = await post(bridge, SETTINGS);
+  // 20 s of dry-run audio is 640 KB: more than one slice.
+  const { body: queued } = await post(bridge, { ...SETTINGS, durationSec: 20 });
   let view;
   const deadline = Date.now() + 20_000;
   while (Date.now() < deadline) {
@@ -181,9 +205,29 @@ test('click to WAV: bridge, coordinator, agent and the real generator', { skip: 
     await new Promise((resolve) => setTimeout(resolve, 50));
   }
   assert.equal(view.status, 'succeeded', JSON.stringify(view.error));
-  assert.deepEqual(view.recipe, { ...SETTINGS, bpm: 174 });
+  assert.deepEqual(view.recipe, { ...SETTINGS, durationSec: 20, bpm: 174 });
   assert.deepEqual(
     view.outputs.map((output) => output.name),
-    ['rollers_174bpm_f-minor_seed7_2s.json', 'rollers_174bpm_f-minor_seed7_2s.wav'],
+    ['rollers_174bpm_f-minor_seed7_20s.json', 'rollers_174bpm_f-minor_seed7_20s.wav'],
   );
+  assert.equal(view.playback, 'ready');
+
+  // Playback: the bridge brings the track across in slices and serves it.
+  const original = await readFile(join(root, 'output', 'electronic', 'rollers_174bpm_f-minor_seed7_20s.wav'));
+  const played = await fetch(`${bridge}/music/tasks/${queued.taskId}/audio`);
+  assert.equal(played.status, 200);
+  assert.equal(played.headers.get('content-type'), 'audio/wav');
+  assert.equal(played.headers.get('accept-ranges'), 'bytes');
+  assert.ok(Buffer.from(await played.arrayBuffer()).equals(original), 'served track differs from the one on the machine');
+  const slices = host.queue.list({}).filter((task) => task.type === 'alpha.music.audio');
+  assert.equal(slices.length, 2);
+  assert.ok(slices.every((task) => task.targetAgent === 'music-box' && task.status === 'succeeded'));
+
+  // Seeking asks for a range; a second play comes from the cache, not the tunnel.
+  const ranged = await fetch(`${bridge}/music/tasks/${queued.taskId}/audio`, { headers: { range: 'bytes=100-199' } });
+  assert.equal(ranged.status, 206);
+  assert.equal(ranged.headers.get('content-range'), `bytes 100-199/${original.length}`);
+  assert.ok(Buffer.from(await ranged.arrayBuffer()).equals(original.subarray(100, 200)));
+  assert.equal(host.queue.list({}).filter((task) => task.type === 'alpha.music.audio').length, 2, 'a replay re-fetched over the tunnel');
+  assert.deepEqual(await readdir(cacheDir), [`${queued.taskId}-rollers_174bpm_f-minor_seed7_20s.wav`]);
 });

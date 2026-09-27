@@ -533,6 +533,23 @@ validates with the handler's own `validateSettings`, reads back music tasks
 only, binds loopback and sends no CORS header. It leaves `vocals` to the agent,
 since it cannot know which machine will run the task.
 
+`alpha-music-audio.js` (`alpha.music.audio`) is how a track gets heard
+somewhere other than the machine that made it, and it is shaped by two facts:
+nothing can reach into an agent, and the coordinator keeps every task result
+in memory for as long as it runs. So the audio comes back as task results, in
+512 KB slices (a result body is capped at 1 MB), and the **bridge fetches each
+track once** into `ALPHA_MUSIC_BRIDGE_CACHE` and serves every later play, with
+Range support for seeking, from its own disk. Re-fetching per play would grow
+the coordinator by the size of the track every time. The slice handler takes a
+genre and a file name, never a path, and looks only at
+`<output>/<genre folder>/<name>`; the bridge only asks for a name the
+generating task itself reported. Every slice carries the file's size and
+mtime, and the bridge restarts a download whose file changed underneath it,
+because a re-run with the same recipe replaces the file in place. Slices go to
+the task's `targetAgent`, so playback needs `ALPHA_MUSIC_AGENT` on the bridge:
+an untargeted task names no machine the bridge could ask. Its `available()`
+needs only the output directory, as `alpha-render-inventory`'s does.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

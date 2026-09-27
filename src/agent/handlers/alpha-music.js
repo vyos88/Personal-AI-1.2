@@ -215,6 +215,15 @@ function requireScript(root) {
   return script;
 }
 
+/**
+ * The directory finished tracks are filed under, resolved and bounds-checked.
+ * Exported so `alpha-music-audio.js` reads exactly where `run()` writes; a
+ * second copy of the rule that drifted would report every track missing.
+ */
+export function resolveMusicOutputDir() {
+  return outputDirOf(requireRoot());
+}
+
 function outputDirOf(root) {
   return insideRoot(root, configured('ALPHA_MUSIC_OUTPUT', DEFAULT_OUTPUT), 'ALPHA_MUSIC_OUTPUT');
 }
