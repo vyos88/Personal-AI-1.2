@@ -137,6 +137,8 @@ test('task status names outputs but not paths on the generating machine', () => 
   });
   assert.equal(view.done, true);
   assert.deepEqual(view.outputs, [{ name: 'x.wav', bytes: 10 }]);
+  assert.equal(view.agent, null, 'an untargeted task names no machine rather than a registration id');
+  assert.equal(describeTask({ id: 't2', status: 'leased', attempts: 1, agentId: 'agent_x', targetAgent: 'laptop41' }).agent, 'laptop41');
 });
 
 const python = ['python3', 'python'].find((name) => spawnSync(name, ['--version']).status === 0);

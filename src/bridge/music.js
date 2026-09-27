@@ -82,7 +82,11 @@ export function describeTask(task) {
       : [],
     generatedInMs: result?.generatedInMs ?? null,
     attempts: task.attempts,
-    agent: task.agentId ?? null,
+    // The machine by name, never the registration id: ids are minted per
+    // registration and mean nothing to a person. A targeted task can only run
+    // on the machine with that name; an untargeted one names nobody, because
+    // the bridge's key cannot read the agent list to look one up.
+    agent: task.targetAgent ?? null,
     error: task.error ? { message: task.error.message ?? String(task.error), code: task.error.code ?? null } : null,
   };
 }
