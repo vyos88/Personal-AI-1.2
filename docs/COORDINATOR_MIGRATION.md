@@ -60,8 +60,20 @@ Two guards worth knowing before you copy:
   parse** (`src/host/auth/store.js:69`), and refuses a store whose `version`
   it does not recognise. Silently starting empty would un-revoke every revoked
   credential, so a bad copy fails loudly instead of quietly widening access.
-- Copy it while the old coordinator is **stopped**. Copying a file that is being
-  written is how you get the unparseable store above.
+- **A copy taken from a live coordinator is not torn.** Both stores write to
+  `<path>.tmp` and then `rename` onto the real path
+  (`src/host/auth/store.js:113-118`, `src/host/receipts.js:220-223`), and rename
+  is atomic within a filesystem — so any copy gets either the complete previous
+  file or the complete new one, never half of either. Overlapping saves are
+  chained for the same reason. So the risk in copying early is **staleness, not
+  corruption**: a key issued or revoked after the copy is simply not in it.
+  Stopping the coordinator before the copy you actually migrate onto is still
+  the right move, because it is what guarantees no write lands after it — not
+  because a live copy would be damaged.
+- **Do not migrate from a backup.** A backup's copy is atomic for the same
+  reason, but it is a snapshot of whenever the backup reached that directory,
+  which is not the cutover. Take a fresh copy at step 3 and keep the backup as
+  the rollback it already is.
 
 ## The second file: `data/receipts.json`
 
@@ -173,8 +185,12 @@ Copy-Item C:\services\alpha-tunnel\data\auth.json     \\LAPTOP41\...\alpha-tunne
 Copy-Item C:\services\alpha-tunnel\data\receipts.json \\LAPTOP41\...\alpha-tunnel\data\receipts.json
 ```
 
-Any transport is fine. Keep copies on the old host as your rollback, and treat
-`auth.json` as a secret in transit — it is hashes and scrypt digests rather than
+Any transport is fine, and per the note above the copy is atomic whether or not
+the coordinator is still up — stopping it first is about nothing landing
+afterwards. If a backup or other bulk job is running on that machine, let it
+finish before this step rather than competing with it for disk and IO; a slow
+copy is not a risk to the file, only to your patience. Keep copies on the old
+host as your rollback, and treat `auth.json` as a secret in transit — it is hashes and scrypt digests rather than
 plaintext, but it is still the whole access surface of the fleet.
 
 ### 4. Bring the coordinator up on the laptop
