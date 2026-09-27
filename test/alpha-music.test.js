@@ -239,3 +239,25 @@ test('the real generator fails loudly without its model dependencies', async (t)
   }
   await assert.rejects(run(BASE), /exited 1.*requirements-music\.txt/);
 });
+
+test('every style hint names a subgenre that exists, so none is dead text', async () => {
+  if (!pythonCommand) return;
+  const { MUSIC_GENRES } = await import('../src/common/musicGenres.js');
+  const known = new Set(MUSIC_GENRES.flatMap((genre) => genre.subgenres.map((subgenre) => subgenre.name)));
+  const probe = spawnSync(
+    pythonCommand,
+    ['-c', 'import sys, json; sys.path.insert(0, "scripts"); import generate_music as g; print(json.dumps(list(g.STYLE_HINTS)))'],
+    { cwd: REPO, encoding: 'utf8', env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } },
+  );
+  assert.equal(probe.status, 0, probe.stderr);
+  const unknown = JSON.parse(probe.stdout).filter((name) => !known.has(name));
+  assert.deepEqual(unknown, []);
+});
+
+test('the prompt describes how the subgenre sounds, not just its name', async (t) => {
+  const root = await realGenerator(t);
+  if (!root) return;
+  const result = await run({ ...BASE, durationSec: 1 });
+  const sidecar = JSON.parse(await readFile(result.outputs.find((o) => o.name.endsWith('.json')).path, 'utf8'));
+  assert.match(sidecar.prompt, /^Rollers electronic track, rolling reese bassline, .*174 BPM, in F minor, instrumental/);
+});

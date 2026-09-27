@@ -112,12 +112,54 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     return args
 
 
+# MusicGen follows instrument and texture words far more closely than genre
+# labels: "Rollers" alone is a word it has barely seen, while "rolling reese
+# bassline, tight breakbeats" is a sound. So the subgenres people are most
+# likely to pick carry a short description of what they sound like. A
+# subgenre without one still works; it just gets the label alone. Keys match
+# the subgenre names in src/common/musicGenres.js exactly.
+STYLE_HINTS = {
+    "House": "four-on-the-floor kick, offbeat open hi-hats, warm piano chords, deep bassline",
+    "Techno": "driving kick, hypnotic synth sequence, industrial percussion, dark warehouse atmosphere",
+    "Trance": "euphoric supersaw leads, rolling bassline, long build-ups, uplifting arpeggios",
+    "Drum and Bass": "fast breakbeats, heavy sub bass, punchy snares, energetic",
+    "Rollers": "rolling reese bassline, tight breakbeats, smooth atmospheric pads, minimal and hypnotic",
+    "Dubstep": "half-time drums, wobbling bass, heavy sub drops, sparse and dark",
+    "Ambient": "slowly evolving pads, soft textures, no drums, spacious reverb, calm",
+    "Synthwave": "retro 80s analog synths, gated reverb drums, pulsing bassline, neon nostalgic mood",
+    "Boom Bap": "dusty sampled drums, hard-hitting kick and snare, jazzy sample chops, vinyl warmth",
+    "Trap": "rolling hi-hat triplets, booming 808 bass, sharp snares, dark synth melody",
+    "Drill": "sliding 808 bass, syncopated hi-hats, ominous piano melody, sparse and menacing",
+    "Lo-fi Hip-Hop": "dusty vinyl crackle, mellow jazzy chords, laid-back swung drums, warm and cozy",
+    "Classic Rock": "crunchy electric guitars, live drums, driving bass, bluesy riffs",
+    "Punk Rock": "fast distorted power chords, pounding drums, raw energy",
+    "Post-Rock": "shimmering clean guitars, slow crescendo, cinematic drums, expansive",
+    "Heavy Metal": "distorted guitar riffs, double bass drums, powerful and aggressive",
+    "Doom Metal": "slow crushing downtuned guitars, heavy drums, dark and massive",
+    "Bebop": "fast walking upright bass, ride cymbal swing, saxophone and piano lines",
+    "Smooth Jazz": "soft saxophone melody, electric piano, gentle groove, relaxed",
+    "Swing": "big band brass, walking bass, swinging drums, upbeat",
+    "Baroque": "harpsichord and strings, counterpoint, ornamented melody",
+    "Minimalism": "repeating piano patterns, gradually shifting phrases, hypnotic",
+    "Funk": "slap bass, tight syncopated drums, choppy guitar, brass stabs",
+    "Neo-Soul": "warm Rhodes chords, laid-back groove, round bass, lush",
+    "Bluegrass": "fast banjo picking, fiddle, acoustic guitar, upright bass",
+    "Roots Reggae": "offbeat guitar skank, deep bass, one-drop drums, organ bubble, relaxed",
+    "Dub": "echoing snare and delay throws, heavy bass, sparse skank, spring reverb",
+    "Ska": "upbeat offbeat guitar, walking bass, bright horn section, fast and bouncy",
+    "Afrobeat": "polyrhythmic percussion, horn section, funky guitar, hypnotic groove",
+    "Flamenco": "rapid nylon-string guitar, handclaps, passionate",
+}
+
+
 def build_prompt(args: argparse.Namespace) -> str:
     """The text MusicGen is conditioned on. Recorded in the sidecar, so a track
     can be traced back to exactly what the model was told."""
+    hint = STYLE_HINTS.get(args.subgenre)
     return (
-        f"{args.subgenre} {args.genre.lower()} track, {args.bpm} BPM, in {args.key}, "
-        "instrumental, no vocals, high quality studio production"
+        f"{args.subgenre} {args.genre.lower()} track"
+        + (f", {hint}" if hint else "")
+        + f", {args.bpm} BPM, in {args.key}, instrumental, no vocals, high quality studio production"
     )
 
 
