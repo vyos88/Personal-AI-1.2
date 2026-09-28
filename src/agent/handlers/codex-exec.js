@@ -348,7 +348,7 @@ function tail(text, limit = MAX_OUTPUT_CHARS) {
 function codex(args, { cwd, signal, timeout }) {
   const command = configured('ALPHA_CODEX', 'codex');
   return new Promise((resolvePromise) => {
-    execFile(
+    const child = execFile(
       command,
       args,
       // maxBuffer generously above the output ceiling: hitting it kills the
@@ -362,6 +362,12 @@ function codex(args, { cwd, signal, timeout }) {
         });
       },
     );
+    // Close stdin at once. `codex exec` treats a piped stdin as more prompt and
+    // reads it to EOF ("Reading additional input from stdin..."), and execFile
+    // leaves it an open pipe that nothing ever writes to or ends — so without
+    // this every task hung until ALPHA_CODEX_TIMEOUT_MS and failed as a
+    // timeout. Found against codex-cli 0.157.1; the prompt stays in argv.
+    child.stdin?.end();
   });
 }
 
@@ -391,14 +397,18 @@ export async function run(payload = {}, { signal, log } = {}) {
   const out = tail(stdout);
   const err = tail(stderr, 4_000);
 
-  if (error) {
-    if (error.code === 'ENOENT') {
+  // Codex traps the SIGTERM the timeout sends and exits 0, so `error` alone
+  // would report a timed-out call as one that merely said nothing.
+  const timedOut = Boolean(error?.killed) || durationMs >= timeout;
+
+  if (error || timedOut) {
+    if (error?.code === 'ENOENT') {
       throw new ProtocolError(
         `Codex CLI not found (${configured('ALPHA_CODEX', 'codex')}) on this machine`,
         { status: 500, code: 'not_configured' },
       );
     }
-    if (error.killed) {
+    if (timedOut) {
       throw new ProtocolError(
         `Codex did not answer within ${timeout} ms. Raise ALPHA_CODEX_TIMEOUT_MS, and the ` +
           "task's own lease with it.",
@@ -409,7 +419,7 @@ export async function run(payload = {}, { signal, log } = {}) {
     // tunnel, where a non-zero exit still carries a usable receipt, there is
     // nothing here to report as success.
     throw new ProtocolError(
-      `codex exited ${error.code ?? 'non-zero'}: ${(err.text || out.text).trim().slice(-800) || 'no output'}`,
+      `codex exited ${error?.code ?? 'non-zero'}: ${(err.text || out.text).trim().slice(-800) || 'no output'}`,
       { status: 502, code: 'codex_failed' },
     );
   }
