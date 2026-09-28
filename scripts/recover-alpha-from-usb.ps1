@@ -35,6 +35,11 @@
                    public Host), /chat /decks /brain /agents served, live
                    8001 /health, public alpha-ai.uk, and the live install's
                    fingerprint unchanged.
+    9. panel       the Crown panel (CrowPanel): its USB-serial bridge is
+                   present and working, which COM port it is on now, and -
+                   unless -NoPanelProbe - its own answer to {"cmd":"status"}:
+                   on WiFi, provisioned with a coordinator and a key, and
+                   that coordinator answering /healthz from here.
 
   It never overwrites the live install. Promotion is a separate, later step,
   and this prints what has to be true before it.
@@ -50,6 +55,8 @@ param(
   [int]$LiveFrontendPort = 4173,
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$HealthPath = '/health',
+  [string]$PanelPort = '',
+  [switch]$NoPanelProbe,
   [switch]$NoStopStale,
   [switch]$StopRecovered
 )
@@ -313,5 +320,89 @@ if (-not $v.liveInstallUnchanged) {
 Note "Chat is checked by page, not by sending: a message may trigger real actions. Send one by hand at $rf."
 Note "The public route serves the LIVE install; the recovered copy is local-only until promoted."
 Note "Leave it running to check by hand; stop it with:  .\recover-alpha-from-usb.ps1 -StopRecovered"
+
+# ================================================================ 9. Crown panel
+# The panel polls the coordinator, not Alpha, so nothing above can have broken
+# it. It is checked because "is it still there, on which port, and is it still
+# reporting" is asked right after a recovery, and Windows renumbers COM ports
+# on re-enumeration - whatever saved the old number stops finding the board.
+Section "9. Crown panel"
+$pv = [ordered]@{}
+# The USB-serial bridges a CrowPanel enumerates through: CH340/CH341, CH343/
+# CH9102, CP210x and the ESP32-S3's native USB. Matched by VID/PID, because a
+# FriendlyName changes with the driver.
+$panelIds = 'VID_1A86&PID_7523', 'VID_1A86&PID_5523', 'VID_1A86&PID_55D3', 'VID_1A86&PID_55D4', 'VID_10C4&PID_EA60', 'VID_303A&PID_1001'
+$bridges = @(Get-PnpDevice -PresentOnly -EA SilentlyContinue | Where-Object {
+  $id = $_.InstanceId; @($panelIds | Where-Object { $id -like "*$_*" }).Count -gt 0 } | ForEach-Object {
+  [pscustomobject]@{ port = if ($_.FriendlyName -match '\((COM\d+)\)') { $Matches[1] } else { $null }
+                     name = $_.FriendlyName; status = $_.Status; instanceId = $_.InstanceId } })
+$pv.bridges = @($bridges | ForEach-Object { "$(if ($_.port) { $_.port } else { 'no COM' }) $($_.name) [$($_.status)]" })
+$working = @($bridges | Where-Object { $_.status -eq 'OK' -and $_.port })
+if (-not $bridges.Count) {
+  Problem "Crown panel: no CrowPanel USB-serial bridge is attached (looked for CH340/CH343/CP210x/ESP32-S3 USB). Check the cable and the port, then run scripts\usb-inventory.ps1."
+  $other = @(Get-CimInstance Win32_SerialPort -EA SilentlyContinue | ForEach-Object { "$($_.DeviceID) $($_.Name)" })
+  Note "  serial ports present: $(if ($other.Count) { $other -join '; ' } else { 'none' })"
+} else {
+  foreach ($b in $pv.bridges) { Note "  bridge: $b" }
+  foreach ($b in @($bridges | Where-Object { $_.status -ne 'OK' })) { Problem "Crown panel: $($b.name) is attached but not working ($($b.status)) - it needs a driver or a replug." }
+}
+if ($PanelPort -and $working.Count -and @($working | Where-Object { $_.port -eq $PanelPort }).Count -eq 0) {
+  Problem "Crown panel: expected on $PanelPort, but its bridge is on $(@($working.port) -join ', '). Windows renumbered it - update ALPHA_PANEL_PORT and anything else that saved $PanelPort."
+}
+
+# Asks the sketch for its status over serial. Read-only: 'status' changes
+# nothing on the board and its reply never carries the WiFi password or the
+# key. DTR/RTS stay low, but some adapters tie them to EN, so opening the port
+# may still restart the board once - -NoPanelProbe skips this.
+function PanelStatus($port) {
+  $sp = New-Object System.IO.Ports.SerialPort $port, 115200, 'None', 8, 'One'
+  $sp.DtrEnable = $false; $sp.RtsEnable = $false; $sp.ReadTimeout = 500; $sp.WriteTimeout = 2000; $sp.NewLine = "`n"
+  try { $sp.Open() } catch { return [pscustomobject]@{ error = "cannot open ${port}: $($_.Exception.Message) - is a serial monitor or an alpha.panel task holding it?" } }
+  try {
+    # A board that just restarted prints its boot log first, so ask again
+    # every two seconds and take the first line that is a reply.
+    $deadline = (Get-Date).AddSeconds(12); $nextSend = Get-Date
+    while ((Get-Date) -lt $deadline) {
+      if ((Get-Date) -ge $nextSend) { $sp.DiscardInBuffer(); $sp.WriteLine('{"cmd":"status"}'); $nextSend = (Get-Date).AddSeconds(2) }
+      $line = $null
+      try { $line = $sp.ReadLine().Trim() }
+      catch { if (-not ($_.Exception -is [TimeoutException] -or $_.Exception.InnerException -is [TimeoutException])) { throw } }
+      if ($line -and $line.StartsWith('{')) {
+        try { $j = $line | ConvertFrom-Json } catch { $j = $null }
+        if ($j -and ($null -ne $j.ok -or $j.error)) { return $j }
+      }
+    }
+    [pscustomobject]@{ error = "no reply to {""cmd"":""status""} on $port within 12 s - wrong port, or the sketch is not running (flash it with alpha.panel Flash)" }
+  } catch { [pscustomobject]@{ error = "serial error on ${port}: $($_.Exception.Message)" } }
+  finally { if ($sp.IsOpen) { $sp.Close() }; $sp.Dispose() }
+}
+
+if ($NoPanelProbe) {
+  Note "  -NoPanelProbe: presence only, the board was not asked for its status."
+} elseif ($working.Count) {
+  # Expected port first; with several bridges, the one that answers is the panel.
+  $order = @($working | Sort-Object { if ($_.port -eq $PanelPort) { 0 } else { 1 } })
+  $reply = $null
+  foreach ($b in $order) {
+    $r = PanelStatus $b.port
+    $pv["status $($b.port)"] = ($r | ConvertTo-Json -Compress)
+    Note "  $($b.port) -> $($pv["status $($b.port)"])"
+    if ($null -ne $r.ok) { $reply = $r; $pv.port = $b.port; break }
+  }
+  if (-not $reply) {
+    Problem "Crown panel: no board answered {""cmd"":""status""} on $(@($order.port) -join ', '). $(@($order | ForEach-Object { $pv["status $($_.port)"] }) -join ' | ')"
+  } else {
+    OK "Crown panel answers on $($pv.port)"
+    if (-not $reply.connected) { Problem "Crown panel: not on WiFi (ssid '$($reply.ssid)'). Provision it with alpha.panel Provision." }
+    if (-not $reply.host) { Problem "Crown panel: no coordinator host set - it has nothing to poll. Provision it with alpha.panel Provision." }
+    elseif (-not $reply.keyed) { Problem "Crown panel: no key set - the coordinator's /stats needs one, so the panel will show 'unauthorized'." }
+    if ($reply.host) {
+      $pv.coordinatorHealth = Code "$($reply.host.TrimEnd('/'))/healthz"
+      Note "  panel's coordinator $($reply.host)/healthz -> $($pv.coordinatorHealth)"
+      if ($pv.coordinatorHealth -notlike '2*') { Problem "Crown panel: its coordinator $($reply.host) answers /healthz with $($pv.coordinatorHealth) - the panel will show an error until the coordinator is back." }
+    }
+  }
+}
+$evidence.panel = $pv
 
 Finish $(if ($problems.Count) { 1 } else { 0 })

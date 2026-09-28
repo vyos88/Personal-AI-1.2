@@ -172,6 +172,12 @@ What the script does:
   serving) 8001, 4173 or 8787.
 - **Checks the tarball before extracting it.** It lists `alpha-data.tar` first
   and refuses to extract if any entry has an absolute path or `..`.
+- **Checks the Crown panel.** It finds the CrowPanel's USB-serial bridge by
+  VID/PID and reports which COM port it is on now. Pass `-PanelPort COM3` to
+  make a renumbered port a blocker. Then it sends the sketch
+  `{"cmd":"status"}` and requires a reply showing WiFi, a coordinator host and
+  a key, plus that coordinator answering `/healthz`. Opening the port may
+  restart the board once; `-NoPanelProbe` checks presence only.
 - **Writes evidence to the recovery folder:** `evidence.json`, `sha256.json`,
   `recovery.log`, and the backend and frontend logs.
 
