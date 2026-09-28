@@ -181,6 +181,24 @@ What the script does:
 - **Writes evidence to the recovery folder:** `evidence.json`, `sha256.json`,
   `recovery.log`, and the backend and frontend logs.
 
+**If it stops at `=== 3. Copy and verify ===`** with no disk activity, check
+the window title first. If it starts with `Select`, the window is in QuickEdit
+mode and Windows has paused the script; press Esc. The script now turns
+QuickEdit off for itself. Otherwise, confirm the copy is complete before doing
+anything: compare the size of `F:\AlphaBackup` with `<run>\source`, and check
+whether `robocopy.exe` is still running. Then stop the stalled run with Ctrl+C
+and continue it in the same folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\recover-alpha-from-usb.ps1 -Resume E:\AlphaRecovery\<time>
+```
+
+robocopy skips every file already copied with the same size and time, and the
+SHA-256 pass still checks all of them. The copy logs each file to
+`robocopy.log`, and hashing prints each file as it starts. `-Resume` refuses to
+start while the old run or its robocopy is still alive, and it refuses to start
+once that folder has a `checkout`.
+
 It does not promote the recovered copy. Replace the live install only after two
 things are true:
 

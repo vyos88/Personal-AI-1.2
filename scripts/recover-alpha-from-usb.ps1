@@ -7,6 +7,8 @@
       powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1
   Stop the recovered copy afterwards:
       powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1 -StopRecovered
+  Continue a run that stopped, in the same folder, without copying again:
+      powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1 -Resume E:\AlphaRecovery\<time>
 
   Order, each step logged, posted to the coordination tunnel, and written to
   evidence.json in the recovery folder:
@@ -57,6 +59,7 @@ param(
   [string]$HealthPath = '/health',
   [string]$PanelPort = '',
   [switch]$NoPanelProbe,
+  [string]$Resume = '',
   [switch]$NoStopStale,
   [switch]$StopRecovered
 )
@@ -93,13 +96,42 @@ if ($StopRecovered) {
   exit 0
 }
 
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$work = Join-Path $TargetRoot $stamp
+# Clicking in a console window puts it in QuickEdit selection, and Windows then
+# suspends the next write to it - the script freezes on a section header with
+# no disk activity until someone presses Esc. A multi-hour copy is exactly
+# when someone clicks the window, so this run turns QuickEdit off for itself.
+try {
+  Add-Type -Namespace Recovery -Name Console -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int h);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr h, uint m);
+'@
+  $in = [Recovery.Console]::GetStdHandle(-10); $mode = 0
+  # ENABLE_EXTENDED_FLAGS (0x80) set, ENABLE_QUICK_EDIT_MODE (0x40) cleared.
+  if ([Recovery.Console]::GetConsoleMode($in, [ref]$mode)) { [void][Recovery.Console]::SetConsoleMode($in, ($mode -bor 0x80) -band -bnot 0x40) }
+} catch {}
+
+if ($Resume) {
+  # Continue a run that stopped, in its own folder. robocopy skips every file
+  # already there with the same size and time, so only what is missing or
+  # partial is read off the drive again; the SHA-256 pass still checks it all.
+  $work = (Resolve-Path $Resume -EA SilentlyContinue).Path
+  if (-not $work -or -not (Test-Path (Join-Path $work 'source'))) { Write-Host "-Resume $Resume : no source folder there to continue." -ForegroundColor Red; exit 1 }
+  if (-not $work.StartsWith($TargetRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { Write-Host "-Resume $Resume is not under $TargetRoot." -ForegroundColor Red; exit 1 }
+  if (Test-Path (Join-Path $work 'checkout')) { Write-Host "$work\checkout already exists - this run got past the copy. Rename that folder aside, then resume." -ForegroundColor Red; exit 1 }
+  $running = @(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and (
+    ($_.Name -eq 'robocopy.exe' -and $_.CommandLine -like "*$work*") -or
+    ($_.CommandLine -match '(?i)recover-alpha-from-usb' -and $_.CommandLine -notmatch '(?i)-Resume|-StopRecovered') ) })
+  if ($running.Count) { Write-Host "Another recovery is still running (pid $(@($running.ProcessId) -join ', ')). Stop it first (Ctrl+C in its window), then resume." -ForegroundColor Red; exit 1 }
+} else {
+  $work = Join-Path $TargetRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
+}
 $copy = Join-Path $work 'source'
 $checkout = Join-Path $work 'checkout'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 $log = Join-Path $work 'recovery.log'
-Start-Transcript -Path $log -Force | Out-Null
+if ($Resume) { Start-Transcript -Path $log -Append | Out-Null; Write-Host "`n##### resumed $(Get-Date -Format o)" } else { Start-Transcript -Path $log -Force | Out-Null }
+$evidence.resumed = [bool]$Resume
 
 function Finish($code) {
   $evidence.finishedAt = (Get-Date).ToString('o'); $evidence.problems = @($problems)
@@ -131,7 +163,10 @@ if ($problems.Count) { Finish 1 }
 $srcBytes = (Get-ChildItem $Source -Recurse -File | Measure-Object Length -Sum).Sum
 $drive = Get-PSDrive ($TargetRoot.Substring(0, 1))
 Note ("source {0:N1} GB   {1}: free {2:N1} GB" -f ($srcBytes / 1GB), $drive.Name, ($drive.Free / 1GB))
-if ($drive.Free -lt 4 * $srcBytes + 10GB) { Problem "Not enough room on $($drive.Name): (copy + checkout + data + dependencies needs about 4x the backup plus 10 GB)."; Finish 1 }
+# A resumed run already holds part of the copy on the target.
+$already = if (Test-Path $copy) { [int64](Get-ChildItem $copy -Recurse -File -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum } else { 0 }
+if ($already) { Note ("already copied: {0:N1} GB" -f ($already / 1GB)) }
+if ($drive.Free + $already -lt 4 * $srcBytes + 10GB) { Problem "Not enough room on $($drive.Name): (copy + checkout + data + dependencies needs about 4x the backup plus 10 GB)."; Finish 1 }
 Note "--- RESTORE.md (read, not executed) ---"
 Get-Content (Join-Path $Source 'RESTORE.md') | ForEach-Object { Note "  | $_" }
 $liveBefore = if (Test-Path $LiveRoot) { LiveFingerprint } else { 'absent' }
@@ -171,11 +206,19 @@ Note "protected (serving live ports, or their parents/children): $(@($protected.
 
 # ================================================================ 3. copy + verify
 Section "3. Copy and verify"
-robocopy $Source $copy /E /COPY:DAT /R:2 /W:5 /NFL /NDL /NJH /NP | Out-Null
-if ($LASTEXITCODE -ge 8) { Problem "robocopy failed (exit $LASTEXITCODE)."; Finish 1 }
+# robocopy writes every file it copies to robocopy.log, so a long copy can be
+# watched from another window; the console and recovery.log only get the end.
+$rcLog = Join-Path $work 'robocopy.log'
+Note "copying - progress: Get-Content '$rcLog' -Tail 5 -Wait"
+robocopy $Source $copy /E /COPY:DAT /R:2 /W:5 /NDL /NP /BYTES "/LOG+:$rcLog" | Out-Null
+$rc = $LASTEXITCODE
+Get-Content $rcLog -Tail 14 -EA SilentlyContinue | ForEach-Object { Note "  | $_" }
+if ($rc -ge 8) { Problem "robocopy failed (exit $rc). See $rcLog."; Finish 1 }
 $hashes = @()
-foreach ($f in Get-ChildItem $Source -Recurse -File) {
+$files = @(Get-ChildItem $Source -Recurse -File); $n = 0
+foreach ($f in $files) {
   $rel = $f.FullName.Substring($Source.TrimEnd('\').Length).TrimStart('\')
+  $n++; Note ("hashing {0}/{1}: {2} ({3:N1} GB, both sides)" -f $n, $files.Count, $rel, ($f.Length / 1GB))
   $a = (Get-FileHash $f.FullName -Algorithm SHA256).Hash
   $b = (Get-FileHash (Join-Path $copy $rel) -Algorithm SHA256 -EA SilentlyContinue).Hash
   $hashes += [pscustomobject]@{ file = $rel; sha256 = $a; match = ($a -eq $b) }
