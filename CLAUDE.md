@@ -267,6 +267,30 @@ network is) is what keeps a dropped link from producing a second live Alpha, and
 demotion is on by default so a split heals when the link does. Neither is a
 quorum, and the docs say so rather than implying this is HA.
 
+## Self-heal on the Alpha host, and why it is bounded
+
+`scripts/alpha-selfheal.mjs` is one scheduled pass (every 2 minutes, as SYSTEM,
+installed by `scripts/repair-alpha-host.ps1`) that keeps Alpha's backend,
+production frontend and cloudflared connector up on Laptop41. Like the standby
+it is local and not a handler — the tunnel cannot repair the machine it runs
+on. Its policy lives in the pure `decide()` and is pinned by
+`test/alpha-selfheal.test.js`; keep it that way:
+
+- **Streak, cooldown, budget.** Nothing is repaired on one failed pass, a
+  repaired component is left alone for the cooldown, and past the hourly or
+  daily budget it stops and posts once. A supervisor that restarts forever
+  hides a crash loop instead of reporting it.
+- **The connector is gated on a proven origin.** cloudflared is restarted only
+  when the frontend was healthy on consecutive passes, the Internet answers,
+  and the edge returns a connector code. Its config and credentials are never
+  read or written.
+- **Configuration faults are reported, not restarted** — Vite's 403 "Blocked
+  request" for the public host, a missing `dist` with no snapshot.
+- **Rollback keeps the failed build** (`dist.failed-*`) beside the restored
+  `dist.last-good`; it never deletes the evidence of what broke.
+- Probes send `Host: <public host>` through `node:http` because that is what
+  cloudflared sends and `fetch` cannot.
+
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
