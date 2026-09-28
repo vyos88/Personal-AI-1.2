@@ -163,8 +163,14 @@ if ($candidates.Count -eq 0) {
   Finish 1
 }
 if ($candidates.Count -gt 1) {
-  Problem "More than one runnable Alpha. Pick one and re-run with -AlphaRoot:"
-  foreach ($c in $candidates) { Note "  -AlphaRoot `"$($c.Root)`"" }
+  # The verdict is what gets read, so the choice goes in it, with what tells
+  # the copies apart: their own version, and when their shell last changed.
+  $rows = foreach ($c in $candidates) {
+    $shell = Join-Path $c.Root "$suffix\AppShell.tsx"
+    $ver = if ((Get-Content $shell -Raw -EA SilentlyContinue) -match 'ALPHA_VERSION\s*=\s*["'']([^"'']+)') { $Matches[1] } else { '?' }
+    "    -AlphaRoot `"$($c.Root)`"   (version $ver, changed $((Get-Item $shell).LastWriteTime.ToString('yyyy-MM-dd HH:mm')))"
+  }
+  Problem ("More than one runnable Alpha. Re-run with the one you use:`n" + ($rows -join "`n"))
   Finish 1
 }
 $app = $candidates[0]
