@@ -596,7 +596,11 @@ powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Repair
 powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Rollback C:\AlphaData\Backups\task-Alpha-<stamp>.xml
 ```
 
-The task then runs `C:\AlphaData\ops\alpha-frontend-run.ps1`, which runs node
+On a host set up by `repair-alpha-host.ps1` (see `MASTER_HOST_REPAIR.md`),
+that script and its self-heal own the `Alpha` task, and `-Repair` here refuses
+to run. Use the report only.
+
+After `-Repair`, the task runs `C:\AlphaData\ops\alpha-frontend-run.ps1`, which runs node
 against `vite.js` directly and restarts it with backoff; its output is in
 `C:\AlphaData\logs\frontend*.log`. It never edits cloudflared, DNS, WAF or
 Access. If the public site still 502s with 4173 answering locally, the report's

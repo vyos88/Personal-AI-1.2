@@ -341,6 +341,13 @@ $backupXml = $null
 if ($Repair) {
   Section "6. Repair"
   if (-not $admin)            { Die "-Repair must run from an elevated PowerShell." }
+  # repair-alpha-host.ps1 owns the 'Alpha' task on a host it has set up, and its
+  # self-heal restarts it through run-alpha.cmd. A second definition of the
+  # same task would have the two undoing each other every two minutes.
+  if ((Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or
+      (Test-Path (Join-Path $env:ProgramData 'AlphaBoot\run-alpha.cmd'))) {
+    Die "this host is managed by repair-alpha-host.ps1 ('Alpha Self-Heal' / AlphaBoot\run-alpha.cmd exist). Use that script; this one stays report-only here."
+  }
   if (-not $node)             { Die "node is not on PATH; nothing to run the frontend with." }
   if (-not (Test-Path $vite)) { Die "vite is not installed in $frontend. Run  npm ci  there first." }
   if ($fl -and -not ($fl | Where-Object { $_.Cmd -and $_.Cmd.IndexOf($frontend, [StringComparison]::OrdinalIgnoreCase) -ge 0 })) {
