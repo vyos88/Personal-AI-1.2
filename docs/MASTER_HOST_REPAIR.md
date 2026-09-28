@@ -143,3 +143,44 @@ Music Creator recommendation in [ALPHA_AUDIT.md](ALPHA_AUDIT.md).
 - **Self-heal cannot fix configuration.** Ingress pointing at the wrong port,
   Vite's `allowedHosts` and an expired tunnel credential all come back as
   reports, not repairs. That is by design.
+
+## Recovering Alpha from the USB backup
+
+The Lexar drive (`F:\AlphaBackup`) holds `alpha-all-refs.bundle`,
+`alpha-data.tar` and `RESTORE.md`. To restore it into an isolated folder on E:
+and test it next to the live install, run this as Administrator on Laptop41:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\recover-alpha-from-usb.ps1
+# stop the recovered copy afterwards
+powershell -ExecutionPolicy Bypass -File .\scripts\recover-alpha-from-usb.ps1 -StopRecovered
+```
+
+What the script does:
+
+- **Reads F: and never writes to it.** It copies the backup to
+  `E:\AlphaRecovery\<time>\source` and checks the SHA-256 of every file on
+  both sides.
+- **Leaves the live install alone.** The recovered copy runs on ports 8011 and
+  4183, so the live 8001 and 4173 keep serving. A recovery-only Vite config
+  points the recovered frontend's API proxy at 8011.
+- **Refuses to start the recovered backend if its configuration names
+  `C:\AlphaData\Alpha`.** A backend configured that way would write into the
+  live data.
+- **Stops only stale launch attempts:** processes that never bound a port,
+  older than 5 minutes, and not serving (or the parent or child of anything
+  serving) 8001, 4173 or 8787.
+- **Checks the tarball before extracting it.** It lists `alpha-data.tar` first
+  and refuses to extract if any entry has an absolute path or `..`.
+- **Writes evidence to the recovery folder:** `evidence.json`, `sha256.json`,
+  `recovery.log`, and the backend and frontend logs.
+
+It does not promote the recovered copy. Replace the live install only after two
+things are true:
+
+- the script's verdict shows no blockers;
+- someone has signed in at `http://127.0.0.1:4183`, sent a Chat message, and
+  opened Decks, Brain and Agents.
+
+Rename the live folder aside when you promote, never delete it. Then point the
+boot tasks at the new folder: re-run `repair-alpha-host.ps1 -AlphaRoot <new>`.
