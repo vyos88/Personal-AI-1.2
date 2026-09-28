@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
 import { fetchJson, HttpError } from '../common/http.js';
@@ -8,6 +9,8 @@ import { ALPHA_VERSION } from '../common/version.js';
 loadEnv();
 
 const HOST = (process.env.ALPHA_HOST_URL ?? 'http://127.0.0.1:8787').replace(/\/+$/, '');
+// Long enough for a real Codex call, and inside validateTaskInput's hour ceiling.
+const CODEX_LEASE_MS = 600_000;
 const TOKEN =
   process.env.ALPHA_ADMIN_TOKEN ??
   process.env.ALPHA_BOOTSTRAP_TOKEN ??
@@ -43,6 +46,9 @@ Tasks
                                                          (the NAME from \`agents\`), e.g. renders on the host
   coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
                                                          Drive the coordination tunnel
+  codex --prompt <text> | --prompt-file <f> [--agent <n>] [--no-wait]
+                                                         Ask Codex on that machine and read its answer
+                                                         (leases 10 minutes; needs codex.exec there)
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
   agents                                                 List attached agents, their free RAM, CPU load and version
@@ -177,6 +183,8 @@ const OPTIONS = {
   'expires-days': { type: 'string' },
   type: { type: 'string' },
   payload: { type: 'string' },
+  prompt: { type: 'string' },
+  'prompt-file': { type: 'string' },
   action: { type: 'string' },
   actor: { type: 'string' },
   message: { type: 'string' },
@@ -303,6 +311,7 @@ export async function main(argv = process.argv.slice(2)) {
 
     case 'task':
     case 'coord':
+    case 'codex':
     case 'mem': {
       let type;
       let payload;
@@ -337,6 +346,27 @@ export async function main(argv = process.argv.slice(2)) {
           payload.paths = flags.paths.split(',').map((entry) => entry.trim()).filter(Boolean);
         }
         if (!payload.actor) fail('coord requires --actor (or set ALPHA_COORDINATION_ACTOR)');
+      } else if (command === 'codex') {
+        // The other coding agent, asked a question. `--prompt-file` is not a
+        // convenience: these prompts are messages between agents, they run to
+        // paragraphs, and a shell that ate a backtick or a newline would change
+        // what was asked without saying so.
+        if (flags.prompt && flags['prompt-file']) {
+          fail('codex takes --prompt or --prompt-file, not both');
+        }
+        let prompt = flags.prompt;
+        if (flags['prompt-file']) {
+          try {
+            prompt = readFileSync(flags['prompt-file'], 'utf8');
+          } catch (error) {
+            fail(`could not read --prompt-file: ${error.message}`);
+          }
+        }
+        if (!prompt || prompt.trim() === '') {
+          fail('codex requires --prompt <text> or --prompt-file <path>');
+        }
+        type = flags.type ?? 'codex.exec';
+        payload = { prompt };
       } else {
         if (!flags.type) fail('task requires --type');
         type = flags.type;
@@ -349,6 +379,11 @@ export async function main(argv = process.argv.slice(2)) {
 
       const body = { type, payload };
       if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
+      // Codex thinks for minutes, and DEFAULT_LEASE_MS is 60s: left alone, the
+      // host reclaims the task mid-answer and requeues it forever. Same footgun
+      // `alpha.render` documents, so this command does not leave it to be
+      // remembered. `--lease-ms` above still wins.
+      else if (command === 'codex') body.leaseMs = CODEX_LEASE_MS;
       if (flags['min-memory-mb']) body.minMemoryMB = Number.parseInt(flags['min-memory-mb'], 10);
       // The machine this has to run on, by name. For work that is only real on
       // one box — a render needs the GPU and the generator beside it, wherever

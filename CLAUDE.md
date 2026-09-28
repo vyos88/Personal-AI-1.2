@@ -461,6 +461,46 @@ no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
 the sketch would be restarting instead of answering.
 
+`codex-exec.js` is the sixth external-*program* handler — the sequence
+`alpha-coordination`, `alpha-update`, `alpha-render`, `alpha-devices`,
+`alpha-panel`, and now this, distinct from the external-*facing* count above —
+and the one that breaks the pattern the other five hold. `codex.exec` hands a prompt to the Codex CLI on the machine that has
+it and returns what Codex said, so another coding agent is reachable by task
+rather than by a person carrying messages between two laptops. Every other
+handler here narrows a payload until what is left is data; this one hands a
+string to an agent with a shell on that machine, which is the category
+`handlers/index.js` refuses outright. It stays a handler and not a remote shell
+with extra steps on four counts, and each is load-bearing:
+
+- **The payload is a prompt and nothing else.** Not the executable, the
+  directory, the model, the sandbox mode or any flag — all of those are the
+  machine's configuration. `rejectUnsupportedKeys` refuses the extra key rather
+  than dropping it, for the reason `alpha-devices` refuses arguments: someone who
+  sent `{ prompt, sandbox: 'danger-full-access' }` should be told it meant
+  nothing, not left believing it widened.
+- **The sandbox defaults to `read-only`,** and widening it is done on the laptop
+  rather than by the task that arrived over the network.
+- **The working directory is `cwd`, not a flag.** Every CLI honours it and no
+  version can rename it, so the one part of the contract that cannot drift
+  doesn't. `buildArgs` holds the part that can, pinned by tests — the
+  `alpha-coordination` rule: if the CLI changes, both change together.
+- **`available()` refuses a machine that cannot do it,** including one whose root
+  is not a git checkout, because Codex refuses to run outside one and every task
+  would fail on a machine that looks perfectly configured.
+
+Two failures it will not report as success, both borrowed from `alpha.render`: a
+non-zero exit (Codex did not answer) and a *clean* exit with no output, which
+would otherwise hand back a successful conversation with nothing in it. A long
+answer comes back as its tail with `truncated: true`, because the answer is at
+the end of a transcript. Like a render, a Codex call outlives
+`DEFAULT_LEASE_MS`, so `alpha-admin codex` leases ten minutes for you and
+`--prompt-file` exists because these prompts are paragraphs and a shell that ate
+a newline would change the question without saying so. On Windows, `ALPHA_CODEX`
+must be the native binary: the npm install puts a `.cmd` shim on PATH, a `.cmd`
+cannot be spawned without a shell, and a shell is exactly what must not stand
+between a prompt and the process — so PATH resolution tries native extensions
+first and refuses a shim with the remedy in the reason.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
