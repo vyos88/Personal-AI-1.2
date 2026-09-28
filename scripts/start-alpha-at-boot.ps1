@@ -26,8 +26,16 @@
   without a wrapper exe, and the task runs with your user environment - so
   anything Alpha reads from your user variables is still there.
 
-  It starts the web server only. If Alpha has a separate backend, it is
-  reported, not started - this script does not guess its command.
+  The backend (software\backend\main.py - speech, avatar, robot) gets a
+  task of its own, "Alpha Backend", with the same restart loop. Its command
+  is read from main.py rather than assumed:
+    - Python: the backend's own .venv first, then python on PATH - never the
+      Microsoft Store alias, which opens the Store instead of running;
+    - main.py that starts its own server (uvicorn.run / app.run / __main__)
+      runs as "python main.py"; one that only defines a FastAPI app runs
+      under "python -m uvicorn main:app";
+    - the port it is checked on comes from main.py, else from the frontend's
+      vite proxy, else 8000. -BackendPort overrides; -NoBackend skips it.
 #>
 
 param(
@@ -35,6 +43,9 @@ param(
   [string]$Script = '',
   [int]$Port = 4173,
   [string]$TaskName = 'Alpha',
+  [string]$BackendTaskName = 'Alpha Backend',
+  [int]$BackendPort = 0,
+  [switch]$NoBackend,
   [switch]$Remove
 )
 
@@ -59,9 +70,11 @@ function Finish($code) {
   exit $code
 }
 
-$bootDir   = Join-Path $env:ProgramData 'AlphaBoot'
-$wrapper = Join-Path $bootDir 'run-alpha.cmd'
-$appLog  = Join-Path $bootDir 'alpha.log'
+$bootDir    = Join-Path $env:ProgramData 'AlphaBoot'
+$wrapper    = Join-Path $bootDir 'run-alpha.cmd'
+$appLog     = Join-Path $bootDir 'alpha.log'
+$beWrapper  = Join-Path $bootDir 'run-alpha-backend.cmd'
+$beLog      = Join-Path $bootDir 'alpha-backend.log'
 
 # curl.exe ships with Windows 10+ and, unlike Windows PowerShell 5's
 # Invoke-WebRequest, can skip the check on a self-signed certificate.
@@ -70,21 +83,85 @@ function HttpCode($url) {
   if (-not $code) { return '000' }
   return "$code"
 }
-function Answering {
-  foreach ($u in @("https://127.0.0.1:$Port/", "http://127.0.0.1:$Port/")) {
+# Any HTTP answer at all - a 404 included - means something is serving.
+function Answering($p) {
+  foreach ($u in @("https://127.0.0.1:$p/", "http://127.0.0.1:$p/")) {
     if ((HttpCode $u) -ne '000') { return $u }
+  }
+  return $null
+}
+function Wait-Up($p, $seconds) {
+  for ($i = 0; $i -lt [math]::Ceiling($seconds / 3); $i++) {
+    Start-Sleep -Seconds 3
+    $u = Answering $p
+    if ($u) { return $u }
   }
   return $null
 }
 
 # The task's action is cmd.exe; Stop-ScheduledTask ends cmd and can leave the
-# node server holding the port, so the whole tree is taken down by hand.
-function Stop-Wrapper {
+# server holding the port, so the whole tree is taken down by hand.
+function Stop-Wrapper($name, $path) {
   $procs = @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" -EA SilentlyContinue |
-             Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($wrapper, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
-  Stop-ScheduledTask -TaskName $TaskName -EA SilentlyContinue
+             Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($path, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
+  Stop-ScheduledTask -TaskName $name -EA SilentlyContinue
   foreach ($p in $procs) { taskkill.exe /T /F /PID $p.ProcessId 2>&1 | Out-Null }
   return $procs.Count
+}
+
+# One restart loop per server. ping, not timeout: timeout refuses to run
+# without a console to read from, which is exactly how a scheduled task runs.
+# A space before every >>: an argument ending in a digit would otherwise be
+# read by cmd as a handle number ("4173>>").
+function Write-Loop($path, $dir, $envLines, $exe, $arguments, $logFile) {
+  $lines = @('@echo off', 'rem Written by start-alpha-at-boot.ps1. Re-run that script instead of editing.')
+  $lines += $envLines
+  $lines += @(
+    "cd /d `"$dir`"",
+    ':loop',
+    "echo [%date% %time%] starting: $arguments >> `"$logFile`"",
+    "call `"$exe`" $arguments >> `"$logFile`" 2>&1",
+    "echo [%date% %time%] exited %errorlevel%, restarting in 10s >> `"$logFile`"",
+    'ping -n 11 127.0.0.1 > nul',
+    'goto loop')
+  $lines | Set-Content -Path $path -Encoding ascii
+}
+
+function Register-Boot($name, $path, $delay, $description) {
+  $user = "$env:USERDOMAIN\$env:USERNAME"
+  $action    = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/c `"$path`""
+  $trigger   = New-ScheduledTaskTrigger -AtStartup
+  $trigger.Delay = $delay
+  $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType S4U -RunLevel Highest
+  $settings  = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable `
+                 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
+  try {
+    Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Principal $principal `
+      -Settings $settings -Description $description -Force -EA Stop | Out-Null
+    OK "task '$name' registered: runs at boot as $user, whether or not anyone logs in"
+    return $true
+  } catch {
+    Problem "Could not register '$name': $($_.Exception.Message)"
+    return $false
+  }
+}
+
+function Start-AndCheck($name, $p, $logFile, $what) {
+  $already = Answering $p
+  if ($already) {
+    Note "Something already answers on $already - probably $what started by hand."
+    Note "Left alone. The task takes over at the next boot, or now if you stop that one and run:"
+    Note "  Start-ScheduledTask '$name'"
+    return $already
+  }
+  Start-ScheduledTask -TaskName $name
+  $up = Wait-Up $p 90
+  if ($up) { OK "$what answers on $up" }
+  else {
+    Problem "$what started, but nothing answers on port $p after 90s. Its output:"
+    Get-Content $logFile -Tail 25 -EA SilentlyContinue | ForEach-Object { Note "  $_" }
+  }
+  return $up
 }
 
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
@@ -96,14 +173,16 @@ if (-not $admin) {
 
 # ---------------------------------------------------------------- remove
 if ($Remove) {
-  Section "Removing the boot task"
-  $n = Stop-Wrapper
-  Note "stopped $n running copy(ies)"
-  if (Get-ScheduledTask -TaskName $TaskName -EA SilentlyContinue) {
-    Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
-    OK "task '$TaskName' removed"
-  } else { Note "no task '$TaskName' was registered" }
-  Note "Left in place: $bootDir (the wrapper and alpha.log)"
+  Section "Removing the boot tasks"
+  foreach ($t in @(@($TaskName, $wrapper), @($BackendTaskName, $beWrapper))) {
+    $n = Stop-Wrapper $t[0] $t[1]
+    Note "'$($t[0])': stopped $n running copy(ies)"
+    if (Get-ScheduledTask -TaskName $t[0] -EA SilentlyContinue) {
+      Unregister-ScheduledTask -TaskName $t[0] -Confirm:$false
+      OK "task '$($t[0])' removed"
+    } else { Note "no task '$($t[0])' was registered" }
+  }
+  Note "Left in place: $bootDir (the wrappers and logs)"
   Finish 0
 }
 
@@ -177,11 +256,8 @@ $app = $candidates[0]
 OK "serving from $($app.Dir)"
 
 $backend = @('software\backend', 'backend') | ForEach-Object { Join-Path $app.Root $_ } |
-           Where-Object { Test-Path $_ } | Select-Object -First 1
-if ($backend) {
-  Note "Alpha also has a backend at $backend. This script does NOT start it."
-  Note "If the site loads but speech/avatar/robot panels fail after a reboot, that is why."
-}
+           Where-Object { Test-Path (Join-Path $_ 'main.py') } | Select-Object -First 1
+if ($backend) { OK "backend: $backend" }
 
 # ---------------------------------------------------------------- 2. which script
 Section "2. Which npm script serves port $Port"
@@ -235,63 +311,84 @@ if ($cmdline -match 'vite\s+preview' -and -not (Test-Path (Join-Path $app.Dir 'd
   } else { Problem "'vite preview' needs dist\ and there is no build script."; Finish 1 }
 }
 
-# ---------------------------------------------------------------- 3. register
-Section "3. Boot task '$TaskName'"
-New-Item -ItemType Directory -Force -Path $bootDir | Out-Null
-# ping, not timeout: timeout refuses to run without a console to read from,
-# which is exactly how a scheduled task runs.
-@"
-@echo off
-rem Written by start-alpha-at-boot.ps1. Re-run that script instead of editing.
-set "PATH=$nodeDir;%PATH%"
-cd /d "$($app.Dir)"
-:loop
-echo [%date% %time%] starting: npm $npmArgs >> "$appLog"
-call "$npm" $npmArgs >> "$appLog" 2>&1
-echo [%date% %time%] exited %errorlevel%, restarting in 10s >> "$appLog"
-ping -n 11 127.0.0.1 > nul
-goto loop
-"@ | Set-Content -Path $wrapper -Encoding ascii
-OK "wrapper: $wrapper"
+# ---------------------------------------------------------------- 3. backend
+$beUp = $null
+if ($NoBackend) {
+  Section "3. Backend"
+  Note "skipped (-NoBackend)"
+} elseif (-not $backend) {
+  Section "3. Backend"
+  Note "No backend\main.py beside the frontend - nothing to start."
+} else {
+  Section "3. Backend ($backend)"
+  $main = Get-Content (Join-Path $backend 'main.py') -Raw
 
-$stopped = Stop-Wrapper
-if ($stopped) { Note "stopped the previous boot-task copy ($stopped)" }
+  # The backend's own environment first: that is where its packages are.
+  $py = @('backend\.venv', 'backend\venv', '.venv', 'venv') |
+        ForEach-Object { Join-Path (Split-Path $backend) "$_\Scripts\python.exe" } |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+  if (-not $py) {
+    $py = @(Get-Command python.exe -All -EA SilentlyContinue | ForEach-Object Source |
+            Where-Object { $_ -notmatch '\\WindowsApps\\' }) | Select-Object -First 1
+  }
+  if (-not $py -and (Get-Command py.exe -EA SilentlyContinue)) {
+    $py = (& py.exe -3 -c "import sys; print(sys.executable)" 2>$null | Select-Object -First 1)
+  }
+  if (-not $py -or -not (Test-Path $py)) {
+    Problem "No Python found for the backend (only the Microsoft Store placeholder, or none). Install Python 3 from python.org, then re-run."
+  } else {
+    OK "python: $py"
 
-$user = "$env:USERDOMAIN\$env:USERNAME"
-$action    = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument "/c `"$wrapper`""
-$trigger   = New-ScheduledTaskTrigger -AtStartup
-$trigger.Delay = 'PT30S'
-$principal = New-ScheduledTaskPrincipal -UserId $user -LogonType S4U -RunLevel Highest
-$settings  = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -StartWhenAvailable `
-               -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -MultipleInstances IgnoreNew
-try {
-  Register-ScheduledTask -TaskName $TaskName -Action $action -Trigger $trigger -Principal $principal `
-    -Settings $settings -Description "Alpha web server on 127.0.0.1:$Port (start-alpha-at-boot.ps1)" -Force -EA Stop | Out-Null
-  OK "registered: runs at boot as $user, whether or not anyone logs in"
-} catch {
-  Problem "Could not register the task: $($_.Exception.Message)"
-  Finish 1
+    if (-not $BackendPort) {
+      if ($main -match 'port\s*=\s*(\d{4,5})') { $BackendPort = [int]$Matches[1] }
+      else {
+        $vite = Get-ChildItem $app.Dir -Filter 'vite.config.*' -File -EA SilentlyContinue | Select-Object -First 1
+        $vc = if ($vite) { Get-Content $vite.FullName -Raw } else { '' }
+        $ports = @([regex]::Matches($vc, '(?:127\.0\.0\.1|localhost|0\.0\.0\.0):(\d{4,5})') |
+                   ForEach-Object { [int]$_.Groups[1].Value } | Where-Object { $_ -ne $Port -and $_ -ne 5173 } |
+                   Select-Object -Unique)
+        $BackendPort = if ($ports.Count) { $ports[0] } else { 8000 }
+      }
+    }
+    Note "port: $BackendPort"
+
+    $selfServing = $main -match 'uvicorn\.run\(|\.run\(\s*app|app\.run\(|__name__\s*==\s*[''"]__main__'
+    if ($selfServing) {
+      $pyArgs = 'main.py'
+    } elseif ($main -match 'FastAPI\(') {
+      $pyArgs = "-m uvicorn main:app --host 127.0.0.1 --port $BackendPort"
+      & $py -c "import uvicorn" 2>$null
+      if ($LASTEXITCODE -ne 0) { Problem "main.py needs uvicorn, and $py does not have it:  `"$py`" -m pip install uvicorn fastapi" }
+    } else {
+      $pyArgs = 'main.py'
+    }
+    OK "command: python $pyArgs"
+
+    New-Item -ItemType Directory -Force -Path $bootDir | Out-Null
+    # Unbuffered so the log is live; UTF-8 because a print() of any non-ASCII
+    # character to a redirected cp1252 stdout raises and kills the backend.
+    Write-Loop $beWrapper $backend @('set PYTHONUNBUFFERED=1', 'set PYTHONIOENCODING=utf-8') $py $pyArgs $beLog
+    OK "wrapper: $beWrapper"
+    $n = Stop-Wrapper $BackendTaskName $beWrapper
+    if ($n) { Note "stopped the previous backend boot-task copy ($n)" }
+    if (Register-Boot $BackendTaskName $beWrapper 'PT20S' "Alpha backend on 127.0.0.1:$BackendPort (start-alpha-at-boot.ps1)") {
+      $beUp = Start-AndCheck $BackendTaskName $BackendPort $beLog 'the backend'
+    }
+    Note "Backend log: $beLog"
+  }
 }
 
-# ---------------------------------------------------------------- 4. start
-Section "4. Starting it now"
-$already = Answering
-if ($already) {
-  Note "Something already answers on $already - probably Alpha started by hand."
-  Note "Left alone. The task takes over at the next boot, or now if you stop that one and run:"
-  Note "  Start-ScheduledTask $TaskName"
-} else {
-  Start-ScheduledTask -TaskName $TaskName
-  $up = $null
-  for ($i = 0; $i -lt 30 -and -not $up; $i++) { Start-Sleep -Seconds 3; $up = Answering }
-  if ($up) {
-    OK "Alpha answers on $up"
-    if ($up -like 'http:*') {
-      Note "It speaks plain http. If the tunnel still sends https, re-run fix-cloudflare.ps1: it fixes that."
-    }
-  } else {
-    Problem "Started, but nothing answers on port $Port after 90s. Its output:"
-    Get-Content $appLog -Tail 25 -EA SilentlyContinue | ForEach-Object { Note "$_" }
+# ---------------------------------------------------------------- 4. site
+Section "4. Web server '$TaskName' (port $Port)"
+New-Item -ItemType Directory -Force -Path $bootDir | Out-Null
+Write-Loop $wrapper $app.Dir @("set `"PATH=$nodeDir;%PATH%`"") $npm $npmArgs $appLog
+OK "wrapper: $wrapper"
+$n = Stop-Wrapper $TaskName $wrapper
+if ($n) { Note "stopped the previous boot-task copy ($n)" }
+if (Register-Boot $TaskName $wrapper 'PT30S' "Alpha web server on 127.0.0.1:$Port (start-alpha-at-boot.ps1)") {
+  $up = Start-AndCheck $TaskName $Port $appLog 'Alpha'
+  if ($up -like 'http:*') {
+    Note "It speaks plain http. If the tunnel still sends https, re-run fix-cloudflare.ps1: it fixes that."
   }
 }
 Note "Server log: $appLog"
