@@ -177,6 +177,11 @@ foreach ($h in $hostnames) {
     Problem "$h reaches the tunnel, but the tunnel cannot reach Alpha ($code) - see section 3."
   } elseif ($code -eq '000') {
     Problem "$h did not answer at all (DNS or network). Try:  nslookup $h"
+  } elseif ($code -eq '403' -or $code -eq '429') {
+    # Bot protection or Cloudflare Access answers a script before the tunnel
+    # is involved, so this says nothing about whether Alpha is reachable.
+    Note "$h -> ${code}: Cloudflare turned this check away (bot protection or Access)."
+    Note "  That is not a verdict on the tunnel - open https://$h/ in a browser instead."
   } else { OK "$h -> $code" }
 }
 
