@@ -135,3 +135,64 @@ Even with the source in hand, confirming a phone, an ESP32 bridge and a panel
 node are live means reaching them on the tailnet or LAN. This container has no
 tailnet interface and no Tailscale client. Freshness counts reported from here
 would be invented, which is the one thing the request rules out.
+
+---
+
+## Addendum 2: a correction, and a verified contract for the hub
+
+### Correction to "fleet receiver / receipts" above
+That section was incomplete. It was written against commit `f5e3362`; `main` has
+since landed a **host-side receipt ledger that is in version control**:
+
+- `src/host/receipts.js` — `ReceiptStore`, an append-only durable ledger of
+  every terminal task (`succeeded`/`failed`/`cancelled`), persisted to
+  `ALPHA_RECEIPT_STORE` (default `./data/receipts.json`).
+- `GET /receipts` and `GET /receipts/summary` on the host, both behind
+  `SCOPES.TASKS_READ` (`src/host/server.js:607`, `:622`).
+
+So "reporting receipts" is two different things, and only one of them is
+missing: the **host ledger of what ran** is here and testable; the **posting of
+a receipt into Alpha's coordination tunnel** is the part that needs the Alpha
+box, via `node src/admin/run.js coord --action Post --message "..."`, which
+queues an `alpha.coordination` task for the agent holding
+`scripts/alpha_coordination_tunnel.ps1`.
+
+### Verified: the `/agents` contract, for the hub's "registered workers" input
+One of the three inputs the canonical device view needs is already available and
+needs no new code. Booted a real host and a real agent over loopback here and
+captured the actual response — not a guess at the shape:
+
+```
+GET /agents   (Authorization: Bearer <token>, scope agents:read)
+{"agents":[{
+  "id":"agent_unflae7djk02uz1x", "name":"laptop-41",
+  "instanceId":"inst_25fc14b83501b2c4", "version":"1.7.0",
+  "capabilities":["echo","grow","sysinfo"],
+  "registeredAt":1790556974198, "lastSeenAt":1790556974206,
+  "idleMs":5912, "inFlight":0,
+  "memory":{"totalBytes":…,"freeBytes":…,"offerableBytes":…},
+  "memoryReportedAt":…, "load":{"cpus":4,"loadAverage1":0,"loadFactor":0},
+  "loadReportedAt":…, "rank":0
+}], "hostVersion":"1.7.0"}
+```
+
+**This maps directly onto "keep network-online separate from fresh Alpha-active
+heartbeat."** `idleMs` (equivalently `now - lastSeenAt`) against
+`AGENT_STALE_MS = 90_000` is a true *Alpha-active* signal: it only advances when
+the agent completes a long poll, so it means "this worker is talking to the
+coordinator", not "this IP answers". A Tailscale peer being up is the other,
+weaker fact. They are different columns and should not be collapsed.
+
+`instanceId` is the join key to prefer over `id`: agent ids are minted per
+registration, so a machine that restarts gets a new one, while `instanceId` is
+derived from the machine (`src/agent/identity.js`). A hub keyed on `id` will
+double-count a laptop that rebooted — plausibly part of "11 registered".
+
+`name` is not unique by design (same-name machines are legal), so it is a label,
+not a key.
+
+### Still not determinable from here
+The other two inputs — the topology source, and the heartbeat scheme each of the
+CrowPanel node, the ESP32 bridge and the phone uses — are in the un-versioned
+Alpha backend. The nine-node limit, the device-specific visuals and the stale
+logic are there too. None of it was guessed at.
