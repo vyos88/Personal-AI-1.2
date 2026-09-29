@@ -22,7 +22,8 @@
     "keep": "node scripts/keep-agent.mjs",
     "standby": "node scripts/standby-alpha.mjs",
     "jobs": "node scripts/run-jobs.mjs",
-    "manager": "node scripts/alpha-manager.mjs"
+    "manager": "node scripts/alpha-manager.mjs",
+    "music-bridge": "node scripts/music-bridge.mjs"
   },
   "dependencies": {},
   "devDependencies": {}
