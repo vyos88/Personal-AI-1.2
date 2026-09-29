@@ -29,6 +29,25 @@ about the move puts the tunnel script on the laptop, and nothing needs to —
 agents only ever dial out, so the coordinator moving is invisible to them beyond
 one URL.
 
+## When the old host is simply gone
+
+The runbook below assumes the old coordinator is still there to stop and copy
+from. When it is not — `vyos88` left the tailnet and took the only coordinator
+with it — run this on the machine that is taking over, from its checkout:
+
+```powershell
+node scripts/move-coordinator-here.mjs --alpha-root C:\path\to\alpha
+```
+
+It does steps 4, 5 and 5b for this machine: keeps `data/auth.json` if one is
+there (put a surviving copy there first and every key is kept), otherwise makes
+a fresh store with `--email` and a new key for this machine's agent; writes
+`.env` with both bind addresses and no bootstrap token; repoints `.env.agent`
+without touching its other lines; then proves it with the real coordinator and
+a real attach under a throwaway instance id. It leaves nothing running. Step 2
+does not apply — there is nothing left to stop — and steps 5 and 6 still do,
+for every *other* machine.
+
 ## Do not use `setup-host.mjs` for this
 
 `scripts/setup-host.mjs` provisions a *new* deployment. Pointed at a migration it

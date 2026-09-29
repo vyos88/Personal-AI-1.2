@@ -525,6 +525,55 @@ cannot be spawned without a shell, and a shell is exactly what must not stand
 between a prompt and the process — so PATH resolution tries native extensions
 first and refuses a shim with the remedy in the reason.
 
+`alpha-music.js` is the seventh, and the second that returns a recipe.
+`alpha.music` takes exactly what Alpha's Music Creator panel collects —
+genre, subgenre, bpm, key, vocals, seed, durationSec — checks the names against
+`src/common/musicGenres.js` (the vocabulary the panel's `musicGenres.ts`
+mirrors), and hands them to a Python generator. Three rules it adds:
+
+- **A genre suggests a BPM, never pins one.** A missing `bpm` takes the
+  subgenre's `defaultBpm`; a given one always wins. `bpmTypical` in the
+  result is informational and nothing reads it.
+- **`vocals: true` is refused unless `ALPHA_MUSIC_VOCALS=1`.** The obvious
+  local generator (MusicGen) cannot sing, and a recipe saying "vocals" for an
+  instrumental track is the `alpha.render` `params` mistake again. `vocals`
+  must be stated either way, so the recipe always says which it is.
+- **Unknown payload keys are refused, not dropped**, for the same reason.
+
+Unlike `alpha.render`, the generator contract is defined *here*
+(`buildArgs`, pinned by tests), and so is the generator:
+`scripts/generate_music.py` (MusicGen via `transformers`, imported lazily).
+A test runs the handler against the real script in its `ALPHA_MUSIC_DRY_RUN`
+mode, so the two cannot drift apart; if either changes, change both together.
+The script refuses `--vocals` itself too, and every failure path exits
+non-zero, because a clean exit is what the handler reads as success.
+
+Alpha's Generate button reaches it through `src/bridge/music.js`
+(`scripts/music-bridge.mjs`), because a tunnel token in a web page is readable
+by anyone who can open the page. The bridge holds a `tasks:read,tasks:write`
+key server-side and narrows it further than any scope can: it queues
+`alpha.music` only, with lease and target machine from its own configuration,
+validates with the handler's own `validateSettings`, reads back music tasks
+only, binds loopback and sends no CORS header. It leaves `vocals` to the agent,
+since it cannot know which machine will run the task.
+
+`alpha-music-audio.js` (`alpha.music.audio`) is how a track gets heard
+somewhere other than the machine that made it, and it is shaped by two facts:
+nothing can reach into an agent, and the coordinator keeps every task result
+in memory for as long as it runs. So the audio comes back as task results, in
+512 KB slices (a result body is capped at 1 MB), and the **bridge fetches each
+track once** into `ALPHA_MUSIC_BRIDGE_CACHE` and serves every later play, with
+Range support for seeking, from its own disk. Re-fetching per play would grow
+the coordinator by the size of the track every time. The slice handler takes a
+genre and a file name, never a path, and looks only at
+`<output>/<genre folder>/<name>`; the bridge only asks for a name the
+generating task itself reported. Every slice carries the file's size and
+mtime, and the bridge restarts a download whose file changed underneath it,
+because a re-run with the same recipe replaces the file in place. Slices go to
+the task's `targetAgent`, so playback needs `ALPHA_MUSIC_AGENT` on the bridge:
+an untargeted task names no machine the bridge could ask. Its `available()`
+needs only the output directory, as `alpha-render-inventory`'s does.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
