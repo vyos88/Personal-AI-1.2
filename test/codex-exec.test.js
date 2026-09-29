@@ -336,3 +336,36 @@ test('the timeout is reported as a timeout, with what to do about it', async (t)
     return true;
   });
 });
+
+test('stdin is closed, because codex exec reads a piped stdin to EOF', async (t) => {
+  if (isWindows) return;
+  const f = await fixture();
+  // Like the real CLI: when stdin is not a terminal, read it to EOF before
+  // answering. Left open, this never returns and the task times out.
+  await writeFile(
+    f.codex,
+    ['#!/usr/bin/env bash', 'cat > /dev/null', 'echo "STDOUT OK"'].join('\n'),
+  );
+  await chmod(f.codex, 0o755);
+  useFixture(t, f, { ALPHA_CODEX_TIMEOUT_MS: '5000' });
+
+  const result = await run({ prompt: 'hello' });
+  assert.match(result.output, /STDOUT OK/);
+});
+
+test('a timeout is a timeout even when Codex exits 0 on SIGTERM', async (t) => {
+  if (isWindows) return;
+  const f = await fixture();
+  // The real CLI traps SIGTERM and exits cleanly with nothing on stdout.
+  await writeFile(
+    f.codex,
+    ['#!/usr/bin/env bash', "trap 'exit 0' TERM", 'sleep 5 & wait'].join('\n'),
+  );
+  await chmod(f.codex, 0o755);
+  useFixture(t, f, { ALPHA_CODEX_TIMEOUT_MS: '300' });
+
+  await assert.rejects(run({ prompt: 'hello' }), (error) => {
+    assert.equal(error.code, 'timeout');
+    return true;
+  });
+});
