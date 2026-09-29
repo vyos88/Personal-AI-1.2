@@ -27,6 +27,12 @@ export const MAX_TTL_MS = 365 * 24 * 60 * 60 * 1_000; // 1 year
 // impractical without needing a store round-trip per attempt.
 const LOGIN_MAX_FAILURES = 8;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1_000;
+// Failures are tracked per email *attempted*, not per account, and the login
+// route is unauthenticated — so without a bound, anyone who can reach the port
+// grows this Map by one entry per made-up address for as long as the host
+// runs. Past this many, entries old enough to have unlocked are dropped, then
+// the oldest.
+export const LOGIN_FAILURES_TRACKED_MAX = 10_000;
 
 // A stand-in hash with the real cost, verified against when no user matches.
 // Without it, "unknown email" returns fast and "known email, wrong password"
@@ -119,8 +125,14 @@ export class AuthService {
    *   credential with full scope. Intended to create the first real admin and
    *   then be removed.
    */
-  constructor({ store = new AuthStore(), bootstrapToken = null, now = () => Date.now() } = {}) {
+  constructor({
+    store = new AuthStore(),
+    bootstrapToken = null,
+    now = () => Date.now(),
+    maxTrackedLoginFailures = LOGIN_FAILURES_TRACKED_MAX,
+  } = {}) {
     this.store = store;
+    this.maxTrackedLoginFailures = maxTrackedLoginFailures;
     this.bootstrapToken = bootstrapToken || null;
     this.now = now;
   }
@@ -405,7 +417,30 @@ export class AuthService {
     const entry = this.#loginFailures.get(email) ?? { count: 0, lastAt: 0 };
     entry.count += 1;
     entry.lastAt = this.now();
+    // Re-inserted so the Map's order is least-recently-failed first, which is
+    // the order the bound below evicts in.
+    this.#loginFailures.delete(email);
     this.#loginFailures.set(email, entry);
+    if (this.#loginFailures.size > this.maxTrackedLoginFailures) this.#forgetLoginFailures();
+  }
+
+  #forgetLoginFailures() {
+    const cutoff = this.now() - LOGIN_LOCKOUT_MS;
+    for (const [key, entry] of this.#loginFailures) {
+      if (entry.lastAt <= cutoff) this.#loginFailures.delete(key);
+    }
+    // Still over after that means a burst inside one lockout window. Dropping
+    // the least recent is what bounds it; the cost is that an address being
+    // guessed slowly under cover of a flood loses its count and starts again.
+    for (const key of this.#loginFailures.keys()) {
+      if (this.#loginFailures.size <= this.maxTrackedLoginFailures) break;
+      this.#loginFailures.delete(key);
+    }
+  }
+
+  /** How many emails currently have failures on record. For tests. */
+  get trackedLoginFailures() {
+    return this.#loginFailures.size;
   }
 
   // -------------------------------------------------------------------- keys

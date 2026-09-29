@@ -476,6 +476,10 @@ async function handle(req, res, ctx) {
         const controller = new AbortController();
         const onClose = () => controller.abort();
         res.on('close', onClose);
+        // 'close' fires once. An agent that hung up while this request was
+        // still being authenticated has already had it, and without this the
+        // poll would park for a connection that no longer exists.
+        if (req.destroyed || res.destroyed || req.socket?.destroyed) controller.abort();
 
         const task = await ctx.queue.lease({
           agentId,
@@ -674,6 +678,15 @@ function readJson(req) {
     const chunks = [];
     let size = 0;
 
+    // A declared length already over the cap is refused before a byte of it
+    // is buffered, rather than after a megabyte has been.
+    const declared = Number.parseInt(req.headers['content-length'] ?? '', 10);
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      reject(new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' }));
+      req.destroy();
+      return;
+    }
+
     req.on('data', (chunk) => {
       size += chunk.length;
       // Stop reading a body that is already too large instead of buffering it.
@@ -685,7 +698,23 @@ function readJson(req) {
       chunks.push(chunk);
     });
 
-    req.on('error', reject);
+    // A client hanging up mid-body is the client's problem, not the host's:
+    // answered as a 400 rather than surfacing as an unhandled 500 in the log.
+    req.on('error', (error) =>
+      reject(
+        new ProtocolError(`request body could not be read: ${error.message}`, {
+          code: 'incomplete_body',
+        }),
+      ),
+    );
+    // And if a hang-up ever arrives without an 'error', settle anyway so the
+    // handler finishes and lets go of what it buffered. A no-op once 'end' or
+    // 'error' has settled the promise.
+    req.on('close', () => {
+      if (!req.complete) {
+        reject(new ProtocolError('request body was cut off', { status: 400, code: 'incomplete_body' }));
+      }
+    });
 
     req.on('end', () => {
       const raw = Buffer.concat(chunks).toString('utf8');
