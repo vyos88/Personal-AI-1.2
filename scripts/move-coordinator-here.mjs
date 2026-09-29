@@ -94,7 +94,7 @@ export function readEnvKey(body, key) {
 /** Adds a name to a comma-separated list unless it is already on it. */
 export function addToList(list, name) {
   const items = (list ?? '').split(',').map((s) => s.trim()).filter(Boolean);
-  return items.includes(name) ? items.join(',') : [...items, name].join(',');
+  return [...new Set([...items, name])].join(',');
 }
 
 function tailnetAddress() {
@@ -233,6 +233,31 @@ async function main() {
     ok(`Alpha working copy at ${alphaRoot}`);
   }
 
+  // Both lists, file and environment, so moving the list into the file does
+  // not quietly drop a handler this machine offers today.
+  const extraHandlers = alphaRoot
+    ? addToList([readEnvKey(agentEnv, 'ALPHA_EXTRA_HANDLERS'), process.env.ALPHA_EXTRA_HANDLERS].filter(Boolean).join(','), 'alpha-coordination')
+    : null;
+  const willWrite = {
+    ALPHA_HOST_URL: local,
+    ...(existsSync(storePath) ? {} : { ALPHA_AGENT_KEY: '(new)' }),
+    ...(alphaRoot ? { ALPHA_EXTRA_HANDLERS: extraHandlers, ALPHA_REPO_ROOT: alphaRoot } : {}),
+  };
+  // A variable set in this machine's environment beats both files, and the
+  // agent would ignore the edit below without a word: the first run on
+  // Laptop41 wrote alpha-coordination into .env.agent and attached without it.
+  const overridden = Object.entries(willWrite)
+    .filter(([key, value]) => process.env[key] !== undefined && process.env[key] !== value)
+    .map(([key]) => key);
+  if (overridden.length) {
+    die(`${overridden.join(', ')} ${overridden.length > 1 ? 'are' : 'is'} set in this machine's environment, which overrides .env.agent.\n` +
+      '  Remove it and open a new window, then re-run (nothing has been written):\n' +
+      overridden.map((key) =>
+        `    [Environment]::SetEnvironmentVariable('${key}', $null, 'Machine'); ` +
+        `[Environment]::SetEnvironmentVariable('${key}', $null, 'User')`).join('\n') +
+      (extraHandlers ? `\n  .env.agent will then carry ALPHA_EXTRA_HANDLERS=${extraHandlers}` : ''));
+  }
+
   // ------------------------------------------------------------- 2. store
   say('\n[2] Accounts store');
   let fresh = null;
@@ -257,6 +282,10 @@ async function main() {
     note('no data/auth.json — creating a fresh store; keys issued by the old coordinator are void');
     fresh = await createStore(root, port, flags.email, agentEnv);
     ok(`admin ${flags.email} created, and a key for this machine's agent`);
+    // Printed here, not at the end: a later step can still fail, and a key
+    // shown only on success was lost with the first run that did not reach it.
+    say(`\n  Your admin key, shown once. Set it as ALPHA_ADMIN_TOKEN to use the CLI:\n\n  ${fresh.adminKey}\n`);
+    note(`lost it? node src/admin/run.js login --email ${flags.email} gives a session token`);
   }
 
   // -------------------------------------------------------- 3. .env files
@@ -277,7 +306,7 @@ async function main() {
   const agentUpdates = { ALPHA_HOST_URL: local };
   if (fresh) agentUpdates.ALPHA_AGENT_KEY = fresh.agentKey;
   if (alphaRoot) {
-    agentUpdates.ALPHA_EXTRA_HANDLERS = addToList(readEnvKey(agentEnv, 'ALPHA_EXTRA_HANDLERS'), 'alpha-coordination');
+    agentUpdates.ALPHA_EXTRA_HANDLERS = extraHandlers;
     agentUpdates.ALPHA_REPO_ROOT = alphaRoot;
   }
   await writeFile(agentEnvPath, setEnvKeys(agentEnv, agentUpdates), { mode: 0o600 });
@@ -313,12 +342,6 @@ Done. This machine is the coordinator; other machines reach it at ${url}.
 Nothing is left running: keep the coordinator up as a service, and restart the
 agent so it re-reads .env.agent.
 `);
-  if (fresh) {
-    say(`Your admin key — shown once. Set it as ALPHA_ADMIN_TOKEN to use the CLI:
-
-  ${fresh.adminKey}
-`);
-  }
   say(`Every OTHER machine: set ALPHA_HOST_URL=${url} in its .env.agent (and .env),
 then restart its agent.${fresh ? ' Their old keys are void: give each one a new key\nwith  node src/admin/run.js issue-key --user ' + fresh.userId + ' --scopes agent --name <machine>' : ''}
 `);
