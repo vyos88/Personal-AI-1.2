@@ -1,8 +1,8 @@
 <#
-  cleanup-alpha.ps1 — inventory every copy of Alpha on this machine, say which
+  cleanup-alpha.ps1 - inventory every copy of Alpha on this machine, say which
   one is live, and remove the old ones.
 
-  REPORT ONLY (this is the default — it deletes nothing):
+  REPORT ONLY (this is the default - it deletes nothing):
       powershell -ExecutionPolicy Bypass -File .\cleanup-alpha.ps1
 
   REMOVE the old copies, after reading the report above:
@@ -63,7 +63,7 @@ function Get-DirSize($dir) {
 }
 
 # Remove-Item cannot reach the Recycle Bin, and Shell.Application's delete verb
-# is asynchronous and can raise a confirmation dialog — either would hang this
+# is asynchronous and can raise a confirmation dialog - either would hang this
 # or appear to succeed having done nothing. This API is synchronous and names
 # the Recycle Bin explicitly.
 Add-Type -AssemblyName Microsoft.VisualBasic -EA SilentlyContinue
@@ -149,7 +149,7 @@ foreach ($root in $searchRoots) {
     $suffix = '\frontend\src\app\shell'
     $d = $h.Directory.FullName
     if (-not $d.EndsWith($suffix, [StringComparison]::OrdinalIgnoreCase)) {
-      Note "ignoring $($h.FullName) — not laid out like an Alpha copy"
+      Note "ignoring $($h.FullName) - not laid out like an Alpha copy"
       continue
     }
     $dir = $d.Substring(0, $d.Length - $suffix.Length)
@@ -278,7 +278,7 @@ $freeMB = [math]::Round((($removable | Measure-Object SizeMB -Sum).Sum +
 
 Section "What -Delete would remove"
 if ($skippedEnv) {
-  Warn "Skipped because they hold a .env — a configured install, not a stale copy:"
+  Warn "Skipped because they hold a .env - a configured install, not a stale copy:"
   $skippedEnv | ForEach-Object { Note "$($_.Path)  (version $($_.Version))" }
   Note "If one of these really is dead, delete it by hand after checking its .env."
 }
@@ -321,7 +321,7 @@ foreach ($target in (@($removable | ForEach-Object { $_.Path }) + @($junk | ForE
   # Re-checked here rather than trusted from the filter above: this is the last
   # point before something is actually removed.
   if (Test-Live $target) {
-    Bad "refusing $target — it is live, or is -AlphaRoot"
+    Bad "refusing $target - it is live, or is -AlphaRoot"
     continue
   }
   try {
