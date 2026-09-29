@@ -7,6 +7,8 @@
       powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1
   Stop the recovered copy afterwards:
       powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1 -StopRecovered
+  Continue a run that stopped, in the same folder, without copying again:
+      powershell -ExecutionPolicy Bypass -File .\recover-alpha-from-usb.ps1 -Resume E:\AlphaRecovery\<time>
 
   Order, each step logged, posted to the coordination tunnel, and written to
   evidence.json in the recovery folder:
@@ -35,6 +37,11 @@
                    public Host), /chat /decks /brain /agents served, live
                    8001 /health, public alpha-ai.uk, and the live install's
                    fingerprint unchanged.
+    9. panel       the Crown panel (CrowPanel): its USB-serial bridge is
+                   present and working, which COM port it is on now, and -
+                   unless -NoPanelProbe - its own answer to {"cmd":"status"}:
+                   on WiFi, provisioned with a coordinator and a key, and
+                   that coordinator answering /healthz from here.
 
   It never overwrites the live install. Promotion is a separate, later step,
   and this prints what has to be true before it.
@@ -50,6 +57,9 @@ param(
   [int]$LiveFrontendPort = 4173,
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$HealthPath = '/health',
+  [string]$PanelPort = '',
+  [switch]$NoPanelProbe,
+  [string]$Resume = '',
   [switch]$NoStopStale,
   [switch]$StopRecovered
 )
@@ -86,13 +96,42 @@ if ($StopRecovered) {
   exit 0
 }
 
-$stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$work = Join-Path $TargetRoot $stamp
+# Clicking in a console window puts it in QuickEdit selection, and Windows then
+# suspends the next write to it - the script freezes on a section header with
+# no disk activity until someone presses Esc. A multi-hour copy is exactly
+# when someone clicks the window, so this run turns QuickEdit off for itself.
+try {
+  Add-Type -Namespace Recovery -Name Console -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int h);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr h, out uint m);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr h, uint m);
+'@
+  $in = [Recovery.Console]::GetStdHandle(-10); $mode = 0
+  # ENABLE_EXTENDED_FLAGS (0x80) set, ENABLE_QUICK_EDIT_MODE (0x40) cleared.
+  if ([Recovery.Console]::GetConsoleMode($in, [ref]$mode)) { [void][Recovery.Console]::SetConsoleMode($in, ($mode -bor 0x80) -band -bnot 0x40) }
+} catch {}
+
+if ($Resume) {
+  # Continue a run that stopped, in its own folder. robocopy skips every file
+  # already there with the same size and time, so only what is missing or
+  # partial is read off the drive again; the SHA-256 pass still checks it all.
+  $work = (Resolve-Path $Resume -EA SilentlyContinue).Path
+  if (-not $work -or -not (Test-Path (Join-Path $work 'source'))) { Write-Host "-Resume $Resume : no source folder there to continue." -ForegroundColor Red; exit 1 }
+  if (-not $work.StartsWith($TargetRoot.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) { Write-Host "-Resume $Resume is not under $TargetRoot." -ForegroundColor Red; exit 1 }
+  if (Test-Path (Join-Path $work 'checkout')) { Write-Host "$work\checkout already exists - this run got past the copy. Rename that folder aside, then resume." -ForegroundColor Red; exit 1 }
+  $running = @(Get-CimInstance Win32_Process -EA SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.CommandLine -and (
+    ($_.Name -eq 'robocopy.exe' -and $_.CommandLine -like "*$work*") -or
+    ($_.CommandLine -match '(?i)recover-alpha-from-usb' -and $_.CommandLine -notmatch '(?i)-Resume|-StopRecovered') ) })
+  if ($running.Count) { Write-Host "Another recovery is still running (pid $(@($running.ProcessId) -join ', ')). Stop it first (Ctrl+C in its window), then resume." -ForegroundColor Red; exit 1 }
+} else {
+  $work = Join-Path $TargetRoot (Get-Date -Format 'yyyyMMdd-HHmmss')
+}
 $copy = Join-Path $work 'source'
 $checkout = Join-Path $work 'checkout'
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 $log = Join-Path $work 'recovery.log'
-Start-Transcript -Path $log -Force | Out-Null
+if ($Resume) { Start-Transcript -Path $log -Append | Out-Null; Write-Host "`n##### resumed $(Get-Date -Format o)" } else { Start-Transcript -Path $log -Force | Out-Null }
+$evidence.resumed = [bool]$Resume
 
 function Finish($code) {
   $evidence.finishedAt = (Get-Date).ToString('o'); $evidence.problems = @($problems)
@@ -124,7 +163,10 @@ if ($problems.Count) { Finish 1 }
 $srcBytes = (Get-ChildItem $Source -Recurse -File | Measure-Object Length -Sum).Sum
 $drive = Get-PSDrive ($TargetRoot.Substring(0, 1))
 Note ("source {0:N1} GB   {1}: free {2:N1} GB" -f ($srcBytes / 1GB), $drive.Name, ($drive.Free / 1GB))
-if ($drive.Free -lt 4 * $srcBytes + 10GB) { Problem "Not enough room on $($drive.Name): (copy + checkout + data + dependencies needs about 4x the backup plus 10 GB)."; Finish 1 }
+# A resumed run already holds part of the copy on the target.
+$already = if (Test-Path $copy) { [int64](Get-ChildItem $copy -Recurse -File -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum } else { 0 }
+if ($already) { Note ("already copied: {0:N1} GB" -f ($already / 1GB)) }
+if ($drive.Free + $already -lt 4 * $srcBytes + 10GB) { Problem "Not enough room on $($drive.Name): (copy + checkout + data + dependencies needs about 4x the backup plus 10 GB)."; Finish 1 }
 Note "--- RESTORE.md (read, not executed) ---"
 Get-Content (Join-Path $Source 'RESTORE.md') | ForEach-Object { Note "  | $_" }
 $liveBefore = if (Test-Path $LiveRoot) { LiveFingerprint } else { 'absent' }
@@ -164,11 +206,19 @@ Note "protected (serving live ports, or their parents/children): $(@($protected.
 
 # ================================================================ 3. copy + verify
 Section "3. Copy and verify"
-robocopy $Source $copy /E /COPY:DAT /R:2 /W:5 /NFL /NDL /NJH /NP | Out-Null
-if ($LASTEXITCODE -ge 8) { Problem "robocopy failed (exit $LASTEXITCODE)."; Finish 1 }
+# robocopy writes every file it copies to robocopy.log, so a long copy can be
+# watched from another window; the console and recovery.log only get the end.
+$rcLog = Join-Path $work 'robocopy.log'
+Note "copying - progress: Get-Content '$rcLog' -Tail 5 -Wait"
+robocopy $Source $copy /E /COPY:DAT /R:2 /W:5 /NDL /NP /BYTES "/LOG+:$rcLog" | Out-Null
+$rc = $LASTEXITCODE
+Get-Content $rcLog -Tail 14 -EA SilentlyContinue | ForEach-Object { Note "  | $_" }
+if ($rc -ge 8) { Problem "robocopy failed (exit $rc). See $rcLog."; Finish 1 }
 $hashes = @()
-foreach ($f in Get-ChildItem $Source -Recurse -File) {
+$files = @(Get-ChildItem $Source -Recurse -File); $n = 0
+foreach ($f in $files) {
   $rel = $f.FullName.Substring($Source.TrimEnd('\').Length).TrimStart('\')
+  $n++; Note ("hashing {0}/{1}: {2} ({3:N1} GB, both sides)" -f $n, $files.Count, $rel, ($f.Length / 1GB))
   $a = (Get-FileHash $f.FullName -Algorithm SHA256).Hash
   $b = (Get-FileHash (Join-Path $copy $rel) -Algorithm SHA256 -EA SilentlyContinue).Hash
   $hashes += [pscustomobject]@{ file = $rel; sha256 = $a; match = ($a -eq $b) }
@@ -313,5 +363,89 @@ if (-not $v.liveInstallUnchanged) {
 Note "Chat is checked by page, not by sending: a message may trigger real actions. Send one by hand at $rf."
 Note "The public route serves the LIVE install; the recovered copy is local-only until promoted."
 Note "Leave it running to check by hand; stop it with:  .\recover-alpha-from-usb.ps1 -StopRecovered"
+
+# ================================================================ 9. Crown panel
+# The panel polls the coordinator, not Alpha, so nothing above can have broken
+# it. It is checked because "is it still there, on which port, and is it still
+# reporting" is asked right after a recovery, and Windows renumbers COM ports
+# on re-enumeration - whatever saved the old number stops finding the board.
+Section "9. Crown panel"
+$pv = [ordered]@{}
+# The USB-serial bridges a CrowPanel enumerates through: CH340/CH341, CH343/
+# CH9102, CP210x and the ESP32-S3's native USB. Matched by VID/PID, because a
+# FriendlyName changes with the driver.
+$panelIds = 'VID_1A86&PID_7523', 'VID_1A86&PID_5523', 'VID_1A86&PID_55D3', 'VID_1A86&PID_55D4', 'VID_10C4&PID_EA60', 'VID_303A&PID_1001'
+$bridges = @(Get-PnpDevice -PresentOnly -EA SilentlyContinue | Where-Object {
+  $id = $_.InstanceId; @($panelIds | Where-Object { $id -like "*$_*" }).Count -gt 0 } | ForEach-Object {
+  [pscustomobject]@{ port = if ($_.FriendlyName -match '\((COM\d+)\)') { $Matches[1] } else { $null }
+                     name = $_.FriendlyName; status = $_.Status; instanceId = $_.InstanceId } })
+$pv.bridges = @($bridges | ForEach-Object { "$(if ($_.port) { $_.port } else { 'no COM' }) $($_.name) [$($_.status)]" })
+$working = @($bridges | Where-Object { $_.status -eq 'OK' -and $_.port })
+if (-not $bridges.Count) {
+  Problem "Crown panel: no CrowPanel USB-serial bridge is attached (looked for CH340/CH343/CP210x/ESP32-S3 USB). Check the cable and the port, then run scripts\usb-inventory.ps1."
+  $other = @(Get-CimInstance Win32_SerialPort -EA SilentlyContinue | ForEach-Object { "$($_.DeviceID) $($_.Name)" })
+  Note "  serial ports present: $(if ($other.Count) { $other -join '; ' } else { 'none' })"
+} else {
+  foreach ($b in $pv.bridges) { Note "  bridge: $b" }
+  foreach ($b in @($bridges | Where-Object { $_.status -ne 'OK' })) { Problem "Crown panel: $($b.name) is attached but not working ($($b.status)) - it needs a driver or a replug." }
+}
+if ($PanelPort -and $working.Count -and @($working | Where-Object { $_.port -eq $PanelPort }).Count -eq 0) {
+  Problem "Crown panel: expected on $PanelPort, but its bridge is on $(@($working.port) -join ', '). Windows renumbered it - update ALPHA_PANEL_PORT and anything else that saved $PanelPort."
+}
+
+# Asks the sketch for its status over serial. Read-only: 'status' changes
+# nothing on the board and its reply never carries the WiFi password or the
+# key. DTR/RTS stay low, but some adapters tie them to EN, so opening the port
+# may still restart the board once - -NoPanelProbe skips this.
+function PanelStatus($port) {
+  $sp = New-Object System.IO.Ports.SerialPort $port, 115200, 'None', 8, 'One'
+  $sp.DtrEnable = $false; $sp.RtsEnable = $false; $sp.ReadTimeout = 500; $sp.WriteTimeout = 2000; $sp.NewLine = "`n"
+  try { $sp.Open() } catch { return [pscustomobject]@{ error = "cannot open ${port}: $($_.Exception.Message) - is a serial monitor or an alpha.panel task holding it?" } }
+  try {
+    # A board that just restarted prints its boot log first, so ask again
+    # every two seconds and take the first line that is a reply.
+    $deadline = (Get-Date).AddSeconds(12); $nextSend = Get-Date
+    while ((Get-Date) -lt $deadline) {
+      if ((Get-Date) -ge $nextSend) { $sp.DiscardInBuffer(); $sp.WriteLine('{"cmd":"status"}'); $nextSend = (Get-Date).AddSeconds(2) }
+      $line = $null
+      try { $line = $sp.ReadLine().Trim() }
+      catch { if (-not ($_.Exception -is [TimeoutException] -or $_.Exception.InnerException -is [TimeoutException])) { throw } }
+      if ($line -and $line.StartsWith('{')) {
+        try { $j = $line | ConvertFrom-Json } catch { $j = $null }
+        if ($j -and ($null -ne $j.ok -or $j.error)) { return $j }
+      }
+    }
+    [pscustomobject]@{ error = "no reply to {""cmd"":""status""} on $port within 12 s - wrong port, or the sketch is not running (flash it with alpha.panel Flash)" }
+  } catch { [pscustomobject]@{ error = "serial error on ${port}: $($_.Exception.Message)" } }
+  finally { if ($sp.IsOpen) { $sp.Close() }; $sp.Dispose() }
+}
+
+if ($NoPanelProbe) {
+  Note "  -NoPanelProbe: presence only, the board was not asked for its status."
+} elseif ($working.Count) {
+  # Expected port first; with several bridges, the one that answers is the panel.
+  $order = @($working | Sort-Object { if ($_.port -eq $PanelPort) { 0 } else { 1 } })
+  $reply = $null
+  foreach ($b in $order) {
+    $r = PanelStatus $b.port
+    $pv["status $($b.port)"] = ($r | ConvertTo-Json -Compress)
+    Note "  $($b.port) -> $($pv["status $($b.port)"])"
+    if ($null -ne $r.ok) { $reply = $r; $pv.port = $b.port; break }
+  }
+  if (-not $reply) {
+    Problem "Crown panel: no board answered {""cmd"":""status""} on $(@($order.port) -join ', '). $(@($order | ForEach-Object { $pv["status $($_.port)"] }) -join ' | ')"
+  } else {
+    OK "Crown panel answers on $($pv.port)"
+    if (-not $reply.connected) { Problem "Crown panel: not on WiFi (ssid '$($reply.ssid)'). Provision it with alpha.panel Provision." }
+    if (-not $reply.host) { Problem "Crown panel: no coordinator host set - it has nothing to poll. Provision it with alpha.panel Provision." }
+    elseif (-not $reply.keyed) { Problem "Crown panel: no key set - the coordinator's /stats needs one, so the panel will show 'unauthorized'." }
+    if ($reply.host) {
+      $pv.coordinatorHealth = Code "$($reply.host.TrimEnd('/'))/healthz"
+      Note "  panel's coordinator $($reply.host)/healthz -> $($pv.coordinatorHealth)"
+      if ($pv.coordinatorHealth -notlike '2*') { Problem "Crown panel: its coordinator $($reply.host) answers /healthz with $($pv.coordinatorHealth) - the panel will show an error until the coordinator is back." }
+    }
+  }
+}
+$evidence.panel = $pv
 
 Finish $(if ($problems.Count) { 1 } else { 0 })
