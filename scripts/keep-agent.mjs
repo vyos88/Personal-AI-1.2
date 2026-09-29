@@ -39,7 +39,7 @@
  * Usage:
  *   node scripts/keep-agent.mjs [--repo <path>] [--interval-ms <ms>]
  *                               [--remote <name>] [--also-repo <path>]...
- *                               [--stop-timeout-ms <ms>]
+ *                               [--stop-timeout-ms <ms>] [--healthy-after-ms <ms>]
  *
  * Exit codes:
  *   0   asked to stop (signal), or stood down for another agent on this machine
@@ -51,7 +51,7 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { backoffDelay, sleep } from '../src/common/backoff.js';
+import { HEALTHY_RUN_MS, backoffDelay, failuresAfterRun, sleep } from '../src/common/backoff.js';
 import { createLogger } from '../src/common/log.js';
 import { AGENT_SHUTDOWN_MESSAGE } from '../src/common/protocol.js';
 
@@ -78,6 +78,7 @@ function parseArgs(argv) {
     remote: 'origin',
     intervalMs: DEFAULT_INTERVAL_MS,
     stopTimeoutMs: DEFAULT_STOP_TIMEOUT_MS,
+    healthyAfterMs: HEALTHY_RUN_MS,
     alsoRepos: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -87,6 +88,7 @@ function parseArgs(argv) {
     else if (arg === '--also-repo') options.alsoRepos.push(resolve(argv[++i] ?? ''));
     else if (arg === '--interval-ms') options.intervalMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stop-timeout-ms') options.stopTimeoutMs = positiveInt(arg, argv[++i]);
+    else if (arg === '--healthy-after-ms') options.healthyAfterMs = positiveInt(arg, argv[++i]);
     else throw new Error(`unknown argument ${JSON.stringify(arg)}`);
   }
   return options;
@@ -172,6 +174,7 @@ class AgentKeeper {
     let failures = 0;
     while (!this.#stopping) {
       const child = this.#spawnAgent();
+      const startedAt = Date.now();
       const { code, signal } = await child.exited;
 
       if (this.#stopping) break;
@@ -193,6 +196,9 @@ class AgentKeeper {
         return EXIT_OK;
       }
 
+      // A crash after a long healthy run starts the count over, rather than
+      // inheriting the backoff of one that happened weeks ago.
+      failures = failuresAfterRun(failures, Date.now() - startedAt, this.#options.healthyAfterMs);
       const delay = backoffDelay(failures++);
       log.warn('agent exited; restarting', { code, signal, delayMs: delay, failures });
       await sleep(delay).catch(() => {});

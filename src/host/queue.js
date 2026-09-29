@@ -268,6 +268,29 @@ export class TaskQueue {
     return task;
   }
 
+  /**
+   * The task was leased to a long poll whose connection closed before the
+   * reply could be written, so the agent never received it and nothing ran.
+   *
+   * This used to go through `fail()`, which charged the attempt `#assign`
+   * took: a task with `maxAttempts: 1` was failed permanently without ever
+   * having been seen by a machine, and any other task lost a retry to a
+   * dropped socket. Like a decline, the attempt is handed back and the task
+   * requeued as if it had never been placed. Unlike a decline it is not
+   * counted in `declines` — no agent refused it — and it leaves `error` as it
+   * was, because this placement produced no outcome to record.
+   *
+   * It cannot spin: the poll that took the task is finished, and a requeue
+   * only ever dispatches to a poll that is still parked.
+   */
+  undelivered(taskId, agentId) {
+    const task = this.#requireLeasedBy(taskId, agentId);
+    this.admission.release(agentId, task);
+    task.attempts = Math.max(0, task.attempts - 1);
+    this.#requeue(task, 'lease never reached the agent');
+    return task;
+  }
+
   cancel(taskId) {
     const task = this.#tasks.get(taskId);
     if (!task) return null;

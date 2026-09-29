@@ -25,6 +25,13 @@ import {
 
 const TOKEN = 'test-token-that-is-long-enough';
 
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
+
 async function startHost(options = {}) {
   const host = createHost({ token: TOKEN, ...options });
   await new Promise((resolve) => host.server.listen(0, '127.0.0.1', resolve));
@@ -483,6 +490,7 @@ test('a real agent hands back work its machine went too tight to hold, and runs 
 
   let offerableBytes = gb(8);
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -953,6 +961,7 @@ test('the store limit comes from the environment, falling back to a share of the
 test('an attached agent publishes its free memory to the host', async (t) => {
   const host = await startHost();
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'ram-lender',
@@ -986,6 +995,7 @@ test('an attached agent publishes its free memory to the host', async (t) => {
 test('a task asking for more RAM than any agent has waits instead of running', async (t) => {
   const host = await startHost();
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     capabilities: ['echo'],
@@ -1021,6 +1031,7 @@ test('a task within the agent\'s free memory runs there', async (t) => {
     { type: 'crunch', run: async () => ({ crunched: true }) },
   ]);
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     handlers,
@@ -1051,7 +1062,7 @@ test('the host stores data in the laptop\'s RAM and reads it back', async (t) =>
   const handlers = new HandlerRegistry([memstoreHandler]);
   memstoreHandler.setStore(new MemoryStore({ limitBytes: 1 * MB }));
 
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 500 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 500 });
   const running = agent.start();
 
   t.after(async () => {

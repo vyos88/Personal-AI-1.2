@@ -116,6 +116,26 @@ function inviteStatus(invite, now) {
   return 'pending';
 }
 
+/**
+ * Drops login sessions past their expiry. Every login writes one record and
+ * nothing else ever removed them, so auth.json grew by one per login for the
+ * life of the host. An expired session can never authenticate again and a
+ * user cannot revoke it (it is not theirs to manage the way an API key is),
+ * so there is nothing it is kept for. API keys are left alone even when
+ * expired: they are named, deliberately issued credentials an operator may
+ * still want to see listed.
+ */
+function pruneExpiredSessions(data, now) {
+  let pruned = 0;
+  for (const [id, key] of Object.entries(data.apiKeys)) {
+    if (key.kind === TokenKind.SESSION && key.expiresAt && key.expiresAt <= now) {
+      delete data.apiKeys[id];
+      pruned += 1;
+    }
+  }
+  return pruned;
+}
+
 export class AuthService {
   #loginFailures = new Map();
 
@@ -139,6 +159,13 @@ export class AuthService {
 
   async load() {
     await this.store.load();
+    // A host that restarts after a quiet spell sheds what accumulated before
+    // it went down, rather than waiting for the next login to do it.
+    const pruned = pruneExpiredSessions(this.store.data, this.now());
+    if (pruned > 0) {
+      await this.store.save();
+      log.info('pruned expired login sessions', { count: pruned });
+    }
     if (this.bootstrapToken && this.userCount() > 0) {
       log.warn(
         'ALPHA_BOOTSTRAP_TOKEN is still set but real users exist — ' +
@@ -387,6 +414,10 @@ export class AuthService {
     });
 
     await this.store.mutate((data) => {
+      // Pruned at issue time because issuing is the only thing that adds one:
+      // the file then holds at most the sessions of the last TTL, however
+      // long the host runs.
+      pruneExpiredSessions(data, now);
       data.apiKeys[session.record.id] = session.record;
       data.users[user.id].lastLoginAt = now;
     });

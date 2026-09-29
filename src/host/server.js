@@ -490,8 +490,9 @@ async function handle(req, res, ctx) {
 
         res.off('close', onClose);
         if (res.writableEnded || controller.signal.aborted) {
-          // Agent hung up while parked. Release the task it never received.
-          if (task) ctx.queue.fail(task.id, agentId, { message: 'agent disconnected while leasing', code: 'disconnected' });
+          // Agent hung up while parked. Hand back the task it never received,
+          // without charging the attempt: nothing ran, so this is not a failure.
+          if (task) ctx.queue.undelivered(task.id, agentId);
           // Complete the response even though nobody is reading it: returning
           // here without ending leaves the request open and server.close()
           // waits on it forever.
@@ -658,6 +659,7 @@ async function handle(req, res, ctx) {
     return sendJson(res, 404, { error: 'not_found' });
   } catch (error) {
     if (error instanceof ProtocolError) {
+      if (error.closeConnection && !res.headersSent) res.setHeader('connection', 'close');
       return sendJson(res, error.status, { error: error.code, message: error.message });
     }
     if (typeof error.status === 'number') {
@@ -673,6 +675,22 @@ function inviteUrl(req, token) {
   return `${base.replace(/\/+$/, '')}/invites/redeem#${encodeURIComponent(token)}`;
 }
 
+/**
+ * The refusal for an over-cap body. It used to destroy the request on the
+ * spot, which the client saw as a connection reset rather than a 413 it could
+ * read. Instead the rest of the body is left unread (a paused stream stops the
+ * socket once its buffer fills, so nothing more is held) and the reply goes
+ * out with `Connection: close`, after which Node ends the socket itself — so
+ * the unread remainder is never parsed as the next request. A client still
+ * streaming megabytes at that point may see the close as a reset anyway; one
+ * that waits for an answer gets the 413.
+ */
+function tooLarge() {
+  const error = new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' });
+  error.closeConnection = true;
+  return error;
+}
+
 function readJson(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -682,21 +700,23 @@ function readJson(req) {
     // is buffered, rather than after a megabyte has been.
     const declared = Number.parseInt(req.headers['content-length'] ?? '', 10);
     if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
-      reject(new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' }));
-      req.destroy();
+      reject(tooLarge());
       return;
     }
 
-    req.on('data', (chunk) => {
+    const onData = (chunk) => {
       size += chunk.length;
       // Stop reading a body that is already too large instead of buffering it.
       if (size > MAX_BODY_BYTES) {
-        reject(new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' }));
-        req.destroy();
+        req.off('data', onData);
+        req.pause();
+        chunks.length = 0;
+        reject(tooLarge());
         return;
       }
       chunks.push(chunk);
-    });
+    };
+    req.on('data', onData);
 
     // A client hanging up mid-body is the client's problem, not the host's:
     // answered as a 400 rather than surfacing as an unhandled 500 in the log.

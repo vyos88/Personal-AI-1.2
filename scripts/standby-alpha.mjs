@@ -50,6 +50,7 @@
  *   node scripts/standby-alpha.mjs --root <alpha dir> --start <script in root>
  *        [--probe-url <url>] [--control-url <url>] [--local-url <url>]
  *        [--probe-ms <ms>] [--failures <n>] [--recover <n>] [--stay]
+ *        [--healthy-after-ms <ms>]
  *
  * Configuration (CLI wins):
  *   ALPHA_APP_ROOT    where Alpha lives on this machine
@@ -67,7 +68,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { backoffDelay, sleep } from '../src/common/backoff.js';
+import { HEALTHY_RUN_MS, backoffDelay, failuresAfterRun, sleep } from '../src/common/backoff.js';
 import { createLogger } from '../src/common/log.js';
 import { loadEnv } from '../src/common/env.js';
 
@@ -156,6 +157,7 @@ function parseArgs(argv) {
     localFailures: DEFAULT_LOCAL_FAILURES,
     localGraceMs: DEFAULT_LOCAL_GRACE_MS,
     stopTimeoutMs: DEFAULT_STOP_TIMEOUT_MS,
+    healthyAfterMs: HEALTHY_RUN_MS,
     stay: false,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -173,6 +175,7 @@ function parseArgs(argv) {
     else if (arg === '--local-failures') options.localFailures = positiveInt(arg, argv[++i]);
     else if (arg === '--local-grace-ms') options.localGraceMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stop-timeout-ms') options.stopTimeoutMs = positiveInt(arg, argv[++i]);
+    else if (arg === '--healthy-after-ms') options.healthyAfterMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stay') options.stay = true;
     else throw new Error(`unknown argument ${JSON.stringify(arg)}`);
   }
@@ -356,6 +359,7 @@ class LocalAlpha {
       });
       child.exited = exited;
       const { code, signal } = await exited;
+      const ranMs = Date.now() - this.#startedAt;
       this.#child = null;
       this.#startedAt = 0;
 
@@ -369,6 +373,9 @@ class LocalAlpha {
 
       // Every other exit is Alpha falling over while this machine is the one
       // serving. Nothing else is going to bring it back.
+      // A crash after a long healthy run starts the count over, rather than
+      // inheriting the backoff of one that happened weeks ago.
+      failures = failuresAfterRun(failures, ranMs, this.#options.healthyAfterMs);
       const delay = backoffDelay(failures++);
       log.warn('Alpha exited; restarting it', { code, signal, delayMs: delay, failures });
       await this.#nap(delay);

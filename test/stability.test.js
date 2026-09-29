@@ -5,17 +5,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { connect } from 'node:net';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { createHost } from '../src/host/server.js';
 import { TaskQueue } from '../src/host/queue.js';
-import { AuthService } from '../src/host/auth/service.js';
+import { AuthService, DEFAULT_SESSION_TTL_MS } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { fetchJson } from '../src/common/http.js';
 import { TaskStatus } from '../src/common/protocol.js';
+import { TokenKind, parseToken } from '../src/host/auth/tokens.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 
 async function startHost(options = {}) {
   const host = createHost({ token: TOKEN, ...options });
@@ -110,10 +121,33 @@ test('a poll whose connection is already gone is handed nothing', async () => {
   queue.stop();
 });
 
+test('a task leased into a poll that hung up is handed back without costing an attempt', async () => {
+  const queue = new TaskQueue();
+  // One attempt: charging it for a delivery that never happened would fail
+  // this task outright without a machine ever having seen it.
+  const task = queue.enqueue({ type: 'echo', payload: {}, leaseMs: 60_000, maxAttempts: 1 });
+  const leased = await queue.lease({ agentId: 'a', capabilities: ['echo'], waitMs: 0 });
+  assert.equal(leased.id, task.id);
+
+  queue.undelivered(task.id, 'a');
+  assert.equal(task.status, TaskStatus.QUEUED);
+  assert.equal(task.attempts, 0);
+  assert.equal(task.declines, 0, 'nobody declined it');
+
+  // And it is still there for a poll that does reach an agent.
+  const again = await queue.lease({ agentId: 'b', capabilities: ['echo'], waitMs: 0 });
+  assert.equal(again.id, task.id);
+  queue.complete(task.id, 'b', { ok: 1 });
+  assert.equal(task.status, TaskStatus.SUCCEEDED);
+  assert.equal(task.attempts, 1);
+  queue.stop();
+});
+
 test('a body declared over the cap is refused without being read', async (t) => {
   const host = await startHost();
   t.after(() => host.close());
 
+  let received = '';
   const outcome = await new Promise((resolve) => {
     const socket = connect(host.port, '127.0.0.1', () => {
       socket.write(
@@ -121,6 +155,10 @@ test('a body declared over the cap is refused without being read', async (t) => 
           `Authorization: Bearer ${TOKEN}\r\nContent-Type: application/json\r\n` +
           'Content-Length: 50000000\r\n\r\n{',
       );
+    });
+    socket.setEncoding('utf8');
+    socket.on('data', (chunk) => {
+      received += chunk;
     });
     socket.on('error', () => {});
     socket.on('close', () => resolve('closed'));
@@ -130,6 +168,11 @@ test('a body declared over the cap is refused without being read', async (t) => 
     }, 3_000);
   });
   assert.equal(outcome, 'closed', 'the host hung up instead of waiting for 50 MB');
+  // And said why, rather than resetting the connection: a client that waits
+  // for an answer can tell "too large" from "the host fell over".
+  assert.match(received, /^HTTP\/1\.1 413 /);
+  assert.match(received, /connection: close/i);
+  assert.match(received, /payload_too_large/);
 
   const { body } = await fetchJson(`${host.url}/healthz`);
   assert.equal(body.ok, true);
@@ -170,6 +213,7 @@ test('a handler that ignores its abort does not keep the worker forever', async 
   });
 
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'hang-test',
@@ -218,4 +262,55 @@ test('failed logins for made-up emails are tracked within a bound', async () => 
     await assert.rejects(() => auth.login({ email: `nobody${i}@example.com`, password: 'wrong-password' }));
   }
   assert.ok(auth.trackedLoginFailures <= 3, `tracked ${auth.trackedLoginFailures}`);
+});
+
+// ---------------------------------------------------------------- login sessions
+
+test('expired login sessions are pruned from the store, live ones and API keys are not', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'alpha-sessions-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const path = join(dir, 'auth.json');
+  let clock = Date.now();
+  const open = async () => {
+    const auth = new AuthService({ store: new AuthStore({ path }), bootstrapToken: TOKEN, now: () => clock });
+    await auth.load();
+    return auth;
+  };
+  const sessionIds = (auth) =>
+    Object.values(auth.store.data.apiKeys).filter((key) => key.kind === TokenKind.SESSION).map((key) => key.id);
+
+  const auth = await open();
+  const admin = await auth.authenticate(TOKEN);
+  const { token: inviteToken } = await auth.createInvite({ email: 'long@example.com', scopes: 'viewer', invitedBy: admin });
+  const { user, token: apiKey } = await auth.redeemInvite({ token: inviteToken, password: 'a-perfectly-fine-password' });
+  // An API key that has expired is a named credential an operator may still
+  // want listed; only sessions are pruned.
+  await auth.createApiKey({ userId: user.id, name: 'short', scopes: 'viewer', expiresInMs: 1_000 }, admin);
+
+  const login = () => auth.login({ email: 'long@example.com', password: 'a-perfectly-fine-password' });
+  const first = await login();
+  const second = await login();
+  assert.equal(sessionIds(auth).length, 2);
+
+  // Past the first two's expiry, the next login sheds them as it issues.
+  clock += DEFAULT_SESSION_TTL_MS + 1;
+  const third = await login();
+  assert.deepEqual(sessionIds(auth), [parseToken(third.token).id]);
+  assert.ok(await auth.authenticate(third.token), 'the live session still works');
+  assert.ok(await auth.authenticate(apiKey), 'and so does the API key');
+  assert.equal(Object.keys(auth.store.data.apiKeys).length, 3, 'API keys, expired or not, are kept');
+
+  const raw = await readFile(path, 'utf8');
+  for (const gone of [first, second]) assert.ok(!raw.includes(parseToken(gone.token).id));
+  assert.ok(!raw.includes(parseToken(third.token).secret), 'no session secret reaches disk');
+
+  // And a host that restarts after the last one expired sheds it on load.
+  // (authenticate() persists lastUsedAt without waiting; let that land before
+  // a second store opens the same file.)
+  await auth.store.save();
+  clock += DEFAULT_SESSION_TTL_MS + 1;
+  const reopened = await open();
+  assert.deepEqual(sessionIds(reopened), []);
+  assert.ok(!(await readFile(path, 'utf8')).includes(parseToken(third.token).id), 'and says so on disk');
+  assert.ok(await reopened.authenticate(apiKey));
 });
