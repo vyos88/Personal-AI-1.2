@@ -1,9 +1,9 @@
 <#
-  fix-frontend.ps1 — diagnose, and on request repair, Alpha's production
+  fix-frontend.ps1 - diagnose, and on request repair, Alpha's production
   frontend on the main host (laptop 41), so that alpha-ai.uk stops returning
   Cloudflare 502.
 
-  REPORT ONLY (the default — it changes nothing):
+  REPORT ONLY (the default - it changes nothing):
       powershell -ExecutionPolicy Bypass -File .\fix-frontend.ps1
 
   REPAIR, from an elevated PowerShell, after reading the report:
@@ -141,7 +141,7 @@ if (-not $admin) {
 }
 
 # ================================================================ 1. the task
-Section "1. Scheduled task '$TaskName' — exact program, arguments, directory"
+Section "1. Scheduled task '$TaskName' - exact program, arguments, directory"
 $tasks = @(Get-ScheduledTask -TaskName $TaskName -EA SilentlyContinue)
 $task  = $null
 if (-not $tasks) {
@@ -208,7 +208,7 @@ if (-not $tasks) {
   Note "matching command lines against: $($needles -join ' | ')"
   $all = @(Get-CimInstance Win32_Process -EA SilentlyContinue)
   $roots = @($all | Where-Object { $c = $_.CommandLine; $c -and ($needles | Where-Object { $_ -and $c.IndexOf($_, [StringComparison]::OrdinalIgnoreCase) -ge 0 }) })
-  if (-not $roots) { Warn "no process whose command line carries the task's arguments — the action exited, or detached." }
+  if (-not $roots) { Warn "no process whose command line carries the task's arguments - the action exited, or detached." }
   function Tree($p, $depth) {
     if ($depth -gt 6) { return }
     Write-Host ("  {0}{1,-6} {2,-14} {3}" -f ('  ' * $depth), $p.ProcessId, $p.Name, $p.CommandLine)
@@ -228,7 +228,7 @@ if (-not $tasks) {
 # ================================================================ 2. the code
 Section "2. Frontend on disk: $frontend"
 $pkg = Join-Path $frontend 'package.json'
-if (-not (Test-Path $pkg)) { Problem "no package.json at $frontend — pass -AlphaRoot <the live copy>" }
+if (-not (Test-Path $pkg)) { Problem "no package.json at $frontend - pass -AlphaRoot <the live copy>" }
 else {
   try {
     $scripts = (Get-Content $pkg -Raw | ConvertFrom-Json).scripts
@@ -240,7 +240,7 @@ else {
   else { Problem "no production build (dist\index.html). vite preview serves nothing without it. -Repair -Build fixes this." }
   $cfg = Get-ChildItem $frontend -Filter 'vite.config.*' -File -EA SilentlyContinue | Select-Object -First 1
   if ($cfg) {
-    Note "$($cfg.Name) — proxy/port lines:"
+    Note "$($cfg.Name) - proxy/port lines:"
     Select-String -Path $cfg.FullName -Pattern 'proxy|target|port|host|preview|8001' -EA SilentlyContinue |
       ForEach-Object { Note ("  {0,4}: {1}" -f $_.LineNumber, $_.Line.Trim()) }
   }
@@ -306,9 +306,9 @@ foreach ($c in $cfgs) {
     foreach ($m in [regex]::Matches($_.Line, ':(\d{2,5})\b')) { $ingressPorts += [int]$m.Groups[1].Value }
   }
 }
-if (-not $cfgs) { Note "no local config.yml: the tunnel is token-run (ingress lives in the Zero Trust dashboard) — check its public hostname for alpha-ai.uk points at http://localhost:$Port" }
+if (-not $cfgs) { Note "no local config.yml: the tunnel is token-run (ingress lives in the Zero Trust dashboard) - check its public hostname for alpha-ai.uk points at http://localhost:$Port" }
 elseif ($ingressPorts -and ($ingressPorts -notcontains $Port)) {
-  Problem "cloudflared ingress targets port(s) $($ingressPorts -join ', '), not $Port. Report only — this script does not edit the tunnel."
+  Problem "cloudflared ingress targets port(s) $($ingressPorts -join ', '), not $Port. Report only - this script does not edit the tunnel."
 }
 
 # ================================================================ 5. pressure
@@ -319,8 +319,8 @@ $freeMB = [math]::Round($os.FreePhysicalMemory / 1KB); $totMB = [math]::Round($o
 $commit = [math]::Round(100 - 100 * $os.FreeVirtualMemory / $os.TotalVirtualMemorySize)
 $disk = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
 Write-Host ("  CPU {0}%   RAM free {1} / {2} MB   commit {3}%   C: free {4:n1} GB" -f $cpu, $freeMB, $totMB, $commit, ($disk.FreeSpace / 1GB))
-if ($freeMB -lt 800)       { Problem "under 800 MB of RAM free — vite/node can fail to start or be killed" }
-if ($commit -gt 90)        { Problem "commit charge above 90% — allocations will start failing" }
+if ($freeMB -lt 800)       { Problem "under 800 MB of RAM free - vite/node can fail to start or be killed" }
+if ($commit -gt 90)        { Problem "commit charge above 90% - allocations will start failing" }
 if ($disk.FreeSpace -lt 2GB) { Problem "C: has under 2 GB free" }
 Write-Host "  top by memory:"
 Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 10 |
@@ -334,7 +334,7 @@ $vites = @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -EA SilentlyC
 Write-Host "  vite processes: $($vites.Count)"
 foreach ($v in $vites) { Note ("pid {0}: {1}" -f $v.ProcessId, $v.CommandLine) }
 $mine = @($vites | Where-Object { $_.CommandLine.IndexOf($frontend, [StringComparison]::OrdinalIgnoreCase) -ge 0 -or $_.CommandLine -notmatch '[A-Za-z]:\\' })
-if ($mine.Count -gt 1) { Warn "$($mine.Count) vite processes for this frontend — likely orphans of earlier task runs; -Repair stops them." }
+if ($mine.Count -gt 1) { Warn "$($mine.Count) vite processes for this frontend - likely orphans of earlier task runs; -Repair stops them." }
 
 # ================================================================ 6. repair
 $backupXml = $null
@@ -522,7 +522,7 @@ if ($f.Code -eq 200) {
   if ($sampleApi) {
     $r = Probe "http://127.0.0.1:$Port$sampleApi"
     if ($r.Code -ge 500 -or $r.Code -eq 0 -or ($r.Code -eq 200 -and $r.Body -match '<!doctype html')) {
-      Warn "frontend $Port does not proxy $sampleApi to the backend ($($r.Code)) — fine only if the browser calls the backend by another route"
+      Warn "frontend $Port does not proxy $sampleApi to the backend ($($r.Code)) - fine only if the browser calls the backend by another route"
     } else { OK "frontend proxies $sampleApi to the backend ($($r.Code))" }
   }
 }

@@ -1,5 +1,5 @@
 <#
-  alpha-frontend-run.ps1 — keep Alpha's production frontend (vite preview) up.
+  alpha-frontend-run.ps1 - keep Alpha's production frontend (vite preview) up.
 
   This is what the "Alpha" scheduled task runs after fix-frontend.ps1 -Repair.
   fix-frontend.ps1 copies it to <Landing>\ops\ so the task does not depend on
