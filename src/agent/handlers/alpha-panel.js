@@ -1,9 +1,10 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { open } from 'node:fs/promises';
-import { basename, delimiter, extname, join, resolve, sep } from 'node:path';
+import { basename, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Drives the CrowPanel (ESP32) attached to this machine, by queued task.
@@ -412,36 +413,6 @@ export function available() {
     return { ok: false, reason: `arduino-cli not found (${cli}). Set ALPHA_ARDUINO_CLI to its path.` };
   }
   return { ok: true };
-}
-
-/**
- * Where a command would be found, or null.
- *
- * `execFile` resolves a bare name against PATH, so the check has to as well or
- * the default `arduino-cli` would look missing on every machine that has it
- * installed normally. Windows needs PATHEXT too — the panel is on the Alpha
- * host, which is the Windows box, and a check that only looked for the bare
- * name would take the one machine with the board out of the running.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions =
-    // A name that already has an extension (powershell.exe, the default for
-    // device.inventory) is looked up as given; appending PATHEXT to it made
-    // every Windows machine report PowerShell as missing.
-    process.platform === 'win32' && !extname(command)
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-      : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
 }
 
 /**
