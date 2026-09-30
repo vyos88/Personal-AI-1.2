@@ -25,6 +25,10 @@
  *     stops the copy it started, because two Alphas both live is worse than
  *     the outage was. --stay turns that off for a machine where a person
  *     decides when to hand back.
+ *   - With --cloudflared <tunnel>, the public way in moves with Alpha: the
+ *     named tunnel runs here for exactly as long as this machine is the one
+ *     serving, and stops when the host takes over again. A tunnel left running
+ *     beside a demoted Alpha is a public address pointing at nothing.
  *
  * Split brain, honestly
  * ---------------------
@@ -49,6 +53,7 @@
  * Usage:
  *   node scripts/standby-alpha.mjs --root <alpha dir> --start <script in root>
  *        [--probe-url <url>] [--control-url <url>] [--local-url <url>]
+ *        [--cloudflared <tunnel name>]
  *        [--probe-ms <ms>] [--failures <n>] [--recover <n>] [--stay]
  *
  * Configuration (CLI wins):
@@ -62,7 +67,7 @@
  *       does not resolve inside it
  */
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -70,6 +75,7 @@ import { fileURLToPath } from 'node:url';
 import { backoffDelay, sleep } from '../src/common/backoff.js';
 import { createLogger } from '../src/common/log.js';
 import { loadEnv } from '../src/common/env.js';
+import { killTree } from '../src/common/kill-tree.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const log = createLogger('alpha:standby');
@@ -112,6 +118,23 @@ function npmCommand(script) {
   }
   const npm = process.env.ALPHA_NPM ?? (process.platform === 'win32' ? 'npm.cmd' : 'npm');
   return [npm, ['run', script]];
+}
+
+// A named tunnel, not a token. cloudflared takes credentials either from its
+// own configuration on this machine or from `--token <secret>` in the argv —
+// and an argv is readable by every process on the box, which is the same reason
+// the panel's WiFi password never travels that way. So the name is all that is
+// accepted here, and the credentials stay where cloudflared already keeps them.
+const TUNNEL_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;
+
+function cloudflaredCommand(tunnel) {
+  if (!TUNNEL_NAME_PATTERN.test(tunnel)) {
+    throw new Error(
+      `--cloudflared must be a tunnel name or id, got ${JSON.stringify(tunnel)}`,
+    );
+  }
+  const exe = process.env.ALPHA_CLOUDFLARED ?? 'cloudflared';
+  return [exe, ['tunnel', 'run', tunnel]];
 }
 
 /**
@@ -157,6 +180,7 @@ function parseArgs(argv) {
     localGraceMs: DEFAULT_LOCAL_GRACE_MS,
     stopTimeoutMs: DEFAULT_STOP_TIMEOUT_MS,
     stay: false,
+    cloudflared: process.env.ALPHA_CLOUDFLARE_TUNNEL ?? '',
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -174,6 +198,7 @@ function parseArgs(argv) {
     else if (arg === '--local-grace-ms') options.localGraceMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stop-timeout-ms') options.stopTimeoutMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stay') options.stay = true;
+    else if (arg === '--cloudflared') options.cloudflared = argv[++i] ?? '';
     else throw new Error(`unknown argument ${JSON.stringify(arg)}`);
   }
 
@@ -185,6 +210,9 @@ function parseArgs(argv) {
     options.probeUrl = `${host.replace(/\/+$/, '')}/healthz`;
   }
   if (!options.root) throw new Error('--root (or ALPHA_APP_ROOT) is required');
+  // Proven now rather than at the moment of the outage, for the same reason as
+  // the start script below.
+  options.tunnelCommand = options.cloudflared ? cloudflaredCommand(options.cloudflared) : null;
   if (options.start && options.npmScript) {
     throw new Error('--start and --npm-script name two different ways to start; pick one');
   }
@@ -263,55 +291,26 @@ async function reachable(url, timeoutMs) {
 }
 
 /**
- * Stops the child *and everything it started*.
- *
- * `npm run dev` is a wrapper: the server is its grandchild. Kill only the npm
- * process and the server keeps the port, so the restart this was meant to
- * perform fails to bind — which is the failure mode of every naive supervisor
- * of a script that launches something else.
- *
- * POSIX: the child was spawned detached, so it leads its own process group and
- * a negative pid signals the whole group. Windows has no groups worth the name,
- * so `taskkill /T` walks the tree instead.
+ * One program this machine runs while it is the one serving — Alpha itself, or
+ * the tunnel that makes it reachable. Owns the child it started and nothing
+ * else: start() keeps it up until stop() is called, restarting it with backoff
+ * if it exits, because a standby whose copy of Alpha died an hour ago is not a
+ * standby either, and a tunnel that died is an address pointing at nothing.
  */
-function killTree(child, { force }) {
-  if (!child.pid) return;
-  if (process.platform === 'win32') {
-    const args = ['/pid', String(child.pid), '/T'];
-    if (force) args.push('/F');
-    execFile('taskkill', args, { windowsHide: true }, () => {});
-    return;
-  }
-  const signal = force ? 'SIGKILL' : 'SIGTERM';
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    // The group is already gone, or this platform refused it. The child
-    // itself is still worth a try.
-    try {
-      child.kill(signal);
-    } catch {
-      /* already dead */
-    }
-  }
-}
-
-/**
- * Alpha, as run by this machine. Owns the child it started and nothing else:
- * start() keeps it up until stop() is called, restarting it with backoff if it
- * exits, because a standby whose copy of Alpha died an hour ago is not a
- * standby either.
- */
-class LocalAlpha {
+class Supervised {
   #options;
+  #name;
+  #command;
   #child = null;
   #running = false;
   #expectedExit = false;
   #startedAt = 0;
   #wake = null;
 
-  constructor(options) {
+  constructor(options, { name, command }) {
     this.#options = options;
+    this.#name = name;
+    this.#command = command;
   }
 
   get running() {
@@ -332,10 +331,10 @@ class LocalAlpha {
   }
 
   async #superviseForever() {
-    const [command, args] = this.#options.command;
+    const [command, args] = this.#command;
     let failures = 0;
     while (this.#running) {
-      log.info('starting Alpha here', { script: this.#options.script });
+      log.info(`starting ${this.#name} here`, { command, args });
       const child = spawn(command, args, {
         cwd: this.#options.root,
         stdio: ['ignore', 'inherit', 'inherit'],
@@ -350,7 +349,7 @@ class LocalAlpha {
       const exited = new Promise((resolvePromise) => {
         child.once('exit', (code, signal) => resolvePromise({ code, signal }));
         child.once('error', (error) => {
-          log.error('could not start Alpha', { message: error.message });
+          log.error(`could not start ${this.#name}`, { message: error.message });
           resolvePromise({ code: 1, signal: null });
         });
       });
@@ -367,19 +366,19 @@ class LocalAlpha {
         continue;
       }
 
-      // Every other exit is Alpha falling over while this machine is the one
+      // Every other exit is this falling over while the machine is the one
       // serving. Nothing else is going to bring it back.
       const delay = backoffDelay(failures++);
-      log.warn('Alpha exited; restarting it', { code, signal, delayMs: delay, failures });
+      log.warn(`${this.#name} exited; restarting it`, { code, signal, delayMs: delay, failures });
       await this.#nap(delay);
     }
-    log.info('no longer running Alpha here');
+    log.info(`no longer running ${this.#name} here`);
   }
 
   /** Stops the current child and lets the supervision loop start a new one. */
   async restart(reason) {
     if (!this.#child) return;
-    log.warn('restarting Alpha', { reason });
+    log.warn(`restarting ${this.#name}`, { reason });
     this.#expectedExit = true;
     await this.#stopChild(this.#child);
   }
@@ -399,7 +398,7 @@ class LocalAlpha {
       sleep(this.#options.stopTimeoutMs).then(() => false),
     ]);
     if (!done) {
-      log.warn('Alpha did not stop in time; killing it', { pid: child.pid });
+      log.warn(`${this.#name} did not stop in time; killing it`, { pid: child.pid });
       killTree(child, { force: true });
       await exited;
     }
@@ -408,7 +407,7 @@ class LocalAlpha {
   /** A backoff nap the stop path can cut short. */
   #nap(ms) {
     return new Promise((resolvePromise) => {
-      // Ref'd: while Alpha is down between restarts, this nap is the only
+      // Ref'd: while the child is down between restarts, this nap is the only
       // pending work there is.
       const timer = setTimeout(finish, ms);
       this.#wake = finish;
@@ -429,9 +428,20 @@ class Standby {
   #hits = 0;
   #localMisses = 0;
 
+  #tunnel = null;
+
   constructor(options) {
     this.#options = options;
-    this.#alpha = new LocalAlpha(options);
+    this.#alpha = new Supervised(options, { name: 'Alpha', command: options.command });
+    // The public way in, if this fleet has one. It runs while this machine is
+    // serving and not a moment longer: a tunnel left up beside a demoted Alpha
+    // is a public address pointing at nothing.
+    if (options.tunnelCommand) {
+      this.#tunnel = new Supervised(options, {
+        name: `cloudflared (${options.cloudflared})`,
+        command: options.tunnelCommand,
+      });
+    }
   }
 
   async run() {
@@ -441,6 +451,7 @@ class Standby {
       promoteAfter: this.#options.failures,
       demote: !this.#options.stay,
       control: this.#options.controlUrl || undefined,
+      tunnel: this.#options.cloudflared || undefined,
     });
 
     while (!this.#stopping) {
@@ -455,6 +466,7 @@ class Standby {
     }
 
     await this.#alpha.stop();
+    await this.#tunnel?.stop();
     return EXIT_OK;
   }
 
@@ -468,6 +480,7 @@ class Standby {
     // trying not to cause, so recovery is not something to sit on.
     log.info('main host is back; stopping the copy here', { answers: this.#hits });
     await this.#alpha.stop();
+    await this.#tunnel?.stop();
   }
 
   async #hostMissed() {
@@ -493,6 +506,7 @@ class Standby {
     log.warn('main host is not answering; taking over', { misses: this.#misses });
     this.#localMisses = 0;
     this.#alpha.start();
+    this.#tunnel?.start();
   }
 
   /** Alive is not the same as serving. */
@@ -516,6 +530,7 @@ class Standby {
     log.info('stopping', { signal });
     this.#wake?.();
     await this.#alpha.stop();
+    await this.#tunnel?.stop();
   }
 
   #nap(ms) {

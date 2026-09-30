@@ -18,6 +18,9 @@ The coordination script lives in the Alpha working copy, so **the agent must run
 on the Alpha machine**. The coordinator can live anywhere both sides can reach.
 Start with both on the Alpha host — it is the fewest moving parts, and you can
 move the coordinator later without touching the agent.
+`docs/COORDINATOR_MIGRATION.md` is that move, done deliberately: retiring the
+coordinator here and standing it up on another machine without voiding the
+fleet's keys.
 
 ```
         ALPHA HOST (Windows, DESKTOP-41HPLCN)

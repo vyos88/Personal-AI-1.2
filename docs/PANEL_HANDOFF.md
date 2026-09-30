@@ -27,8 +27,10 @@ it drives an external program and touches hardware.
 
 ## Unverified
 
-**No part of this has run against a board.** The session that wrote it had no
-USB at all — no `/sys/bus/usb`, no serial device nodes, no COM port — so:
+**No part of this has run against a board.** (See [Fixed since this document was
+first written](#fixed-since-this-document-was-first-written) for the live-run
+bugs found since, by reading the contracts instead.) The session that wrote it
+had no USB at all — no `/sys/bus/usb`, no serial device nodes, no COM port — so:
 
 - the `arduino-cli` argv is pinned against a recorder, not a real CLI
 - the sketch has never been compiled
@@ -97,7 +99,8 @@ naming the machine is what puts the flash where the panel actually is.
 ### 4. Provision
 
 ```bash
-node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
+  --lease-ms 120000 --payload '{
   "action":"Provision",
   "port":"COM3",
   "ssid":"<network>",
@@ -110,6 +113,51 @@ node src/admin/run.js task --type alpha.panel --agent alpha-host --payload '{
 The result names the SSID and the IP the board got. **The password is not in the
 result, not in the logs, and is redacted out of the serial transcript.** It is
 never written to this repo and must never be: it lives in NVS on the board.
+
+`--lease-ms` is not optional here. Opening the port resets the board, its
+`setup()` joins WiFi before it reads serial at all, and its `wifi` command takes
+up to 20 seconds to answer — so the handler waits for a `status` reply before
+sending anything, and a provision that is working can still outrun the 60s
+default lease.
+
+Read `ready` first in the result. `ready:false` means nothing on that port
+answered: wrong port, board held in bootloader, or firmware older than this
+protocol. `ready:true` with `provisioned:false` means the board is there and the
+credentials did not work — a different trip entirely.
+
+The key in that payload needs `agents:read` and nothing more: `GET /stats` is
+the only thing the panel asks for.
+
+## Fixed since this document was first written
+
+Four things that only show up against real hardware, found by reading the two
+contracts this depends on rather than by plugging a board in:
+
+- **The panel read `/stats` by names the host does not answer with.** It reached
+  for `tasks.queued` and friends; the host answers `queue.byStatus.{queued,
+  leased, succeeded, failed}`, with `agents` as a plain count. A missing key
+  reads as zero in ArduinoJson, so the screen would have shown a confident row
+  of zeroes — an idle fleet, not a bug. A test now pins the sketch's key names
+  against a real host's `/stats`.
+- **A read on the serial port could never time out.** `stty raw` sets `min 1
+  time 0`, so a read waits for a byte a silent board never sends: the 15s
+  deadline was never reached, and a task that hangs on a serial read holds its
+  lease until the sweeper takes it away. The line discipline now sets `min 0
+  time 1`, and every read is raced against the deadline so Windows — which has
+  no such knob — is covered by the close instead.
+- **The first command was written into a board that was rebooting.** Opening the
+  port drops DTR, which resets an ESP32 behind a CH340; the credentials were
+  sent while the sketch was still in `setup()`. The conversation now opens with
+  `status`, repeated until the board answers, and the credentials go out only
+  once something is there to receive them. Every reply names the command it
+  answers, so a probe answered late cannot be read as the reply to whatever went
+  out next — that would report a panel as provisioned on the strength of a
+  `status` reply.
+- **The handler gave up before the board could answer.** The sketch's `wifi`
+  command joins for 20 seconds before it replies, against a 15-second budget
+  here, so a wrong password came back as "the board said nothing" — the cable
+  answer to a password question. The budget is 25 seconds now, which is also
+  why `Provision` wants `--lease-ms`.
 
 ## Keeping the laptops attached
 
