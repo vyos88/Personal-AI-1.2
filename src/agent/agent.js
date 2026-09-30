@@ -16,6 +16,7 @@ import {
   LOAD_BACKOFF_MS,
   LOAD_THROTTLE_MAX_MS,
   SHUTDOWN_DRAIN_MS,
+  HANDLER_ABORT_GRACE_MS,
   loadReportToQuery,
   memoryReportToQuery,
   MB,
@@ -98,6 +99,9 @@ export class TunnelAgent {
     // a reading that has since moved — is temporal, so it cannot be reached
     // with a machine's real figures.
     memoryReader = memorySnapshot,
+    // How long an aborted handler gets before its slot is taken back. A seam
+    // for tests; see HANDLER_ABORT_GRACE_MS.
+    abortGraceMs = HANDLER_ABORT_GRACE_MS,
   }) {
     if (!hostUrl && !hostUrls) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
@@ -123,6 +127,7 @@ export class TunnelAgent {
     this.throttleMaxMs = throttleMaxMs;
     this.#load = loadSampler;
     this.#readMemory = memoryReader;
+    this.abortGraceMs = abortGraceMs;
 
     // An explicit capability list may only narrow what this agent advertises;
     // claiming a type with no handler would strand every task of that type.
@@ -564,15 +569,46 @@ export class TunnelAgent {
     const budgetMs = Math.max(1_000, (task.leaseMs ?? 60_000) - 2_000);
     const timer = setTimeout(() => controller.abort(new Error('task exceeded its lease')), budgetMs);
 
+    // Every built-in handler stops when its signal fires, but one loaded with
+    // ALPHA_EXTRA_HANDLERS might not, and awaiting it regardless kept this
+    // task's slot — at concurrency 1, the whole worker — forever. Past the
+    // grace the task is reported failed and the slot is freed; whatever the
+    // handler is still doing is left to it, and logged, because this process
+    // has no way to stop code that will not stop.
+    let abandonTimer = null;
+    const abandoned = new Promise((_, reject) => {
+      controller.signal.addEventListener(
+        'abort',
+        () => {
+          // Ref'd on purpose: until it fires, this is the pending work that
+          // frees the slot.
+          abandonTimer = setTimeout(() => {
+            const error = new Error(
+              `handler did not stop within ${this.abortGraceMs}ms of being aborted`,
+            );
+            error.code = 'handler_unresponsive';
+            reject(error);
+          }, this.abortGraceMs);
+        },
+        { once: true },
+      );
+    });
+
     const startedAt = Date.now();
     try {
-      const result = await handler.run(task.payload ?? {}, {
-        signal: controller.signal,
-        taskId: task.id,
-        attempt: task.attempt,
-        log: taskLog,
-      });
+      const running = (async () =>
+        handler.run(task.payload ?? {}, {
+          signal: controller.signal,
+          taskId: task.id,
+          attempt: task.attempt,
+          log: taskLog,
+        }))();
+      // If the race is lost to `abandoned`, a later rejection from the handler
+      // has nobody awaiting it and would crash the process as unhandled.
+      running.catch(() => {});
+      const result = await Promise.race([running, abandoned]);
       clearTimeout(timer);
+      clearTimeout(abandonTimer);
 
       if (controller.signal.aborted) throw controller.signal.reason;
 
@@ -580,6 +616,13 @@ export class TunnelAgent {
       await this.#report(task.id, true, result ?? null, null);
     } catch (error) {
       clearTimeout(timer);
+      clearTimeout(abandonTimer);
+      if (error?.code === 'handler_unresponsive') {
+        taskLog.error('handler ignored its abort; freeing the slot while it may still be running', {
+          taskId: task.id,
+          graceMs: this.abortGraceMs,
+        });
+      }
       taskLog.warn('task failed', { taskId: task.id, message: error.message, ms: Date.now() - startedAt });
       await this.#report(task.id, false, null, {
         message: error.message,
