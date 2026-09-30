@@ -20,6 +20,13 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const MANAGER = join(HERE, '..', 'scripts', 'alpha-manager.mjs');
 const TOKEN = 'test-token-that-is-long-enough';
 
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
+
 const recipe = (species, seed) => ({ recipe: { species, seed } });
 
 test('durations parse, and a nonsense one throws rather than meaning "everything"', () => {
@@ -286,6 +293,7 @@ test('inventory reports the images a real agent finds on disk', async (t) => {
 
   const host = await startHost();
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'render-box',

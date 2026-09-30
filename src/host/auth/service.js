@@ -27,6 +27,12 @@ export const MAX_TTL_MS = 365 * 24 * 60 * 60 * 1_000; // 1 year
 // impractical without needing a store round-trip per attempt.
 const LOGIN_MAX_FAILURES = 8;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1_000;
+// Failures are tracked per email *attempted*, not per account, and the login
+// route is unauthenticated — so without a bound, anyone who can reach the port
+// grows this Map by one entry per made-up address for as long as the host
+// runs. Past this many, entries old enough to have unlocked are dropped, then
+// the oldest.
+export const LOGIN_FAILURES_TRACKED_MAX = 10_000;
 
 // A stand-in hash with the real cost, verified against when no user matches.
 // Without it, "unknown email" returns fast and "known email, wrong password"
@@ -110,6 +116,26 @@ function inviteStatus(invite, now) {
   return 'pending';
 }
 
+/**
+ * Drops login sessions past their expiry. Every login writes one record and
+ * nothing else ever removed them, so auth.json grew by one per login for the
+ * life of the host. An expired session can never authenticate again and a
+ * user cannot revoke it (it is not theirs to manage the way an API key is),
+ * so there is nothing it is kept for. API keys are left alone even when
+ * expired: they are named, deliberately issued credentials an operator may
+ * still want to see listed.
+ */
+function pruneExpiredSessions(data, now) {
+  let pruned = 0;
+  for (const [id, key] of Object.entries(data.apiKeys)) {
+    if (key.kind === TokenKind.SESSION && key.expiresAt && key.expiresAt <= now) {
+      delete data.apiKeys[id];
+      pruned += 1;
+    }
+  }
+  return pruned;
+}
+
 export class AuthService {
   #loginFailures = new Map();
 
@@ -119,14 +145,27 @@ export class AuthService {
    *   credential with full scope. Intended to create the first real admin and
    *   then be removed.
    */
-  constructor({ store = new AuthStore(), bootstrapToken = null, now = () => Date.now() } = {}) {
+  constructor({
+    store = new AuthStore(),
+    bootstrapToken = null,
+    now = () => Date.now(),
+    maxTrackedLoginFailures = LOGIN_FAILURES_TRACKED_MAX,
+  } = {}) {
     this.store = store;
+    this.maxTrackedLoginFailures = maxTrackedLoginFailures;
     this.bootstrapToken = bootstrapToken || null;
     this.now = now;
   }
 
   async load() {
     await this.store.load();
+    // A host that restarts after a quiet spell sheds what accumulated before
+    // it went down, rather than waiting for the next login to do it.
+    const pruned = pruneExpiredSessions(this.store.data, this.now());
+    if (pruned > 0) {
+      await this.store.save();
+      log.info('pruned expired login sessions', { count: pruned });
+    }
     if (this.bootstrapToken && this.userCount() > 0) {
       log.warn(
         'ALPHA_BOOTSTRAP_TOKEN is still set but real users exist — ' +
@@ -375,6 +414,10 @@ export class AuthService {
     });
 
     await this.store.mutate((data) => {
+      // Pruned at issue time because issuing is the only thing that adds one:
+      // the file then holds at most the sessions of the last TTL, however
+      // long the host runs.
+      pruneExpiredSessions(data, now);
       data.apiKeys[session.record.id] = session.record;
       data.users[user.id].lastLoginAt = now;
     });
@@ -405,7 +448,30 @@ export class AuthService {
     const entry = this.#loginFailures.get(email) ?? { count: 0, lastAt: 0 };
     entry.count += 1;
     entry.lastAt = this.now();
+    // Re-inserted so the Map's order is least-recently-failed first, which is
+    // the order the bound below evicts in.
+    this.#loginFailures.delete(email);
     this.#loginFailures.set(email, entry);
+    if (this.#loginFailures.size > this.maxTrackedLoginFailures) this.#forgetLoginFailures();
+  }
+
+  #forgetLoginFailures() {
+    const cutoff = this.now() - LOGIN_LOCKOUT_MS;
+    for (const [key, entry] of this.#loginFailures) {
+      if (entry.lastAt <= cutoff) this.#loginFailures.delete(key);
+    }
+    // Still over after that means a burst inside one lockout window. Dropping
+    // the least recent is what bounds it; the cost is that an address being
+    // guessed slowly under cover of a flood loses its count and starts again.
+    for (const key of this.#loginFailures.keys()) {
+      if (this.#loginFailures.size <= this.maxTrackedLoginFailures) break;
+      this.#loginFailures.delete(key);
+    }
+  }
+
+  /** How many emails currently have failures on record. For tests. */
+  get trackedLoginFailures() {
+    return this.#loginFailures.size;
   }
 
   // -------------------------------------------------------------------- keys

@@ -41,7 +41,7 @@ async function fakeHost(t) {
  * exiting — which is the case a process supervisor alone would miss.
  */
 const STUB_ALPHA = `
-import { appendFileSync, existsSync, writeFileSync } from 'node:fs';
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import http from 'node:http';
 const log = process.env.STANDBY_TEST_LOG;
 const dir = process.env.STANDBY_TEST_DIR;
@@ -49,6 +49,9 @@ appendFileSync(log, 'start\\n');
 if (existsSync(dir + '/crash-once') && !existsSync(dir + '/crashed')) {
   writeFileSync(dir + '/crashed', '1');
   process.exit(1);
+}
+if (existsSync(dir + '/crash-after-ms')) {
+  setTimeout(() => process.exit(1), Number(readFileSync(dir + '/crash-after-ms', 'utf8')));
 }
 if (process.env.STANDBY_TEST_PORT) {
   http
@@ -99,11 +102,15 @@ function stubCloudflared(t) {
   };
 }
 
-function startStandby(t, { root, host, args = [], port = '', env = {}, startArgs = ['--start', 'scripts/start.mjs'] }) {
+function startStandby(
+  t,
+  { root, host, args = [], port = '', env = {}, startArgs = ['--start', 'scripts/start.mjs'], logLevel = 'error', before },
+) {
   const dir = mkdtempSync(join(tmpdir(), 'alpha-standbylog-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const logFile = join(dir, 'events.log');
   writeFileSync(logFile, '');
+  before?.(dir);
   const child = spawn(
     process.execPath,
     [
@@ -124,7 +131,7 @@ function startStandby(t, { root, host, args = [], port = '', env = {}, startArgs
         STANDBY_TEST_LOG: logFile,
         STANDBY_TEST_DIR: dir,
         STANDBY_TEST_PORT: port,
-        ALPHA_LOG_LEVEL: 'error',
+        ALPHA_LOG_LEVEL: logLevel,
         ...env,
       },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -211,6 +218,29 @@ test('an Alpha that falls over while this machine is serving is brought back', a
   host.goDown();
   await waitFor('Alpha to be started twice', () => standby.events().length >= 2);
   assert.deepEqual(standby.events(), ['start', 'start']);
+
+  standby.child.kill('SIGTERM');
+  assert.equal(await standby.exited, 0);
+});
+
+test('a crash after a healthy run backs off from scratch', async (t) => {
+  const host = await fakeHost(t);
+  const root = alphaRoot(t);
+  // Up for 400ms each time against a 100ms healthy mark: every exit is the
+  // first in a while, so the count starts over rather than climbing to the cap.
+  const standby = startStandby(t, {
+    root,
+    host: host.url,
+    args: ['--healthy-after-ms', '100'],
+    logLevel: 'warn',
+    before: (dir) => writeFileSync(join(dir, 'crash-after-ms'), '400'),
+  });
+  const restartFailures = () =>
+    [...standby.stderr().matchAll(/Alpha exited; restarting it .*?failures=(\d+)/g)].map((m) => Number(m[1]));
+
+  host.goDown();
+  await waitFor('three restarts', () => restartFailures().length >= 3);
+  assert.deepEqual(restartFailures().slice(0, 3), [1, 1, 1]);
 
   standby.child.kill('SIGTERM');
   assert.equal(await standby.exited, 0);
