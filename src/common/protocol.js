@@ -52,6 +52,12 @@ export const DEFAULT_AGENT_CONCURRENCY = 1;
 // the host it is gone. Kept under the entrypoint's 3s force-exit budget.
 export const SHUTDOWN_DRAIN_MS = 2_000;
 
+// How long a handler has to settle after its task's budget aborts it. A
+// handler that ignores its signal would otherwise hold its slot forever: the
+// host sees a machine that heartbeats and asks for nothing, and at the default
+// concurrency of 1 the worker is gone in all but name until someone restarts it.
+export const HANDLER_ABORT_GRACE_MS = 10_000;
+
 // What a supervisor sends its agent child over the IPC channel to ask for the
 // same clean shutdown a SIGTERM asks for. It exists because Windows — where the
 // host and most of these laptops actually run — has no signal that means "stop
@@ -80,6 +86,15 @@ export const TERMINAL_STATUSES = new Set([
 // dies mid-task leaves its lease to expire, and the sweeper requeues the work.
 export const DEFAULT_LEASE_MS = 60_000;
 export const DEFAULT_MAX_ATTEMPTS = 3;
+
+// How long, and how many, finished tasks the host keeps in its live queue. The
+// queue is the answer to "what is it doing", and every waiter on a task (the
+// CLI, run-jobs, alpha-manager) polls it within a lease or two of finishing;
+// the receipt ledger is what answers "what did it do". Without a bound, a host
+// fed by a scheduled loop held every payload and result it had ever seen, and
+// the sweeper walked all of them every five seconds.
+export const FINISHED_TASK_RETENTION_MS = 24 * 60 * 60 * 1_000;
+export const MAX_FINISHED_TASKS = 1_000;
 
 // Long-poll ceiling. Kept under the usual 60s proxy idle timeout so an
 // intermediary never closes the connection out from under us.
