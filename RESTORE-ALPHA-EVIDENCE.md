@@ -196,3 +196,38 @@ The other two inputs — the topology source, and the heartbeat scheme each of t
 CrowPanel node, the ESP32 bridge and the phone uses — are in the un-versioned
 Alpha backend. The nine-node limit, the device-specific visuals and the stale
 logic are there too. None of it was guessed at.
+
+---
+
+## Addendum, 2026-09-30: two findings above have since been overtaken
+
+This report records what was reachable on 2026-09-28. Two of its findings were
+true then and are not true now, and are left in place rather than rewritten
+because the point of the record is what the evidence showed at the time. What
+changed:
+
+**"Zero matches for `cloudflare`, `cloudflared`, or `alpha-ai` across both
+repositories"** (§3) no longer holds. `cloudflared` now matches 12 files on
+`main` and `alpha-ai.uk` matches 9. The tunnel support arrived in two pieces
+after this was written:
+
+- `scripts/fix-cloudflare.ps1` (PR #44) diagnoses and repairs the tunnel that
+  publishes `alpha-ai.uk`, including the 1033/530 "no connector" case and an
+  ingress rule pointing `https://` at an origin that only speaks `http` — which
+  is one concrete cause of the 502 this report could not observe.
+- `scripts/standby-alpha.mjs --cloudflared <tunnel>` (PR #33) runs the named
+  tunnel for exactly as long as the machine is promoted.
+
+So the conclusion that the config "exists only on the laptop" was right about
+the *credentials and the tunnel itself*, and wrong that the repo has nothing to
+say about it. The repair path is now in the repo; the tunnel's own config is
+still on the machine.
+
+**`npm test` 285/285** (§Verified green) is a count from 2026-09-28. The suite
+is 455 tests on `main` today. The finding it supported — that the tunnel
+coordinator is not at fault — still stands.
+
+What has *not* changed is the part that mattered: the Alpha backend on port 8001
+is still not in version control, and none of the blocked checks in this report
+can be run from a cloud container. Anything needing the laptop still needs a
+session on the laptop.
