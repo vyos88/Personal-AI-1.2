@@ -67,7 +67,7 @@
  *       does not resolve inside it
  */
 
-import { execFile, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +75,7 @@ import { fileURLToPath } from 'node:url';
 import { backoffDelay, sleep } from '../src/common/backoff.js';
 import { createLogger } from '../src/common/log.js';
 import { loadEnv } from '../src/common/env.js';
+import { killTree } from '../src/common/kill-tree.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const log = createLogger('alpha:standby');
@@ -286,40 +287,6 @@ async function reachable(url, timeoutMs) {
     return response.ok;
   } catch {
     return false;
-  }
-}
-
-/**
- * Stops the child *and everything it started*.
- *
- * `npm run dev` is a wrapper: the server is its grandchild. Kill only the npm
- * process and the server keeps the port, so the restart this was meant to
- * perform fails to bind — which is the failure mode of every naive supervisor
- * of a script that launches something else.
- *
- * POSIX: the child was spawned detached, so it leads its own process group and
- * a negative pid signals the whole group. Windows has no groups worth the name,
- * so `taskkill /T` walks the tree instead.
- */
-function killTree(child, { force }) {
-  if (!child.pid) return;
-  if (process.platform === 'win32') {
-    const args = ['/pid', String(child.pid), '/T'];
-    if (force) args.push('/F');
-    execFile('taskkill', args, { windowsHide: true }, () => {});
-    return;
-  }
-  const signal = force ? 'SIGKILL' : 'SIGTERM';
-  try {
-    process.kill(-child.pid, signal);
-  } catch {
-    // The group is already gone, or this platform refused it. The child
-    // itself is still worth a try.
-    try {
-      child.kill(signal);
-    } catch {
-      /* already dead */
-    }
   }
 }
 

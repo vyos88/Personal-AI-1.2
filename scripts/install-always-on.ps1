@@ -1,16 +1,16 @@
 <#
-  install-always-on.ps1 — leave this laptop working, across reboots.
+  install-always-on.ps1 - leave this laptop working, across reboots.
 
       powershell -ExecutionPolicy Bypass -File .\scripts\install-always-on.ps1 `
         -AlphaRoot C:\alpha -CloudflareTunnel alpha-home
 
   Two scheduled tasks, both running at logon and both restarted if they stop:
 
-    alpha-tunnel agent    keep-agent.mjs — takes work from the host, keeps
+    alpha-tunnel agent    keep-agent.mjs - takes work from the host, keeps
                           itself on the current release, and stops for good
                           only when another process on this machine has taken
                           over its registration
-    alpha-tunnel standby  standby-alpha.mjs — runs Alpha here while the main
+    alpha-tunnel standby  standby-alpha.mjs - runs Alpha here while the main
                           host is not answering, with the public tunnel beside
                           it, and hands back when the host returns
 
@@ -30,7 +30,7 @@ param(
   [string] $AlphaScript = 'dev',
 
   # The named Cloudflare tunnel to run while this machine is serving. Named
-  # only — cloudflared also takes --token, and an argv is readable by every
+  # only - cloudflared also takes --token, and an argv is readable by every
   # process on the box.
   [string] $CloudflareTunnel,
 

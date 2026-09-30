@@ -1,17 +1,17 @@
 <#
-  install-watch-task.ps1 — put the watchdog on a timer on this machine.
+  install-watch-task.ps1 - put the watchdog on a timer on this machine.
 
       powershell -ExecutionPolicy Bypass -File .\scripts\install-watch-task.ps1 `
         -PanelKey <key id> -Minutes 30
 
   One scheduled task, running one pass of scripts/watchdog.mjs: is this machine
-  still attached to the coordinator, and — with -PanelKey — is the CrowPanel
+  still attached to the coordinator, and - with -PanelKey - is the CrowPanel
   still reading it. Every run appends one JSON line to watchdog.log beside the
   checkout, which is the record that survives the week nobody is watching.
 
   It installs nothing else and starts no long-running process. The keeper
   (keep-agent.mjs) owns the agent; this only ever *asks* and writes down the
-  answer, so it is safe to schedule beside one — which is why -NoUpdate is the
+  answer, so it is safe to schedule beside one - which is why -NoUpdate is the
   default. Pass -Update to let the scheduled pass fast-forward the checkout as
   well, on a machine with no keeper.
 
