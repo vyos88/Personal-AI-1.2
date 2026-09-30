@@ -110,6 +110,45 @@ function inviteStatus(invite, now) {
   return 'pending';
 }
 
+/**
+ * Why a login failed, for the log only.
+ *
+ * `login()` deliberately answers all three of these with the same 401 and the
+ * same message, and burns the same time on a password verification even when
+ * no such user exists, so a stranger cannot use the endpoint to discover which
+ * addresses have accounts. That protection is for the response. It is not for
+ * the operator, who owns the machine and is the one person entitled to know
+ * whether the attempts hitting it are aimed at a real account or are a scan
+ * walking a username list — which is the whole difference between "ignore it"
+ * and "rotate that password now".
+ *
+ * Exported so the classification can be tested without asserting on log text.
+ */
+export function loginFailureReason(user, passwordMatched) {
+  if (!user) return 'no_such_user';
+  if (!passwordMatched) return 'wrong_password';
+  if (user.status !== UserStatus.ACTIVE) return 'user_disabled';
+  return null;
+}
+
+/**
+ * An attempted address, made safe to put in a line-oriented log.
+ *
+ * The malformed case is the reason this exists: that value never passed
+ * `normalizeEmail`, so it can be any type, any length, and can contain the
+ * newline that would let it forge a second log line.
+ */
+function previewEmail(value) {
+  if (typeof value !== 'string') return `<${value === null ? 'null' : typeof value}>`;
+  const flattened = value.replace(/[\r\n\t\u0000-\u001f]/g, ' ').trim();
+  const clipped = flattened.length > 120 ? `${flattened.slice(0, 120)}...` : flattened;
+  // Quoted, because the human log format writes string fields raw: an attempted
+  // address reading `nope WARN [host:auth] login succeeded` would otherwise sit
+  // in the line looking exactly like the record it is pretending to be. The
+  // newline is already gone, so this is the last way it could imitate structure.
+  return JSON.stringify(clipped);
+}
+
 export class AuthService {
   #loginFailures = new Map();
 
@@ -344,9 +383,44 @@ export class AuthService {
 
   // ------------------------------------------------------------------- login
 
-  async login({ email, password }) {
-    const normalizedEmail = normalizeEmail(email);
-    this.#assertNotLockedOut(normalizedEmail);
+  async login({ email, password, remoteAddress = null, forwardedFor = null }) {
+    // Where it came from. Two fields rather than one, because they are trusted
+    // differently and collapsing them would hide that: `remoteAddress` is the
+    // socket and cannot be forged, but behind Cloudflare or a Vite proxy it is
+    // the proxy rather than the person; `forwardedFor` is a header the client
+    // sent and can say anything at all, and is the only way to see past that
+    // proxy. Neither is the answer on its own.
+    const origin = {
+      remoteAddress: remoteAddress ?? null,
+      forwardedFor: forwardedFor ? previewEmail(forwardedFor) : null,
+    };
+
+    let normalizedEmail;
+    try {
+      normalizedEmail = normalizeEmail(email);
+    } catch (error) {
+      // Refused before any credential is looked at, so without this it left no
+      // trace whatsoever — and "not even an email address" is precisely the
+      // shape of a scan walking `admin`, `root`, `test`. The single most
+      // common thing an exposed login endpoint sees was the one thing this
+      // host could not see.
+      log.warn('login failed', { reason: 'malformed_email', email: previewEmail(email), ...origin });
+      throw error;
+    }
+
+    try {
+      this.#assertNotLockedOut(normalizedEmail);
+    } catch (error) {
+      // The loudest signal there is: this address already failed
+      // LOGIN_MAX_FAILURES times and is still being tried.
+      log.warn('login failed', {
+        reason: 'locked_out',
+        email: normalizedEmail,
+        failures: this.#loginFailures.get(normalizedEmail)?.count ?? 0,
+        ...origin,
+      });
+      throw error;
+    }
 
     const user = this.#findUserByEmail(normalizedEmail);
     // Always run a real verification, even with no user, so the response time
@@ -354,8 +428,17 @@ export class AuthService {
     const hash = user ? user.passwordHash : await DUMMY_HASH_PROMISE;
     const ok = await verifyPassword(password, hash);
 
-    if (!user || !ok || user.status !== UserStatus.ACTIVE) {
+    const reason = loginFailureReason(user, ok);
+    if (reason) {
       this.#recordLoginFailure(normalizedEmail);
+      // The password is never logged, in any form: a mistyped one is usually a
+      // real password, often the right one for somewhere else.
+      log.warn('login failed', {
+        reason,
+        email: normalizedEmail,
+        failures: this.#loginFailures.get(normalizedEmail)?.count ?? 0,
+        ...origin,
+      });
       throw new ProtocolError('invalid email or password', {
         status: 401,
         code: 'invalid_credentials',
@@ -379,7 +462,7 @@ export class AuthService {
       data.users[user.id].lastLoginAt = now;
     });
 
-    log.info('login succeeded', { userId: user.id, email: user.email });
+    log.info('login succeeded', { userId: user.id, email: user.email, ...origin });
     return {
       user: publicUser(this.store.data.users[user.id]),
       token: session.token,
