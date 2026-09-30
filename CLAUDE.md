@@ -222,7 +222,7 @@ and every three hours fast-forwards the checkout and restarts it onto the new
 code. It shells out to `self-update.mjs` rather than reimplementing the three
 rules. The division of labour is the whole design: `self-update.mjs` exits 10 to
 *ask* for a restart because a scheduled script does not own the agent process;
-the keeper owns it, so it may. Three things it must keep doing:
+the keeper owns it, so it may. Four things it must keep doing:
 
 - **Stop, never respawn, when its agent stood down.** The agent exits 0 in
   exactly one case nobody asked for — `410 stand_down`, another process on this
@@ -236,6 +236,12 @@ the keeper owns it, so it may. Three things it must keep doing:
 - **Run the agent from the checkout it updates**, not from beside itself. That
   is also the test seam — the suite puts a stub at `src/agent/index.js` in a
   temp repo and watches the *new* one start.
+- **Never exit under an update it started.** `self-update.mjs` is a process of
+  its own with git beneath it; a keeper that exits mid-update orphans both,
+  still pulling. On the way out it waits for the update, bounded by
+  `--stop-timeout-ms`, then kills the tree (`src/common/kill-tree.js`, shared
+  with the standby). That needs `spawn` with `detached` — `execFile` silently
+  drops `detached`, so the group it kills would be nobody's.
 
 It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
 other: the watchdog is one scheduled pass that asks the *host* whether this
