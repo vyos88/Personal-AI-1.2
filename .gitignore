@@ -10,3 +10,8 @@ data/
 *.auth.json
 auth.json
 auth.json.tmp
+
+# alpha.music output when ALPHA_MUSIC_ROOT is this checkout. A dirty tree makes
+# self-update and alpha.update refuse to pull, so generated audio must not count.
+/output/
+__pycache__/

@@ -1,5 +1,5 @@
 <#
-  fix-tunnel.ps1 — diagnose and repair the alpha-tunnel on this machine.
+  fix-tunnel.ps1 - diagnose and repair the alpha-tunnel on this machine.
 
   Run as Administrator:
       powershell -ExecutionPolicy Bypass -File .\fix-tunnel.ps1
@@ -24,7 +24,7 @@ function Section($t) { Write-Host "`n=== $t ===" -ForegroundColor Cyan }
 
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-if (-not $admin) { Write-Host "NOT elevated — service repair will silently do nothing. Re-run as Administrator.`n" -ForegroundColor Red }
+if (-not $admin) { Write-Host "NOT elevated - service repair will silently do nothing. Re-run as Administrator.`n" -ForegroundColor Red }
 
 # ---------------------------------------------------------------- 1. checkout
 Section "1. Where the tunnel is installed"
@@ -71,7 +71,7 @@ if (-not $svcs) {
       sc.exe config $s start= delayed-auto   | Out-Null
     }
     OK "restart-on-exit and delayed-auto applied"
-  } else { Note "nssm not on PATH — skipped the resilience settings" }
+  } else { Note "nssm not on PATH - skipped the resilience settings" }
 }
 
 # ---------------------------------------------------------------- 3. coordinator
@@ -85,11 +85,11 @@ try {
   Problem "Nothing is answering on 127.0.0.1:8787."
   $listening = Get-NetTCPConnection -LocalPort 8787 -State Listen -EA SilentlyContinue
   if ($listening) {
-    Note "Something IS bound to 8787 but not answering /healthz — wrong process?"
+    Note "Something IS bound to 8787 but not answering /healthz - wrong process?"
     $listening | Select-Object LocalAddress,LocalPort,OwningProcess | Format-Table | Out-String | Write-Host
   } else {
     Note "Port 8787 has no listener at all: the coordinator is not running here."
-    Note "If this is a worker laptop, that is CORRECT — only the host runs the coordinator."
+    Note "If this is a worker laptop, that is CORRECT - only the host runs the coordinator."
   }
 }
 
@@ -106,7 +106,7 @@ if (Test-Path $envAgent) {
     else { Note "$name = $val" }
   }
 } else {
-  Problem "No .env.agent — this machine has no agent credential."
+  Problem "No .env.agent - this machine has no agent credential."
   Note "Enrol it:  node `"$tunnel\scripts\setup-agent.mjs`""
 }
 
@@ -126,7 +126,7 @@ Pop-Location
 Write-Host $agents
 if ($agents -match 'unreachable|ECONNREFUSED|not authorized|401|403') {
   Problem "alpha-admin could not talk to the host."
-  Note "If this is the host: the coordinator is down — see section 3."
+  Note "If this is the host: the coordinator is down - see section 3."
   Note "If this is a laptop: ALPHA_HOST_URL must point at the host's tailnet address, not 127.0.0.1."
 } elseif ($agents -match '\*') {
   Note "An asterisk in VERSION means that machine runs a different release than the host."
