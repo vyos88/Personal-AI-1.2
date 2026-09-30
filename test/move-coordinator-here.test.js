@@ -31,10 +31,11 @@ async function checkout() {
   return root;
 }
 
-function run(root, args, input = '') {
+function run(root, args, input = '', env = {}) {
   return new Promise((done) => {
     const child = spawn(process.execPath, [SCRIPT, '--root', root, '--loopback-only', ...args], {
       cwd: root,
+      env: { ...process.env, ...env },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     let out = '';
@@ -108,7 +109,15 @@ test('with no store it makes one, repoints the agent and proves the attach; a se
   const alpha = join(root, 'alpha');
   await mkdir(join(alpha, 'scripts'), { recursive: true });
   await writeFile(join(alpha, 'scripts', 'alpha_coordination_tunnel.ps1'), '# stub\n');
-  const second = await run(root, ['--port', String(port), '--alpha-root', alpha]);
+  // alpha.coordination's available() resolves the interpreter, as alpha.render
+  // does for Blender, so the handler is not offered by a machine that cannot
+  // run a .ps1 — and this suite runs on Linux. Point it at a stub: available()
+  // only has to find the file, because whether PowerShell works is not knowable
+  // without running the tunnel, and run() reports that itself.
+  const shell = join(root, 'stub-powershell');
+  await writeFile(shell, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+  const second = await run(root, ['--port', String(port), '--alpha-root', alpha], '',
+    { ALPHA_POWERSHELL: shell });
   assert.equal(second.code, 0, second.out);
   assert.match(second.out, /alpha\.coordination/);
   assert.match(second.out, /keeping .*1 user\(s\)/);
