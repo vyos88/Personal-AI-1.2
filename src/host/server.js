@@ -5,6 +5,8 @@ import { AgentRegistry } from './registry.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
 import { MessageStore, normalizeRecipient } from './messages.js';
+import { DASHBOARD_HTML } from './dashboard.js';
+import { cloudflareReport } from './cloudflare.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
 import { bearerFrom } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
@@ -199,6 +201,23 @@ async function handle(req, res, ctx) {
 
   try {
     // ---------------------------------------------------------- public routes
+    // The dashboard shell is static HTML with no secrets in it; every data
+    // call it makes is a normal authenticated request, so serving the page
+    // itself unauthenticated is safe and lets the login form live on it.
+    if (method === 'GET' && (url.pathname === '/dashboard' || url.pathname === '/')) {
+      if (res.writableEnded) return;
+      const body = Buffer.from(DASHBOARD_HTML);
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'content-length': body.length,
+        'cache-control': 'no-store',
+        // No inline-script injection surface here: the page is a fixed string.
+        'x-content-type-options': 'nosniff',
+      });
+      res.end(body);
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/healthz') {
       // `version` is what setup-agent compares against so a laptop on an older
       // checkout is told before it attaches, not after a task behaves oddly.
@@ -680,6 +699,13 @@ async function handle(req, res, ctx) {
         },
         load: loadSummary(ctx.registry.list()),
       });
+    }
+
+    if (method === 'GET' && url.pathname === '/cloudflare/report') {
+      // Grouped with the read-only operational views; the host does not own the
+      // Cloudflare side, it only surfaces a report file if one is configured.
+      require(SCOPES.AGENTS_READ);
+      return sendJson(res, 200, await cloudflareReport());
     }
 
     return sendJson(res, 404, { error: 'not_found' });
