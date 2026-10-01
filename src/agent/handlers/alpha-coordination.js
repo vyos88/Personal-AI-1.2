@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { isAbsolute, resolve, sep } from 'node:path';
+import { delimiter, extname, isAbsolute, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
 
@@ -234,4 +234,63 @@ export async function run(payload, { signal, log } = {}) {
     stdout: stdout.slice(-16_000),
     stderr: stderr.slice(-16_000),
   };
+}
+
+/**
+ * Resolves a command the way the OS will, so a missing interpreter is a
+ * refusal to offer the type rather than a failed task.
+ *
+ * A name that already carries an extension (`powershell.exe`, the default
+ * here) is looked up as given: appending PATHEXT to it reports PowerShell as
+ * missing on every Windows machine.
+ */
+function resolveExecutable(command) {
+  if (command.includes('/') || command.includes(sep)) {
+    return existsSync(command) ? command : null;
+  }
+  const extensions =
+    process.platform === 'win32' && !extname(command)
+      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
+      : [''];
+  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
+    if (!directory) continue;
+    for (const extension of extensions) {
+      const candidate = join(directory, command + extension);
+      if (existsSync(candidate)) return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Proves this machine can actually coordinate before the agent offers the
+ * type.
+ *
+ * Opt-in is not enough on its own, which is the whole reason `available()`
+ * exists: `.env.agent` is copied from the host to a laptop, and that laptop
+ * then advertises `alpha.coordination`, wins the task and fails it with an
+ * attempt spent and a retry free to land right back there. `alpha.render`
+ * and `device.inventory` already refuse that way; this one did not, and a
+ * machine with no Alpha working copy advertised the type regardless.
+ *
+ * It asks exactly what `run()` asks, by calling the same two functions, so a
+ * machine cannot pass the check and fail the task. It executes nothing:
+ * whether the tunnel script works is not knowable without running it, and
+ * `run()` still reports that honestly.
+ */
+export function available() {
+  try {
+    const root = requireRoot();
+    requireScript(root);
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+  const shell = process.env.ALPHA_POWERSHELL ?? 'powershell.exe';
+  if (!resolveExecutable(shell)) {
+    return {
+      ok: false,
+      reason: `PowerShell not found (${shell}). The coordination tunnel is a .ps1; set ALPHA_POWERSHELL if it is installed elsewhere.`,
+    };
+  }
+  return { ok: true };
 }

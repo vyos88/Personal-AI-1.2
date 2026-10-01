@@ -11,7 +11,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawn } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,6 +50,8 @@ const log = process.env.KEEPER_TEST_LOG;
 appendFileSync(log, 'start ${marker}\\n');
 const mode = ${JSON.stringify(mode)};
 if (mode === 'stand-down') process.exit(0);
+if (mode === 'crash-always') process.exit(1);
+if (mode.startsWith('crash-after-')) setTimeout(() => process.exit(1), Number(mode.slice('crash-after-'.length)));
 if (mode === 'crash-once') {
   const flag = log + '.crashed';
   if (!existsSync(flag)) {
@@ -96,14 +98,19 @@ function releaseTo(t, origin, { marker, mode = 'stay' }) {
   git(other, 'push', 'origin', 'main');
 }
 
-function startKeeper(t, repo, extraArgs = []) {
+function startKeeper(t, repo, extraArgs = [], { logLevel = 'error', env = {}, stopTimeoutMs = 3000 } = {}) {
   const logFile = join(mkdtempSync(join(tmpdir(), 'alpha-keeperlog-')), 'events.log');
   writeFileSync(logFile, '');
   const child = spawn(
     process.execPath,
-    [KEEPER, '--repo', repo, '--interval-ms', '150', '--stop-timeout-ms', '3000', ...extraArgs],
-    { env: { ...process.env, KEEPER_TEST_LOG: logFile, ALPHA_LOG_LEVEL: 'error' }, stdio: 'ignore' },
+    [KEEPER, '--repo', repo, '--interval-ms', '150', '--stop-timeout-ms', String(stopTimeoutMs), ...extraArgs],
+    {
+      env: { ...process.env, KEEPER_TEST_LOG: logFile, ALPHA_LOG_LEVEL: logLevel, ...env },
+      stdio: ['ignore', 'ignore', 'pipe'],
+    },
   );
+  let stderr = '';
+  child.stderr.on('data', (chunk) => (stderr += chunk));
   const exited = new Promise((resolve) => child.once('exit', (code) => resolve(code)));
   t.after(() => {
     child.kill('SIGKILL');
@@ -113,6 +120,9 @@ function startKeeper(t, repo, extraArgs = []) {
     child,
     exited,
     events: () => (existsSync(logFile) ? readFileSync(logFile, 'utf8').split('\n').filter(Boolean) : []),
+    // The failure count each restart backed off from, as the keeper logged it.
+    restartFailures: () =>
+      [...stderr.matchAll(/agent exited; restarting .*?failures=(\d+)/g)].map((m) => Number(m[1])),
     logFile,
   };
 }
@@ -171,6 +181,27 @@ test('an agent that crashes is brought back', async (t) => {
   assert.equal(await keeper.exited, 0);
 });
 
+test('a crash after a healthy run backs off from scratch, a crash loop does not', async (t) => {
+  // Up for 400ms each time against a 100ms healthy mark: every crash is the
+  // first in a while, so none of them inherits the backoff of the last.
+  const healthy = fleetRepo(t, { marker: 'v1', mode: 'crash-after-400' });
+  const occasional = startKeeper(t, healthy.work, ['--healthy-after-ms', '100'], { logLevel: 'warn' });
+  // Dying at once against a mark it never reaches: still a crash loop, and it
+  // still backs off harder each time.
+  const looping = fleetRepo(t, { marker: 'v1', mode: 'crash-always' });
+  const loop = startKeeper(t, looping.work, ['--healthy-after-ms', '60000'], { logLevel: 'warn' });
+
+  await waitFor('three restarts after healthy runs', () => occasional.restartFailures().length >= 3);
+  await waitFor('three restarts in a crash loop', () => loop.restartFailures().length >= 3);
+  assert.deepEqual(occasional.restartFailures().slice(0, 3), [1, 1, 1]);
+  assert.deepEqual(loop.restartFailures().slice(0, 3), [1, 2, 3]);
+
+  for (const keeper of [occasional, loop]) {
+    keeper.child.kill('SIGTERM');
+    assert.equal(await keeper.exited, 0);
+  }
+});
+
 test('a checkout somebody is working on stops the update, not the agent', async (t) => {
   const { origin, work } = fleetRepo(t, { marker: 'v1' });
   writeFileSync(join(work, 'scratch.txt'), 'half-finished\n');
@@ -218,4 +249,92 @@ test('another checkout is kept current, and nothing is restarted for it', async 
 
   keeper.child.kill('SIGTERM');
   assert.equal(await keeper.exited, 0);
+});
+
+// ------------------------------------------------------- nothing left behind
+
+/**
+ * A `git` that is slow to fetch, handed to self-update through ALPHA_GIT.
+ *
+ * It logs `fetch <pid>` before its nap and `fetched` after, then does the real
+ * thing, so a test can stop the keeper while an update is provably in flight
+ * and see afterwards whether that update finished — or was left running with
+ * nobody above it. POSIX only: Windows will not execFile a script as a binary.
+ */
+function slowGit(t, logFile, napMs) {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-slowgit-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const path = join(dir, 'git');
+  writeFileSync(
+    path,
+    `#!${process.execPath}
+const { appendFileSync } = require('node:fs');
+const { spawnSync } = require('node:child_process');
+const args = process.argv.slice(2);
+const fetching = args.includes('fetch');
+if (fetching) appendFileSync(${JSON.stringify(logFile)}, 'fetch ' + process.pid + '\\n');
+setTimeout(() => {
+  if (fetching) appendFileSync(${JSON.stringify(logFile)}, 'fetched\\n');
+  const r = spawnSync('git', args, { stdio: 'inherit' });
+  process.exit(r.status ?? 1);
+}, fetching ? ${napMs} : 0);
+`,
+  );
+  chmodSync(path, 0o755);
+  return path;
+}
+
+function alive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+const posixOnly = { skip: process.platform === 'win32' && 'needs an executable script as ALPHA_GIT' };
+
+test('stopping the keeper lets an update in flight finish instead of orphaning it', posixOnly, async (t) => {
+  const { work } = fleetRepo(t, { marker: 'v1' });
+  const gitLog = join(mkdtempSync(join(tmpdir(), 'alpha-gitlog-')), 'git.log');
+  writeFileSync(gitLog, '');
+  const keeper = startKeeper(t, work, [], { env: { ALPHA_GIT: slowGit(t, gitLog, 600) } });
+
+  const pid = await waitFor('an update to be fetching', () => {
+    const match = /^fetch (\d+)$/m.exec(readFileSync(gitLog, 'utf8'));
+    return match && Number(match[1]);
+  });
+  keeper.child.kill('SIGTERM');
+  assert.equal(await keeper.exited, 0);
+
+  // The keeper did not return until the update below it had: nothing it
+  // started is still running against a checkout nobody is supervising.
+  assert.match(readFileSync(gitLog, 'utf8'), /^fetched$/m, 'the fetch was allowed to finish');
+  assert.equal(alive(pid), false, 'and nothing it started outlived the keeper');
+});
+
+test('an update that never finishes is stopped with everything under it', posixOnly, async (t) => {
+  const { work } = fleetRepo(t, { marker: 'v1' });
+  const gitLog = join(mkdtempSync(join(tmpdir(), 'alpha-gitlog-')), 'git.log');
+  writeFileSync(gitLog, '');
+  const keeper = startKeeper(t, work, [], {
+    env: { ALPHA_GIT: slowGit(t, gitLog, 600_000) },
+    stopTimeoutMs: 500,
+  });
+
+  const pid = await waitFor('an update to be fetching', () => {
+    const match = /^fetch (\d+)$/m.exec(readFileSync(gitLog, 'utf8'));
+    return match && Number(match[1]);
+  });
+  t.after(() => {
+    if (alive(pid)) process.kill(pid, 'SIGKILL');
+  });
+  keeper.child.kill('SIGTERM');
+  assert.equal(await keeper.exited, 0, 'a wedged fetch does not keep the keeper up forever');
+
+  // The git is self-update's child, not the keeper's. Killing self-update alone
+  // would have left it running, reparented to init, for the next ten minutes.
+  await waitFor('the wedged git to be gone', () => !alive(pid), { timeoutMs: 3000 });
+  assert.doesNotMatch(readFileSync(gitLog, 'utf8'), /^fetched$/m);
 });

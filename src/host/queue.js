@@ -3,6 +3,8 @@ import {
   TERMINAL_STATUSES,
   newId,
   MAX_POLL_WAIT_MS,
+  FINISHED_TASK_RETENTION_MS,
+  MAX_FINISHED_TASKS,
 } from '../common/protocol.js';
 import { createLogger } from '../common/log.js';
 
@@ -42,6 +44,9 @@ const OPEN_ADMISSION = {
  */
 export class TaskQueue {
   #tasks = new Map();
+  // Terminal task ids in the order they finished, so the oldest can be dropped
+  // without sorting the whole Map. A task finishes exactly once.
+  #finishedOrder = [];
   #pending = [];
   #waiters = new Set();
   #sweeper = null;
@@ -54,8 +59,15 @@ export class TaskQueue {
     // write it down before the Map forgets it. The queue stays in memory on
     // purpose; this is the seam that lets the *record* outlive it.
     onTerminal = null,
+    // Finished tasks are forgotten after this long, or oldest-first once there
+    // are more than `maxFinished` of them. Only terminal tasks are ever
+    // dropped: queued and leased work is the queue's whole job.
+    finishedRetentionMs = FINISHED_TASK_RETENTION_MS,
+    maxFinished = MAX_FINISHED_TASKS,
   } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
+    this.finishedRetentionMs = finishedRetentionMs;
+    this.maxFinished = maxFinished;
     this.now = now;
     this.admission = admission;
     this.onTerminal = onTerminal;
@@ -70,6 +82,8 @@ export class TaskQueue {
    * record is the expendable half of this pair.
    */
   #finished(task) {
+    this.#finishedOrder.push(task.id);
+    this.#forgetFinished();
     if (!this.onTerminal) return task;
     try {
       this.onTerminal(task);
@@ -150,6 +164,11 @@ export class TaskQueue {
    * once `waitMs` elapses with nothing matching.
    */
   lease({ agentId, capabilities, waitMs, signal }) {
+    // A poll whose connection is already gone gets nothing: an abort that has
+    // happened never fires its event again, so it would otherwise be handed a
+    // queued task it can never receive, or parked where the next enqueue could
+    // dispatch into it. Either way the task sits out a whole lease.
+    if (signal?.aborted) return Promise.resolve(null);
     const wanted = new Set(capabilities);
 
     // Ranking deliberately does not apply here. This branch is an agent asking
@@ -249,6 +268,29 @@ export class TaskQueue {
     return task;
   }
 
+  /**
+   * The task was leased to a long poll whose connection closed before the
+   * reply could be written, so the agent never received it and nothing ran.
+   *
+   * This used to go through `fail()`, which charged the attempt `#assign`
+   * took: a task with `maxAttempts: 1` was failed permanently without ever
+   * having been seen by a machine, and any other task lost a retry to a
+   * dropped socket. Like a decline, the attempt is handed back and the task
+   * requeued as if it had never been placed. Unlike a decline it is not
+   * counted in `declines` — no agent refused it — and it leaves `error` as it
+   * was, because this placement produced no outcome to record.
+   *
+   * It cannot spin: the poll that took the task is finished, and a requeue
+   * only ever dispatches to a poll that is still parked.
+   */
+  undelivered(taskId, agentId) {
+    const task = this.#requireLeasedBy(taskId, agentId);
+    this.admission.release(agentId, task);
+    task.attempts = Math.max(0, task.attempts - 1);
+    this.#requeue(task, 'lease never reached the agent');
+    return task;
+  }
+
   cancel(taskId) {
     const task = this.#tasks.get(taskId);
     if (!task) return null;
@@ -265,9 +307,29 @@ export class TaskQueue {
     return this.#finished(task);
   }
 
+  /**
+   * Drops finished tasks past their retention, then the oldest past the cap.
+   * The receipt ledger has already been handed each one by `#finished`, so
+   * what goes here is the live copy of a record that is kept elsewhere.
+   */
+  #forgetFinished() {
+    const cutoff = this.now() - this.finishedRetentionMs;
+    let drop = 0;
+    while (drop < this.#finishedOrder.length) {
+      const task = this.#tasks.get(this.#finishedOrder[drop]);
+      const expired = !task || (task.finishedAt ?? 0) <= cutoff;
+      const overCap = this.#finishedOrder.length - drop > this.maxFinished;
+      if (!expired && !overCap) break;
+      this.#tasks.delete(this.#finishedOrder[drop]);
+      drop += 1;
+    }
+    if (drop > 0) this.#finishedOrder.splice(0, drop);
+  }
+
   /** Reclaims tasks whose holder never reported back. */
   sweep() {
     const now = this.now();
+    this.#forgetFinished();
     for (const task of this.#tasks.values()) {
       if (task.status !== TaskStatus.LEASED) continue;
       if (task.leaseExpiresAt === null || task.leaseExpiresAt > now) continue;
