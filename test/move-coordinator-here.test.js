@@ -171,3 +171,49 @@ test('an environment variable that would override .env.agent stops the move befo
   assert.ok(!existsSync(join(root, '.env')));
   assert.ok(!existsSync(join(root, 'data', 'auth.json')), 'no store created');
 });
+
+test('a password the store refuses leaves no store and no coordinator, and the re-run succeeds', async (t) => {
+  const root = await checkout();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const port = await freePort();
+  await writeFile(join(root, '.env.agent'), 'ALPHA_HOST_URL=http://100.81.6.91:8787\nALPHA_AGENT_NAME=laptop-41-v2\n');
+
+  const failed = await run(root, ['--port', String(port), '--email', 'owner@example.com'], 'short\n');
+  assert.equal(failed.code, 1, failed.out);
+  assert.match(failed.out, /12 characters/);
+  // A store with no users would be "kept" by the next run, which then writes
+  // .env without a bootstrap token and gets a coordinator that will not start.
+  assert.ok(!existsSync(join(root, 'data', 'auth.json')), 'no half-made store left behind');
+  // The temporary coordinator holds a live bootstrap token; it must not outlive the run.
+  await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`), 'nothing left listening');
+  assert.ok(!existsSync(join(root, '.env')), 'nothing written');
+
+  // One the local check passes and the coordinator refuses (over its 1,024
+  // limit) fails inside store creation, after the invite is saved: the path
+  // that left both the empty store and the running coordinator behind.
+  const refusedByStore = await run(root, ['--port', String(port), '--email', 'owner@example.com'], `${'x'.repeat(1100)}\n`);
+  assert.equal(refusedByStore.code, 1, refusedByStore.out);
+  assert.match(refusedByStore.out, /creating the store failed/);
+  assert.ok(!existsSync(join(root, 'data', 'auth.json')), 'the invite-only store is removed');
+  await assert.rejects(fetch(`http://127.0.0.1:${port}/healthz`), 'the temporary coordinator is stopped');
+
+  const retry = await run(root, ['--port', String(port), '--email', 'owner@example.com'], 'a-long-enough-password\n');
+  assert.equal(retry.code, 0, retry.out);
+  assert.match(retry.out, /agent attached/);
+});
+
+test('a store left with no users by an older failed run is set aside, not kept', async (t) => {
+  const root = await checkout();
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const port = await freePort();
+  await writeFile(join(root, '.env.agent'), 'ALPHA_HOST_URL=http://100.81.6.91:8787\n');
+  await mkdir(join(root, 'data'), { recursive: true });
+  await writeFile(join(root, 'data', 'auth.json'), JSON.stringify({ version: 1, users: {}, apiKeys: {}, invites: { x: {} } }));
+
+  const result = await run(root, ['--port', String(port), '--email', 'owner@example.com'], 'a-long-enough-password\n');
+  assert.equal(result.code, 0, result.out);
+  assert.match(result.out, /no users/);
+  assert.match(result.out, /agent attached/);
+  const { readdir } = await import('node:fs/promises');
+  assert.ok((await readdir(join(root, 'data'))).some((n) => n.startsWith('auth.json.no-users-')), 'the old file is kept aside');
+});

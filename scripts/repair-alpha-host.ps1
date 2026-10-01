@@ -469,7 +469,7 @@ else {
     $internet = (Code 'https://www.cloudflare.com/cdn-cgi/trace') -like '2*'
     $pub = Code "https://$PublicHost/"
     if ($proven -eq 3 -and $internet -and (@('502', '504', '520', '521', '522', '523', '524', '530') -contains $pub)) {
-      Note "origin healthy on 3/3 checks, Internet up, edge still says $pub: the connector is the fault. Restarting it."
+      Note "origin healthy on 3/3 checks, Internet up, edge still says ${pub}: the connector is the fault. Restarting it."
       Restart-Service $CloudflaredService -Force
       Start-Sleep 20
       $pub = Code "https://$PublicHost/"
