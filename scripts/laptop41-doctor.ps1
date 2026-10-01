@@ -468,6 +468,7 @@ $escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
 # by how long the problem has been open, so whatever keeps not getting fixed
 # climbs. What is left of the nine is standing hardening, dropped once done.
 $rules = @(
+  @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
   @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
