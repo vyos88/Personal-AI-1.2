@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, join, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { isShellScript, resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Asks the Codex CLI on this machine a question, and returns what it said.
@@ -280,7 +281,7 @@ export function available() {
   }
 
   const command = configured('ALPHA_CODEX', 'codex');
-  const resolved = resolveExecutable(command);
+  const resolved = resolveExecutable(command, { nativeFirst: true });
   if (!resolved) {
     return { ok: false, reason: `Codex CLI not found (${command}). Set ALPHA_CODEX to its path.` };
   }
@@ -299,43 +300,6 @@ export function available() {
     };
   }
   return { ok: true };
-}
-
-function isShellScript(path) {
-  return /\.(cmd|bat)$/i.test(path);
-}
-
-/**
- * Where a command would be found, or null.
- *
- * `execFile` resolves a bare name against PATH, so this has to as well, or the
- * default `codex` would look missing on every machine that has it installed
- * normally. Windows needs PATHEXT too — and needs it in an order of its own:
- * native executables are tried before `.cmd`/`.bat`, because Codex installed
- * from npm puts both on PATH and only one of them can be spawned without a
- * shell. Taking whichever came first would refuse a machine that is perfectly
- * capable, on the evidence of a shim sitting next to the binary.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions = process.platform === 'win32' ? windowsExtensions() : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
-}
-
-function windowsExtensions() {
-  const all = (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean);
-  const native = all.filter((extension) => !isShellScript(extension));
-  const scripts = all.filter((extension) => isShellScript(extension));
-  return [...native, ...scripts];
 }
 
 /** Keeps the tail of a transcript, which is where the answer is. */
