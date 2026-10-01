@@ -18,6 +18,16 @@ memory. `-Fix` (as Administrator) runs `apply-chat-fix.ps1` and/or this page's
 report, tokens redacted, to a `status/laptop41-*` branch from a temporary
 worktree, so nobody has to paste terminal output.
 
+**Every 15 minutes, unattended:** `laptop41-doctor.ps1 -InstallSchedule` adds an
+`Alpha Doctor` task (as you, while you are logged on, so it can push with your
+git credentials). It runs with `-Watch`, which only checks and never repairs, since
+unattended repair is the self-heal's job and has limits. Each run tracks every
+problem across runs, ranks nine recommendations (open problems first, by how
+long they have been open, then standing hardening), posts to Alpha's
+coordination tunnel when something changes and hourly while anything is open,
+marks a problem open for an hour as NEEDS A PERSON, and pushes the report to
+the `status/laptop41` branch. `-UninstallSchedule` removes it.
+
 ## Run this, on Laptop41, as Administrator
 
 ```powershell

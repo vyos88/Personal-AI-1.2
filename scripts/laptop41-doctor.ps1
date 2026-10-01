@@ -42,7 +42,15 @@ param(
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$ChatUser = '',
   [switch]$Fix,
-  [switch]$Push
+  [switch]$Push,
+  # Scheduled mode: no prompts, never fixes, tracks problems across runs,
+  # posts to Alpha on change, and writes nine ranked recommendations.
+  [switch]$Watch,
+  [switch]$InstallSchedule,
+  [switch]$UninstallSchedule,
+  [int]$EveryMinutes = 15,
+  # A problem open this many consecutive runs is marked NEEDS A PERSON.
+  [int]$EscalateAfterRuns = 4
 )
 
 $ErrorActionPreference = 'Continue'
@@ -114,7 +122,7 @@ function TaskResult($code) {
 # process only.
 $script:adminAsked = $false
 function Admin([string]$cmd) {
-  if (-not $env:ALPHA_ADMIN_TOKEN -and -not $script:adminAsked) {
+  if (-not $env:ALPHA_ADMIN_TOKEN -and -not $script:adminAsked -and -not $Watch) {
     $script:adminAsked = $true
     $envFile = Join-Path $repo '.env'
     $inFile = (Test-Path $envFile) -and (Select-String -Path $envFile -Pattern '^ALPHA_(ADMIN|BOOTSTRAP)_TOKEN=.+' -Quiet)
@@ -205,7 +213,7 @@ function Run-Checks {
 
   # ------------------------------------------------------------ chat
   Section '2. Chat'
-  if ($ChatUser) {
+  if ($ChatUser -and -not $Watch) {
     if (-not $script:chatPass) { $script:chatPass = Read-Host "Alpha password for $ChatUser" -AsSecureString }
     $plainPw = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($script:chatPass))
     $login = $null
@@ -305,7 +313,8 @@ function Run-Checks {
   foreach ($t in 'Alpha', 'Alpha Backend', 'Alpha Self-Heal') {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
     if ($st) { $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult)) }
-    else { Note "task $t : not registered" }
+    elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
+    else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
   $cfs = Get-Service -Name cloudflared -EA SilentlyContinue
   if ($cfs) { Note "cloudflared service: $($cfs.Status)" } else { Note 'cloudflared service: not installed as a service' }
@@ -337,8 +346,39 @@ function Run-Checks {
   if ($free / $total -lt 0.1) { Problem "only $free of $total GB RAM free" } else { OK "$free of $total GB RAM free" }
   $c = Get-PSDrive C -EA SilentlyContinue
   if ($c) { $g = [math]::Round($c.Free / 1GB, 1); if ($g -lt 5) { Problem "C: only $g GB free" } else { OK "C: $g GB free" } }
+  # TEMP on a drive that is gone breaks every installer and build that uses it.
+  $tq = [IO.Path]::GetPathRoot("$env:TEMP")
+  if ($tq -and -not (Test-Path $tq)) { Problem "TEMP points at $env:TEMP, on a drive that is not there (the removed USB?)" }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+}
+
+# ------------------------------------------------------------ schedule
+$taskName = 'Alpha Doctor'
+if ($UninstallSchedule) {
+  schtasks.exe /Delete /TN $taskName /F
+  exit $LASTEXITCODE
+}
+if ($InstallSchedule) {
+  # As you, only while you are logged on: the report is pushed with your git
+  # credentials, which a SYSTEM or S4U task cannot read. Check-only (-Watch);
+  # unattended repair is the self-heal task's job, which has the budgets.
+  $me = Join-Path $PSScriptRoot 'laptop41-doctor.ps1'
+  $tr = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$me`" -Watch -AlphaRoot `"$AlphaRoot`""
+  if ($tr.Length -gt 261) { Write-Host "command too long for schtasks ($($tr.Length) chars): move the checkout to a shorter path" -ForegroundColor Red; exit 1 }
+  schtasks.exe /Create /TN $taskName /SC MINUTE /MO $EveryMinutes /TR $tr /F
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  $set = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
+           -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Minutes 10)
+  Set-ScheduledTask -TaskName $taskName -Settings $set | Out-Null
+  Start-ScheduledTask -TaskName $taskName
+  Write-Host "installed '$taskName': every $EveryMinutes minutes, check-only, first run started now." -ForegroundColor Green
+  Write-Host "reports: $reportDir   remove: -UninstallSchedule"
+  if (-not $env:ALPHA_ADMIN_TOKEN) {
+    Write-Host "to include agents/keys/tasks, store the admin key for your user once:" -ForegroundColor Yellow
+    Write-Host "  [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'admin key'), 'User')"
+  }
+  exit 0
 }
 
 Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo)"
@@ -376,29 +416,147 @@ if ($Fix) {
   }
 }
 
-Section 'SUMMARY'
-if ($problems.Count -eq 0) { OK 'no problems found' } else { foreach ($p in $problems) { Out1 "  - $p" 'Red' } }
+# ------------------------------------------------------------ across runs
+# A stable key per problem: digits, hashes and paths of build assets change
+# from run to run without the problem changing.
+function KeyOf($t) { ("$t" -replace '/assets/[^\s,]+', '<bundle>' -replace '\d+', '#').Trim() }
 
+$statePath = Join-Path $OpsDir 'doctor-state.json'
+$prev = $null
+if (Test-Path $statePath) { try { $prev = Get-Content $statePath -Raw | ConvertFrom-Json } catch { $prev = $null } }
+$now = Get-Date
+$open = @{}
+foreach ($p in $problems) {
+  $k = KeyOf $p
+  $was = $null
+  if ($prev -and $prev.open) { $was = $prev.open.PSObject.Properties[$k] }
+  if ($was) { $open[$k] = @{ text = $p; since = ([datetime]$was.Value.since).ToString('s'); runs = [int]$was.Value.runs + 1 } }
+  else      { $open[$k] = @{ text = $p; since = $now.ToString('s'); runs = 1 } }
+}
+$resolved = @()
+if ($prev -and $prev.open) {
+  foreach ($pp in $prev.open.PSObject.Properties) { if (-not $open.ContainsKey($pp.Name)) { $resolved += $pp.Value.text } }
+}
+$escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
+
+# ------------------------------------------------------------ recommendations
+# Each open problem maps to the one action that clears it; the list is ranked
+# by how long the problem has been open, so whatever keeps not getting fixed
+# climbs. What is left of the nine is standing hardening, dropped once done.
+$rules = @(
+  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
+  @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
+  @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
+  @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
+  @{ m = 'no dist|build is older|nothing serves Alpha|older build than dist';                   r = 'Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.' },
+  @{ m = 'public site serves';                                                                  r = 'alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).' },
+  @{ m = "task Alpha is not registered|'Alpha' task does not mention|Alpha .*0xC000013A";      r = "Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported)." },
+  @{ m = 'changed after the backend started';                                                   r = 'Restart the backend so it runs the code on disk: apply-chat-fix.ps1 -Restart, or stop the python on 8001 and let its task start it.' },
+  @{ m = 'no coordinator answering';                                                            r = 'Start the alpha-tunnel coordinator as a boot task (docs/HOST_SETUP.md); move-coordinator-here.mjs sets it up but leaves nothing running.' },
+  @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
+  @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
+  @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
+)
+$standing = @(
+  @{ done = { Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
+  @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
+  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
+  @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
+  @{ done = { Test-Path (Join-Path $OpsDir 'backups') };                               r = 'Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.' },
+  @{ done = { $false };                                                                r = 'Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.' },
+  @{ done = { $false };                                                                r = 'Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.' },
+  @{ done = { $false };                                                                r = 'Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.' },
+  @{ done = { $false };                                                                r = 'Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.' },
+  @{ done = { $false };                                                                r = 'Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.' },
+  @{ done = { $false };                                                                r = 'Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.' }
+)
+$recs = New-Object System.Collections.ArrayList
+foreach ($o in ($open.Values | Sort-Object { -$_.runs })) {
+  foreach ($rule in $rules) {
+    if ($o.text -match $rule.m -and -not ($recs | Where-Object { $_.r -eq $rule.r })) {
+      $age = if ($o.runs -eq 1) { 'new' } else { "open $($o.runs) runs" }
+      $who = if ($o.runs -ge $EscalateAfterRuns) { ' NEEDS A PERSON' } else { '' }
+      [void]$recs.Add(@{ r = $rule.r; tag = "[$age$who]" }); break
+    }
+  }
+}
+foreach ($st in $standing) {
+  if ($recs.Count -ge 9) { break }
+  $isDone = $false; try { $isDone = [bool](& $st.done) } catch {}
+  if (-not $isDone) { [void]$recs.Add(@{ r = $st.r; tag = '[hardening]' }) }
+}
+
+Section 'SUMMARY'
+if ($problems.Count -eq 0) { OK 'no problems found' }
+foreach ($o in ($open.Values | Sort-Object { -$_.runs })) {
+  $flag = if ($o.runs -ge $EscalateAfterRuns) { 'NEEDS A PERSON - ' } else { '' }
+  Out1 ("  - {0}{1}  (open {2} run(s), since {3})" -f $flag, $o.text, $o.runs, $o.since) 'Red'
+}
+foreach ($r in $resolved) { Out1 "  + fixed since last run: $r" 'Green' }
+
+Section 'RECOMMENDATIONS (ranked; re-ranked every run)'
+$n = 0
+foreach ($rc in ($recs | Select-Object -First 9)) { $n++; Out1 ("  {0}. {1} {2}" -f $n, $rc.tag, $rc.r) }
+
+# ------------------------------------------------------------ write
 # Never let a credential reach the file: tunnel tokens, JWTs, bearer headers.
-$text = ($lines -join "`r`n")
-$text = [regex]::Replace($text, 'alpha_[a-z]+_[A-Za-z0-9]+\.[A-Za-z0-9_\-]+', 'alpha_<redacted>')
-$text = [regex]::Replace($text, 'eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+', '<jwt redacted>')
-$text = [regex]::Replace($text, '(?i)(bearer\s+)\S+', '$1<redacted>')
+function Redact($t) {
+  $t = [regex]::Replace("$t", 'alpha_[a-z]+_[A-Za-z0-9]+\.[A-Za-z0-9_\-]+', 'alpha_<redacted>')
+  $t = [regex]::Replace($t, 'eyJ[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+\.[A-Za-z0-9_\-]+', '<jwt redacted>')
+  return [regex]::Replace($t, '(?i)(bearer\s+)\S+', '$1<redacted>')
+}
+$text = Redact ($lines -join "`r`n")
 [IO.File]::WriteAllText($report, $text, (New-Object Text.UTF8Encoding($false)))
+Copy-Item $report (Join-Path $reportDir 'latest.txt') -Force
+# Keep a day of 15-minute reports, not a year of them.
+Get-ChildItem $reportDir -Filter 'laptop41-doctor-*.txt' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 100 | Remove-Item -Force -EA SilentlyContinue
 Write-Host "`nreport: $report"
 
-if ($Push) {
-  $branch = "status/laptop41-$stamp"
+# ------------------------------------------------------------ tell Alpha
+# On a change, and hourly while anything is open: every 15 minutes is noise
+# nobody reads.
+$changed = (-not $prev) -or ($resolved.Count -gt 0) -or (@($open.Values | Where-Object { $_.runs -eq 1 }).Count -gt 0)
+$lastPost = if ($prev -and $prev.lastPost) { [datetime]$prev.lastPost } else { [datetime]::MinValue }
+$due = $changed -or (($open.Count -gt 0) -and (($now - $lastPost).TotalMinutes -ge 60))
+$posted = $false
+if ($Watch -and $due) {
+  $co = Get-ChildItem $AlphaRoot -Recurse -Depth 3 -Filter 'alpha_coordination_tunnel.ps1' -File -EA SilentlyContinue | Select-Object -First 1
+  $head = if ($open.Count -eq 0) { 'Alpha host check: all green.' } else { "Alpha host check: $($open.Count) open problem(s), $($escalate.Count) need a person." }
+  $body = @($head)
+  foreach ($o in ($open.Values | Sort-Object { -$_.runs } | Select-Object -First 5)) { $body += "- $($o.text) [open $($o.runs) runs]" }
+  foreach ($r in $resolved) { $body += "+ fixed: $r" }
+  $top = @($recs | Select-Object -First 3)
+  for ($j = 0; $j -lt $top.Count; $j++) { $body += "Next $($j + 1): $($top[$j].r)" }
+  $msg = Redact ($body -join "`n")
+  if ($msg.Length -gt 3900) { $msg = $msg.Substring(0, 3900) }
+  if ($co) {
+    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'alpha-doctor' -Message $msg 2>&1 | Out-Null
+    $posted = ($LASTEXITCODE -eq 0)
+    Write-Host ("posted to Alpha: {0}" -f $posted)
+  } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot - not posted" -ForegroundColor Yellow }
+}
+
+$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); open = $open }
+$state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
+
+# ------------------------------------------------------------ push
+# One branch, status/laptop41, fast-forwarded each time, so it is one place to
+# read rather than a branch per run. Scheduled runs push when Alpha is told.
+if ($Push -or ($Watch -and $due)) {
+  $branch = 'status/laptop41'
   $wt = Join-Path $tmpDir "push-$stamp"
-  git -C $repo worktree add --detach $wt HEAD 2>&1 | Plain | Out-Null
+  git -C $repo fetch -q origin $branch 2>&1 | Plain | Out-Null
+  $base = if ($LASTEXITCODE -eq 0) { 'FETCH_HEAD' } else { 'HEAD' }
+  git -C $repo worktree add --detach $wt $base 2>&1 | Plain | Out-Null
   if ($LASTEXITCODE -ne 0) { Write-Host "could not create a git worktree; attach $report instead" -ForegroundColor Yellow }
   else {
     New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
-    Copy-Item $report (Join-Path $wt 'reports')
+    Copy-Item $report (Join-Path $wt 'reports\latest.txt') -Force
+    Copy-Item $statePath (Join-Path $wt 'reports\doctor-state.json') -Force
     git -C $wt add reports 2>&1 | Plain | Out-Null
-    git -C $wt -c user.name=laptop41-doctor -c user.email=doctor@laptop41.invalid commit -m "laptop41 doctor report $stamp" 2>&1 | Plain | Out-Null
+    git -C $wt -c user.name=laptop41-doctor -c user.email=doctor@laptop41.invalid commit -q -m "laptop41 doctor ${stamp}: $($open.Count) open" 2>&1 | Plain | Out-Null
     git -C $wt push origin "HEAD:refs/heads/$branch" 2>&1 | Plain | ForEach-Object { Write-Host "  $_" }
-    if ($LASTEXITCODE -eq 0) { Write-Host "pushed to branch $branch - tell Claude 'doctor pushed'" -ForegroundColor Green }
+    if ($LASTEXITCODE -eq 0) { Write-Host "pushed to $branch - tell Claude 'doctor pushed'" -ForegroundColor Green }
     else { Write-Host "push failed; attach $report instead" -ForegroundColor Yellow }
     git -C $repo worktree remove --force $wt 2>&1 | Plain | Out-Null
   }
