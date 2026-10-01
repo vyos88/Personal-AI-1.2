@@ -48,6 +48,20 @@ a real attach under a throwaway instance id. It leaves nothing running. Step 2
 does not apply — there is nothing left to stop — and steps 5 and 6 still do,
 for every *other* machine.
 
+It is safe to re-run after a failure:
+
+- **The password is checked before anything is created.** A password under
+  12 characters, or a confirmation that does not match, stops the run with
+  nothing written.
+- **A failure while creating the store removes what it wrote.** A store with
+  no users can only lock the next run out.
+- **A store with no users from an older failed run is set aside, not kept.**
+  It is renamed to `auth.json.no-users-<time>`, and a fresh store is made with
+  `--email`.
+- **The temporary coordinator is always stopped.** It holds a live bootstrap
+  token, and it used to keep running after a failed step. The next run then
+  reported "a coordinator already answers".
+
 ## Do not use `setup-host.mjs` for this
 
 `scripts/setup-host.mjs` provisions a *new* deployment. Pointed at a migration it
