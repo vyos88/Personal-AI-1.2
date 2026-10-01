@@ -235,7 +235,8 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_CODEX_MODEL` | agent | Codex's default | Model Codex should use. |
 | `ALPHA_CODEX_SKIP_GIT_CHECK` | agent | — | Set to `1` when the root is not a git checkout. |
 | `ALPHA_CODEX_TIMEOUT_MS` | agent | `600000` | Ceiling on one Codex call; raise the task's lease with it. |
-| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
+| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. Wins over the session `alpha-admin login` saves. |
+| `ALPHA_ADMIN_SESSION_FILE` | CLI | `~/.alpha-admin/session.json` | Where `login` saves its session; `logout` ends it on the host and deletes it. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
 
