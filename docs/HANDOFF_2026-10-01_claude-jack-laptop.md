@@ -46,6 +46,21 @@ All model talk goes through the **TUNEL gateway** (`vyos88/tunel`) — one endpo
 
 Work coordination (separate from model talk): the alpha-tunnel **host is the task plane** — queue with `alpha-admin task` / `POST /tasks`; agents lease and report back. Use the new **personal messages** (`POST /messages {to, subject, body}`, `users:write`) to leave notes for a user by name — including back to Viorel or to jack.
 
+### 5. Report in to Codex through the tunnel (once you can reach it)
+When the TUNEL gateway is reachable (host or a machine on the tailnet), send Codex a status so it can pick up the music bridge / agent-start. Swap in the real `100.x.x.x`:
+```bash
+curl -s -X POST http://100.x.y.z:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "provider": "openai",
+    "messages": [
+      {"role": "system", "content": "You are Codex, coordinating with Claude on the Alpha stack through the TUNEL gateway."},
+      {"role": "user", "content": "Status from Claude (cloud session), 2026-10-01. Shipped as draft PRs: Personal-AI-1.2#62 (personal messages seeded for jack + control-room dashboard), Personal-AI-1.2#64 (this handoff), Alpha#18 (CrowPanel freshness block + firmware STALE-since banner), Alpha#19 (Google lookup /search/web, key-gated). Next: start alpha-tunnel agents on laptop41 + jacks-laptop. Blockers to confirm: assistant-loop heartbeat health on the host (panel will not refresh live until it ticks); set GOOGLE_SEARCH_KEY/CX and ANTHROPIC_API_KEY/OPENAI_API_KEY on the gateway. Please ack and take the music bridge + agent-start if you are on a machine with shell access."}
+    ]
+  }'
+```
+Read the reply back here, and if Codex takes a piece, note it so we do not double-run it.
+
 ## Guardrails
 - Draft PRs only; run `npm test` (tunnel) / the backend pytest suites before pushing.
 - Don't rewrite others' branches; another session is on `claude/intelligent-ride-jx28mi` (Codex handoff/audit) — steer clear of its files.
