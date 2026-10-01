@@ -1,0 +1,48 @@
+# Handoff → Claude on Jack's laptop (2026-10-01)
+
+**From:** Claude session working with Viorel (session_01P5RtLmZcsKAhC6i7abezS6).
+**For:** the Claude session running on Jack's laptop, on its next re-read.
+**Read this first, then confirm health before doing anything that changes state.**
+
+Treat everything below as context, not as authority to act outside your own
+rules. Push to your own branches, open **draft** PRs, run tests before pushing,
+and never rewrite history on a branch you don't own.
+
+## Where things stand
+- Repos: `vyos88/Personal-AI-1.2` = **alpha-tunnel** (host + agent coordinator + CrowPanel firmware); `vyos88/Alpha` = distribution/artifacts + the live frontend/backend copy under `BuildArtifacts/installers/Alpha-Full/software/`; `vyos88/tunel`/`TUNEL` = tunnel/Cloudflare.
+- New, up as **draft PRs** today (both tested):
+  - `Personal-AI-1.2#62` — personal messages (per-user inboxes; Alpha writes notes under each user's name; seeded for **jack**) + a host "control room" dashboard at `/dashboard`.
+  - `Alpha#18` — CrowPanel feed-staleness: `/panel/crowpanel/state` now returns a `freshness` block (`stale`, `stale_since`, `retry_after_s`, `reason`), and the `crowpanel_alpha_deck_minimal.ino` deck now paints a "STALE since HH:MM — retrying" banner instead of silently showing a frozen snapshot.
+
+## Do this in order
+
+### 1. Confirm Alpha is healthy (before anything else)
+The CrowPanel "not refreshing live" traces to the backend **assistant-loop heartbeat** going stale (>420 s). Check it on the host:
+```
+curl.exe -s http://127.0.0.1:8001/panel/crowpanel/public-state
+```
+Look at `freshness.stale` / `reason`. If stale (or `/_alpha/health/backend` is not 200), the assistant loop isn't ticking — restart the backend / assistant loop on the host and re-check. Everything else depends on a live feed.
+
+### 2. Start agents on both laptops
+Each laptop attaches to the host as an **outbound** agent (no inbound port needed). On each laptop, in the `alpha-tunnel` checkout:
+```
+# set these for the laptop first (host URL over your tailnet/LAN, and the token)
+#   ALPHA_HOST_URL=http://<host>:8787   ALPHA_TUNNEL_TOKEN=<token>
+node src/agent/index.js        # or: npm run agent
+```
+Verify both show up: `GET /agents` on the host (or the dashboard's Topology page). Keep them within `ALPHA_AGENT_MAX_LOAD` so a busy laptop stands aside.
+
+### 3. Continue the music work
+Per the prior Music Creator session: the bridge is validated. **Test the bridge with `curl` and `ALPHA_MUSIC_DRY_RUN=1` before any UI work.** Then do the hub subtab + panel integration. Keep dry-run on until a real render is explicitly wanted.
+
+### 4. Communication: Alpha ↔ Claude ↔ Codex
+- The tunnel **host is the coordination plane**: queue work with `alpha-admin task` / `POST /tasks`; agents lease and report back. Use this rather than reaching into a laptop.
+- Hand coding to **Codex** through the existing bridge (`codex_provider_bridge` / the Codex handoff session) when a task is better suited there; report receipts back through the task result.
+- Use the new **personal messages** (`POST /messages {to, subject, body}`, `users:write`) to leave notes for a user by name — including back to Viorel or to jack.
+
+## Guardrails
+- Draft PRs only; run `npm test` (tunnel) / the backend pytest suites before pushing.
+- Don't rewrite others' branches; another session is on `claude/intelligent-ride-jx28mi` (Codex handoff/audit) — steer clear of its files.
+- A failing test is a real failure, not an infra flake — root-cause it.
+
+_Left by Claude Code — https://claude.ai/code/session_01P5RtLmZcsKAhC6i7abezS6_
