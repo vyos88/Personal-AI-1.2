@@ -193,6 +193,20 @@ $checks = [ordered]@{
   'frontend\node_modules\vite'     = (Join-Path $fe 'node_modules\vite\bin\vite.js')
 }
 foreach ($k in $checks.Keys) { if (Test-Path $checks[$k]) { OK $k } else { Blocker "missing $k" } }
+# The recovered repository can hold the app below its top level (the alpha-full
+# import keeps it at BuildArtifacts\installers\Alpha-Full\software). Say where,
+# so the blocker above points at the real layout instead of just "missing".
+if (-not (Test-Path (Join-Path $fe 'src\app\shell\AppShell.tsx'))) {
+  $nested = @(Get-ChildItem $checkout -Recurse -Depth 8 -Filter 'AppShell.tsx' -File -Force -EA SilentlyContinue |
+    Where-Object { $_.FullName -notmatch '\\node_modules\\' -and $_.Directory.FullName -like '*\frontend\src\app\shell' } |
+    ForEach-Object { $_.Directory.FullName.Substring(0, $_.Directory.FullName.Length - '\frontend\src\app\shell'.Length) })
+  if ($nested) {
+    Warn "Alpha is nested inside the recovered checkout, not at its top. Candidate app roots:"
+    $nested | ForEach-Object { Note "    $_" }
+    Warn "This script, start-alpha-at-boot.ps1 and repair-alpha-host.ps1 all expect <AlphaRoot>\frontend."
+    Warn "Promoting a nested root changes what C:\AlphaData\Alpha contains; that layout decision is not made here."
+  }
+}
 if (Test-Path (Join-Path $checkout 'scripts\alpha_coordination_tunnel.ps1')) { OK 'scripts\alpha_coordination_tunnel.ps1 (repair and self-heal post through it)' }
 else { Warn "no scripts\alpha_coordination_tunnel.ps1 - repair and self-heal will run but post nothing" }
 try {
