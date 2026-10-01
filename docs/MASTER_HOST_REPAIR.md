@@ -4,6 +4,20 @@ Laptop41 is Alpha's permanent main host. It runs the backend on `127.0.0.1:8001`
 the production frontend on `127.0.0.1:4173`, and the `cloudflared` connector that
 publishes `alpha-ai.uk`. This page covers getting it back up and keeping it up.
 
+## Not sure what is wrong? One pass over everything
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\laptop41-doctor.ps1 -ChatUser <your Alpha login> -Push
+```
+
+It checks backend, chat (logs in and sends two real messages), whether the
+site is stale and at which layer (source vs `dist` vs what 4173 serves vs what
+the public hostname serves), the tasks, the coordinator, the CrowPanel and
+memory. `-Fix` (as Administrator) runs `apply-chat-fix.ps1` and/or this page's
+`repair-alpha-host.ps1` when they apply, then checks again. `-Push` sends the
+report, tokens redacted, to a `status/laptop41-*` branch from a temporary
+worktree, so nobody has to paste terminal output.
+
 ## Run this, on Laptop41, as Administrator
 
 ```powershell
