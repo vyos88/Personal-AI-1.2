@@ -35,10 +35,16 @@ Verify both show up: `GET /agents` on the host (or the dashboard's Topology page
 ### 3. Continue the music work
 Per the prior Music Creator session: the bridge is validated. **Test the bridge with `curl` and `ALPHA_MUSIC_DRY_RUN=1` before any UI work.** Then do the hub subtab + panel integration. Keep dry-run on until a real render is explicitly wanted.
 
-### 4. Communication: Alpha ↔ Claude ↔ Codex
-- The tunnel **host is the coordination plane**: queue work with `alpha-admin task` / `POST /tasks`; agents lease and report back. Use this rather than reaching into a laptop.
-- Hand coding to **Codex** through the existing bridge (`codex_provider_bridge` / the Codex handoff session) when a task is better suited there; report receipts back through the task result.
-- Use the new **personal messages** (`POST /messages {to, subject, body}`, `users:write`) to leave notes for a user by name — including back to Viorel or to jack.
+### 4. Communicate through the alpha tunnel (Claude / Codex / Google)
+All model talk goes through the **TUNEL gateway** (`vyos88/tunel`) — one endpoint that routes to the right provider — not direct provider calls from the laptop:
+- Gateway: `POST {TUNEL_URL}/chat` (default `http://localhost:8000`, env `TUNEL_URL`). Health: `GET /health` → `{"status":"ok","service":"TUNEL"}`.
+- Body: `{ "messages": [...], "provider": "anthropic" | "openai", "model"?, "max_tokens"?, "temperature"? }`.
+  - **Claude** ⇒ `provider: "anthropic"` (needs `ANTHROPIC_API_KEY` on the gateway host).
+  - **Codex / GPT** ⇒ `provider: "openai"` (needs `OPENAI_API_KEY`). Also reachable from Alpha via `codex_provider_bridge`; report receipts back through the task result.
+  - Quick CLI check: `node src/index.js --provider anthropic --url {TUNEL_URL}`.
+- **Google** is available too, through **Alpha's backend** (not the TUNEL gateway): `POST /search/web {query}` → results + sources (PR `vyos88/Alpha#19`). It is **off until the host sets** `GOOGLE_SEARCH_KEY` + `GOOGLE_SEARCH_CX`; check `GET /search/web/status`. So: route Claude/Codex chat via TUNEL, and when a question needs the live web, call Alpha's `/search/web` and answer from the returned links.
+
+Work coordination (separate from model talk): the alpha-tunnel **host is the task plane** — queue with `alpha-admin task` / `POST /tasks`; agents lease and report back. Use the new **personal messages** (`POST /messages {to, subject, body}`, `users:write`) to leave notes for a user by name — including back to Viorel or to jack.
 
 ## Guardrails
 - Draft PRs only; run `npm test` (tunnel) / the backend pytest suites before pushing.
