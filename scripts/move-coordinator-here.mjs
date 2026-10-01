@@ -35,6 +35,7 @@ import { parseArgs } from 'node:util';
 import { fetchJson } from '../src/common/http.js';
 import { promptSecret } from '../src/common/prompt.js';
 import { MIN_PASSWORD_LENGTH } from '../src/host/auth/passwords.js';
+import { lanAddress } from './panel-up.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -45,6 +46,8 @@ move-coordinator-here — run the coordinator on this machine and point its agen
 
 Options
   --tailnet-ip <ip>   Address the other machines reach. Default: tailscale ip -4
+  --lan-ip <ip>       Address the CrowPanel reaches over WiFi. Default: this
+                      machine's private LAN address, if it has one
   --loopback-only     Bind 127.0.0.1 alone (no other machine can attach)
   --port <n>          Coordinator port. Default 8787
   --email <e>         Admin account to create. Required only when there is no
@@ -210,6 +213,7 @@ async function main() {
       args: process.argv.slice(2),
       options: {
         'tailnet-ip': { type: 'string' },
+        'lan-ip': { type: 'string' },
         'loopback-only': { type: 'boolean' },
         port: { type: 'string' },
         email: { type: 'string' },
@@ -240,8 +244,16 @@ async function main() {
       '  Stop it first (nssm stop alpha-coordinator, or close run-coordinator.cmd) and re-run.');
   }
   const tailnetIp = flags['loopback-only'] ? null : (flags['tailnet-ip'] ?? tailnetAddress());
-  const binds = ['127.0.0.1', ...(tailnetIp ? [tailnetIp] : [])];
+  // The panel is on WiFi, not the tailnet: a coordinator bound to loopback and
+  // 100.x alone is one it can never reach, and panel-up then reports "nothing
+  // answering" at an address the host looks perfectly healthy on.
+  const lanIp = flags['loopback-only'] ? null : (flags['lan-ip'] ?? lanAddress());
+  const binds = [...new Set(['127.0.0.1', ...(tailnetIp ? [tailnetIp] : []), ...(lanIp ? [lanIp] : [])])];
   ok(`will listen on ${binds.map((b) => `${b}:${port}`).join(' and ')}`);
+  if (lanIp && process.platform === 'win32') {
+    note(`the panel reaches ${lanIp}:${port} only once Windows allows it, once:\n` +
+      `    New-NetFirewallRule -DisplayName "alpha-tunnel ${port}" -Direction Inbound -Protocol TCP -LocalPort ${port} -Action Allow -Profile Private`);
+  }
 
   const agentEnv = existsSync(agentEnvPath) ? await readFile(agentEnvPath, 'utf8') : null;
   if (agentEnv === null) {
