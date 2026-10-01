@@ -53,6 +53,9 @@ param(
   [int]$FrontendPort = 4173,
   [string]$HealthPath = '/health',
   [string]$PublicHost = 'alpha-ai.uk',
+  # Where Alpha sits inside the recovered checkout. The alpha-full import keeps
+  # it here; pass '' for a checkout whose top level is the app.
+  [string]$AppSubdir = 'BuildArtifacts\installers\Alpha-Full\software',
   [switch]$Promote,
   [switch]$HumanChecked,
   [switch]$CarryLiveData,
@@ -173,6 +176,9 @@ if (-not $Recovery -or -not (Test-Path (Join-Path $Recovery 'evidence.json'))) {
   Done 2
 }
 $checkout = Join-Path $Recovery 'checkout'
+# The app root that becomes C:\AlphaData\Alpha. git questions still go to $checkout.
+$AppSubdir = $AppSubdir.Trim('\')
+$src = if ($AppSubdir) { Join-Path $checkout $AppSubdir } else { $checkout }
 $ev = Get-Content (Join-Path $Recovery 'evidence.json') -Raw | ConvertFrom-Json
 OK "recovery folder $Recovery, finished $($ev.finishedAt)"
 Note "recovered HEAD: $($ev.checkoutHead)"
@@ -185,7 +191,9 @@ if ($vr) {
 
 # ================================================================ 2. layout
 Section "2. Does the recovered copy fit what the boot tasks expect?"
-$fe = Join-Path $checkout 'frontend'
+Note "app root inside the recovered checkout: $src"
+if (-not (Test-Path $src -PathType Container)) { Blocker "the recovered checkout has no $AppSubdir - pass -AppSubdir <the folder holding frontend>" }
+$fe = Join-Path $src 'frontend'
 $checks = [ordered]@{
   'frontend\src\app\shell\AppShell.tsx (start-alpha-at-boot finds Alpha by it)' = (Join-Path $fe 'src\app\shell\AppShell.tsx')
   'frontend\package.json'          = (Join-Path $fe 'package.json')
@@ -201,14 +209,12 @@ if (-not (Test-Path (Join-Path $fe 'src\app\shell\AppShell.tsx'))) {
     Where-Object { $_.FullName -notmatch '\\node_modules\\' -and $_.Directory.FullName -like '*\frontend\src\app\shell' } |
     ForEach-Object { $_.Directory.FullName.Substring(0, $_.Directory.FullName.Length - '\frontend\src\app\shell'.Length) })
   if ($nested) {
-    Warn "Alpha is nested inside the recovered checkout, not at its top. Candidate app roots:"
-    $nested | ForEach-Object { Note "    $_" }
-    Warn "This script, start-alpha-at-boot.ps1 and repair-alpha-host.ps1 all expect <AlphaRoot>\frontend."
-    Warn "Promoting a nested root changes what C:\AlphaData\Alpha contains; that layout decision is not made here."
+    Warn "Alpha is somewhere else in the recovered checkout. Candidate roots, for -AppSubdir:"
+    $nested | ForEach-Object { Note ("    '{0}'" -f $_.Substring($checkout.Length).TrimStart('\')) }
   }
 }
-if (Test-Path (Join-Path $checkout 'scripts\alpha_coordination_tunnel.ps1')) { OK 'scripts\alpha_coordination_tunnel.ps1 (repair and self-heal post through it)' }
-else { Warn "no scripts\alpha_coordination_tunnel.ps1 - repair and self-heal will run but post nothing" }
+if (Test-Path (Join-Path $src 'scripts\alpha_coordination_tunnel.ps1')) { OK 'scripts\alpha_coordination_tunnel.ps1 (repair and self-heal post through it)' }
+else { Warn "no scripts\alpha_coordination_tunnel.ps1 inside the app root - repair and self-heal will run but post nothing to the tunnel" }
 try {
   $scripts = (Get-Content (Join-Path $fe 'package.json') -Raw | ConvertFrom-Json).scripts
   $names = @($scripts.PSObject.Properties.Name)
@@ -219,13 +225,13 @@ try {
 if (Test-Path (Join-Path $fe 'vite.recovery.config.mjs')) { Note "vite.recovery.config.mjs (proxy -> 8011) will be left out of the promoted copy" }
 
 # The backend, the way recover-alpha-from-usb found it.
-$appFile = Get-ChildItem $checkout -Recurse -Depth 5 -Filter *.py -EA SilentlyContinue |
+$appFile = Get-ChildItem $src -Recurse -Depth 5 -Filter *.py -EA SilentlyContinue |
            Where-Object { $_.FullName -notmatch '\\(node_modules|\.git|venv|\.venv|site-packages)\\' } |
            Select-String -Pattern '^\s*app\s*=\s*FastAPI\(' -List -EA SilentlyContinue | Select-Object -First 1
-$req = Get-ChildItem $checkout -Recurse -Depth 4 -Filter requirements*.txt -EA SilentlyContinue |
+$req = Get-ChildItem $src -Recurse -Depth 4 -Filter requirements*.txt -EA SilentlyContinue |
        Where-Object { $_.FullName -notmatch '\\(node_modules|\.git|venv|\.venv)\\' } | Sort-Object { $_.FullName.Length } | Select-Object -First 1
-if ($appFile) { OK "backend app: $($appFile.Path.Substring($checkout.Length + 1))" } else { Blocker "no module defining app = FastAPI(...) in the recovered checkout" }
-if ($req) { OK "requirements: $($req.FullName.Substring($checkout.Length + 1))" } else { Blocker "no requirements*.txt in the recovered checkout" }
+if ($appFile) { OK "backend app: $($appFile.Path.Substring($src.Length + 1))" } else { Blocker "no module defining app = FastAPI(...) in the recovered app root" }
+if ($req) { OK "requirements: $($req.FullName.Substring($src.Length + 1))" } else { Blocker "no requirements*.txt in the recovered app root" }
 
 # ================================================================ 3. live backend
 Section "3. How the live backend runs today (what the promoted one must match)"
@@ -266,7 +272,7 @@ else {
            Where-Object { $_.FullName -like "*\$modFile" -and $_.FullName -notmatch '\\(node_modules|\.venv|venv|site-packages)\\' } | Select-Object -First 1
     if ($hit) {
       $modRel = $hit.FullName.Substring($LiveRoot.Length + 1, $hit.FullName.Length - $LiveRoot.Length - 1 - $modFile.Length).TrimEnd('\')
-      if (Test-Path (Join-Path (Join-Path $checkout $modRel) $modFile)) { OK "module $modFile is at the same place in the recovered copy ($(if ($modRel) { $modRel } else { '.' }))" }
+      if (Test-Path (Join-Path (Join-Path $src $modRel) $modFile)) { OK "module $modFile is at the same place in the recovered copy ($(if ($modRel) { $modRel } else { '.' }))" }
       else { Blocker "the live backend runs $modFile from '$modRel', and the recovered copy has no file there - the layouts differ" }
     } else { Warn "could not find $modFile under $LiveRoot; repair-alpha-host will infer the directory" }
   }
@@ -278,7 +284,7 @@ function Ver($root) {
   $s = Join-Path $root 'frontend\src\app\shell\AppShell.tsx'
   if ((Get-Content $s -Raw -EA SilentlyContinue) -match 'ALPHA_VERSION\s*=\s*["'']([^"'']+)') { $Matches[1] } else { '?' }
 }
-$liveVer = Ver $LiveRoot; $recVer = Ver $checkout
+$liveVer = Ver $LiveRoot; $recVer = Ver $src
 Note "ALPHA_VERSION  live $liveVer   recovered $recVer"
 $recHead = (git -C $checkout rev-parse HEAD 2>$null)
 $liveHead = if (Test-Path (Join-Path $LiveRoot '.git')) { (git -C $LiveRoot rev-parse HEAD 2>$null) } else { $null }
@@ -299,7 +305,7 @@ if ($relation -match 'OLDER') { Warn "Promoting would move the code BACK. Only d
 # Schema: migration files present on one side only.
 foreach ($mdir in @('alembic\versions', 'migrations\versions', 'migrations')) {
   $a = @(Get-ChildItem (Join-Path $LiveRoot "*\$mdir"), (Join-Path $LiveRoot $mdir) -File -Recurse -Depth 1 -EA SilentlyContinue | ForEach-Object Name)
-  $b = @(Get-ChildItem (Join-Path $checkout "*\$mdir"), (Join-Path $checkout $mdir) -File -Recurse -Depth 1 -EA SilentlyContinue | ForEach-Object Name)
+  $b = @(Get-ChildItem (Join-Path $src "*\$mdir"), (Join-Path $src $mdir) -File -Recurse -Depth 1 -EA SilentlyContinue | ForEach-Object Name)
   if ($a.Count -or $b.Count) {
     $onlyLive = @($a | Where-Object { $b -notcontains $_ })
     if ($onlyLive.Count) { Warn "migrations only in LIVE ($mdir): $($onlyLive -join ', ') - live data may use a schema the recovered code does not know" }
@@ -313,13 +319,24 @@ Section "5. Data written since the backup"
 $tarFile = Join-Path $Recovery 'source\alpha-data.tar'
 $entries = @(tar.exe -tf $tarFile 2>$null | Where-Object { $_ -and $_ -notmatch '/$' } | ForEach-Object { ($_ -replace '/', '\') -replace '^(\.\\)+', '' } |
              Where-Object { $_ -notmatch '\\node_modules\\' })
+# The tar was extracted at the checkout's top; only what lies inside the app
+# root is promoted, so compare those paths relative to it.
+if ($AppSubdir) {
+  $prefix = "$AppSubdir\"
+  $outside = @($entries | Where-Object { -not $_.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) })
+  $entries = @($entries | Where-Object { $_.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.Substring($prefix.Length) })
+  if ($outside.Count) {
+    Warn "$($outside.Count) backup data file(s) lie outside $AppSubdir and are not promoted (top level: $(@($outside | ForEach-Object { ($_ -split '\\')[0] } | Select-Object -Unique) -join ', '))"
+    if (-not $entries.Count) { Blocker "none of alpha-data.tar lies inside $AppSubdir - the promoted copy would carry no backup data" }
+  }
+}
 $tops = @($entries | ForEach-Object { ($_ -split '\\')[0] } | Select-Object -Unique)
 Note "backup data: $($entries.Count) files under $($tops -join ', ')"
 $set = @{}; foreach ($e in $entries) { $set[$e.ToLowerInvariant()] = $true }
 function Get-Divergent($liveDir) {
 $liveNewer = @(); $liveOnly = @()
 foreach ($e in $entries) {
-  $lf = Join-Path $liveDir $e; $rf = Join-Path $checkout $e
+  $lf = Join-Path $liveDir $e; $rf = Join-Path $src $e
   if (-not (Test-Path $lf -PathType Leaf)) { continue }
   if (-not (Test-Path $rf -PathType Leaf)) { $liveNewer += $e; continue }
   $li = Get-Item $lf -Force; $ri = Get-Item $rf -Force
@@ -351,13 +368,13 @@ else {
 
 # ================================================================ 6. config, space, tasks
 Section "6. Configuration, space, tasks"
-$cfgFiles = @(Get-ChildItem $checkout -Recurse -File -Force -Include '.env*', '*.json', '*.yaml', '*.yml', '*.toml', '*.ini' -EA SilentlyContinue |
+$cfgFiles = @(Get-ChildItem $src -Recurse -File -Force -Include '.env*', '*.json', '*.yaml', '*.yml', '*.toml', '*.ini' -EA SilentlyContinue |
   Where-Object { $_.FullName -notmatch '\\(node_modules|\.git|dist)\\' -and $_.Length -lt 2MB })
 $toE = @($cfgFiles | Select-String -SimpleMatch $TargetRoot -List -EA SilentlyContinue)
 if ($toE.Count) { Blocker "recovered configuration names the recovery folder (would point back at E: after promotion): $(@($toE | ForEach-Object { "$($_.Path):$($_.LineNumber)" }) -join ', ')" }
 $toLive = @($cfgFiles | Select-String -SimpleMatch $LiveRoot -List -EA SilentlyContinue)
 if ($toLive.Count) { OK "$($toLive.Count) config file(s) name $LiveRoot - correct once promoted to that same path" }
-$need = (Get-ChildItem $checkout -Recurse -File -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum
+$need = (Get-ChildItem $src -Recurse -File -Force -EA SilentlyContinue | Measure-Object Length -Sum).Sum
 $free = (Get-PSDrive ($LiveRoot.Substring(0, 1))).Free
 Note ("copy needs {0:N1} GB, {1}: has {2:N1} GB free" -f ($need / 1GB), $LiveRoot.Substring(0, 1), ($free / 1GB))
 if ($free -lt ($need * 1.3 + 3GB)) { Blocker "not enough free space for the copy plus a fresh venv" }
@@ -379,7 +396,7 @@ if ($blockers.Count) {
   Done 1
 }
 $choice = if ($divergent.Count) { if ($CarryLiveData) { ' -CarryLiveData' } else { ' -AcceptDataRollback' } } else { '' }
-Write-Host "READY to promote $checkout -> $LiveRoot" -ForegroundColor Green
+Write-Host "READY to promote $src -> $LiveRoot" -ForegroundColor Green
 if (-not $Promote) {
   Write-Host "`nNext, after signing in at http://127.0.0.1:4183, sending one Chat message and opening Decks, Brain, Agents:"
   Write-Host "  powershell -ExecutionPolicy Bypass -File .\scripts\promote-recovered-alpha.ps1 -Promote -HumanChecked$choice" -ForegroundColor Cyan
@@ -439,7 +456,7 @@ Save
 OK "live install is now $aside"
 
 Section "P3. Copy the recovered checkout in"
-robocopy $checkout $LiveRoot /E /COPY:DAT /R:1 /W:1 /XF vite.recovery.config.mjs /NFL /NDL /NJH /NJS | Out-Null
+robocopy $src $LiveRoot /E /COPY:DAT /R:1 /W:1 /XF vite.recovery.config.mjs /NFL /NDL /NJH /NJS | Out-Null
 if ($LASTEXITCODE -ge 8) { Undo "robocopy failed (exit $LASTEXITCODE)" }
 OK "copied"
 
@@ -467,7 +484,7 @@ if ($venvRel) {
   & $basePy -m venv $venv
   $venvPy = Join-Path $venv 'Scripts\python.exe'
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path $venvPy)) { Undo "could not create the venv with $basePy" }
-  & $venvPy -m pip install --disable-pip-version-check -q -r (Join-Path $LiveRoot $req.FullName.Substring($checkout.Length + 1)) 2>&1 | Select-Object -Last 8 | ForEach-Object { Note "$_" }
+  & $venvPy -m pip install --disable-pip-version-check -q -r (Join-Path $LiveRoot $req.FullName.Substring($src.Length + 1)) 2>&1 | Select-Object -Last 8 | ForEach-Object { Note "$_" }
   if ($LASTEXITCODE -ne 0) { Undo "pip install of the recovered requirements failed" }
   # The live backend may be launched as python -m uvicorn or as uvicorn.exe.
   if ("$($spec.exe) $($spec.args)" -match 'uvicorn') { & $venvPy -m pip show uvicorn *> $null; if ($LASTEXITCODE -ne 0) { & $venvPy -m pip install -q uvicorn | Out-Null } }

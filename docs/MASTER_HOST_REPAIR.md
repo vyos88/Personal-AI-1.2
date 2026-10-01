@@ -184,6 +184,18 @@ things are true:
 
 ### Promoting the recovered copy
 
+**Which folder is Alpha.** In the restored repository (the `alpha-full`
+import), Alpha is at `BuildArtifacts\installers\Alpha-Full\software`, the
+folder holding `frontend` and `backend`. That is the default `-AppSubdir` of
+both `recover-alpha-from-usb.ps1` and `promote-recovered-alpha.ps1`. The
+recovery builds and tests that folder, and the promotion puts its contents at
+`C:\AlphaData\Alpha`, which is the layout `start-alpha-at-boot.ps1` and
+`repair-alpha-host.ps1` expect. Its siblings (`Alpha-Full\scripts`, the
+`Alpha-Server` copy) are not promoted. Without `scripts\alpha_coordination_tunnel.ps1`
+inside the root, repair and self-heal still run but post nothing to the
+tunnel. Pass `-AppSubdir ''` to both scripts when a checkout has Alpha at its
+top.
+
 `scripts/promote-recovered-alpha.ps1` does the promotion. It puts the recovered
 copy at the **same path**, `C:\AlphaData\Alpha`, rather than pointing the tasks
 at a new one. Everything that already names that path keeps working unchanged:
