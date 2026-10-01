@@ -184,3 +184,45 @@ things are true:
 
 Rename the live folder aside when you promote, never delete it. Then point the
 boot tasks at the new folder: re-run `repair-alpha-host.ps1 -AlphaRoot <new>`.
+
+## Promoting the recovered copy
+
+Promotion happens after the recovery's verdict is clean. It makes the
+recovered copy the one Laptop41 serves: the backend on 8001, the frontend on
+4173, the boot tasks, self-heal, and the host agent's coordination root. The
+live folder is **never moved, overwritten or deleted**. It stays where it is as
+the rollback.
+
+```powershell
+.\scripts\promote-alpha-recovery.ps1 -Check        # gates only; changes nothing
+.\scripts\promote-alpha-recovery.ps1 -Confirmed    # promote
+.\scripts\promote-alpha-recovery.ps1 -Rollback     # back to the previous copy
+```
+
+It refuses to promote while any of these is true, and `-Check` names which:
+
+- a recovery is still running (the script never stops one);
+- the recovered copy is still up on 8011/4183, because it shares the data folder
+  a promoted backend would use. Stop it yourself with
+  `recover-alpha-from-usb.ps1 -StopRecovered` when you have finished testing;
+- the recovery evidence has a problem, a reference to a live path, or a file
+  whose SHA-256 did not match;
+- the recovered copy has no coordination script, no frontend build, no venv, or
+  no FastAPI backend to run;
+- the live copy has data newer than the backup. Pass `-AcceptOlderData` only
+  after deciding whether that data matters;
+- `-Confirmed` is missing, because nobody has signed in at
+  `http://127.0.0.1:4183` and used Chat, Decks, Brain, Agents and Crown Panel.
+
+Once every gate passes, the script:
+
+1. repoints the host agent's `ALPHA_REPO_ROOT` in `.env.agent` or the NSSM
+   environment, keeping a backup of each;
+2. stops a frontend still serving the old copy;
+3. sets self-heal's state aside;
+4. runs `repair-alpha-host.ps1` with the recovered backend given explicitly;
+5. checks that the processes on 8001 and 4173 are the recovered ones, not merely
+   that something answers there.
+
+An explicit `-BackendExe` now wins over adopting the process on the port. If the
+handover fails, the previous backend is brought back, not the new one.

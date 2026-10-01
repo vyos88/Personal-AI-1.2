@@ -57,6 +57,9 @@ param(
   [string]$BackendExe = '',
   [string]$BackendArgs = '',
   [string]$BackendDir = '',
+  # Where the backend being replaced must run from if a handover fails and it
+  # has to be restarted by hand (promotion passes the old copy's folder).
+  [string]$RestoreBackendDir = '',
   [switch]$NoHandover,
   [switch]$ReportOnly,
   [switch]$Rollback
@@ -292,7 +295,22 @@ function Split-CommandLine($cl) {
 }
 
 $spec = $null
-if (BackendOK) {
+if ($BackendExe) {
+  # An explicit command wins over adoption: promoting a recovered copy means the
+  # backend now answering on the port is the one being replaced, and adopting
+  # it would quietly keep the old copy in charge. Its pid is handed over below.
+  $lb = Listener $BackendPort
+  $spec = @{ exe = $BackendExe; args = $BackendArgs; dir = $(if ($BackendDir) { $BackendDir } else { $AlphaRoot }); pid = $(if ($lb) { $lb.Pid } else { $null }) }
+  if ($lb -and $lb.CommandLine) {
+    $op = Split-CommandLine $lb.CommandLine
+    $spec.orig = @{ exe = $(if ($lb.Exe) { $lb.Exe } else { $op[0] }); args = $op[1]; dir = $RestoreBackendDir }
+  }
+  Note "using the given backend: `"$BackendExe`" $BackendArgs   (in $($spec.dir))"
+  if (-not $lb) {
+    # Nothing to hand over from: start it under the task and prove it below.
+    $spec.startFresh = $true
+  }
+} elseif (BackendOK) {
   OK "$backendUrl answers"
   $lb = Listener $BackendPort
   if ($lb -and $lb.CommandLine) {
@@ -315,7 +333,6 @@ if (BackendOK) {
 } else {
   Problem "$backendUrl does not answer."
 }
-if (-not $spec -and $BackendExe) { $spec = @{ exe = $BackendExe; args = $BackendArgs; dir = $(if ($BackendDir) { $BackendDir } else { $AlphaRoot }); pid = $null } }
 if (-not $spec -and (Get-ScheduledTask -TaskName $BackendTask -EA SilentlyContinue)) {
   Note "no live backend to adopt; starting the existing '$BackendTask' task"
   Start-ScheduledTask -TaskName $BackendTask
@@ -358,7 +375,16 @@ goto loop
     -Description "Alpha backend on 127.0.0.1:$BackendPort (repair-alpha-host.ps1)" | Out-Null
   Changed "boot task '$BackendTask' runs the backend at boot as $user, whether or not anyone logs in"
 
-  if (-not $NoHandover -and $spec.pid) {
+  if ($spec.startFresh) {
+    Start-ScheduledTask -TaskName $BackendTask
+    $up = $false
+    for ($i = 0; $i -lt 40 -and -not $up; $i++) { Start-Sleep 3; $up = BackendOK }
+    if ($up) { Changed "backend started by '$BackendTask' - /health answers" }
+    else {
+      Problem "Backend did not answer under '$BackendTask' within 120s."
+      Get-Content $backendLog -Tail 20 -EA SilentlyContinue | ForEach-Object { Note "    $_" }
+    }
+  } elseif (-not $NoHandover -and $spec.pid) {
     # Prove the task can start it, now, rather than at the next 3 a.m. reboot.
     Note "handing over: stopping pid $($spec.pid) and starting '$BackendTask' (about 10-60s of backend downtime)"
     Post "repair: backend handover to boot task, brief downtime"
@@ -371,10 +397,26 @@ goto loop
       Problem "Backend did not come back under '$BackendTask' within 120s. Restarting the original command."
       Get-Content $backendLog -Tail 20 -EA SilentlyContinue | ForEach-Object { Note "    $_" }
       Stop-ScheduledTask -TaskName $BackendTask -EA SilentlyContinue
-      Disable-ScheduledTask -TaskName $BackendTask | Out-Null
-      Start-Process -FilePath $spec.exe -ArgumentList $spec.args -WorkingDirectory $spec.dir -WindowStyle Hidden
+      Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" -EA SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($backendWrapper, [StringComparison]::OrdinalIgnoreCase) -ge 0 } |
+        ForEach-Object { taskkill.exe /T /F /PID $_.ProcessId 2>&1 | Out-Null }
+      # Put back what was serving before: the previous task definition if there
+      # was one, otherwise the command line that was stopped. With an explicit
+      # -BackendExe that is the OLD copy, not the one that just failed.
+      $prev = @($manifest.exportedTasks | Where-Object { $_.name -eq $BackendTask }) | Select-Object -First 1
+      if ($prev -and (Test-Path $prev.file)) {
+        Register-ScheduledTask -TaskName $BackendTask -Xml (Get-Content $prev.file -Raw) -Force | Out-Null
+        Start-ScheduledTask -TaskName $BackendTask
+        Note "previous '$BackendTask' definition restored from $($prev.file) and started"
+      } else {
+        Disable-ScheduledTask -TaskName $BackendTask | Out-Null
+        $back = if ($spec.orig) { $spec.orig } else { $spec }
+        $backDir = if ($back.dir) { $back.dir } else { Split-Path $back.exe }
+        Start-Process -FilePath $back.exe -ArgumentList $back.args -WorkingDirectory $backDir -WindowStyle Hidden
+        Note "restarted the previous backend: `"$($back.exe)`" $($back.args) in $backDir. '$BackendTask' disabled until fixed."
+      }
       Start-Sleep 15
-      Note "original restarted: /health $(if (BackendOK) { 'answers' } else { 'STILL DOWN' }). '$BackendTask' disabled until fixed."
+      Note "previous backend: /health $(if (BackendOK) { 'answers' } else { 'STILL DOWN' })"
     }
   }
 } elseif (-not (BackendOK)) {
