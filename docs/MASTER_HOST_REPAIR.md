@@ -274,3 +274,21 @@ powershell -ExecutionPolicy Bypass -File .\scripts\promote-recovered-alpha.ps1 -
 
 Nothing is deleted. Evidence goes to
 `C:\AlphaData\alpha-ops\logs\promote-<time>.log` and `promotion-<time>.json`.
+
+## Chat answers a dictionary question with an error
+
+Alpha PR #17 fixed `/chat` returning a 500 for "what does X mean" questions.
+A running install keeps its own copy of the backend, so it gets the fix only
+when that copy is changed. Run this as Administrator on Laptop41:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\apply-chat-fix.ps1                 # report only
+powershell -ExecutionPolicy Bypass -File .\scripts\apply-chat-fix.ps1 -Apply -Restart  # fix it
+```
+
+It makes the same three edits as #17, only inside `chat()`, and refuses if the
+code is not what #17 fixed. It keeps the original in
+`C:\AlphaData\alpha-ops\backups`, and puts it back if the edited file does
+not parse as Python. Run it after a USB promotion too: the backup predates
+the fix.
+
