@@ -137,14 +137,38 @@ function Admin([string]$cmd) {
 }
 
 # ------------------------------------------------------------ layout
-$skip = '\\(node_modules|\.venv|venv|env|site-packages|\.git|__pycache__|dist[^\\]*|BuildArtifacts)\\'
+# Get-ChildItem -Recurse walks into node_modules (tens of thousands of files,
+# each one scanned by Defender) before any filter sees it; on Laptop41 that
+# ran the scheduled pass past its 10-minute limit before it wrote anything.
+# This walker never descends into a skipped folder.
+$skipNames = @('node_modules', '.venv', 'venv', 'env', 'site-packages', '.git', '__pycache__', 'BuildArtifacts', '.next', 'build')
+function Find-Files([string[]]$roots, [string[]]$patterns, [int]$maxDepth) {
+  $out = New-Object System.Collections.ArrayList
+  $stack = New-Object System.Collections.Stack
+  foreach ($r in $roots) { if ($r -and (Test-Path $r -PathType Container)) { $stack.Push(@($r, 0)) } }
+  while ($stack.Count -gt 0) {
+    $item = $stack.Pop(); $dir = $item[0]; $depth = $item[1]
+    foreach ($pat in $patterns) {
+      $found = @(); try { $found = [IO.Directory]::GetFiles($dir, $pat) } catch { }
+      foreach ($f in $found) { [void]$out.Add((Get-Item -LiteralPath $f)) }
+    }
+    if ($depth -ge $maxDepth) { continue }
+    $subs = @()
+    try { $subs = [IO.Directory]::GetDirectories($dir) } catch { }
+    foreach ($d in $subs) {
+      $leaf = [IO.Path]::GetFileName($d)
+      if ($skipNames -contains $leaf -or $leaf -like 'dist*') { continue }
+      $stack.Push(@($d, ($depth + 1)))
+    }
+  }
+  return $out
+}
 function Find-Layout {
   Section "0. Where Alpha lives under $AlphaRoot"
   if (-not (Test-Path $AlphaRoot)) { Problem "$AlphaRoot does not exist"; return }
   Note ('top level: ' + ((Get-ChildItem $AlphaRoot -EA SilentlyContinue | ForEach-Object { $_.Name }) -join ', '))
 
-  $mains = @(Get-ChildItem $AlphaRoot -Recurse -Depth 4 -Filter main.py -File -EA SilentlyContinue |
-             Where-Object { $_.FullName -notmatch $skip } |
+  $mains = @(Find-Files @($AlphaRoot) @('main.py') 4 |
              Where-Object { Select-String -Path $_.FullName -SimpleMatch 'async def chat(request: ChatRequest' -Quiet })
   $be = Owner $BackendPort
   Note "port $BackendPort : $(Describe $be)"
@@ -168,8 +192,7 @@ function Find-Layout {
       Note "            in: $($a.WorkingDirectory)"
     }
   }
-  $fes = @(Get-ChildItem $AlphaRoot -Recurse -Depth 4 -Filter package.json -File -EA SilentlyContinue |
-           Where-Object { $_.FullName -notmatch $skip } |
+  $fes = @(Find-Files @($AlphaRoot) @('package.json') 4 |
            Where-Object { (Get-Content $_.FullName -Raw -EA SilentlyContinue) -match '"vite"' })
   $fo = Owner $FrontendPort
   Note "port $FrontendPort : $(Describe $fo)"
@@ -249,8 +272,8 @@ function Run-Checks {
         # The traceback is in whatever log the backend writes; show the newest
         # ones touched since the first message went out.
         $roots = @($AlphaRoot, (Join-Path $env:ProgramData 'AlphaBoot'), (Join-Path $OpsDir 'logs')) | Where-Object { Test-Path $_ }
-        $logs = @(Get-ChildItem $roots -Recurse -Depth 5 -File -Include *.log, *.txt, *.jsonl -EA SilentlyContinue |
-                  Where-Object { $_.FullName -notmatch $skip -and $_.LastWriteTime -ge $since.AddSeconds(-5) } |
+        $logs = @(Find-Files $roots @('*.log', '*.txt', '*.jsonl') 5 |
+                  Where-Object { $_.LastWriteTime -ge $since.AddSeconds(-5) } |
                   Sort-Object LastWriteTime -Descending | Select-Object -First 2)
         if (-not $logs) { Note 'no log file changed while chat failed: the backend logs to its console only' }
         foreach ($lg in $logs) { Note "--- tail of $($lg.FullName)"; Get-Content $lg.FullName -Tail 40 -EA SilentlyContinue | ForEach-Object { Note "  $_" } }
@@ -301,7 +324,7 @@ function Run-Checks {
     foreach ($port in $listen) {
       $p = Owner $port
       if (-not $p -or $p.Name -notmatch '^(node|python|pythonw)\.exe$') { continue }
-      $b = BundleOf (Body "http://127.0.0.1:$port/")
+      $b = BundleOf ((& curl.exe -s --max-time 3 "http://127.0.0.1:$port/" 2>$null) -join "`n")
       if ($b) { Note ("port {0} serves {1}{2}  ({3})" -f $port, $b, $(if ($b -eq $pubBundle) { '  <- the public build' } else { '' }), (Describe $p)) }
     }
   } elseif ($pubBundle) { OK 'public site serves the same build as this machine' }
@@ -381,6 +404,7 @@ if ($InstallSchedule) {
   exit 0
 }
 
+$script:startedAt = Get-Date
 Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo)"
 Run-Checks
 
@@ -487,6 +511,7 @@ foreach ($st in $standing) {
 }
 
 Section 'SUMMARY'
+Note ("this pass took {0:n0}s" -f ((Get-Date) - $script:startedAt).TotalSeconds)
 if ($problems.Count -eq 0) { OK 'no problems found' }
 foreach ($o in ($open.Values | Sort-Object { -$_.runs })) {
   $flag = if ($o.runs -ge $EscalateAfterRuns) { 'NEEDS A PERSON - ' } else { '' }
@@ -520,7 +545,7 @@ $lastPost = if ($prev -and $prev.lastPost) { [datetime]$prev.lastPost } else { [
 $due = $changed -or (($open.Count -gt 0) -and (($now - $lastPost).TotalMinutes -ge 60))
 $posted = $false
 if ($Watch -and $due) {
-  $co = Get-ChildItem $AlphaRoot -Recurse -Depth 3 -Filter 'alpha_coordination_tunnel.ps1' -File -EA SilentlyContinue | Select-Object -First 1
+  $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
   $head = if ($open.Count -eq 0) { 'Alpha host check: all green.' } else { "Alpha host check: $($open.Count) open problem(s), $($escalate.Count) need a person." }
   $body = @($head)
   foreach ($o in ($open.Values | Sort-Object { -$_.runs } | Select-Object -First 5)) { $body += "- $($o.text) [open $($o.runs) runs]" }
