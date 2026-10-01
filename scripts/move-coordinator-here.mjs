@@ -26,7 +26,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { readFile, writeFile, mkdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, rm } from 'node:fs/promises';
 import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,6 +34,8 @@ import { parseArgs } from 'node:util';
 
 import { fetchJson } from '../src/common/http.js';
 import { promptSecret } from '../src/common/prompt.js';
+import { MIN_PASSWORD_LENGTH } from '../src/host/auth/passwords.js';
+import { lanAddress } from './panel-up.mjs';
 
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -44,6 +46,8 @@ move-coordinator-here — run the coordinator on this machine and point its agen
 
 Options
   --tailnet-ip <ip>   Address the other machines reach. Default: tailscale ip -4
+  --lan-ip <ip>       Address the CrowPanel reaches over WiFi. Default: this
+                      machine's private LAN address, if it has one
   --loopback-only     Bind 127.0.0.1 alone (no other machine can attach)
   --port <n>          Coordinator port. Default 8787
   --email <e>         Admin account to create. Required only when there is no
@@ -61,9 +65,14 @@ const say = (line) => process.stdout.write(`${line}\n`);
 const ok = (text) => say(`  ok  ${text}`);
 const note = (text) => say(`      ${text}`);
 
+// die() throws instead of exiting: process.exit() skips every finally block,
+// and the ones in this file stop the temporary coordinator. Exiting from
+// inside them left it listening, with its bootstrap admin token live, and the
+// next run then reported "a coordinator already answers".
+class MoveError extends Error {}
+
 function die(message) {
-  process.stderr.write(`\nMove failed: ${message}\n`);
-  process.exit(1);
+  throw new MoveError(message);
 }
 
 /**
@@ -176,6 +185,27 @@ function attachOnce(root, timeoutMs = 25_000) {
   });
 }
 
+/**
+ * What data/auth.json holds. A store with no users is what an interrupted
+ * fresh run leaves (the invite is saved before anyone redeems it); keeping it
+ * would write a .env with no bootstrap token for a store nobody can sign in
+ * to, and the coordinator refuses to start that way.
+ */
+async function storeState(storePath) {
+  if (!existsSync(storePath)) return { kind: 'none' };
+  let store;
+  try {
+    store = JSON.parse(await readFile(storePath, 'utf8'));
+  } catch (error) {
+    die(`${storePath} is not readable JSON (${error.message}).\n` +
+      '  The coordinator would refuse it too. Restore it from a backup, or move it\n' +
+      '  aside to start a fresh store.');
+  }
+  const users = Object.keys(store.users ?? {}).length;
+  const keys = Object.keys(store.apiKeys ?? {}).length;
+  return { kind: users ? 'keep' : 'empty', users, keys };
+}
+
 async function main() {
   let flags;
   try {
@@ -183,6 +213,7 @@ async function main() {
       args: process.argv.slice(2),
       options: {
         'tailnet-ip': { type: 'string' },
+        'lan-ip': { type: 'string' },
         'loopback-only': { type: 'boolean' },
         port: { type: 'string' },
         email: { type: 'string' },
@@ -213,8 +244,16 @@ async function main() {
       '  Stop it first (nssm stop alpha-coordinator, or close run-coordinator.cmd) and re-run.');
   }
   const tailnetIp = flags['loopback-only'] ? null : (flags['tailnet-ip'] ?? tailnetAddress());
-  const binds = ['127.0.0.1', ...(tailnetIp ? [tailnetIp] : [])];
+  // The panel is on WiFi, not the tailnet: a coordinator bound to loopback and
+  // 100.x alone is one it can never reach, and panel-up then reports "nothing
+  // answering" at an address the host looks perfectly healthy on.
+  const lanIp = flags['loopback-only'] ? null : (flags['lan-ip'] ?? lanAddress());
+  const binds = [...new Set(['127.0.0.1', ...(tailnetIp ? [tailnetIp] : []), ...(lanIp ? [lanIp] : [])])];
   ok(`will listen on ${binds.map((b) => `${b}:${port}`).join(' and ')}`);
+  if (lanIp && process.platform === 'win32') {
+    note(`the panel reaches ${lanIp}:${port} only once Windows allows it, once:\n` +
+      `    New-NetFirewallRule -DisplayName "alpha-tunnel ${port}" -Direction Inbound -Protocol TCP -LocalPort ${port} -Action Allow -Profile Private`);
+  }
 
   const agentEnv = existsSync(agentEnvPath) ? await readFile(agentEnvPath, 'utf8') : null;
   if (agentEnv === null) {
@@ -233,6 +272,8 @@ async function main() {
     ok(`Alpha working copy at ${alphaRoot}`);
   }
 
+  const state = await storeState(storePath);
+
   // Both lists, file and environment, so moving the list into the file does
   // not quietly drop a handler this machine offers today.
   const extraHandlers = alphaRoot
@@ -240,7 +281,7 @@ async function main() {
     : null;
   const willWrite = {
     ALPHA_HOST_URL: local,
-    ...(existsSync(storePath) ? {} : { ALPHA_AGENT_KEY: '(new)' }),
+    ...(state.kind === 'keep' ? {} : { ALPHA_AGENT_KEY: '(new)' }),
     ...(alphaRoot ? { ALPHA_EXTRA_HANDLERS: extraHandlers, ALPHA_REPO_ROOT: alphaRoot } : {}),
   };
   // A variable set in this machine's environment beats both files, and the
@@ -261,26 +302,35 @@ async function main() {
   // ------------------------------------------------------------- 2. store
   say('\n[2] Accounts store');
   let fresh = null;
-  if (existsSync(storePath)) {
-    let store;
-    try {
-      store = JSON.parse(await readFile(storePath, 'utf8'));
-    } catch (error) {
-      die(`${storePath} is not readable JSON (${error.message}).\n` +
-        '  The coordinator would refuse it too. Restore it from a backup, or move it\n' +
-        '  aside to start a fresh store.');
-    }
-    const users = Object.keys(store.users ?? {}).length;
-    const keys = Object.keys(store.apiKeys ?? {}).length;
-    ok(`keeping ${storePath}: ${users} user(s), ${keys} key(s) — every existing key stays valid`);
+  if (state.kind === 'keep') {
+    ok(`keeping ${storePath}: ${state.users} user(s), ${state.keys} key(s) — every existing key stays valid`);
   } else {
+    if (state.kind === 'empty' && !flags.email) {
+      die(`${storePath} has no users, so nobody can sign in to it - an earlier run stopped before\n` +
+        '  the admin was created. Re-run with --email you@example.com to replace it; the old file\n' +
+        '  is kept beside it, not deleted.');
+    }
     if (!flags.email) {
       die('there is no data/auth.json here, so this is a fresh store and needs an admin.\n' +
         '  Re-run with --email you@example.com. If a copy of the old auth.json survived\n' +
         `  (a USB backup, say), put it at ${storePath} first and every key is kept.`);
     }
-    note('no data/auth.json — creating a fresh store; keys issued by the old coordinator are void');
-    fresh = await createStore(root, port, flags.email, agentEnv);
+    // Asked before anything is created, so a password the store would refuse
+    // ends the run with nothing written.
+    const password = await promptSecret(`  Choose a password for ${flags.email} (min ${MIN_PASSWORD_LENGTH} chars): `);
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      die(`the password must be at least ${MIN_PASSWORD_LENGTH} characters. Nothing was written.`);
+    }
+    if (process.stdin.isTTY && password !== (await promptSecret('  Confirm password: '))) {
+      die('passwords did not match. Nothing was written.');
+    }
+    if (state.kind === 'empty') {
+      const aside = `${storePath}.no-users-${new Date().toISOString().replace(/[:.]/g, '-')}`;
+      await rename(storePath, aside);
+      note(`${storePath} had no users (left by an earlier run that stopped) - moved to ${aside}`);
+    }
+    note('no usable data/auth.json — creating a fresh store; keys issued by the old coordinator are void');
+    fresh = await createStore(root, port, flags.email, password, agentEnv);
     ok(`admin ${flags.email} created, and a key for this machine's agent`);
     // Printed here, not at the end: a later step can still fail, and a key
     // shown only on success was lost with the first run that did not reach it.
@@ -348,28 +398,26 @@ then restart its agent.${fresh ? ' Their old keys are void: give each one a new 
 }
 
 /** A fresh store: one admin and one agent key, via the coordinator's own API. */
-async function createStore(root, port, email, agentEnv) {
+async function createStore(root, port, email, password, agentEnv) {
   await mkdir(join(root, 'data'), { recursive: true });
   const bootstrapToken = randomBytes(32).toString('base64url');
   const url = `http://127.0.0.1:${port}`;
   // Loopback only and never written to disk: the window where a bootstrap
   // token is live should be this process, not a file someone forgets.
+  const storePath = join(root, 'data', 'auth.json');
   const coordinator = start(root, 'src/host/index.js', {
     ALPHA_HOST_PORT: String(port),
     ALPHA_HOST_BIND: '127.0.0.1',
     ALPHA_BOOTSTRAP_TOKEN: bootstrapToken,
-    ALPHA_AUTH_STORE: join(root, 'data', 'auth.json'),
+    ALPHA_AUTH_STORE: storePath,
   });
+  let made = false;
   try {
     if (!(await waitHealthy(url, coordinator))) die(`the coordinator did not start.\n${coordinator.log}`);
     const api = (path, options = {}) =>
       fetchJson(`${url}${path}`, { timeoutMs: 20_000, ...options }).then((r) => r.body);
 
     const invite = await api('/invites', { method: 'POST', token: bootstrapToken, body: { email, scopes: 'admin' } });
-    const password = await promptSecret(`  Choose a password for ${email} (min 12 chars): `);
-    if (process.stdin.isTTY && password !== (await promptSecret('  Confirm password: '))) {
-      die('passwords did not match');
-    }
     const redeemed = await api('/invites/redeem', { method: 'POST', body: { token: invite.token, password } });
     const name = readEnvKey(agentEnv, 'ALPHA_AGENT_NAME') || hostname();
     const issued = await api('/keys', {
@@ -377,14 +425,27 @@ async function createStore(root, port, email, agentEnv) {
       token: redeemed.token,
       body: { userId: redeemed.user.id, name: `${name}-agent`, scopes: 'agent' },
     });
+    made = true;
     return { adminKey: redeemed.token, agentKey: issued.token, userId: redeemed.user.id };
   } catch (error) {
+    if (error instanceof MoveError) throw error;
     die(`creating the store failed: ${error.message}\n${coordinator.log}`);
   } finally {
     await stop(coordinator);
+    // The store did not exist before this function, so a failure removes
+    // what it wrote: the invite is saved before the admin exists, and a store
+    // with no users is one the next run could not start.
+    if (!made) {
+      await rm(storePath, { force: true });
+      await rm(`${storePath}.tmp`, { force: true });
+    }
   }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch((error) => die(error.stack ?? error.message));
+  main().catch((error) => {
+    process.stderr.write(`\nMove failed: ${error instanceof MoveError ? error.message : (error.stack ?? error.message)}\n`);
+    // Every finally block has run by now, so nothing this run started is left.
+    process.exit(1);
+  });
 }
