@@ -285,3 +285,26 @@ test('a second pass while one runs is skipped, not doubled', async (t) => {
   });
   assert.match(out.skipped, /lock/);
 });
+
+test('a control URL that is down does not make a healthy Alpha failing', async (t) => {
+  const dir = tempDir(t);
+  const backend = await serve(t, (req, res) => res.writeHead(200).end('{"status":"ok"}'));
+  const frontend = await serve(t, (req, res) => res.writeHead(200).end('<div id="root"></div>'));
+  const edge = await serve(t, (req, res) => res.writeHead(200).end('<div id="root"></div>'));
+  const control = await serve(t, (req, res) => res.writeHead(503).end('down'));
+  const cfg = {
+    stateDir: join(dir, 'state'),
+    logFile: join(dir, 'state', 'selfheal.jsonl'),
+    backend: { url: `${backend}/health`, task: 'Alpha Backend' },
+    frontend: { url: `${frontend}/` },
+    public: { url: `${edge}/`, controlUrl: `${control}/` },
+  };
+  const calls = [];
+  const executor = { restart: async (c) => (calls.push(c), { code: 0, stdout: '', stderr: '' }) };
+  for (const now of [0, 2 * MIN, 4 * MIN]) {
+    const out = await runPass({ config: cfg, executor, now });
+    assert.equal(out.record.probes.control.ok, false, 'the control probe still runs');
+    assert.equal(out.exitCode, 0);
+  }
+  assert.deepEqual(calls, []);
+});
