@@ -469,7 +469,7 @@ $escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
 # climbs. What is left of the nine is standing hardening, dropped once done.
 $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
-  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
+  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
   @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
@@ -485,7 +485,7 @@ $rules = @(
 $standing = @(
   @{ done = { Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
-  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
+  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel; PR #46 is merged), then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
   @{ done = { Test-Path (Join-Path $OpsDir 'backups') };                               r = 'Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.' },
   @{ done = { $false };                                                                r = 'Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.' },
@@ -562,7 +562,31 @@ if ($Watch -and $due) {
   } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot - not posted" -ForegroundColor Yellow }
 }
 
-$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); open = $open }
+# ------------------------------------------------------------ relay the cloud
+# The other direction. A scheduled cloud Claude session cannot reach the
+# tailnet, so it writes its report to the status/cloud branch every 30
+# minutes; this passes each new one to Alpha's coordination tunnel, where
+# Alpha and Codex read. Posted once per report: the commit id is remembered.
+$cloudSeen = if ($prev -and $prev.cloudSeen) { [string]$prev.cloudSeen } else { $null }
+if ($Watch) {
+  git -C $repo fetch -q origin status/cloud 2>&1 | Plain | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    $cloudHead = (git -C $repo rev-parse FETCH_HEAD 2>$null | Out-String).Trim()
+    if ($cloudHead -and $cloudHead -ne $cloudSeen) {
+      $cloudMsg = (git -C $repo show 'FETCH_HEAD:reports/cloud.md' 2>$null | Out-String).Trim()
+      $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+      if ($cloudMsg -and $co) {
+        $cloudMsg = Redact $cloudMsg
+        if ($cloudMsg.Length -gt 3900) { $cloudMsg = $cloudMsg.Substring(0, 3900) }
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'claude-cloud' -Message $cloudMsg 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $cloudSeen = $cloudHead; Write-Host 'relayed the cloud report to Alpha' }
+        else { Write-Host 'could not relay the cloud report to Alpha; will retry next run' -ForegroundColor Yellow }
+      }
+    }
+  }
+}
+
+$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; open = $open }
 $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 
 # ------------------------------------------------------------ push
