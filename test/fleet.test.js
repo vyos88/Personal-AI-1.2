@@ -26,6 +26,13 @@ import {
 } from '../src/common/protocol.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 const gb = (n) => n * 1024 ** 3;
 const RAM = { totalBytes: gb(16), freeBytes: gb(9), offerableBytes: gb(8) };
 
@@ -330,6 +337,7 @@ test('a second agent process on one machine makes the first stand down', async (
   // from one checkout do. Passed explicitly so the pair can share a machine
   // here without sharing this test runner's own identity.
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -370,6 +378,7 @@ test('a superseded agent hears it from its heartbeat too, and still stands down'
   t.after(() => host.close());
 
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -404,6 +413,7 @@ test('a machine that comes back after a crash keeps lending, without a ghost', a
   t.after(() => host.close());
 
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'jacks-laptop',

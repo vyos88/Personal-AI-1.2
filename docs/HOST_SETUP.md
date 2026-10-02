@@ -18,6 +18,9 @@ The coordination script lives in the Alpha working copy, so **the agent must run
 on the Alpha machine**. The coordinator can live anywhere both sides can reach.
 Start with both on the Alpha host — it is the fewest moving parts, and you can
 move the coordinator later without touching the agent.
+`docs/COORDINATOR_MIGRATION.md` is that move, done deliberately: retiring the
+coordinator here and standing it up on another machine without voiding the
+fleet's keys.
 
 ```
         ALPHA HOST (Windows, DESKTOP-41HPLCN)
@@ -574,6 +577,40 @@ Two things to protect:
   because silently starting empty would un-revoke every revoked credential.
 - **`ALPHA_AGENT_KEY`**, wherever it lives — `.env.agent` or the service
   configuration. Anyone who can read it can attach an agent.
+
+### Alpha's own frontend, and alpha-ai.uk
+
+The tunnel's services above are not Alpha. Alpha's production frontend
+(`vite preview` on `127.0.0.1:4173`, behind cloudflared for `alpha-ai.uk`) is
+started by a scheduled task named `Alpha`, and a task can say **Running** while
+nothing listens: an interactive-only logon stops it at logout, the laptop
+battery conditions stop it off mains, the 72-hour default time limit kills it,
+and a `cmd start` or `npm` wrapper leaves the task's state describing the
+wrapper rather than the server. Cloudflare then answers 502.
+
+```powershell
+# Report only: the task's exact program, arguments, directory, what it
+# spawned, its logs, the listeners, cloudflared's ingress, memory pressure,
+# and a local + public check. Changes nothing.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1
+
+# Elevated: back the task up, re-register it to run at boot whether or not
+# anyone is logged on (S4U, no stored password), on battery, no time limit.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Repair
+
+# Put the original task back exactly.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Rollback C:\AlphaData\Backups\task-Alpha-<stamp>.xml
+```
+
+On a host set up by `repair-alpha-host.ps1` (see `MASTER_HOST_REPAIR.md`),
+that script and its self-heal own the `Alpha` task, and `-Repair` here refuses
+to run. Use the report only.
+
+After `-Repair`, the task runs `C:\AlphaData\ops\alpha-frontend-run.ps1`, which runs node
+against `vite.js` directly and restarts it with backoff; its output is in
+`C:\AlphaData\logs\frontend*.log`. It never edits cloudflared, DNS, WAF or
+Access. If the public site still 502s with 4173 answering locally, the report's
+cloudflared section names the ingress port the tunnel is actually using.
 
 ## The verified contract
 

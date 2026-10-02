@@ -13,6 +13,13 @@ import { hashPassword, verifyPassword } from '../src/host/auth/passwords.js';
 import { generateToken, parseToken, secretMatches } from '../src/host/auth/tokens.js';
 import { fetchJson, HttpError } from '../src/common/http.js';
 
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
+
 const BOOTSTRAP = 'bootstrap-token-long-enough-for-tests';
 const PASSWORD = 'a-perfectly-fine-password';
 
@@ -468,6 +475,71 @@ test('changing a password requires the current one', async (t) => {
   );
 });
 
+test('an admin can reset a user\'s password without knowing the old one', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user } = await inviteAndRedeem(host.url, { email: 'locked-out@example.com', scopes: 'operator' });
+  const { body: session } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'locked-out@example.com', password: PASSWORD },
+  });
+
+  const { body: result } = await call(host.url, `/users/${user.id}/password/reset`, {
+    method: 'POST',
+    token: BOOTSTRAP,
+  });
+  assert.equal(typeof result.temporaryPassword, 'string');
+  assert.ok(result.temporaryPassword.length >= 12);
+
+  // The old password is dead...
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'locked-out@example.com', password: PASSWORD },
+    }),
+    rejectsWith(401),
+  );
+  // ...the pre-reset session is dead too...
+  await assert.rejects(() => call(host.url, '/me', { token: session.token }), rejectsWith(401));
+  // ...and the generated one works.
+  const { body: newSession } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'locked-out@example.com', password: result.temporaryPassword },
+  });
+  assert.equal(newSession.user.email, 'locked-out@example.com');
+});
+
+test('resetting a password with a caller-supplied value does not echo it back', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user } = await inviteAndRedeem(host.url, { email: 'chosen-reset@example.com', scopes: 'operator' });
+  const { body: result } = await call(host.url, `/users/${user.id}/password/reset`, {
+    method: 'POST',
+    token: BOOTSTRAP,
+    body: { newPassword: 'a-caller-chosen-password' },
+  });
+  assert.equal(result.temporaryPassword, undefined);
+
+  const { body: session } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'chosen-reset@example.com', password: 'a-caller-chosen-password' },
+  });
+  assert.equal(session.user.email, 'chosen-reset@example.com');
+});
+
+test('resetting a password requires the users:write scope', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user, key } = await inviteAndRedeem(host.url, { email: 'no-reset-rights@example.com', scopes: 'operator' });
+  await assert.rejects(
+    () => call(host.url, `/users/${user.id}/password/reset`, { method: 'POST', token: key }),
+    rejectsWith(403),
+  );
+});
+
 // ------------------------------------------------------------- agent plane
 
 test('an agent authenticates with a scoped key and runs work', async (t) => {
@@ -484,6 +556,7 @@ test('an agent authenticates with a scoped key and runs work', async (t) => {
   });
 
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: agentKey.token,
     name: 'scoped-laptop',

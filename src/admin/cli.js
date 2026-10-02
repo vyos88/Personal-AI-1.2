@@ -1,23 +1,34 @@
+import { readFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
 import { fetchJson, HttpError } from '../common/http.js';
 import { loadEnv } from '../common/env.js';
 import { promptSecret } from '../common/prompt.js';
 import { ALPHA_VERSION } from '../common/version.js';
+import { clearSession, loadSession, saveSession } from './session.js';
 
 loadEnv();
 
 const HOST = (process.env.ALPHA_HOST_URL ?? 'http://127.0.0.1:8787').replace(/\/+$/, '');
-const TOKEN =
+// Long enough for a real Codex call, and inside validateTaskInput's hour ceiling.
+const CODEX_LEASE_MS = 600_000;
+const ENV_TOKEN =
   process.env.ALPHA_ADMIN_TOKEN ??
   process.env.ALPHA_BOOTSTRAP_TOKEN ??
   process.env.ALPHA_TUNNEL_TOKEN;
+// A variable always wins; otherwise the session `login` saved for this host.
+// Read per call rather than once, so `login` and `logout` take effect for the
+// rest of the same process (doctor runs several requests).
+const currentToken = () => ENV_TOKEN ?? loadSession(HOST)?.token;
+const tokenIsSaved = () => !ENV_TOKEN && Boolean(loadSession(HOST));
+const MUSIC_BRIDGE_URL = (process.env.ALPHA_MUSIC_BRIDGE_URL ?? 'http://127.0.0.1:8790').replace(/\/+$/, '');
 
 const USAGE = `
 alpha-admin — manage users, invites and keys on the Alpha host
 
   Host:  ALPHA_HOST_URL      (default http://127.0.0.1:8787)
-  Auth:  ALPHA_ADMIN_TOKEN   (or ALPHA_BOOTSTRAP_TOKEN on a fresh install)
+  Auth:  \`login\` once (the session is saved for this user until it expires),
+         or ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install)
 
 Invites
   invite --email <e> --scopes <s> [--expires-days <n>]   Create an invite
@@ -30,6 +41,8 @@ Users
   disable-user <userId>                                  Revoke all access at once
   enable-user <userId>                                   Restore access
   set-scopes <userId> --scopes <s>                       Replace a user's scopes
+  reset-password <userId> [--new-password <p>]           Recover an account with no working password;
+                                                         prints a one-time temporary password if you don't supply one
 
 Keys
   issue-key --user <userId> [--scopes <s>] [--name <n>] [--expires-days <n>]
@@ -43,6 +56,9 @@ Tasks
                                                          (the NAME from \`agents\`), e.g. renders on the host
   coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
                                                          Drive the coordination tunnel
+  codex --prompt <text> | --prompt-file <f> [--agent <n>] [--no-wait]
+                                                         Ask Codex on that machine and read its answer
+                                                         (leases and waits 10 minutes; needs codex.exec there)
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
   agents                                                 List attached agents, their free RAM, CPU load and version
@@ -55,8 +71,14 @@ Borrowed memory
   mem --action keys [--prefix <p>]
   mem --action clear
 
+Health
+  doctor [--agent <n>]                                   One pass over everything: coordinator, sign-in,
+                                                         agents, who offers Codex and music, the music
+                                                         bridge; --agent also asks Codex there to reply
+
 Session
-  login --email <e>                                      Prompts for password
+  login --email <e>                                      Prompts for password; saves the session for this user
+  logout                                                 Ends the saved session on the host and forgets it
   whoami                                                 Show the current principal
   scopes                                                 List scopes and presets
   version                                                Compare this checkout's version with the host's
@@ -71,18 +93,25 @@ function fail(message, { usage = false } = {}) {
 }
 
 async function api(path, { method = 'GET', body, anonymous = false } = {}) {
-  if (!anonymous && !TOKEN) {
-    fail('No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).');
+  const token = anonymous ? undefined : currentToken();
+  if (!anonymous && !token) {
+    fail(
+      'Not signed in. Run `node src/admin/run.js login --email <your email>` once ' +
+        '(or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).',
+    );
   }
   try {
     const { body: result } = await fetchJson(`${HOST}${path}`, {
       method,
       body,
-      token: anonymous ? undefined : TOKEN,
+      token,
       timeoutMs: 20_000,
     });
     return result;
   } catch (error) {
+    if (error instanceof HttpError && error.status === 401 && !anonymous && tokenIsSaved()) {
+      fail('Your saved sign-in is no longer accepted (expired or ended). Run `login` again.');
+    }
     if (error instanceof HttpError) {
       const detail = error.body?.message ?? error.body?.error ?? '';
       fail(`${method} ${path} failed: HTTP ${error.status}${detail ? ` — ${detail}` : ''}`);
@@ -117,6 +146,13 @@ function reportTask(task, flags) {
   const result = task.result;
   if (result && typeof result === 'object' && 'exitCode' in result) {
     process.stdout.write(`  exit code: ${result.exitCode}\n`);
+    // codex.exec reports its answer as `output`, not `stdout`; without this the
+    // command printed an exit code and never the answer it was run for.
+    if (typeof result.output === 'string' && result.output.trim()) {
+      process.stdout.write(
+        `\n  --- answer${result.truncated ? ' (tail; truncated)' : ''} ---\n${indent(result.output)}\n`,
+      );
+    }
     if (result.stdout?.trim()) {
       process.stdout.write(`\n  --- stdout ---\n${indent(result.stdout)}\n`);
     }
@@ -177,6 +213,8 @@ const OPTIONS = {
   'expires-days': { type: 'string' },
   type: { type: 'string' },
   payload: { type: 'string' },
+  prompt: { type: 'string' },
+  'prompt-file': { type: 'string' },
   action: { type: 'string' },
   actor: { type: 'string' },
   message: { type: 'string' },
@@ -188,6 +226,7 @@ const OPTIONS = {
   value: { type: 'string' },
   prefix: { type: 'string' },
   'ttl-ms': { type: 'string' },
+  'new-password': { type: 'string' },
   'no-wait': { type: 'boolean' },
   timeout: { type: 'string' },
   json: { type: 'boolean' },
@@ -303,6 +342,7 @@ export async function main(argv = process.argv.slice(2)) {
 
     case 'task':
     case 'coord':
+    case 'codex':
     case 'mem': {
       let type;
       let payload;
@@ -337,6 +377,27 @@ export async function main(argv = process.argv.slice(2)) {
           payload.paths = flags.paths.split(',').map((entry) => entry.trim()).filter(Boolean);
         }
         if (!payload.actor) fail('coord requires --actor (or set ALPHA_COORDINATION_ACTOR)');
+      } else if (command === 'codex') {
+        // The other coding agent, asked a question. `--prompt-file` is not a
+        // convenience: these prompts are messages between agents, they run to
+        // paragraphs, and a shell that ate a backtick or a newline would change
+        // what was asked without saying so.
+        if (flags.prompt && flags['prompt-file']) {
+          fail('codex takes --prompt or --prompt-file, not both');
+        }
+        let prompt = flags.prompt;
+        if (flags['prompt-file']) {
+          try {
+            prompt = readFileSync(flags['prompt-file'], 'utf8');
+          } catch (error) {
+            fail(`could not read --prompt-file: ${error.message}`);
+          }
+        }
+        if (!prompt || prompt.trim() === '') {
+          fail('codex requires --prompt <text> or --prompt-file <path>');
+        }
+        type = flags.type ?? 'codex.exec';
+        payload = { prompt };
       } else {
         if (!flags.type) fail('task requires --type');
         type = flags.type;
@@ -349,6 +410,11 @@ export async function main(argv = process.argv.slice(2)) {
 
       const body = { type, payload };
       if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
+      // Codex thinks for minutes, and DEFAULT_LEASE_MS is 60s: left alone, the
+      // host reclaims the task mid-answer and requeues it forever. Same footgun
+      // `alpha.render` documents, so this command does not leave it to be
+      // remembered. `--lease-ms` above still wins.
+      else if (command === 'codex') body.leaseMs = CODEX_LEASE_MS;
       if (flags['min-memory-mb']) body.minMemoryMB = Number.parseInt(flags['min-memory-mb'], 10);
       // The machine this has to run on, by name. For work that is only real on
       // one box — a render needs the GPU and the generator beside it, wherever
@@ -386,7 +452,10 @@ export async function main(argv = process.argv.slice(2)) {
         return;
       }
 
-      const timeoutMs = Number.parseInt(flags.timeout ?? '60', 10) * 1_000;
+      // A codex task is leased for ten minutes because answers take minutes;
+      // waiting only the default 60s gave up on calls that were running fine.
+      const defaultWaitS = command === 'codex' ? String(body.leaseMs / 1_000) : '60';
+      const timeoutMs = Number.parseInt(flags.timeout ?? defaultWaitS, 10) * 1_000;
       reportTask(await awaitTask(queued.id, timeoutMs), flags);
       return;
     }
@@ -563,6 +632,23 @@ export async function main(argv = process.argv.slice(2)) {
       return;
     }
 
+    case 'reset-password': {
+      if (!positionals[1]) fail('reset-password requires a user id');
+      const result = await api(`/users/${positionals[1]}/password/reset`, {
+        method: 'POST',
+        body: flags['new-password'] ? { newPassword: flags['new-password'] } : {},
+      });
+      if (flags.json) return emit('', result);
+      process.stdout.write(`Password reset for ${result.user.email}. Every existing session was ended.\n`);
+      if (result.temporaryPassword) {
+        process.stdout.write(
+          `\nTemporary password (shown once, cannot be retrieved again):\n\n  ${result.temporaryPassword}\n\n` +
+            `Have them log in with it and set their own.\n`,
+        );
+      }
+      return;
+    }
+
     case 'issue-key': {
       if (!flags.user) fail('issue-key requires --user <userId>');
       const result = await api('/keys', {
@@ -614,13 +700,63 @@ export async function main(argv = process.argv.slice(2)) {
         anonymous: true,
         body: { email: flags.email, password },
       });
+      const saved = saveSession({
+        host: HOST,
+        token: result.token,
+        email: result.user.email,
+        expiresAt: result.expiresAt,
+      });
       if (flags.json) return emit('', result);
+      // The token is not printed: it is saved, and every later command uses it.
+      // Printing it is how it ends up pasted somewhere it should not be.
       process.stdout.write(
         `Signed in as ${result.user.email}\n` +
           `  scopes:  ${result.user.scopes.join(', ')}\n` +
-          `  expires: ${when(result.expiresAt)}\n\n` +
-          `Session token:\n\n  ${result.token}\n`,
+          `  expires: ${when(result.expiresAt)}\n` +
+          `  saved:   ${saved} (later commands use it; \`logout\` ends it)\n`,
       );
+      if (ENV_TOKEN) {
+        process.stderr.write(
+          'note: ALPHA_ADMIN_TOKEN (or another token variable) is set in this shell and wins over ' +
+            'the saved session.\n',
+        );
+      }
+      return;
+    }
+
+    case 'logout': {
+      const saved = loadSession(HOST);
+      if (!saved) {
+        clearSession();
+        emit(`Not signed in to ${HOST}; nothing to end.`, { ended: false });
+        return;
+      }
+      // Revoke on the host first: deleting only the file would leave a live
+      // credential behind wherever else it was copied.
+      const id = /^alpha_[a-z]+_([0-9a-f]+)\./.exec(saved.token)?.[1];
+      let ended = false;
+      if (id) {
+        try {
+          await fetchJson(`${HOST}/keys/${id}`, { method: 'DELETE', token: saved.token, timeoutMs: 20_000 });
+          ended = true;
+        } catch (error) {
+          // Already expired or revoked: the host refuses it, which is the goal.
+          if (error instanceof HttpError && error.status === 401) ended = true;
+          else process.stderr.write(`warning: could not end the session on the host: ${error.message}\n`);
+        }
+      }
+      clearSession();
+      emit(
+        ended
+          ? `Signed out of ${HOST}; the session is ended on the host.`
+          : `Forgot the saved session, but the host could not be told; it expires ${when(saved.expiresAt)}.`,
+        { ended },
+      );
+      return;
+    }
+
+    case 'doctor': {
+      process.exitCode = await doctor(flags);
       return;
     }
 
@@ -646,4 +782,200 @@ export async function main(argv = process.argv.slice(2)) {
     default:
       fail(`unknown command: ${command}`, { usage: true });
   }
+}
+
+/**
+ * One pass over everything an operator otherwise checks by hand, in the order
+ * that each step depends on the last: is the coordinator up, does it accept
+ * this sign-in, who is attached, does anyone offer Codex and music, is the
+ * music bridge on this machine answering — and, with --agent, does Codex on
+ * that machine actually reply. It never stops at the first problem: a morning
+ * check is only useful if it lists everything that is wrong at once.
+ *
+ * Returns the exit code: 0 when nothing needed a person, 1 otherwise.
+ */
+async function doctor(flags) {
+  const lines = [];
+  let problems = 0;
+  const ok = (text) => lines.push(`  ok    ${text}`);
+  const bad = (text, fix) => {
+    problems += 1;
+    lines.push(`  FIX   ${text}`);
+    if (fix) lines.push(`        -> ${fix}`);
+  };
+  const info = (text) => lines.push(`        ${text}`);
+  const flush = () => {
+    const out = lines.splice(0);
+    if (!flags.json && out.length) process.stdout.write(out.join('\n') + '\n');
+  };
+  const report = { host: HOST, checks: [] };
+  const get = async (path) => {
+    const token = currentToken();
+    try {
+      return { body: (await fetchJson(`${HOST}${path}`, { token, timeoutMs: 15_000 })).body };
+    } catch (error) {
+      return { error };
+    }
+  };
+
+  if (!flags.json) process.stdout.write(`Alpha tunnel doctor — ${HOST}\n`);
+
+  // 1. The coordinator. /healthz needs no credential, so this answers even
+  // when nothing else will.
+  const health = await fetchJson(`${HOST}/healthz`, { timeoutMs: 10_000 }).then(
+    (r) => r.body,
+    (error) => ({ error }),
+  );
+  if (health?.error) {
+    bad(
+      `coordinator not answering (${health.error.message})`,
+      'start it: node src/host/index.js — or check ALPHA_HOST_URL points at it',
+    );
+    report.checks.push({ check: 'coordinator', ok: false });
+    flush();
+    if (flags.json) process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    return 1;
+  }
+  ok(`coordinator up, version ${health.version ?? 'unknown'}${health.version && health.version !== ALPHA_VERSION ? ` (this checkout: ${ALPHA_VERSION})` : ''}`);
+  report.checks.push({ check: 'coordinator', ok: true, version: health.version ?? null });
+
+  // 2. The sign-in.
+  if (!currentToken()) {
+    bad('not signed in', 'node src/admin/run.js login --email <your email>');
+    report.checks.push({ check: 'signin', ok: false });
+    flush();
+    if (flags.json) process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    return 1;
+  }
+  const me = await get('/me');
+  if (me.error) {
+    const expired = me.error instanceof HttpError && me.error.status === 401;
+    bad(
+      expired ? 'sign-in refused (expired or ended)' : `could not check sign-in (${me.error.message})`,
+      expired ? 'node src/admin/run.js login --email <your email>' : undefined,
+    );
+    report.checks.push({ check: 'signin', ok: false });
+    flush();
+    if (flags.json) process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    return 1;
+  }
+  ok(`signed in as ${me.body.label} (${me.body.scopes.join(', ')})${ENV_TOKEN ? '' : ', saved session'}`);
+  report.checks.push({ check: 'signin', ok: true, label: me.body.label });
+
+  // 3. Who is attached.
+  const listed = await get('/agents');
+  const agents = listed.body?.agents ?? [];
+  if (listed.error) {
+    bad(`could not list agents (${listed.error.message})`, 'this sign-in needs the agents:read scope');
+  } else if (agents.length === 0) {
+    bad('no agents attached', 'start one on each laptop: node scripts/keep-agent.mjs');
+  } else {
+    ok(`${agents.length} agent${agents.length === 1 ? '' : 's'} attached`);
+    for (const a of agents) {
+      const drift = a.version && listed.body.hostVersion && a.version !== listed.body.hostVersion;
+      info(`${a.name}  ${a.capabilities.join(', ') || '(no capabilities)'}${drift ? `  [version ${a.version}, host ${listed.body.hostVersion}: git pull there]` : ''}`);
+    }
+  }
+  report.checks.push({ check: 'agents', ok: agents.length > 0, agents: agents.map((a) => ({ name: a.name, capabilities: a.capabilities })) });
+
+  // 4. Coverage for the two things people ask for by name.
+  const offering = (type) => agents.filter((a) => a.capabilities.includes(type)).map((a) => a.name);
+  for (const [type, fix] of [
+    ['codex.exec', 'on the Codex laptop: add codex-exec to ALPHA_EXTRA_HANDLERS in .env.agent and restart its agent; its log says why if it declines (docs/CODEX_BRIDGE.md)'],
+    ['alpha.music', 'on the music machine: add alpha-music,alpha-music-audio to ALPHA_EXTRA_HANDLERS in .env.agent and restart its agent (docs/HANDOFF_LAPTOP41_2026-09-30.md §3)'],
+  ]) {
+    const names = offering(type);
+    if (names.length) ok(`${type} offered by ${names.join(', ')}`);
+    else bad(`nobody offers ${type}`, fix);
+    report.checks.push({ check: type, ok: names.length > 0, agents: names });
+  }
+
+  // 5. The music bridge, which runs beside the coordinator and is reached by
+  // Alpha's Music Creator. Its health route needs no credential.
+  const bridge = await fetchJson(`${MUSIC_BRIDGE_URL}/music/healthz`, { timeoutMs: 5_000 }).then(
+    () => true,
+    () => false,
+  );
+  if (bridge) ok(`music bridge answering at ${MUSIC_BRIDGE_URL}`);
+  else bad(`music bridge not answering at ${MUSIC_BRIDGE_URL}`, 'node scripts/music-bridge.mjs (needs ALPHA_MUSIC_BRIDGE_TOKEN in .env)');
+  report.checks.push({ check: 'music-bridge', ok: bridge, url: MUSIC_BRIDGE_URL });
+
+  // 6. Optionally, a real round trip to Codex on a named machine.
+  if (flags.agent) {
+    const target = agents.find((a) => a.name === flags.agent);
+    if (!target) {
+      bad(`no agent called "${flags.agent}" is attached`, `names in use: ${agents.map((a) => a.name).join(', ') || 'none'}`);
+      report.checks.push({ check: 'codex-ping', ok: false });
+    } else if (!target.capabilities.includes('codex.exec')) {
+      bad(`"${flags.agent}" is attached but does not offer codex.exec`, 'see the codex.exec line above');
+      report.checks.push({ check: 'codex-ping', ok: false });
+    } else {
+      flush();
+      if (!flags.json) process.stdout.write(`  ...   asking Codex on ${flags.agent} to reply (up to ${CODEX_LEASE_MS / 60_000} min)\n`);
+      const answer = await pingCodex(flags.agent);
+      if (answer.ok) ok(`Codex on ${flags.agent} answered in ${Math.round(answer.ms / 1000)}s: ${answer.text}`);
+      else bad(`Codex on ${flags.agent}: ${answer.text}`, answer.fix);
+      report.checks.push({ check: 'codex-ping', ok: answer.ok, detail: answer.text });
+    }
+  }
+
+  lines.push('', problems ? `${problems} thing${problems === 1 ? '' : 's'} to fix.` : 'All good.');
+  flush();
+  report.problems = problems;
+  if (flags.json) process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+  return problems ? 1 : 0;
+}
+
+/** Queues a one-word Codex prompt on `agentName` and waits for the answer. */
+async function pingCodex(agentName) {
+  const started = Date.now();
+  let task;
+  try {
+    ({ body: task } = await fetchJson(`${HOST}/tasks`, {
+      method: 'POST',
+      token: currentToken(),
+      timeoutMs: 20_000,
+      body: {
+        type: 'codex.exec',
+        payload: { prompt: 'Reply with the single word: bridged' },
+        leaseMs: CODEX_LEASE_MS,
+        targetAgent: agentName,
+      },
+    }));
+  } catch (error) {
+    return { ok: false, text: `could not queue the task (${error.message})` };
+  }
+  const deadline = started + CODEX_LEASE_MS + 30_000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    let current;
+    try {
+      ({ body: current } = await fetchJson(`${HOST}/tasks/${task.id}`, { token: currentToken(), timeoutMs: 15_000 }));
+    } catch {
+      continue;
+    }
+    if (current.status === 'succeeded') {
+      const text = String(current.result?.output ?? '').trim().split('\n').pop()?.slice(0, 120) || '(empty)';
+      return { ok: true, ms: Date.now() - started, text };
+    }
+    if (current.status === 'failed') {
+      const code = current.error?.code;
+      const fixes = {
+        timeout: `on ${agentName}: git pull and restart its agent (an older handler left Codex waiting on stdin), or raise ALPHA_CODEX_TIMEOUT_MS`,
+        codex_failed: `on ${agentName}: run \`codex exec --sandbox read-only -- "say hello"\` by hand; usually Codex is signed out or rate limited`,
+        not_configured: `on ${agentName}: Codex CLI not found; set ALPHA_CODEX to its full path`,
+        codex_silent: `on ${agentName}: Codex exited without answering; run it by hand to see why`,
+      };
+      return {
+        ok: false,
+        text: `${code ?? 'failed'}: ${String(current.error?.message ?? '').slice(0, 300)}`,
+        fix: fixes[code],
+      };
+    }
+  }
+  return {
+    ok: false,
+    text: `no answer within ${Math.round(CODEX_LEASE_MS / 60_000)} min (task ${task.id} left queued)`,
+    fix: `node src/admin/run.js tasks — then check ${agentName}'s agent log`,
+  };
 }

@@ -1,0 +1,8 @@
+# Only for the machine that runs alpha.music (scripts/generate_music.py).
+# The tunnel itself has no dependencies; nothing here is needed to run it.
+#
+# For a CUDA GPU, install torch from https://pytorch.org first so pip picks the
+# CUDA build, then this file.
+torch>=2.1
+transformers>=4.31
+numpy
