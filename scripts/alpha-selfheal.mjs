@@ -593,7 +593,10 @@ export async function runPass({ config, probe = probeAll, executor, post, now = 
 
     const needsPerson = events.some((e) => e.kind === 'budget-exhausted' || e.kind === 'needs-person') ||
       COMPONENTS.some((c) => next.components[c].flagged === 'budget-exhausted');
-    const failing = Object.values(probes).some((p) => !p.skipped && !p.ok);
+    // The control URL only tells "the host is down" from "this machine is off
+    // the network" (the connector gate above); it is not part of Alpha, so its
+    // being down does not make Alpha failing.
+    const failing = COMPONENTS.some((c) => probes[c] && !probes[c].skipped && !probes[c].ok);
     return { record, state: next, exitCode: needsPerson ? 2 : failing ? 1 : 0, posted };
   } finally {
     release();
