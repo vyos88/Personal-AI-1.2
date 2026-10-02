@@ -405,7 +405,10 @@ if ($InstallSchedule) {
 }
 
 $script:startedAt = Get-Date
-Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo)"
+# Which doctor wrote this report: a schedule left on an old checkout reports
+# yesterday's advice, and nothing else in the report would say so.
+$doctorRev = (git -C $repo log -1 --format='%h %cs' 2>$null | Plain | Out-String).Trim()
+Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo @ $doctorRev)"
 Run-Checks
 
 if ($Fix) {
@@ -469,7 +472,7 @@ $escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
 # climbs. What is left of the nine is standing hardening, dropped once done.
 $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
-  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
+  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 -AlphaRoot <the copy that is running> as Administrator (-ReportOnly first): boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
   @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
@@ -485,7 +488,7 @@ $rules = @(
 $standing = @(
   @{ done = { Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
-  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
+  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
   @{ done = { Test-Path (Join-Path $OpsDir 'backups') };                               r = 'Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.' },
   @{ done = { $false };                                                                r = 'Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.' },
