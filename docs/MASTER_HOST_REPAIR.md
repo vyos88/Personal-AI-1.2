@@ -4,6 +4,30 @@ Laptop41 is Alpha's permanent main host. It runs the backend on `127.0.0.1:8001`
 the production frontend on `127.0.0.1:4173`, and the `cloudflared` connector that
 publishes `alpha-ai.uk`. This page covers getting it back up and keeping it up.
 
+## Not sure what is wrong? One pass over everything
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\laptop41-doctor.ps1 -ChatUser <your Alpha login> -Push
+```
+
+It checks backend, chat (logs in and sends two real messages), whether the
+site is stale and at which layer (source vs `dist` vs what 4173 serves vs what
+the public hostname serves), the tasks, the coordinator, the CrowPanel and
+memory. `-Fix` (as Administrator) runs `apply-chat-fix.ps1` and/or this page's
+`repair-alpha-host.ps1` when they apply, then checks again. `-Push` sends the
+report, tokens redacted, to a `status/laptop41-*` branch from a temporary
+worktree, so nobody has to paste terminal output.
+
+**Every 15 minutes, unattended:** `laptop41-doctor.ps1 -InstallSchedule` adds an
+`Alpha Doctor` task (as you, while you are logged on, so it can push with your
+git credentials). It runs with `-Watch`, which only checks and never repairs, since
+unattended repair is the self-heal's job and has limits. Each run tracks every
+problem across runs, ranks nine recommendations (open problems first, by how
+long they have been open, then standing hardening), posts to Alpha's
+coordination tunnel when something changes and hourly while anything is open,
+marks a problem open for an hour as NEEDS A PERSON, and pushes the report to
+the `status/laptop41` branch. `-UninstallSchedule` removes it.
+
 ## Run this, on Laptop41, as Administrator
 
 ```powershell
@@ -182,5 +206,113 @@ things are true:
 - someone has signed in at `http://127.0.0.1:4183`, sent a Chat message, and
   opened Decks, Brain and Agents.
 
-Rename the live folder aside when you promote, never delete it. Then point the
-boot tasks at the new folder: re-run `repair-alpha-host.ps1 -AlphaRoot <new>`.
+### Promoting the recovered copy
+
+**Which folder is Alpha.** In the restored repository (the `alpha-full`
+import), Alpha is at `BuildArtifacts\installers\Alpha-Full\software`, the
+folder holding `frontend` and `backend`. That is the default `-AppSubdir` of
+both `recover-alpha-from-usb.ps1` and `promote-recovered-alpha.ps1`. The
+recovery builds and tests that folder, and the promotion puts its contents at
+`C:\AlphaData\Alpha`, which is the layout `start-alpha-at-boot.ps1` and
+`repair-alpha-host.ps1` expect. Its siblings (`Alpha-Full\scripts`, the
+`Alpha-Server` copy) are not promoted. Without `scripts\alpha_coordination_tunnel.ps1`
+inside the root, repair and self-heal still run but post nothing to the
+tunnel. Pass `-AppSubdir ''` to both scripts when a checkout has Alpha at its
+top.
+
+`scripts/promote-recovered-alpha.ps1` does the promotion. It puts the recovered
+copy at the **same path**, `C:\AlphaData\Alpha`, rather than pointing the tasks
+at a new one. Everything that already names that path keeps working unchanged:
+
+- the boot wrappers in `C:\ProgramData\AlphaBoot`;
+- the self-heal config;
+- cloudflared's ingress;
+- the recovered configuration's own references to it.
+
+The recovery refused to run from E: precisely because of those references.
+
+Run it once the recovery has printed its verdict, from an Administrator
+PowerShell in this checkout:
+
+```powershell
+# 1. Read only. It changes nothing and is safe while the site is serving.
+powershell -ExecutionPolicy Bypass -File .\scripts\promote-recovered-alpha.ps1
+```
+
+This first step exits 2 without looking at anything while
+`recover-alpha-from-usb.ps1` is still running. Otherwise it checks:
+
+- **the recovery's own evidence:** no blockers, and the frontend served
+  with `Host: alpha-ai.uk`;
+- **the layout the boot tasks need:** `AppShell.tsx`, `package.json`, the
+  npm script, `dist`, `vite`, and the backend module at the same relative
+  path as the live one;
+- **versions:** `ALPHA_VERSION` and git on both sides, plus migrations that
+  exist only in live;
+- **data:** every file from `alpha-data.tar` is compared with its live
+  counterpart;
+- **config:** recovered config that names `E:\AlphaRecovery`;
+- **free space.**
+
+It ends with `READY` and the exact next command, or with the list of
+blockers.
+
+**Data written since the backup is the one decision it will not make for
+you.** If the live install has data files newer than the backup, or files the
+backup does not have, promotion is refused until you pick one:
+
+- `-CarryLiveData` copies those live files over the recovered ones, so live
+  wins;
+- `-AcceptDataRollback` serves the backup's data. The live files stay in
+  the renamed folder.
+
+Before carrying data forward, check the migrations line in the report: data
+written by newer code may not load in older code.
+
+```powershell
+# 2. After signing in at http://127.0.0.1:4183, sending one Chat message and
+#    opening Decks, Brain and Agents on the recovered copy:
+powershell -ExecutionPolicy Bypass -File .\scripts\promote-recovered-alpha.ps1 -Promote -HumanChecked -CarryLiveData
+
+# Undo:
+powershell -ExecutionPolicy Bypass -File .\scripts\promote-recovered-alpha.ps1 -Rollback
+```
+
+`-Promote` works in this order, with 2-5 minutes of downtime:
+
+1. Disables self-heal, so nothing restarts in the middle of the swap.
+2. Stops the recovered copy, then the live tasks and every process inside
+   `C:\AlphaData\Alpha`.
+3. Compares the data again, now that the backend can no longer write.
+4. Renames the live folder to `Alpha.pre-promote-<time>`. That folder is the
+   rollback.
+5. Copies the recovered checkout in, leaving out the 8011-only
+   `vite.recovery.config.mjs`.
+6. Recreates the backend's venv in place, because a venv cannot be moved.
+7. Starts the backend.
+8. Runs `repair-alpha-host.ps1 -AlphaRoot C:\AlphaData\Alpha`, which adopts
+   the backend and proves the handover, re-registers `Alpha`, snapshots
+   `dist.last-good` and re-enables self-heal.
+9. Verifies. If the backend, the frontend, or the frontend under the public
+   Host header is not serving, it rolls itself back.
+
+Nothing is deleted. Evidence goes to
+`C:\AlphaData\alpha-ops\logs\promote-<time>.log` and `promotion-<time>.json`.
+
+## Chat answers a dictionary question with an error
+
+Alpha PR #17 fixed `/chat` returning a 500 for "what does X mean" questions.
+A running install keeps its own copy of the backend, so it gets the fix only
+when that copy is changed. Run this as Administrator on Laptop41:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\apply-chat-fix.ps1                 # report only
+powershell -ExecutionPolicy Bypass -File .\scripts\apply-chat-fix.ps1 -Apply -Restart  # fix it
+```
+
+It makes the same three edits as #17, only inside `chat()`, and refuses if the
+code is not what #17 fixed. It keeps the original in
+`C:\AlphaData\alpha-ops\backups`, and puts it back if the edited file does
+not parse as Python. Run it after a USB promotion too: the backup predates
+the fix.
+
