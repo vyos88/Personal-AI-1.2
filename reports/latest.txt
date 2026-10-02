@@ -1,4 +1,4 @@
-laptop41-doctor 20261002-193609 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
+laptop41-doctor 20261002-195440 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
 
 === 0. Where Alpha lives under C:\AlphaData\Alpha ===
   PROBLEM: C:\AlphaData\Alpha does not exist
@@ -38,15 +38,14 @@ laptop41-doctor 20261002-193609 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
     No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
-    COM7
-    COM13
-    COM20
+    COM7   in use by another program?
+    COM13   in use by another program?
+    COM20   in use by another program?
     COM32   in use by another program?
     COM33   in use by another program?
     COM36   in use by another program?
     COM37   in use by another program?
-    COM50
-    COM54   in use by another program?
+    COM50   in use by another program?
   device: Standard Serial over Bluetooth link (COM32)
   device: Standard Serial over Bluetooth link (COM36)
   device: Standard Serial over Bluetooth link (COM33)
@@ -58,28 +57,28 @@ laptop41-doctor 20261002-193609 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.5 of 15.8 GB RAM free
-  ok: C: 18.9 GB free
+  ok: 4.1 of 15.8 GB RAM free
+  ok: C: 19 GB free
+  ChatGPT                         821 MB  pid 13392
   python                          671 MB  pid 16276
-  node                            662 MB  pid 11220
-  ChatGPT                         653 MB  pid 13392
-  MsMpEng                         565 MB  pid 6592
-  ChatGPT                         487 MB  pid 12044
-  claude                          478 MB  pid 6140
-  explorer                        326 MB  pid 16960
-  python                          320 MB  pid 9692
+  MsMpEng                         580 MB  pid 6592
+  claude                          529 MB  pid 6140
+  ChatGPT                         465 MB  pid 12044
+  explorer                        330 MB  pid 16960
+  codex                           326 MB  pid 20352
+  ChatGPT                         291 MB  pid 11880
 
 === SUMMARY ===
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 56 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 56 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 56 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 56 run(s), since 2026-10-01T03:28:49)
-  - the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 2 run(s), since 2026-10-02T19:29:08)
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 57 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 57 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 57 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 57 run(s), since 2026-10-01T03:28:49)
+  - the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 3 run(s), since 2026-10-02T19:29:08)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 56 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 56 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 2 runs] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  1. [open 57 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 57 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 3 runs] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
   4. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
   5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   6. [hardening] Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.
