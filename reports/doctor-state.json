@@ -1,31 +1,36 @@
 {
     "lastPost":  null,
-    "lastRun":  "2026-10-02T18:52:10",
+    "lastRun":  "2026-10-02T19:06:28",
     "open":  {
+                 "task Alpha Backend is not registered: repair-alpha-host.ps# has never completed on this machine":  {
+                                                                                                                         "since":  "2026-10-01T03:28:49",
+                                                                                                                         "runs":  54,
+                                                                                                                         "text":  "task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine"
+                                                                                                                     },
                  "task Alpha Self-Heal is not registered: repair-alpha-host.ps# has never completed on this machine":  {
                                                                                                                            "since":  "2026-10-01T03:28:49",
-                                                                                                                           "runs":  53,
+                                                                                                                           "runs":  54,
                                                                                                                            "text":  "task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine"
                                                                                                                        },
                  "https://alpha-ai.uk/ answers #":  {
                                                         "since":  "2026-10-02T18:29:13",
-                                                        "runs":  2,
+                                                        "runs":  3,
                                                         "text":  "https://alpha-ai.uk/ answers 502"
                                                     },
-                 "task Alpha Backend is not registered: repair-alpha-host.ps# has never completed on this machine":  {
-                                                                                                                         "since":  "2026-10-01T03:28:49",
-                                                                                                                         "runs":  53,
-                                                                                                                         "text":  "task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine"
-                                                                                                                     },
-                 "C:\\AlphaData\\Alpha does not exist":  {
-                                                             "since":  "2026-10-01T03:28:49",
-                                                             "runs":  53,
-                                                             "text":  "C:\\AlphaData\\Alpha does not exist"
-                                                         },
+                 "backend /health answered #":  {
+                                                    "since":  "2026-10-02T19:06:28",
+                                                    "runs":  1,
+                                                    "text":  "backend /health answered 000"
+                                                },
                  "nothing serves Alpha on #":  {
                                                    "since":  "2026-10-01T03:28:49",
-                                                   "runs":  53,
+                                                   "runs":  54,
                                                    "text":  "nothing serves Alpha on 4173"
-                                               }
+                                               },
+                 "C:\\AlphaData\\Alpha does not exist":  {
+                                                             "since":  "2026-10-01T03:28:49",
+                                                             "runs":  54,
+                                                             "text":  "C:\\AlphaData\\Alpha does not exist"
+                                                         }
              }
 }
