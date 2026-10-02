@@ -82,6 +82,19 @@ Check the exact filename in that `bin` directory — it is named for the platfor
 A standalone (non-npm) install already puts `codex.exe` on PATH and needs none of
 this.
 
+## Check it end to end
+
+```bash
+node src/admin/run.js login --email <you>       # once; the session is saved until it expires
+node src/admin/run.js doctor --agent jacks-laptop
+```
+
+`doctor` checks, in order: the coordinator, the sign-in, who is attached, who
+offers `codex.exec` and `alpha.music`, the music bridge, and then asks Codex on
+the named machine to reply. It lists every problem at once with the fix for
+each, and exits 1 if there was any. A failed Codex call is reported by its code
+(`timeout`, `codex_failed`, ...) with the matching row of the table below.
+
 ## Ask it something
 
 ```bash
