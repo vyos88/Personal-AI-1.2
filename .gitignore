@@ -15,3 +15,4 @@ auth.json.tmp
 # self-update and alpha.update refuse to pull, so generated audio must not count.
 /output/
 __pycache__/
+billing/
