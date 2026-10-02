@@ -1,10 +1,10 @@
-laptop41-doctor 20261002-190605 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
+laptop41-doctor 20261002-193609 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
 
 === 0. Where Alpha lives under C:\AlphaData\Alpha ===
   PROBLEM: C:\AlphaData\Alpha does not exist
 
 === 1. Backend (port 8001) ===
-  PROBLEM: backend /health answered 000
+  ok: /health answers 200
 
 === 2. Chat ===
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
@@ -12,12 +12,13 @@ laptop41-doctor 20261002-190605 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
 === 3. Is Alpha stale, and at which layer? ===
   bundle in dist     
   bundle on :4173   
-  bundle public      
+  bundle public      /assets/index-KfJpFbW8.js
   public headers: Server: cloudflare
   PROBLEM: nothing serves Alpha on 4173
+  PROBLEM: the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
 
 === 4. Public alpha-ai.uk and the boot tasks ===
-  PROBLEM: https://alpha-ai.uk/ answers 502
+  ok: https://alpha-ai.uk/ answers 200
   task Alpha            Ready    last run 2026-10-01 23:00 result 0xC000013A (killed: Ctrl+C or its console closed - the process did not survive)
   PROBLEM: task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine
   PROBLEM: task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine
@@ -45,7 +46,7 @@ laptop41-doctor 20261002-190605 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
     COM36   in use by another program?
     COM37   in use by another program?
     COM50
-    COM54
+    COM54   in use by another program?
   device: Standard Serial over Bluetooth link (COM32)
   device: Standard Serial over Bluetooth link (COM36)
   device: Standard Serial over Bluetooth link (COM33)
@@ -57,29 +58,28 @@ laptop41-doctor 20261002-190605 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 7.4 of 15.8 GB RAM free
-  ok: C: 20.5 GB free
-  ChatGPT                         600 MB  pid 13392
-  MsMpEng                         551 MB  pid 6592
-  ChatGPT                         448 MB  pid 12044
-  explorer                        318 MB  pid 16960
-  ChatGPT                         269 MB  pid 11880
-  ChatGPT                         260 MB  pid 22224
-  ChatGPT                         237 MB  pid 14632
-  codex                           221 MB  pid 20352
+  ok: 3.5 of 15.8 GB RAM free
+  ok: C: 18.9 GB free
+  python                          671 MB  pid 16276
+  node                            662 MB  pid 11220
+  ChatGPT                         653 MB  pid 13392
+  MsMpEng                         565 MB  pid 6592
+  ChatGPT                         487 MB  pid 12044
+  claude                          478 MB  pid 6140
+  explorer                        326 MB  pid 16960
+  python                          320 MB  pid 9692
 
 === SUMMARY ===
-  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 54 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 54 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 54 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 54 run(s), since 2026-10-01T03:28:49)
-  - https://alpha-ai.uk/ answers 502  (open 3 run(s), since 2026-10-02T18:29:13)
-  - backend /health answered 000  (open 1 run(s), since 2026-10-02T19:06:28)
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 56 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 56 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 56 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 56 run(s), since 2026-10-01T03:28:49)
+  - the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 2 run(s), since 2026-10-02T19:29:08)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 54 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 54 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 3 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  1. [open 56 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 56 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 2 runs] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
   4. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
   5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   6. [hardening] Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.

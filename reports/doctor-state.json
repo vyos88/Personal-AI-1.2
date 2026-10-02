@@ -1,36 +1,31 @@
 {
     "lastPost":  null,
-    "lastRun":  "2026-10-02T19:06:28",
+    "lastRun":  "2026-10-02T19:37:06",
     "open":  {
-                 "task Alpha Backend is not registered: repair-alpha-host.ps# has never completed on this machine":  {
-                                                                                                                         "since":  "2026-10-01T03:28:49",
-                                                                                                                         "runs":  54,
-                                                                                                                         "text":  "task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine"
-                                                                                                                     },
+                 "the public site serves \u003cbundle\u003e, which this machine\u0027s # does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk":  {
+                                                                                                                                                                                    "since":  "2026-10-02T19:29:08",
+                                                                                                                                                                                    "runs":  2,
+                                                                                                                                                                                    "text":  "the public site serves /assets/index-KfJpFbW8.js, which this machine\u0027s 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk"
+                                                                                                                                                                                },
                  "task Alpha Self-Heal is not registered: repair-alpha-host.ps# has never completed on this machine":  {
                                                                                                                            "since":  "2026-10-01T03:28:49",
-                                                                                                                           "runs":  54,
+                                                                                                                           "runs":  56,
                                                                                                                            "text":  "task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine"
                                                                                                                        },
-                 "https://alpha-ai.uk/ answers #":  {
-                                                        "since":  "2026-10-02T18:29:13",
-                                                        "runs":  3,
-                                                        "text":  "https://alpha-ai.uk/ answers 502"
-                                                    },
-                 "backend /health answered #":  {
-                                                    "since":  "2026-10-02T19:06:28",
-                                                    "runs":  1,
-                                                    "text":  "backend /health answered 000"
-                                                },
-                 "nothing serves Alpha on #":  {
-                                                   "since":  "2026-10-01T03:28:49",
-                                                   "runs":  54,
-                                                   "text":  "nothing serves Alpha on 4173"
-                                               },
+                 "task Alpha Backend is not registered: repair-alpha-host.ps# has never completed on this machine":  {
+                                                                                                                         "since":  "2026-10-01T03:28:49",
+                                                                                                                         "runs":  56,
+                                                                                                                         "text":  "task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine"
+                                                                                                                     },
                  "C:\\AlphaData\\Alpha does not exist":  {
                                                              "since":  "2026-10-01T03:28:49",
-                                                             "runs":  54,
+                                                             "runs":  56,
                                                              "text":  "C:\\AlphaData\\Alpha does not exist"
-                                                         }
+                                                         },
+                 "nothing serves Alpha on #":  {
+                                                   "since":  "2026-10-01T03:28:49",
+                                                   "runs":  56,
+                                                   "text":  "nothing serves Alpha on 4173"
+                                               }
              }
 }
