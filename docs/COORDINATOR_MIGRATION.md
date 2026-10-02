@@ -18,7 +18,7 @@ can move the coordinator later without touching the agent."*
 | `data/auth.json` | **yes, by hand** | the only copy of your accounts — see below |
 | `data/receipts.json` | **yes, by hand** | the ledger; leaving it behind resets a quota gate — see below |
 | agent on the Alpha host (`node src/agent/index.js`) | **no** | must stay |
-| queued and in-flight tasks | **no** | the queue is in memory |
+| `data/tasks.json` | **optional, by hand** | the queue; copied, queued work carries over, in-flight work is requeued — see below |
 
 **The agent on the Alpha machine stays there.** `alpha.coordination` drives
 `scripts/alpha_coordination_tunnel.ps1` inside `ALPHA_REPO_ROOT`, so the agent
@@ -116,8 +116,8 @@ rather than loudly.
 
 The receipt ledger (`src/host/receipts.js`, `ALPHA_RECEIPT_STORE`, default
 `./data/receipts.json`) is the durable record of every task that finished — the
-queue is in memory, so without it "how many renders ran last night" has no
-answer after a restart. Nothing reads it to make a *dispatch* decision, which is
+queue forgets finished tasks after a day, so without it "how many renders ran
+last night" has no answer for long. Nothing reads it to make a *dispatch* decision, which is
 why a corrupt ledger does not stop the coordinator the way a corrupt auth store
 does. But `scripts/alpha-manager.mjs` reads it for two things, and both degrade
 silently if the new coordinator starts with an empty one:
@@ -137,6 +137,15 @@ coordinator stopped — and the failure mode is gentler: a ledger the new host
 cannot parse is moved aside, kept, and the ledger starts empty *loudly*, rather
 than blocking the coordinator.
 
+## The third file: `data/tasks.json`
+
+The task journal (`src/host/journal.js`, `ALPHA_TASK_JOURNAL`) is the queue
+itself. Moving it with the coordinator carries queued work across; leaving it
+behind is the old behaviour — the new coordinator starts with an empty queue
+and every queued task is forgotten. Copy it with the coordinator **stopped**:
+it is rewritten on every change. Never run two coordinators off one copy, or
+both will run every queued task.
+
 ## Runbook
 
 Throughout: `<LAPTOP_TS_IP>` is the laptop's tailnet address from
@@ -152,10 +161,10 @@ node src/admin/run.js tasks
 node src/admin/run.js stats
 ```
 
-Save all three. The queue is in memory, so whatever `tasks` shows as queued or
-running is gone the moment the coordinator stops — including any long-running
-work. Short coordination tasks you simply re-issue afterwards; anything you
-cannot re-issue from scratch, let it finish first.
+Save all three. Whatever `tasks` shows as queued carries over only if you copy
+`data/tasks.json` (above); anything running is requeued and runs again from the
+start on the new coordinator. Anything you cannot afford to run twice, let it
+finish first.
 
 ### 2. Stop the old coordinator, and stop it from coming back
 

@@ -5,6 +5,7 @@ import { AgentRegistry } from './registry.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
 import { ReceiptStore } from './receipts.js';
+import { TaskJournal, defaultJournalPath } from './journal.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
 import { bearerFrom } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
@@ -44,6 +45,14 @@ export function createHost({
   // builds an ephemeral service, and via an `auth` whose store is in memory.
   // Pass `receipts` explicitly to override.
   receipts = new ReceiptStore(auth?.store?.persistent ? {} : { path: null }),
+  // The queue itself, written down so a restart is not a reset. Persists on
+  // the same rule as the ledger above, and for the same reason: a test host
+  // must never write its fabricated tasks into the real ./data/tasks.json,
+  // where the next real coordinator would pick them up and run them. Kept
+  // beside the auth store unless ALPHA_TASK_JOURNAL says otherwise.
+  journal = new TaskJournal({
+    path: auth?.store?.persistent ? defaultJournalPath(auth.store.path) : null,
+  }),
   queue = new TaskQueue({
     admission: registry,
     // The queue forgets; this is what remembers. Resolving the agent's *name*
@@ -51,6 +60,9 @@ export function createHost({
     // live at this instant, and a minute later the id is unresolvable.
     onTerminal: (task) =>
       receipts.record(task, { agentName: registry.get?.(task.agentId)?.name ?? null }),
+    // `queue` is this parameter's own binding; it is assigned long before the
+    // first change can fire.
+    onChange: () => journal.schedule(() => queue.snapshot()),
   }),
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
@@ -66,13 +78,21 @@ export function createHost({
     throw new Error('createHost requires either an AuthService (`auth`) or a bootstrap `token`');
   }
 
-  // Both stores have to be readable before the first request is served. A
-  // receipt ledger that cannot be read does not stop the host — see
-  // ReceiptStore.load — so this only ever rejects on the auth store.
+  // Every store has to be readable before the first request is served. A
+  // receipt ledger or task journal that cannot be read does not stop the host
+  // — see ReceiptStore.load and TaskJournal.load — so this only ever rejects
+  // on the auth store.
+  //
+  // The queue is restored only after the ledger has loaded: a task that was
+  // leased with no attempts left fails during the restore, and its receipt
+  // written into a ledger that has not loaded yet would be overwritten by it.
   const ready = Promise.all([
     auth ? Promise.resolve(authService) : authService.load(),
     receipts.loaded ? Promise.resolve(receipts) : receipts.load(),
-  ]).then(() => authService);
+  ])
+    .then(() => journal.load())
+    .then((tasks) => queue.restore?.(tasks))
+    .then(() => authService);
 
   /**
    * Every listener shares one queue, registry and auth service — they are the
@@ -172,9 +192,23 @@ export function createHost({
     } finally {
       clearTimeout(forced);
     }
+    // The last results reported before the listeners shut are only in memory
+    // until this lands; exiting first would lose them to the restart.
+    await journal.flush();
   }
 
-  return { server, servers, listen, queue, registry, receipts, auth: authService, ready, close };
+  return {
+    server,
+    servers,
+    listen,
+    queue,
+    registry,
+    receipts,
+    journal,
+    auth: authService,
+    ready,
+    close,
+  };
 }
 
 async function handle(req, res, ctx) {

@@ -18,11 +18,10 @@ export const DEFAULT_MAX_RECEIPTS = 5_000;
 /**
  * A durable record of every task that finished.
  *
- * The queue is deliberately in memory — a queue that empties on reboot is an
- * inconvenience, and keeping it in one Map is what makes leasing simple. But
- * that also means the *answer* died with it: after a restart there was no way
- * to say how many renders ran last night, which species came back, or which
- * machine did them. "It rendered, and the image is on the host somewhere" is
+ * The queue keeps finished tasks only for a day (and, before the task journal
+ * existed, not even across a restart), so the *answer* goes with it: there
+ * was no way to say how many renders ran last night, which species came back,
+ * or which machine did them. "It rendered, and the image is on the host somewhere" is
  * not a record.
  *
  * So terminal tasks are appended here as they finish. This is a ledger, not a
