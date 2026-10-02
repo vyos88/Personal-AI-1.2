@@ -1,4 +1,4 @@
-laptop41-doctor 20261002-182126 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
+laptop41-doctor 20261002-185107 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
 
 === 0. Where Alpha lives under C:\AlphaData\Alpha ===
   PROBLEM: C:\AlphaData\Alpha does not exist
@@ -12,13 +12,12 @@ laptop41-doctor 20261002-182126 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
 === 3. Is Alpha stale, and at which layer? ===
   bundle in dist     
   bundle on :4173   
-  bundle public      /assets/index-KfJpFbW8.js
+  bundle public      
   public headers: Server: cloudflare
   PROBLEM: nothing serves Alpha on 4173
-  PROBLEM: the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
 
 === 4. Public alpha-ai.uk and the boot tasks ===
-  PROBLEM: https://alpha-ai.uk/ answers 000
+  PROBLEM: https://alpha-ai.uk/ answers 502
   task Alpha            Ready    last run 2026-10-01 23:00 result 0xC000013A (killed: Ctrl+C or its console closed - the process did not survive)
   PROBLEM: task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine
   PROBLEM: task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine
@@ -38,9 +37,8 @@ laptop41-doctor 20261002-182126 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
     No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
-    no serial ports on this machine.
-    The board shows up as one when it is plugged in and its driver is there ΓÇö
-    a CH340 on Windows needs the CH341SER driver.
+    COM32   in use by another program?
+    COM36   in use by another program?
   device: Standard Serial over Bluetooth link (COM32)
   device: Standard Serial over Bluetooth link (COM36)
   device: Standard Serial over Bluetooth link (COM33)
@@ -52,33 +50,33 @@ laptop41-doctor 20261002-182126 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.3 of 15.8 GB RAM free
-  ok: C: 22.2 GB free
-  llama-server                  1,633 MB  pid 6928
-  ChatGPT                         934 MB  pid 15352
-  node                            689 MB  pid 17072
-  claude                          569 MB  pid 2988
-  MsMpEng                         552 MB  pid 6592
-  chrome                          442 MB  pid 21044
-  codex                           426 MB  pid 16484
-  ChatGPT                         415 MB  pid 16704
+  ok: 4.5 of 15.8 GB RAM free
+  ok: C: 22.4 GB free
+  ChatGPT                         941 MB  pid 15352
+  MsMpEng                         548 MB  pid 6592
+  ChatGPT                         490 MB  pid 16704
+  llama-server                    477 MB  pid 6928
+  codex                           451 MB  pid 16484
+  chrome                          340 MB  pid 21124
+  explorer                        319 MB  pid 16960
+  Memory Compression              307 MB  pid 4612
 
 === SUMMARY ===
-  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 52 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 52 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 52 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 52 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 4 run(s), since 2026-10-02T04:24:57)
-  - only 1.3 of 15.8 GB RAM free  (open 1 run(s), since 2026-10-02T18:29:13)
-  - https://alpha-ai.uk/ answers 000  (open 1 run(s), since 2026-10-02T18:29:13)
+  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 53 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 53 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 53 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 53 run(s), since 2026-10-01T03:28:49)
+  - https://alpha-ai.uk/ answers 502  (open 2 run(s), since 2026-10-02T18:29:13)
+  + fixed since last run: the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
+  + fixed since last run: only 1.3 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 52 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 52 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 4 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
-  4. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  5. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
-  6. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  7. [hardening] Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.
-  8. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
-  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  1. [open 53 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 53 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  4. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
+  5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  6. [hardening] Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.
+  7. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
+  8. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  9. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
