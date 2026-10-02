@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 /**
  * Serves the Music Creator panel's Generate button: `/music/generate` and
- * `/music/tasks/:id`, backed by `alpha.music` tasks on the coordinator. See
+ * `/music/tasks/:id`, backed by `alpha.music` tasks on the coordinator, plus
+ * the read-only `/music/recipes` (the ledger's music receipts) and
+ * `/music/fleet` (machines offering alpha.music). See
  * src/bridge/music.js for what it will and will not do.
  *
  * Run it on the machine that serves Alpha's frontend, and route `/music/*` to
@@ -12,7 +14,10 @@
  * Configuration (.env beside the checkout, or the environment):
  *   ALPHA_HOST_URL                 coordinator (default http://127.0.0.1:8787)
  *   ALPHA_MUSIC_BRIDGE_TOKEN       tunnel key with tasks:read and tasks:write. Mint one:
- *                                  node src/admin/run.js issue-key --user <userId> --scopes tasks:read,tasks:write --name music-bridge
+ *                                  node src/admin/run.js issue-key --user <userId> --scopes tasks:read,tasks:write,agents:read --name music-bridge
+ *                                  tasks:read also covers /music/recipes (the receipt ledger).
+ *                                  agents:read is only for /music/fleet; leave it out and that
+ *                                  one route answers 502 bridge_key_rejected, the rest still work.
  *   ALPHA_MUSIC_AGENT              machine that generates (targetAgent). Unset lets placement pick
  *   ALPHA_MUSIC_LEASE_MS           lease per track (default 600000; generation outlives 60s)
  *   ALPHA_MUSIC_BRIDGE_BIND        default 127.0.0.1
