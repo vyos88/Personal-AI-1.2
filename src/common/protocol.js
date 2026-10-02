@@ -85,9 +85,21 @@ export const DEFAULT_MAX_ATTEMPTS = 3;
 // intermediary never closes the connection out from under us.
 export const MAX_POLL_WAIT_MS = 25_000;
 
+// How often the host tells an agent to check in, and what an agent assumes if
+// a host too old to say does not.
+export const HEARTBEAT_INTERVAL_MS = 20_000;
+
 // An agent is considered gone once this much time passes with no heartbeat and
 // no poll. Generous enough to survive a laptop sleeping through a GC pause.
 export const AGENT_STALE_MS = 90_000;
+
+// Two missed heartbeats, plus a little for a slow network. Past this an agent
+// has stopped talking, and readers say so (`stale` on `GET /agents`, the
+// admin table, the watchdog) — but it is only a report. Placement and pruning
+// still go by AGENT_STALE_MS, because a laptop that sleeps through a GC pause
+// should not lose its place; a person asking "is it attached?" should not be
+// told yes about a machine that died a minute ago.
+export const AGENT_SILENT_MS = 2 * HEARTBEAT_INTERVAL_MS + 5_000;
 
 // How long the host remembers that a registration was superseded by a newer
 // process from the same machine. Only has to outlast the superseded process's

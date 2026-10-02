@@ -430,6 +430,12 @@ is holding. A `-` in `CPU` means the agent has not reported load or its report
 went stale — the host reads that as **unknown, not idle**, so a silent machine
 never wins work by saying nothing.
 
+A `!` after `IDLE` (`52s !`) means the host has not heard from that machine in
+over two heartbeats (45s), and the table names it underneath. The row stays —
+and the host may still place work on it — until the stale sweep drops it at
+90s, so treat a marked row as a machine to go and look at, not as attached.
+`--json` carries the same thing as `stale` and `lastSeenAt` on each row.
+
 Two things that look like faults and are not:
 
 - **A busy machine sitting at `RUN 0`.** It is over its ceiling and standing

@@ -40,7 +40,7 @@ import { fileURLToPath } from 'node:url';
 
 import { fetchJson, HttpError } from '../src/common/http.js';
 import { loadEnv } from '../src/common/env.js';
-import { AGENT_STALE_MS } from '../src/common/protocol.js';
+import { AGENT_SILENT_MS } from '../src/common/protocol.js';
 import { ALPHA_VERSION } from '../src/common/version.js';
 
 loadEnv();
@@ -51,11 +51,11 @@ const ROOT = resolve(HERE, '..');
 const HOST = (process.env.ALPHA_HOST_URL ?? 'http://127.0.0.1:8787').replace(/\/+$/, '');
 const TOKEN = process.env.ALPHA_ADMIN_TOKEN ?? process.env.ALPHA_BOOTSTRAP_TOKEN;
 
-// Two missed heartbeats. The host itself waits AGENT_STALE_MS before dropping a
-// registration, which is the right call for placement — a laptop that sleeps
-// through a GC pause should not lose its place — but far too patient for a
-// check that only runs twice a day.
-const SILENT_MS = Math.min(45_000, AGENT_STALE_MS / 2);
+// Two missed heartbeats — the host's own threshold, AGENT_SILENT_MS, which it
+// reports as `stale` on each row. The host waits far longer (AGENT_STALE_MS)
+// before dropping a registration, which is right for placement but far too
+// patient for a check that only runs twice a day. The constant is the fallback
+// for a host too old to send the flag.
 
 const EXIT_OK = 0;
 const EXIT_NEEDS_A_PERSON = 1;
@@ -163,7 +163,11 @@ async function checkFleet(name) {
     // A live agent heartbeats every twenty seconds, so anything past two
     // missed beats has stopped talking.
     fleet.silentFor = fleet.idleMs;
-    fleet.stale = mine.length > 0 && fleet.idleMs > SILENT_MS;
+    // Stale only when every row under this name is: a worker that restarted
+    // leaves its old row behind until the sweep, and the live one is the
+    // answer.
+    fleet.stale =
+      mine.length > 0 && mine.every((agent) => agent.stale ?? (agent.idleMs ?? Infinity) > AGENT_SILENT_MS);
     fleet.attached = mine.length > 0 && !fleet.stale;
   } catch (error) {
     fleet.error = error instanceof HttpError ? `HTTP ${error.status} from /agents` : error.message;
