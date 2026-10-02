@@ -1,5 +1,5 @@
 <#
-  publish-alpha-push.ps1 — audit Alpha, then make its first push, safely.
+  publish-alpha-push.ps1 - audit Alpha, then make its first push, safely.
 
   Alpha's code not being in git is what blocks alpha.update, blocks updating
   the other laptops with anything but a file copy, and blocks changing any panel
@@ -85,7 +85,7 @@ if ($auditExit -eq 2) {
   Section "What the findings actually are"
 
   if ($byLine.Count) {
-    Write-Host "  $($byLine.Count) finding(s) INSIDE source files — a push would publish these:" -ForegroundColor Red
+    Write-Host "  $($byLine.Count) finding(s) INSIDE source files - a push would publish these:" -ForegroundColor Red
     foreach ($f in $byLine) { Write-Host "    $f" -ForegroundColor Red }
     Write-Host ""
     Write-Host "  These are normal source files. No .gitignore entry excludes them, so" -ForegroundColor Red
@@ -95,7 +95,7 @@ if ($auditExit -eq 2) {
     Write-Host ""
     Write-Host "  Do this for each: move the value out of the file and read it from the"
     Write-Host "  environment instead, so the file holds a name rather than a secret."
-    Write-Host "  Then run this script again — it will tell you when they are gone."
+    Write-Host "  Then run this script again - it will tell you when they are gone."
   }
 
   if ($byName.Count) {
@@ -134,7 +134,7 @@ if ($auditExit -eq 2) {
 if (-not $Push) {
   Section "Audit only"
   Write-Host "  This run pushed nothing, by design."
-  Write-Host "  Read $auditPath. Skim the file list too — exit 0 is not a guarantee."
+  Write-Host "  Read $auditPath. Skim the file list too - exit 0 is not a guarantee."
   Write-Host "  When satisfied, re-run with  -Push`n"
   exit 0
 }

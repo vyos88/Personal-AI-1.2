@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
-import { delimiter, join, resolve, sep } from 'node:path';
+import { delimiter, extname, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
 import { findGenre, findSubgenre, isBpmTypical, isValidKey } from '../../common/musicGenres.js';
@@ -246,7 +246,10 @@ function timeoutMs() {
 function resolveExecutable(command) {
   if (command.includes('/') || command.includes(sep)) return existsSync(command) ? command : null;
   const extensions =
-    process.platform === 'win32'
+    // A name that already has an extension (powershell.exe, the default for
+    // device.inventory) is looked up as given; appending PATHEXT to it made
+    // every Windows machine report PowerShell as missing.
+    process.platform === 'win32' && !extname(command)
       ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
       : [''];
   for (const directory of (process.env.PATH ?? '').split(delimiter)) {

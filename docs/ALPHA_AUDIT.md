@@ -1,5 +1,10 @@
 # Alpha audit, 2026-09-28
 
+> **Superseded in part (2026-09-30):** see [ALPHA_HANDOVER_2026-09-30.md](ALPHA_HANDOVER_2026-09-30.md).
+> Corrections: Devices has 13 workspaces (22 is the total across four tabs of the
+> main-branch shell), that shell imports 61 panels, and the served UI is the
+> `alpha-full` Deck (23 hubs, 197 workspaces), not `AppShell.tsx` on `main`.
+
 Priority order: **live first** ([MASTER_HOST_REPAIR.md](MASTER_HOST_REPAIR.md)),
 then this.
 

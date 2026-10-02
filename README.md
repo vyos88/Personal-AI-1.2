@@ -150,6 +150,15 @@ Two rules keep grants from drifting upward:
 | Restore it | `npm run admin -- enable-user <userId>` |
 | Change what someone can do | `npm run admin -- set-scopes <userId> --scopes viewer` |
 | Withdraw an unredeemed invite | `npm run admin -- revoke-invite <inviteId>` |
+| Recover an account with no working password | `npm run admin -- reset-password <userId>` |
+
+`reset-password` is the admin-side counterpart to `/me/password`: it needs
+`users:write`, not the old password, so it is the way in when that is lost —
+without it, the only route back was the bootstrap token. Every existing
+session for that user ends with it (the same as a self-service password
+change); their other API keys are untouched. Leave off `--new-password` and
+it generates one and prints it once — it is never stored or logged in
+plaintext, so write it down before doing anything else.
 
 For another **device of your own**, issue a second key rather than creating a
 second account — no extra password to manage, and it revokes independently:
@@ -226,7 +235,8 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_CODEX_MODEL` | agent | Codex's default | Model Codex should use. |
 | `ALPHA_CODEX_SKIP_GIT_CHECK` | agent | — | Set to `1` when the root is not a git checkout. |
 | `ALPHA_CODEX_TIMEOUT_MS` | agent | `600000` | Ceiling on one Codex call; raise the task's lease with it. |
-| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
+| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. Wins over the session `alpha-admin login` saves. |
+| `ALPHA_ADMIN_SESSION_FILE` | CLI | `~/.alpha-admin/session.json` | Where `login` saves its session; `logout` ends it on the host and deletes it. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
 
@@ -260,6 +270,7 @@ needs `Authorization: Bearer <token>` and the scope listed.
 | `GET` | `/users`, `/users/:id` | `users:read` |
 | `POST` | `/users/:id/status` | `users:write` |
 | `POST` | `/users/:id/scopes` | `users:write` |
+| `POST` | `/users/:id/password/reset` | `users:write` |
 | `POST` | `/keys` | `keys:write` (plus `users:write` for someone else) |
 | `GET` | `/keys` | own keys; `users:read` for everyone's |
 | `DELETE` | `/keys/:id` | own keys; `users:write` for someone else's |

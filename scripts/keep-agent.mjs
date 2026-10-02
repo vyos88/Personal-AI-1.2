@@ -39,7 +39,7 @@
  * Usage:
  *   node scripts/keep-agent.mjs [--repo <path>] [--interval-ms <ms>]
  *                               [--remote <name>] [--also-repo <path>]...
- *                               [--stop-timeout-ms <ms>]
+ *                               [--stop-timeout-ms <ms>] [--healthy-after-ms <ms>]
  *
  * Exit codes:
  *   0   asked to stop (signal), or stood down for another agent on this machine
@@ -51,7 +51,8 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { backoffDelay, sleep } from '../src/common/backoff.js';
+import { HEALTHY_RUN_MS, backoffDelay, failuresAfterRun, sleep } from '../src/common/backoff.js';
+import { killTree } from '../src/common/kill-tree.js';
 import { createLogger } from '../src/common/log.js';
 import { AGENT_SHUTDOWN_MESSAGE } from '../src/common/protocol.js';
 
@@ -69,6 +70,9 @@ const DEFAULT_INTERVAL_MS = 3 * 60 * 60 * 1000;
 // force-exit budget) with room for a task that is slow to report.
 const DEFAULT_STOP_TIMEOUT_MS = 20_000;
 
+// self-update gives each git call two minutes; this bounds the whole run.
+const SELF_UPDATE_TIMEOUT_MS = 300_000;
+
 const EXIT_OK = 0;
 const EXIT_FAILED = 1;
 
@@ -78,6 +82,7 @@ function parseArgs(argv) {
     remote: 'origin',
     intervalMs: DEFAULT_INTERVAL_MS,
     stopTimeoutMs: DEFAULT_STOP_TIMEOUT_MS,
+    healthyAfterMs: HEALTHY_RUN_MS,
     alsoRepos: [],
   };
   for (let i = 0; i < argv.length; i++) {
@@ -87,6 +92,7 @@ function parseArgs(argv) {
     else if (arg === '--also-repo') options.alsoRepos.push(resolve(argv[++i] ?? ''));
     else if (arg === '--interval-ms') options.intervalMs = positiveInt(arg, argv[++i]);
     else if (arg === '--stop-timeout-ms') options.stopTimeoutMs = positiveInt(arg, argv[++i]);
+    else if (arg === '--healthy-after-ms') options.healthyAfterMs = positiveInt(arg, argv[++i]);
     else throw new Error(`unknown argument ${JSON.stringify(arg)}`);
   }
   return options;
@@ -100,22 +106,39 @@ function positiveInt(name, raw) {
   return value;
 }
 
-/** Runs self-update.mjs against one checkout. Its exit code is the interface. */
-function selfUpdate(repo, remote) {
+/**
+ * Runs self-update.mjs against one checkout. Its exit code is the interface.
+ * `onChild` is handed the process so the keeper can account for it on the way
+ * out: it is a node process of its own, and one still running when the keeper
+ * exits is orphaned mid-pull.
+ */
+function selfUpdate(repo, remote, onChild = () => {}) {
   return new Promise((resolvePromise) => {
-    execFile(
+    // spawn, not execFile: execFile drops `detached`, and detached is the
+    // point. On POSIX it makes this process lead a group, so stopping it stops
+    // the git it is waiting on too instead of orphaning that in turn. Windows
+    // has taskkill /T for the same job, and detached there means a console.
+    const child = spawn(
       process.execPath,
       [SELF_UPDATE, '--repo', repo, '--remote', remote, '--json'],
-      { encoding: 'utf8', timeout: 300_000, windowsHide: true },
-      (error, stdout) => {
-        const exitCode = typeof error?.code === 'number' ? error.code : error ? 1 : 0;
-        try {
-          resolvePromise({ exitCode, ...JSON.parse(stdout) });
-        } catch {
-          resolvePromise({ exitCode, ok: false, reason: error?.message ?? 'no result from self-update' });
-        }
-      },
+      { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, detached: process.platform !== 'win32' },
     );
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8').on('data', (chunk) => (stdout += chunk));
+    child.stderr.setEncoding('utf8').on('data', (chunk) => (stderr = (stderr + chunk).slice(-2000)));
+    const timer = setTimeout(() => killTree(child, { force: true }), SELF_UPDATE_TIMEOUT_MS);
+    const settle = (exitCode, reason) => {
+      clearTimeout(timer);
+      try {
+        resolvePromise({ exitCode, ...JSON.parse(stdout) });
+      } catch {
+        resolvePromise({ exitCode, ok: false, reason: reason ?? (stderr.trim() || 'no result from self-update') });
+      }
+    };
+    child.once('error', (error) => settle(1, error.message));
+    child.once('close', (code, signal) => settle(code ?? 1, signal ? `self-update killed by ${signal}` : undefined));
+    onChild(child);
   });
 }
 
@@ -126,6 +149,8 @@ class AgentKeeper {
   #expectedExit = false;
   #stopping = false;
   #wake = null;
+  #updating = Promise.resolve();
+  #updater = null;
 
   constructor(options) {
     this.#options = options;
@@ -154,9 +179,32 @@ class AgentKeeper {
     // Both loops run until one of them decides this process is done. The update
     // loop only ever asks for a restart; the supervision loop is the only thing
     // that decides to stop.
-    const supervising = this.#superviseForever();
-    this.#updateForever().catch((error) => log.error('update loop stopped', { message: error.message }));
-    return supervising;
+    this.#updating = this.#updateForever().catch((error) =>
+      log.error('update loop stopped', { message: error.message }),
+    );
+    const code = await this.#superviseForever();
+
+    // Whichever way supervision ended — a signal or a stand-down — the update
+    // loop may be halfway through a self-update, which is a process of its own.
+    // Exiting under it orphans it: it goes on fetching and pulling after the
+    // keeper is gone, against a checkout nobody is watching any more.
+    this.#stopping = true;
+    this.#wake?.();
+    await this.#settleUpdate();
+    return code;
+  }
+
+  /**
+   * Lets an update in flight finish rather than killing git mid-pull, but only
+   * for as long as an agent gets to drain. One that outlives that is wedged
+   * (a fetch hanging on the network), and waiting on it is how the keeper
+   * never exits.
+   */
+  async #settleUpdate() {
+    if (await raceTimeout(this.#updating, this.#options.stopTimeoutMs)) return;
+    log.warn('update did not finish in time; stopping it', { pid: this.#updater?.pid });
+    if (this.#updater) killTree(this.#updater, { force: true });
+    await this.#updating;
   }
 
   /** SIGINT/SIGTERM: stop the agent cleanly, then let run() return. */
@@ -172,6 +220,7 @@ class AgentKeeper {
     let failures = 0;
     while (!this.#stopping) {
       const child = this.#spawnAgent();
+      const startedAt = Date.now();
       const { code, signal } = await child.exited;
 
       if (this.#stopping) break;
@@ -193,6 +242,9 @@ class AgentKeeper {
         return EXIT_OK;
       }
 
+      // A crash after a long healthy run starts the count over, rather than
+      // inheriting the backoff of one that happened weeks ago.
+      failures = failuresAfterRun(failures, Date.now() - startedAt, this.#options.healthyAfterMs);
       const delay = backoffDelay(failures++);
       log.warn('agent exited; restarting', { code, signal, delayMs: delay, failures });
       await sleep(delay).catch(() => {});
@@ -253,7 +305,7 @@ class AgentKeeper {
       for (const repo of this.#options.alsoRepos) await this.#updateOther(repo);
       if (this.#stopping) return;
 
-      const result = await selfUpdate(this.#options.repo, this.#options.remote);
+      const result = await this.#selfUpdate(this.#options.repo);
       if (this.#stopping) return;
 
       if (!result.ok) {
@@ -279,7 +331,7 @@ class AgentKeeper {
   }
 
   async #updateOther(repo) {
-    const result = await selfUpdate(repo, this.#options.remote);
+    const result = await this.#selfUpdate(repo);
     if (!result.ok) log.warn('update skipped', { repo, reason: result.reason });
     else if (result.updated) {
       // Said plainly because it is the half a supervisor cannot do: nothing
@@ -289,6 +341,16 @@ class AgentKeeper {
         head: result.head?.slice(0, 7),
         subject: result.subject,
       });
+    }
+  }
+
+  async #selfUpdate(repo) {
+    try {
+      return await selfUpdate(repo, this.#options.remote, (child) => {
+        this.#updater = child;
+      });
+    } finally {
+      this.#updater = null;
     }
   }
 

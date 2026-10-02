@@ -2,7 +2,7 @@ import os from 'node:os';
 
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
-import { reserveFromEnv, memorySnapshot } from './memory.js';
+import { reserveFromEnv, reservePercentFromEnv, memorySnapshot } from './memory.js';
 import { LoadSampler, maxLoadFromEnv, concurrencyFromEnv } from './load.js';
 import {
   MB,
@@ -37,6 +37,10 @@ if (!process.env.ALPHA_AGENT_KEY && process.env.ALPHA_TUNNEL_TOKEN) {
   log.warn('using the shared ALPHA_TUNNEL_TOKEN; issue this agent its own ALPHA_AGENT_KEY');
 }
 
+// One address, or several separated by commas: primary first, then wherever
+// else a coordinator might be answering — a laptop running the standby while
+// the host is off. The agent tries them in order and comes back to the primary
+// on its own.
 const hostUrl = process.env.ALPHA_HOST_URL;
 if (!hostUrl) {
   log.error('ALPHA_HOST_URL is not set. Point it at the coordinator, e.g. http://alpha-host:8787');
@@ -59,6 +63,16 @@ const extraHandlers = (process.env.ALPHA_EXTRA_HANDLERS ?? '')
   .split(',')
   .map((entry) => entry.trim())
   .filter(Boolean);
+
+// Printed unconditionally, including when empty. `.env.agent` only takes
+// effect on the next process start, so "I edited the file" and "this process
+// saw the edit" are two different facts — a machine that should be offering
+// `alpha-devices` and silently isn't should show that gap here, in the one
+// line an operator is already looking at, rather than needing to notice the
+// handler's own absence from `handlers available` further down.
+log.info('extra handlers configured', {
+  ALPHA_EXTRA_HANDLERS: extraHandlers.length ? extraHandlers.join(',') : '(none)',
+});
 
 for (const name of extraHandlers) {
   // Restricted charset: this becomes an import specifier, so no traversal,
@@ -90,10 +104,20 @@ for (const name of extraHandlers) {
 // How much RAM this machine keeps for itself. Everything above it is offered
 // to the host, which uses it to decide what work can be placed here.
 let memoryReserveBytes;
+let memoryReservePercent;
 try {
   memoryReserveBytes = reserveFromEnv(process.env.ALPHA_AGENT_MEMORY_RESERVE_MB);
 } catch (error) {
   log.error(`ALPHA_AGENT_MEMORY_RESERVE_MB: ${error.message}`);
+  process.exit(1);
+}
+// The same bargain as a share of this machine, which is the half that survives
+// .env.agent being copied to a laptop with different RAM. 10 means "work me to
+// ninety percent"; 80 means "this machine is here for one pinned job".
+try {
+  memoryReservePercent = reservePercentFromEnv(process.env.ALPHA_AGENT_MEMORY_RESERVE_PERCENT);
+} catch (error) {
+  log.error(`ALPHA_AGENT_MEMORY_RESERVE_PERCENT: ${error.message}`);
   process.exit(1);
 }
 
@@ -124,6 +148,7 @@ try {
     capabilities: capabilities.length ? capabilities : undefined,
     handlers,
     memoryReserveBytes,
+    memoryReservePercent,
     maxLoad,
     concurrency,
   });
@@ -138,11 +163,18 @@ log.info('handlers available', { handlers: handlers.describe() });
 // off the offer as well, so say so rather than leaving an operator wondering
 // why a 16 GB laptop is lending less than its free memory.
 const committedBytes = handlers.committedBytes();
-const snapshot = memorySnapshot({ reserveBytes: memoryReserveBytes, committedBytes });
+const snapshot = memorySnapshot({
+  reserveBytes: memoryReserveBytes,
+  reservePercent: memoryReservePercent,
+  committedBytes,
+});
 log.info('memory offered to the host', {
   totalMB: Math.round(snapshot.totalBytes / MB),
   availableMB: Math.round(snapshot.freeBytes / MB),
-  reservedMB: Math.round(memoryReserveBytes / MB),
+  // What was actually held back, which is the larger of the two reserves —
+  // printing the configured MB alone would explain the wrong number.
+  reservedMB: Math.round(snapshot.reserveBytes / MB),
+  reservePercent: memoryReservePercent,
   handlerBudgetMB: Math.round(committedBytes / MB),
   offerableMB: Math.round(snapshot.offerableBytes / MB),
 });
