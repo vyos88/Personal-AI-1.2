@@ -1,6 +1,7 @@
 import {
   newId,
   AGENT_STALE_MS,
+  AGENT_SILENT_MS,
   MEMORY_REPORT_STALE_MS,
   LOAD_REPORT_STALE_MS,
   SUPERSEDED_MEMORY_MS,
@@ -50,10 +51,12 @@ export class AgentRegistry {
 
   constructor({
     staleMs = AGENT_STALE_MS,
+    silentMs = AGENT_SILENT_MS,
     supersededMemoryMs = SUPERSEDED_MEMORY_MS,
     now = () => Date.now(),
   } = {}) {
     this.staleMs = staleMs;
+    this.silentMs = silentMs;
     this.supersededMemoryMs = supersededMemoryMs;
     this.now = now;
   }
@@ -484,7 +487,12 @@ export class AgentRegistry {
     // scope than the `keys:read` that exists for looking at credentials.
     return [...this.#agents.values()].map(({ keyId, ...agent }) => ({
       ...agent,
+      lastSeenAt: agent.lastSeenAt,
       idleMs: now - agent.lastSeenAt,
+      // Reported, never acted on: the row stays, and stays placeable, until
+      // prune() drops it at `staleMs`. This only stops a reader taking a
+      // machine that has missed two heartbeats for one that is attached.
+      stale: now - agent.lastSeenAt > this.silentMs,
       availableBytes: this.offerableBytes(agent),
       // Of `reservedBytes`, the part the agent's own reports have not shown
       // being taken yet — the only part still being held back by hand.

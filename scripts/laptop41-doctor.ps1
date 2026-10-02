@@ -565,7 +565,31 @@ if ($Watch -and $due) {
   } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot - not posted" -ForegroundColor Yellow }
 }
 
-$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); open = $open }
+# ------------------------------------------------------------ relay the cloud
+# The other direction. A scheduled cloud Claude session cannot reach the
+# tailnet, so it writes its report to the status/cloud branch every 30
+# minutes; this passes each new one to Alpha's coordination tunnel, where
+# Alpha and Codex read. Posted once per report: the commit id is remembered.
+$cloudSeen = if ($prev -and $prev.cloudSeen) { [string]$prev.cloudSeen } else { $null }
+if ($Watch) {
+  git -C $repo fetch -q origin status/cloud 2>&1 | Plain | Out-Null
+  if ($LASTEXITCODE -eq 0) {
+    $cloudHead = (git -C $repo rev-parse FETCH_HEAD 2>$null | Out-String).Trim()
+    if ($cloudHead -and $cloudHead -ne $cloudSeen) {
+      $cloudMsg = (git -C $repo show 'FETCH_HEAD:reports/cloud.md' 2>$null | Out-String).Trim()
+      $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+      if ($cloudMsg -and $co) {
+        $cloudMsg = Redact $cloudMsg
+        if ($cloudMsg.Length -gt 3900) { $cloudMsg = $cloudMsg.Substring(0, 3900) }
+        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'claude-cloud' -Message $cloudMsg 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $cloudSeen = $cloudHead; Write-Host 'relayed the cloud report to Alpha' }
+        else { Write-Host 'could not relay the cloud report to Alpha; will retry next run' -ForegroundColor Yellow }
+      }
+    }
+  }
+}
+
+$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; open = $open }
 $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 
 # ------------------------------------------------------------ push

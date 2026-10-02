@@ -25,3 +25,6 @@ __pycache__/
 /scripts/*-log.txt
 /scripts/fix-3d-oneline.txt
 /scripts/webgl-check.html
+
+# The music bridge's subscription accounts (src/bridge/billing.js): who has paid.
+/billing/
