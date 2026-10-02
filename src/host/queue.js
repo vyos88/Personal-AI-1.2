@@ -383,6 +383,28 @@ export class TaskQueue {
     task.leaseExpiresAt = task.leasedAt + task.leaseMs;
   }
 
+  /**
+   * Offer queued work to parked agents again. Placement is decided at enqueue
+   * and at poll time, so a change in who may take work (a machine resumed)
+   * would otherwise wait out a whole long poll before anything moved.
+   */
+  redispatch() {
+    let moved = 0;
+    for (let i = 0; i < this.#pending.length; ) {
+      const task = this.#pending[i];
+      const waiter = this.#findWaiterFor(task);
+      if (!waiter) {
+        i += 1;
+        continue;
+      }
+      this.#pending.splice(i, 1);
+      this.#assign(task, waiter.agentId);
+      this.#resolveWaiter(waiter, task);
+      moved += 1;
+    }
+    return moved;
+  }
+
   #requeue(task, reason) {
     task.status = TaskStatus.QUEUED;
     task.agentId = null;

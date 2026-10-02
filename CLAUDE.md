@@ -189,6 +189,21 @@ hold that together:
   hand, a loaded agent takes work anyway — otherwise a fleet that is busy
   everywhere would never run anything.
 
+**A machine can be paused by name, and the creator's pause is final.**
+`POST /agents/pause {name, reason}` / `/agents/resume` (scope `agents:control`)
+make `registry.canAdmit` refuse every task for that name; work in flight is left
+alone, because stopping it is what `tasks:cancel` is for. Three properties, all
+in `test/pause.test.js`:
+
+- **By name, like `targetAgent`,** so a restarted laptop is still paused. Held in
+  memory like the rest of the registry: a coordinator restart lifts every pause.
+- **A pause made with admin can only be lifted with admin** (`creator_hold`), and
+  re-pausing never downgrades that. This is what lets Alpha hold an
+  `agents:read,agents:control` key as supervisor without being able to overrule
+  the person who owns the fleet. `docs/ALPHA_SUPERVISOR.md` is the runbook.
+- **Resume hands queued work out immediately** (`queue.redispatch()`); without it
+  a resumed machine waits out a whole long poll, and the test proves the wait.
+
 **A task may name its machine, and naming one narrows nothing else.**
 `targetAgent` on a task restricts the candidates to agents registered under
 that name; `registry.canAdmit` checks it first, so both `candidatesFor` and

@@ -54,6 +54,9 @@ Tasks
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
   agents                                                 List attached agents, their free RAM, CPU load and version
+  pause --agent <n> [--reason <text>]                    Offer that machine no new work (it finishes what it runs)
+  resume --agent <n>                                     Lift a pause; an admin's pause needs an admin
+  pauses                                                 List paused machines
   stats                                                  Fleet summary: queue, capacity, how work is spread
 
 Borrowed memory
@@ -482,6 +485,7 @@ export async function main(argv = process.argv.slice(2)) {
         { header: 'CPU', value: (a) => load(a) },
         { header: 'RUN', value: (a) => a.inFlight ?? 0 },
         { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
+        { header: 'STATE', value: (a) => (a.paused ? 'PAUSED' : 'ok') },
       ]);
       if (drifted.length) {
         emit(
@@ -495,6 +499,39 @@ export async function main(argv = process.argv.slice(2)) {
             '(the suffix is each machine\'s own id). Set ALPHA_AGENT_NAME on one of them.',
         );
       }
+      return;
+    }
+
+    case 'pause':
+    case 'resume': {
+      if (!flags.agent) fail(`${command} requires --agent <name>`, { usage: true });
+      const result = await api(`/agents/${command}`, {
+        method: 'POST',
+        body: command === 'pause' ? { name: flags.agent, reason: flags.reason } : { name: flags.agent },
+      });
+      if (flags.json) return emit('', result);
+      if (command === 'pause') {
+        const p = result.pause;
+        emit(`${p.name} paused${p.creatorHold ? ' (admin hold: only an admin can resume it)' : ''}` +
+          `${p.attached ? '' : ' - not attached right now; the pause applies when it attaches'}`);
+      } else {
+        emit(`${result.resumed} resumed${result.dispatched ? `, ${result.dispatched} queued task(s) handed out` : ''}`);
+      }
+      return;
+    }
+
+    case 'pauses': {
+      const { pauses } = await api('/agents/pauses');
+      if (flags.json) return emit('', pauses);
+      if (!pauses.length) return emit('No machine is paused.');
+      table(pauses, [
+        { header: 'NAME', value: (p) => p.name },
+        { header: 'BY', value: (p) => p.by },
+        { header: 'HOLD', value: (p) => (p.creatorHold ? 'admin' : '-') },
+        { header: 'ATTACHED', value: (p) => (p.attached ? 'yes' : 'no') },
+        { header: 'SINCE', value: (p) => new Date(p.at).toISOString().slice(0, 16) },
+        { header: 'REASON', value: (p) => p.reason || '-' },
+      ]);
       return;
     }
 
