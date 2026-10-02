@@ -19,3 +19,21 @@ test('every PowerShell script is plain ASCII', async () => {
     assert.equal(at, -1, `${join('scripts', name)} has a non-ASCII byte at offset ${at}`);
   }
 });
+
+// "$pub: the connector" is a parse error: PowerShell reads `$name:` as a
+// drive- or scope-qualified variable and wants a name after the colon. One of
+// these in repair-alpha-host.ps1 stopped the whole script before its first
+// step, so the host never got its boot tasks. CI has no PowerShell to parse
+// with, so look for the shape; write ${name}: instead.
+test('no PowerShell script has a bare $name: before a non-name character', async () => {
+  const names = (await readdir(SCRIPTS)).filter((n) => n.endsWith('.ps1'));
+  const bad = [];
+  for (const name of names) {
+    const lines = (await readFile(new URL(name, SCRIPTS), 'utf8')).split(/\r?\n/);
+    lines.forEach((line, i) => {
+      if (/^\s*#/.test(line)) return;
+      if (/\$[A-Za-z_][A-Za-z0-9_]*:(?![A-Za-z0-9_{\\:])/.test(line)) bad.push(`${join('scripts', name)}:${i + 1}: ${line.trim()}`);
+    });
+  }
+  assert.deepEqual(bad, []);
+});

@@ -50,6 +50,9 @@ param(
   [int]$LiveFrontendPort = 4173,
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$HealthPath = '/health',
+  # Where Alpha sits inside the restored checkout (the folder holding frontend
+  # and backend). The alpha-full repository keeps it here; '' means the top.
+  [string]$AppSubdir = 'BuildArtifacts\installers\Alpha-Full\software',
   [switch]$NoStopStale,
   [switch]$StopRecovered
 )
@@ -90,6 +93,9 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $work = Join-Path $TargetRoot $stamp
 $copy = Join-Path $work 'source'
 $checkout = Join-Path $work 'checkout'
+$AppSubdir = $AppSubdir.Trim('\')
+# Build, run and verify the same folder promote-recovered-alpha.ps1 promotes.
+$app = if ($AppSubdir) { Join-Path $checkout $AppSubdir } else { $checkout }
 New-Item -ItemType Directory -Force -Path $work | Out-Null
 $log = Join-Path $work 'recovery.log'
 Start-Transcript -Path $log -Force | Out-Null
@@ -219,9 +225,10 @@ $evidence.liveRefs = @($liveRefs | ForEach-Object { "$($_.Path):$($_.LineNumber)
 
 # ================================================================ 6. deps
 Section "6. Dependencies"
-$fe = @("$checkout\frontend", $checkout) | Where-Object { Test-Path "$_\package.json" } | Select-Object -First 1
+$fe = @("$app\frontend", $app) | Where-Object { Test-Path "$_\package.json" } | Select-Object -First 1
 $npm = (Get-Command npm.cmd -EA SilentlyContinue).Source
-if (-not $fe) { Problem "no package.json in the checkout or its frontend folder." }
+if (-not (Test-Path $app -PathType Container)) { Problem "the restored checkout has no $AppSubdir - re-run with -AppSubdir <the folder holding frontend>, or -AppSubdir '' for the top." }
+elseif (-not $fe) { Problem "no package.json in $app or its frontend folder." }
 else {
   Push-Location $fe
   if (Test-Path 'package-lock.json') { & $npm ci 2>&1 | Select-Object -Last 5 | ForEach-Object { Note "$_" } }
@@ -231,9 +238,9 @@ else {
   if ($LASTEXITCODE -ne 0 -or -not (Test-Path 'dist\index.html')) { Problem "frontend build failed." } else { OK "frontend built" }
   Pop-Location
 }
-$req = Get-ChildItem $checkout -Recurse -Depth 4 -Filter requirements*.txt -EA SilentlyContinue |
+$req = Get-ChildItem $app -Recurse -Depth 4 -Filter requirements*.txt -EA SilentlyContinue |
        Where-Object { $_.FullName -notmatch '\\(node_modules|\.git|venv|\.venv)\\' } | Sort-Object { $_.FullName.Length } | Select-Object -First 1
-$appFile = Get-ChildItem $checkout -Recurse -Depth 5 -Filter *.py -EA SilentlyContinue |
+$appFile = Get-ChildItem $app -Recurse -Depth 5 -Filter *.py -EA SilentlyContinue |
            Where-Object { $_.FullName -notmatch '\\(node_modules|\.git|venv|\.venv|site-packages)\\' } |
            Select-String -Pattern '^\s*app\s*=\s*FastAPI\(' -List -EA SilentlyContinue | Select-Object -First 1
 $venvPy = $null
