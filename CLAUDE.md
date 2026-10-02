@@ -687,6 +687,16 @@ validates with the handler's own `validateSettings`, reads back music tasks
 only, binds loopback and sends no CORS header. It leaves `vocals` to the agent,
 since it cannot know which machine will run the task.
 
+Its two read-only routes hold to the same rules. `/music/recipes` reads the
+receipt ledger with `type=alpha.music` (tasks:read, already held), filters by
+type again itself, and passes on recipe, status, machine name, output
+names/sizes and times — no paths, no agent ids. `/music/fleet` reads `/agents`,
+which needs `agents:read`; that scope is optional, and a key without it makes
+that one route a 502 `bridge_key_rejected` naming the scope while the rest keep
+working. It lists only machines offering `alpha.music`, with name, idle time
+and in-flight count (and `stale` when the registry reports one), never ids,
+addresses, owners or other capabilities.
+
 `alpha-music-audio.js` (`alpha.music.audio`) is how a track gets heard
 somewhere other than the machine that made it, and it is shaped by two facts:
 nothing can reach into an agent, and the coordinator keeps every task result

@@ -66,7 +66,8 @@ pip install -r scripts/requirements-music.txt
 #   ALPHA_MUSIC_ROOT=<this checkout>
 
 # machine serving Alpha's frontend
-node src/admin/run.js issue-key --user <userId> --scopes tasks:read,tasks:write --name music-bridge
+node src/admin/run.js issue-key --user <userId> --scopes tasks:read,tasks:write,agents:read --name music-bridge
+# (agents:read is only for /music/fleet; without it that route is a 502 bridge_key_rejected)
 # .env:
 #   ALPHA_MUSIC_BRIDGE_TOKEN=<key>
 #   ALPHA_MUSIC_AGENT=<generating machine's name>
