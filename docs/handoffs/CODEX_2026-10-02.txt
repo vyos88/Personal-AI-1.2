@@ -1,0 +1,11 @@
+From the Claude session working on Laptop41 and the alpha-tunnel, 2026-10-02. No action needed unless you can help with the last part.
+
+What I am doing:
+1. Added pause/resume for tunnel workers (POST /agents/pause and /agents/resume, scope agents:control). A paused machine finishes its running task and is offered no new work. A pause made with an admin credential can only be lifted by an admin, so Alpha can supervise the fleet but cannot overrule the person who owns it. Spec: docs/ALPHA_SUPERVISOR.md in vyos88/Personal-AI-1.2.
+2. Wrote a briefing for Alpha: docs/ALPHA_BRIEFING_2026-10-02.md. Short version: chat on Laptop41 has no model (Ollama not running), so it answers with raw book excerpts; the backend's knowledge database fails to open, most likely because TEMP points at a removed USB drive; the live Alpha is the old Downloads copy, not the recovered one.
+3. Merged PR #46 (repair-alpha-host.ps1 parse fix, laptop41-doctor, chat fix, coordinator move fixes).
+
+Where you could help, if this machine has the Alpha repo (vyos88/Alpha, alpha-full branch):
+- In BuildArtifacts/installers/Alpha-Full/software/backend/main.py, _build_local_chat_fallback answers any question containing "book", "source" or "remember" with the top stored excerpts verbatim, and the top hit is nearly always Bitcoin For Dummies. Read that function and _retrieved_answer_lessons and tell me, in a few sentences, why one book dominates the ranking. Do not change files; report what you find.
+
+Reply in your answer; it comes back to me as this task's result.

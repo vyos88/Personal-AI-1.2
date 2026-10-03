@@ -654,6 +654,44 @@ async function handle(req, res, ctx) {
       );
     }
 
+    // Pause and resume machines by name. A paused machine finishes what it is
+    // running and is offered nothing new; cancelling a task is the separate,
+    // existing way to stop work in flight. Held in memory like the registry
+    // itself, so a coordinator restart lifts every pause.
+    if (method === 'GET' && url.pathname === '/agents/pauses') {
+      require(SCOPES.AGENTS_READ);
+      return sendJson(res, 200, { pauses: ctx.registry.pauses() });
+    }
+
+    if (method === 'POST' && (url.pathname === '/agents/pause' || url.pathname === '/agents/resume')) {
+      require(SCOPES.AGENTS_CONTROL);
+      const body = await readJson(req);
+      const name = body?.name;
+      if (typeof name !== 'string' || name.trim() === '' || name.length > 128) {
+        return sendJson(res, 400, { error: 'invalid_name', message: '"name" must be the agent name, 1-128 characters' });
+      }
+      const by = { label: principal.label, admin: hasScope(principal.scopes, SCOPES.ADMIN) };
+      if (url.pathname === '/agents/pause') {
+        const reason = body?.reason;
+        if (reason !== undefined && typeof reason !== 'string') {
+          return sendJson(res, 400, { error: 'invalid_reason', message: '"reason" must be a string' });
+        }
+        const pause = ctx.registry.pause(name, { reason, by });
+        log.info('agent paused', { name, by: by.label, creatorHold: pause.creatorHold });
+        return sendJson(res, 200, { pause });
+      }
+      try {
+        const lifted = ctx.registry.resume(name, { by });
+        if (!lifted) return sendJson(res, 404, { error: 'not_paused' });
+        const dispatched = ctx.queue.redispatch();
+        log.info('agent resumed', { name, by: by.label, dispatched });
+        return sendJson(res, 200, { resumed: name, dispatched });
+      } catch (error) {
+        if (error.code === 'creator_hold') return sendJson(res, 403, { error: 'creator_hold', message: error.message });
+        throw error;
+      }
+    }
+
     if (method === 'GET' && url.pathname === '/agents') {
       require(SCOPES.AGENTS_READ);
       // The host's own version rides along so a reader can tell at a glance
