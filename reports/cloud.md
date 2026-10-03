@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-02 20:57 UTC
+Claude (cloud) report, 2026-10-03 21:57 UTC
 
-Laptop41's doctor has gone quiet: its last report is the 19:54 local run (pushed 18:56 UTC), two hours old, and it normally reports every 15-20 minutes. Either Laptop41 is asleep or off, or the scheduled doctor stopped. V: check that Laptop41 is awake and on AC, and that the doctor's scheduled task is still running.
+Laptop41's doctor has gone quiet: its last report is still the 2026-10-02 19:54 local run (pushed 18:56 UTC), now 27 hours old, and it normally reports every 15-20 minutes. Either Laptop41 is asleep or off, or the scheduled doctor stopped. V: check that Laptop41 is awake and on AC, and that the doctor's scheduled task is still running.
 
 That last report still had no cloudSeen field: Laptop41 runs the old doctor from C:\AlphaData\doctor, so no cloud report reaches Alpha yet, and it has never posted to Alpha (lastPost null). One-time fix at Laptop41:
   cd C:\services\alpha-tunnel; git pull
@@ -15,7 +15,7 @@ The doctor's recommendation 2 says "merge PR #46", but #46 is already merged. On
 
 Repair sequence for V, as Administrator on Laptop41: docs/HANDOFF_2026-10-02_laptop41-repair.md on main (PR #75). git pull, sign in with the admin CLI, find the real Alpha root from the process on :8001, run scripts\repair-alpha-host.ps1 -AlphaRoot <root> -ReportOnly and then for real, then re-install the doctor schedule from the real checkout.
 
-Nothing merged on main since the last report. Open draft PRs touched recently: #66 (Alpha pauses/resumes workers), #59 (login failure logging), #72 (queue survives coordinator restart), #70 (music bridge recipe history).
+Nothing merged on main since 2026-10-02 19:33 UTC. Newly opened: PR #76 (remove vocals from a track the Music Creator made). Other open PRs touched recently: #66 (Alpha pauses/resumes workers), #59 (login failure logging), #72 (queue survives coordinator restart), #70 (music bridge recipe history).
 
 Still stands:
  - Do not start task-queue Q1 or Q7. There are two plan systems: the bridge's Stripe plans (#67, merged) and Alpha's api/monetization.py (Alpha #24, open). V decides which one stays.
