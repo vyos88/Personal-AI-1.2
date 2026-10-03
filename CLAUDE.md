@@ -704,6 +704,34 @@ the task's `targetAgent`, so playback needs `ALPHA_MUSIC_AGENT` on the bridge:
 an untargeted task names no machine the bridge could ask. Its `available()`
 needs only the output directory, as `alpha-render-inventory`'s does.
 
+`alpha-music-stems.js` (`alpha.music.stems`) removes the vocals from a track
+`alpha.music` already made, by stem-separating it with Demucs and keeping
+everything but the vocal stem. It is named and shaped exactly like
+`alpha.music.audio` on purpose: the payload is `{ genre, name }`, never a
+path, resolved the same way at `<output>/<genre folder>/<name>`, because a
+handler that could be told where to look is a file server with a task queue
+in front of it. The instrumental it writes — `<name's stem>.novocals<ext>` —
+lands in that same genre folder, which is the only reason this needs no new
+way to get audio back to a browser: `alpha.music.audio`'s slice pipeline
+already serves any file there by name, so the bridge's existing
+`/music/tasks/:id/audio` route plays it with no changes to that handler.
+**The track never leaves the machine that holds it.** `src/bridge/music.js`'s
+`POST /music/tasks/:id/remove-vocals` queues `alpha.music.stems` targeted at
+that same track's `targetAgent` — there is nowhere else the separation could
+run — and hands back a second task id the panel polls and plays back through
+the same two routes a generated track uses, rather than inventing a parallel
+set. Two failures it refuses to call success, both borrowed from
+`alpha.music`: a non-zero exit, and a clean exit that wrote nothing. Its
+`available()` checks the script and the output directory, the same two things
+`alpha.music`'s does, and nothing about any one track — that is `run()`'s
+question. `ALPHA_MUSIC_DRY_RUN=1` makes `scripts/remove_vocals.py` copy the
+input through unchanged instead of loading Demucs: there is no way to prove
+separation itself without a real voice to remove, so the dry run only proves
+the file moved through the pipeline, the same honesty `generate_music.py`'s
+click track has about BPM and key rather than musicality. Demucs is a second,
+separate dependency file (`scripts/requirements-stems.txt`) from MusicGen's,
+so a machine can offer either capability without the other.
+
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing

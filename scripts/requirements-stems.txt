@@ -1,0 +1,9 @@
+# Only for the machine that runs alpha.music.stems (scripts/remove_vocals.py).
+# The tunnel itself has no dependencies; nothing here is needed to run it.
+# Separate from requirements-music.txt: a machine can offer vocal removal
+# without the generator, or the generator without this.
+#
+# For a CUDA GPU, install torch from https://pytorch.org first so pip picks the
+# CUDA build, then this file.
+torch>=2.1
+demucs>=4.0
