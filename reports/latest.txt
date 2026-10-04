@@ -1,4 +1,4 @@
-laptop41-doctor 20261004-092606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261004-094104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -51,13 +51,13 @@ laptop41-doctor 20261004-092606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
     Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
-    COM7   in use by another program?
-    COM20   in use by another program?
+    COM7
+    COM20
     COM32   in use by another program?
     COM33   in use by another program?
     COM36   in use by another program?
     COM37   in use by another program?
-    COM50   in use by another program?
+    COM50
   device: Standard Serial over Bluetooth link (COM32)
   device: Standard Serial over Bluetooth link (COM36)
   device: Standard Serial over Bluetooth link (COM33)
@@ -68,33 +68,33 @@ laptop41-doctor 20261004-092606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.5 of 15.8 GB RAM free
-  ok: C: 9.4 GB free
-  OneDrive                        983 MB  pid 3776
-  ChatGPT                         951 MB  pid 13392
+  PROBLEM: only 1.4 of 15.8 GB RAM free
+  ok: C: 9.3 GB free
+  ChatGPT                         959 MB  pid 13392
+  OneDrive                        942 MB  pid 3776
   codex                           566 MB  pid 20352
-  MsMpEng                         566 MB  pid 6592
-  claude                          534 MB  pid 14368
-  ChatGPT                         423 MB  pid 12044
+  MsMpEng                         536 MB  pid 6592
+  claude                          531 MB  pid 14368
+  ChatGPT                         407 MB  pid 12044
   Spotify                         376 MB  pid 21164
-  explorer                        364 MB  pid 13396
+  explorer                        363 MB  pid 13396
 
 === SUMMARY ===
-  this pass took 65s
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 79 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 79 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 25 run(s), since 2026-10-02T19:29:08)
-  - NEEDS A PERSON - live main.py still has the dictionary bug (fix: -Fix)  (open 22 run(s), since 2026-10-04T03:33:34)
-  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 22 run(s), since 2026-10-04T03:33:34)
-  - only 1.5 of 15.8 GB RAM free  (open 3 run(s), since 2026-10-04T08:56:52)
+  this pass took 54s
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 80 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 80 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 26 run(s), since 2026-10-02T19:29:08)
+  - NEEDS A PERSON - live main.py still has the dictionary bug (fix: -Fix)  (open 23 run(s), since 2026-10-04T03:33:34)
+  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 23 run(s), since 2026-10-04T03:33:34)
+  - NEEDS A PERSON - only 1.4 of 15.8 GB RAM free  (open 4 run(s), since 2026-10-04T08:56:52)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 79 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 79 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 25 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
-  4. [open 22 runs NEEDS A PERSON] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
-  5. [open 22 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  6. [open 3 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 80 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 80 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 26 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  4. [open 23 runs NEEDS A PERSON] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
+  5. [open 23 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  6. [open 4 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   7. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
   8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   9. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
