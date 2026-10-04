@@ -1,8 +1,8 @@
-laptop41-doctor 20261004-032940 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261004-034149 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 11360 python.exe: 
+  port 8001 : pid 21488 python.exe: 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: "C:\Program Files\nodejs\npm.cmd" run preview -- --host 0.0.0.0 --port 4173
               in: C:/Users/Vyo/Downloads/vyoS-advance-tech-ai/software/frontend
@@ -12,27 +12,28 @@ laptop41-doctor 20261004-032940 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder
 
 === 1. Backend (port 8001) ===
-  PROBLEM: backend /health answered 000
+  ok: /health answers 200
   PROBLEM: live main.py still has the dictionary bug (fix: -Fix)
+  main.py edited 2026-10-04 03:12; backend started 
 
 === 2. Chat ===
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
-  dist built     2026-10-04 02:06
-  newest source  2026-10-04 01:18  src\musicSimpleMode.test.js
+  dist built     2026-10-04 03:41
+  newest source  2026-10-04 03:32  src\spatialDeckRestore.test.js
   ok: build is newer than every source file
-  bundle in dist     /assets/index-Dw6pYeGt.js
+  bundle in dist     /assets/index-DSDRYSun.js
   bundle on :4173   
-  bundle public      /assets/index-Dw6pYeGt.js
+  bundle public      /assets/index-DSDRYSun.js
   public headers: Server: cloudflare
   PROBLEM: nothing serves Alpha on 4173
-  PROBLEM: the public site serves /assets/index-Dw6pYeGt.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
+  PROBLEM: the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
 
 === 4. Public alpha-ai.uk and the boot tasks ===
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Disabled last run 2026-10-01 23:00 result 0xC000013A (killed: Ctrl+C or its console closed - the process did not survive)
-  task Alpha Backend    Running  last run 2026-10-04 03:27 result 0x00041301 (still running)
+  task Alpha Backend    Disabled last run 2026-10-04 03:27 result 0x00041306
   PROBLEM: task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
@@ -50,13 +51,13 @@ laptop41-doctor 20261004-032940 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
     Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
-    COM7   in use by another program?
-    COM20   in use by another program?
+    COM7
+    COM20
     COM32   in use by another program?
     COM33   in use by another program?
     COM36   in use by another program?
     COM37   in use by another program?
-    COM50   in use by another program?
+    COM50
   device: Standard Serial over Bluetooth link (COM32)
   device: Standard Serial over Bluetooth link (COM36)
   device: Standard Serial over Bluetooth link (COM33)
@@ -67,35 +68,33 @@ laptop41-doctor 20261004-032940 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 1.8 of 15.8 GB RAM free
+  ok: 1.6 of 15.8 GB RAM free
   ok: C: 9.6 GB free
-  ChatGPT                       1,068 MB  pid 13392
-  OneDrive                        875 MB  pid 3776
-  claude                          626 MB  pid 14368
-  MsMpEng                         553 MB  pid 6592
-  codex                           504 MB  pid 20352
-  ChatGPT                         363 MB  pid 12044
-  Spotify                         350 MB  pid 18616
-  Spotify                         333 MB  pid 21164
+  ChatGPT                       1,079 MB  pid 13392
+  OneDrive                        778 MB  pid 3776
+  claude                          536 MB  pid 14368
+  MsMpEng                         520 MB  pid 6592
+  codex                           482 MB  pid 20352
+  Spotify                         354 MB  pid 18616
+  ChatGPT                         353 MB  pid 12044
+  Spotify                         341 MB  pid 21164
 
 === SUMMARY ===
-  this pass took 235s
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 58 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 58 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - the public site serves /assets/index-Dw6pYeGt.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 4 run(s), since 2026-10-02T19:29:08)
-  - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 1 run(s), since 2026-10-04T03:33:34)
-  - backend /health answered 000  (open 1 run(s), since 2026-10-04T03:33:34)
-  - live main.py still has the dictionary bug (fix: -Fix)  (open 1 run(s), since 2026-10-04T03:33:34)
-  + fixed since last run: task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine
-  + fixed since last run: C:\AlphaData\Alpha does not exist
+  this pass took 146s
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 59 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 59 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 5 run(s), since 2026-10-02T19:29:08)
+  - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 2 run(s), since 2026-10-04T03:33:34)
+  - live main.py still has the dictionary bug (fix: -Fix)  (open 2 run(s), since 2026-10-04T03:33:34)
+  + fixed since last run: backend /health answered 000
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 58 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 58 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 4 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
-  4. [new] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  5. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
-  6. [new] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
-  7. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
-  8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  9. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
+  1. [open 59 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 59 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 5 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  4. [open 2 runs] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  5. [open 2 runs] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
+  6. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
+  7. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  8. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
+  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
