@@ -1,4 +1,4 @@
-laptop41-doctor 20261004-034149 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261004-035603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -68,33 +68,33 @@ laptop41-doctor 20261004-034149 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 1.6 of 15.8 GB RAM free
+  PROBLEM: only 0.3 of 15.8 GB RAM free
   ok: C: 9.6 GB free
-  ChatGPT                       1,079 MB  pid 13392
-  OneDrive                        778 MB  pid 3776
-  claude                          536 MB  pid 14368
-  MsMpEng                         520 MB  pid 6592
-  codex                           482 MB  pid 20352
-  Spotify                         354 MB  pid 18616
-  ChatGPT                         353 MB  pid 12044
-  Spotify                         341 MB  pid 21164
+  ChatGPT                         999 MB  pid 13392
+  OneDrive                        838 MB  pid 3776
+  claude                          556 MB  pid 14368
+  MsMpEng                         501 MB  pid 6592
+  codex                           501 MB  pid 20352
+  Spotify                         383 MB  pid 21164
+  Spotify                         356 MB  pid 18616
+  ChatGPT                         343 MB  pid 12044
 
 === SUMMARY ===
-  this pass took 146s
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 59 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 59 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 5 run(s), since 2026-10-02T19:29:08)
-  - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 2 run(s), since 2026-10-04T03:33:34)
-  - live main.py still has the dictionary bug (fix: -Fix)  (open 2 run(s), since 2026-10-04T03:33:34)
-  + fixed since last run: backend /health answered 000
+  this pass took 109s
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 60 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 60 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - the public site serves /assets/index-DSDRYSun.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 6 run(s), since 2026-10-02T19:29:08)
+  - live main.py still has the dictionary bug (fix: -Fix)  (open 3 run(s), since 2026-10-04T03:33:34)
+  - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 3 run(s), since 2026-10-04T03:33:34)
+  - only 0.3 of 15.8 GB RAM free  (open 1 run(s), since 2026-10-04T03:57:51)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 59 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 59 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 5 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
-  4. [open 2 runs] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  5. [open 2 runs] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
-  6. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
-  7. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  8. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
-  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  1. [open 60 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 60 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 6 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  4. [open 3 runs] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
+  5. [open 3 runs] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  6. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  7. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
+  8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  9. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
