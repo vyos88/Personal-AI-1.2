@@ -86,6 +86,8 @@ function Http($url, [string]$hostHeader = '') {
 }
 function Body($url, [string]$hostHeader = '') {
   $a = @('-s', '--max-time', '10')
+  # Vite preview on this machine may serve HTTPS with its own certificate.
+  if ($url -like 'https://127.0.0.1*') { $a += '-k' }
   if ($hostHeader) { $a += @('-H', "Host: $hostHeader") }
   return ((& curl.exe @a $url 2>$null) -join "`n")
 }
@@ -306,7 +308,12 @@ function Run-Checks {
       }
     }
   }
-  $localBundle = BundleOf (Body "http://127.0.0.1:$FrontendPort/" $PublicHost)
+  # The cloudflared ingress on Laptop41 is https://127.0.0.1:4173: Vite preview
+  # serves TLS there, and an http:// probe of it reads as nothing listening.
+  $feUrl = "http://127.0.0.1:$FrontendPort/"
+  if (-not (BundleOf (Body $feUrl)) -and (BundleOf (Body "https://127.0.0.1:$FrontendPort/"))) { $feUrl = "https://127.0.0.1:$FrontendPort/" }
+  Note "frontend probed at $feUrl"
+  $localBundle = BundleOf (Body $feUrl $PublicHost)
   $pubBundle   = BundleOf (Body "https://$PublicHost/")
   Note "bundle in dist     $fileBundle"
   Note "bundle on :$FrontendPort   $localBundle"
@@ -317,9 +324,9 @@ function Run-Checks {
     # Empty with the public Host header is not yet "nothing there": Vite answers
     # 403 "Blocked request" to a host it was not told about. Ask again without
     # the header and say which of the two it is.
-    $code = (& curl.exe -s -o NUL -w '%{http_code}' --max-time 10 "http://127.0.0.1:$FrontendPort/" 2>$null) -join ''
-    $plain = Body "http://127.0.0.1:$FrontendPort/"
-    $blocked = (Body "http://127.0.0.1:$FrontendPort/" $PublicHost) -match 'Blocked request'
+    $code = (& curl.exe -s -k -o NUL -w '%{http_code}' --max-time 10 $feUrl 2>$null) -join ''
+    $plain = Body $feUrl
+    $blocked = (Body $feUrl $PublicHost) -match 'Blocked request'
     $script:frontendStale = $true
     if ($blocked) { Problem "$FrontendPort refuses Host: $PublicHost (Vite 'Blocked request'): add it to preview.allowedHosts in vite.config" }
     elseif (BundleOf $plain) { Problem "$FrontendPort serves $(BundleOf $plain) on 127.0.0.1 but nothing when asked as $PublicHost" }

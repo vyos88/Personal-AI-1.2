@@ -107,6 +107,12 @@ function Body($url, [string]$HostHeader = '') {
 }
 $backendUrl  = "http://127.0.0.1:$BackendPort$BackendHealthPath"
 $frontendUrl = "http://127.0.0.1:$FrontendPort/"
+# Vite preview may serve TLS (Laptop41's ingress is https://127.0.0.1:4173), and
+# an http:// probe of it reads as down; self-heal would then restart a healthy
+# frontend. Use whichever scheme answers; the ingress decides when neither does.
+if (-not ((Body $frontendUrl) -match 'id="root"') -and ((Body "https://127.0.0.1:$FrontendPort/") -match 'id="root"')) {
+  $frontendUrl = "https://127.0.0.1:$FrontendPort/"
+}
 function BackendOK  { (Code $backendUrl) -like '2*' }
 function FrontendOK { (Body $frontendUrl) -match 'id="root"' }
 
@@ -247,6 +253,11 @@ if ($CloudflaredConfig -and (Test-Path $CloudflaredConfig)) {
   if ($pubRule -and $pubRule -notmatch "127\.0\.0\.1:$FrontendPort|localhost:$FrontendPort") {
     Problem "The ingress for $PublicHost is '$pubRule', not port $FrontendPort. Not edited - confirm which origin is meant."
   }
+  if ($pubRule -match "https://(127\.0\.0\.1|localhost):$FrontendPort" -and $frontendUrl -like 'http:*' -and -not (FrontendOK)) {
+    $script:frontendUrl = "https://127.0.0.1:$FrontendPort/"
+    Note "  frontend not answering; probing it as https, as the ingress does."
+  }
+  Note "  frontend probed at $frontendUrl"
   if ($pubRule -match "localhost:$FrontendPort") {
     Note "  ingress says 'localhost'; the frontend is pinned to 127.0.0.1 so both resolve to the same socket."
   }
@@ -509,7 +520,11 @@ $shConfig = Join-Path $OpsDir 'selfheal.json'
   public   = @{ url = "https://$PublicHost/"; controlUrl = 'https://www.cloudflare.com/cdn-cgi/trace'; service = $CloudflaredService }
   coordination = @{ root = $AlphaRoot; actor = 'alpha-selfheal' }
   cooldownMs = 300000; budgetPerHour = 3; budgetPerDay = 12
-} | ConvertTo-Json -Depth 4 | Set-Content -Path $shConfig -Encoding utf8
+} | ConvertTo-Json -Depth 4 | ForEach-Object {
+  # Windows PowerShell's -Encoding utf8 writes a BOM, and JSON.parse refuses it:
+  # every self-heal pass exited 3 before checking anything.
+  [IO.File]::WriteAllText($shConfig, $_, (New-Object Text.UTF8Encoding $false))
+}
 $selfheal = Join-Path $tunnel 'scripts\alpha-selfheal.mjs'
 $dry = & $node $selfheal --config $shConfig --dry-run 2>&1 | Out-String
 Note "dry run: $($dry.Trim())"
