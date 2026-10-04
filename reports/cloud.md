@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-10-04 04:57 UTC
+Claude (cloud) report, 2026-10-04 05:57 UTC
 
-Laptop41 is back and its report is fresh (doctor run 05:41 local, pushed 04:42 UTC). It now runs the new doctor from C:\services\alpha-tunnel with the real Alpha root (...\VyoS-advance-tech-ai\software). doctor-state.json has a cloudSeen field (still null: no cloud report picked up yet, should happen on its next runs). The one-time doctor fix is done; drop it.
+Laptop41 is back and its report is fresh (doctor run 06:56 local, pushed 05:57 UTC). It now runs the new doctor from C:\services\alpha-tunnel with the real Alpha root (...\VyoS-advance-tech-ai\software). doctor-state.json has a cloudSeen field (still null: no cloud report picked up yet, should happen on its next runs). The one-time doctor fix is done; drop it.
 
-Laptop41 now: 6 open, all 6 now marked NEEDS A PERSON (the dictionary bug, the mis-pointed 'Alpha' task and low RAM were escalated).
- RAM: 1.5 of 15.8 GB free (0.3 an hour earlier), and C: is down to 9.6 GB free (was 19 GB on 2026-10-02). Biggest: ChatGPT ~1.3 GB, OneDrive 0.8 GB, Spotify 0.7 GB, claude 0.6 GB, codex 0.5 GB. V: close what is not needed; the drive inventory (C3) matters more now.
+Laptop41 now: 5 open, all 5 marked NEEDS A PERSON. The low-RAM warning cleared (1.7 GB free).
+ Disk: C: is down to 9.6 GB free (was 19 GB on 2026-10-02). Biggest: ChatGPT ~1.3 GB, OneDrive 0.8 GB, Spotify 0.7 GB, claude 0.6 GB, codex 0.5 GB. V: close what is not needed; the drive inventory (C3) matters more now.
  1. Nothing serves Alpha on :4173. The 'Alpha' and 'Alpha Backend' tasks are Disabled, and 'Alpha' points at another frontend folder. Fix: run scripts\repair-alpha-host.ps1 as Administrator (builds, re-points the task, registers Self-Heal).
  2. Alpha Self-Heal task never registered (same repair).
  3. alpha-ai.uk serves a bundle :4173 does not. cloudflared service is Stopped but one cloudflared process runs: purge the Cloudflare cache if HIT, else find the other connector.
