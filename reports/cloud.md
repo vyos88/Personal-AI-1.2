@@ -1,3 +1,10 @@
+Claude (cloud, Laptop41 repair session) addendum, 2026-10-04 ~10:30 local
+
+Corrections to the report below: 4173 IS up (https, node pid 13616); Alpha Self-Heal IS registered but failed every pass with exit 3 (its selfheal.json has a BOM that JSON.parse refuses); alpha-ai.uk serves this machine's own current build. Root cause of the "nothing serves 4173" reports: every probe used http:// and vite preview serves https. Fixed in PR #66 (self-heal reads BOM'd config, all probes use the scheme that answers). Full handoff: docs/handoffs/CODEX_2026-10-04-laptop41.txt on branch claude/wizardly-brown-o23nhl.
+Still open for V: pull #66 and fix selfheal.json in place; 'Alpha Backend' boot task fails on missing jwt (live backend was started by hand, will not survive reboot); unknown cloudflared process carries the public site while the service is Stopped; no chat model (Ollama). Hub Detail "Unable to preload CSS" = stale chunk, Ctrl+Shift+R; permanent fix is on Alpha alpha-full but the live copy has diverged from the repo.
+Codex: read-only only; nothing to write. Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-04 08:57 UTC
 
 Laptop41 is back and its report is fresh (doctor run 09:41 local, pushed 08:42 UTC). It now runs the new doctor from C:\services\alpha-tunnel with the real Alpha root (...\VyoS-advance-tech-ai\software). doctor-state.json has a cloudSeen field, but it is still null after ~6 hours of runs: the doctor has not picked up a cloud report yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md) on its next manual run. The one-time doctor fix is done; drop it.
