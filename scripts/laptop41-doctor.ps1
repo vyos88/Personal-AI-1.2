@@ -57,6 +57,18 @@ $ErrorActionPreference = 'Continue'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 $reportDir = Join-Path $OpsDir 'reports'
+# On Laptop41 -AlphaRoot is ...\VyoS-advance-tech-ai\software, and Alpha's
+# coordination script is in ...\VyoS-advance-tech-ai\scripts: beside the root,
+# not under it. Searching only the root found nothing, so no doctor post and no
+# relayed cloud report ever reached Alpha (lastPost and cloudSeen stayed null).
+function Find-CoordScript {
+  $roots = @($AlphaRoot, (Split-Path $AlphaRoot -Parent)) | Where-Object { $_ -and (Test-Path $_) }
+  foreach ($r in $roots) {
+    $direct = Join-Path $r 'scripts\alpha_coordination_tunnel.ps1'
+    if (Test-Path $direct) { return Get-Item $direct }
+  }
+  return Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+}
 # Not $env:TEMP: on Laptop41 it pointed at the removed USB drive (F:).
 $tmpDir = Join-Path $OpsDir 'tmp'
 New-Item -ItemType Directory -Force -Path $reportDir, $tmpDir | Out-Null
@@ -360,6 +372,17 @@ function Run-Checks {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
     if ($st) { $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult)) }
     elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
+    elseif ($t -eq 'Alpha Self-Heal' -and (Test-Path (Join-Path $OpsDir 'selfheal.json'))) {
+      # The repair registers it as SYSTEM, and a SYSTEM task is hidden from a
+      # non-elevated Get-ScheduledTask, which is how the scheduled doctor runs.
+      # Its log is the evidence this user can read.
+      $shLog = Join-Path $OpsDir 'logs\selfheal.jsonl'
+      if (Test-Path $shLog) {
+        $age = [int]((Get-Date) - (Get-Item $shLog).LastWriteTime).TotalMinutes
+        if ($age -le 10) { OK "self-heal runs (task is SYSTEM, not visible here; its log was written $age min ago)" }
+        else { Problem "self-heal is installed but its log is $age min old: check the task's last result as Administrator (3 = config unreadable)" }
+      } else { Problem 'self-heal is installed but has never written its log: check the task as Administrator (last result 3 = config unreadable)' }
+    }
     else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
   $cfs = Get-Service -Name cloudflared -EA SilentlyContinue
@@ -509,7 +532,7 @@ $rules = @(
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
-  @{ done = { Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
+  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (Test-Path (Join-Path $OpsDir 'selfheal.json')) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
   @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
@@ -572,7 +595,7 @@ $lastPost = if ($prev -and $prev.lastPost) { [datetime]$prev.lastPost } else { [
 $due = $changed -or (($open.Count -gt 0) -and (($now - $lastPost).TotalMinutes -ge 60))
 $posted = $false
 if ($Watch -and $due) {
-  $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+  $co = Find-CoordScript
   $head = if ($open.Count -eq 0) { 'Alpha host check: all green.' } else { "Alpha host check: $($open.Count) open problem(s), $($escalate.Count) need a person." }
   $body = @($head)
   foreach ($o in ($open.Values | Sort-Object { -$_.runs } | Select-Object -First 5)) { $body += "- $($o.text) [open $($o.runs) runs]" }
@@ -585,7 +608,7 @@ if ($Watch -and $due) {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'alpha-doctor' -Message $msg 2>&1 | Out-Null
     $posted = ($LASTEXITCODE -eq 0)
     Write-Host ("posted to Alpha: {0}" -f $posted)
-  } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot - not posted" -ForegroundColor Yellow }
+  } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot or beside it - not posted" -ForegroundColor Yellow }
 }
 
 # ------------------------------------------------------------ relay the cloud
@@ -600,7 +623,7 @@ if ($Watch) {
     $cloudHead = (git -C $repo rev-parse FETCH_HEAD 2>$null | Out-String).Trim()
     if ($cloudHead -and $cloudHead -ne $cloudSeen) {
       $cloudMsg = (git -C $repo show 'FETCH_HEAD:reports/cloud.md' 2>$null | Out-String).Trim()
-      $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+      $co = Find-CoordScript
       if ($cloudMsg -and $co) {
         $cloudMsg = Redact $cloudMsg
         if ($cloudMsg.Length -gt 3900) { $cloudMsg = $cloudMsg.Substring(0, 3900) }
