@@ -15,6 +15,7 @@ import { validateSettings } from '../agent/handlers/alpha-music.js';
  *                            → 202 { taskId, recipe, agentAvailable, targetAttached }
  *   GET  /music/tasks/:id    → { taskId, status, recipe, outputs, error, ... }
  *   GET  /music/tasks/:id/audio → the track itself, with Range support
+ *   /music/billing/*         → subscriptions, when billing is configured (billing.js)
  *
  * Why a bridge rather than the browser calling the coordinator: queueing a task
  * needs a bearer token, and a token in a web page is a token anyone who can
@@ -148,6 +149,9 @@ export function createMusicBridge({
   // one, so an evicted track only costs a re-fetch; an unbounded cache costs
   // the bridge's disk, a few MB per track, for as long as it runs.
   cacheMaxTracks = 50,
+  // Music Creator subscriptions (src/bridge/billing.js). Null: every click
+  // generates, as before billing existed.
+  billing = null,
 }) {
   if (!hostUrl) throw new Error('the music bridge needs the coordinator URL (ALPHA_HOST_URL)');
   if (!token) throw new Error('the music bridge needs a tunnel key with tasks:read and tasks:write');
@@ -161,15 +165,24 @@ export function createMusicBridge({
   async function generate(req, res) {
     const settings = await readBody(req);
     const recipe = validateSettings(settings, { allowVocals: true });
-    const { body } = await coordinator('/tasks', {
-      method: 'POST',
-      body: {
-        type: 'alpha.music',
-        payload: recipe,
-        leaseMs,
-        ...(targetAgent ? { targetAgent } : {}),
-      },
-    });
+    // Spent only once the settings are known good, and handed back if the
+    // coordinator never takes the task: a refused click costs no free track.
+    const refund = billing ? billing.reserve(billing.account(req, res)) : () => {};
+    let body;
+    try {
+      ({ body } = await coordinator('/tasks', {
+        method: 'POST',
+        body: {
+          type: 'alpha.music',
+          payload: recipe,
+          leaseMs,
+          ...(targetAgent ? { targetAgent } : {}),
+        },
+      }));
+    } catch (error) {
+      refund();
+      throw error;
+    }
     return send(res, 202, {
       taskId: body.id,
       status: body.status,
@@ -312,6 +325,10 @@ export function createMusicBridge({
       const match = /^\/music\/tasks\/([^/]+)$/.exec(url.pathname);
       if (req.method === 'GET' && match) return await status(res, decodeURIComponent(match[1]));
       if (req.method === 'GET' && url.pathname === '/music/healthz') return send(res, 200, { ok: true });
+      if (url.pathname === '/music/billing' || url.pathname.startsWith('/music/billing/')) {
+        if (billing) return await billing.handle(req, res, url.pathname, send);
+        if (req.method === 'GET' && url.pathname === '/music/billing') return send(res, 200, { billingEnabled: false });
+      }
       return send(res, 404, { error: 'not_found' });
     } catch (error) {
       if (error instanceof ProtocolError) {

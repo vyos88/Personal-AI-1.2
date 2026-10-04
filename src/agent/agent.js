@@ -20,6 +20,7 @@ import {
   loadReportToQuery,
   memoryReportToQuery,
   MB,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -393,7 +394,7 @@ export class TunnelAgent {
         hint: 'git pull on this machine so both run the same version',
       });
     }
-    this.#startHeartbeat(body.heartbeatIntervalMs ?? 20_000);
+    this.#startHeartbeat(body.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS);
   }
 
   /**

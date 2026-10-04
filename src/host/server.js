@@ -19,6 +19,7 @@ import {
   memoryReportFromQuery,
   validateLoadReport,
   loadReportFromQuery,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -67,7 +68,7 @@ export function createHost({
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
   // test should take.
-  heartbeatIntervalMs = 20_000,
+  heartbeatIntervalMs = HEARTBEAT_INTERVAL_MS,
 } = {}) {
   // `token` is the convenience path: it builds an ephemeral auth service whose
   // only credential is that bootstrap token. Real deployments pass `auth` so

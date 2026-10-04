@@ -512,8 +512,18 @@ export async function main(argv = process.argv.slice(2)) {
         // belongs next to the memory columns rather than behind --json.
         { header: 'CPU', value: (a) => load(a) },
         { header: 'RUN', value: (a) => a.inFlight ?? 0 },
-        { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s` },
+        // A machine that has missed two heartbeats is marked, not hidden: the
+        // host keeps its row (and may still place on it) until the stale sweep,
+        // and a dead laptop that read as attached is exactly what this is for.
+        { header: 'IDLE', value: (a) => `${Math.round(a.idleMs / 1000)}s${a.stale ? ' !' : ''}` },
       ]);
+      const silent = agents.filter((a) => a.stale);
+      if (silent.length) {
+        emit(
+          `\n! not heard from in over two heartbeats: ${silent.map(nameOf).join(', ')}. ` +
+            'Still listed until the host drops it; check the machine is running.',
+        );
+      }
       if (drifted.length) {
         emit(
           `\n* not the host's version (${hostVersion}). Update ` +
