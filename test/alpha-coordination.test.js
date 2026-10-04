@@ -226,6 +226,24 @@ test('a non-zero exit is reported as data, not thrown', async () => {
   assert.match(result.stderr, /claim refused/);
 });
 
+test('a run aborted before it finished is a failure, not exit code 0', async () => {
+  if (isWindows) return;
+  const { root, stub } = await fixture();
+  // Outlast the abort: a killed child reports code null, which `?? 0` used to
+  // turn into a clean exit, so a run that never finished read as success.
+  await writeFile(stub, '#!/usr/bin/env bash\nsleep 5\n');
+  await chmod(stub, 0o755);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 150);
+
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    assert.rejects(
+      run({ action: 'Status', actor: 'claude-remote' }, { signal: controller.signal }),
+      (error) => error.code === 'coordination_killed',
+    ),
+  );
+});
+
 // ---------------------------------------------------------- configuration
 
 test('a missing ALPHA_REPO_ROOT is a clear configuration error', async () => {
