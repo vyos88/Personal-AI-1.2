@@ -29,6 +29,18 @@ anything longer in a dated handoff that this page links to.
 
 ## Open, needs a person at Laptop41
 
+0. **Bring the merged Alpha changes into the live install** (fonts, the new
+   chrome, login hardening, owner-only audit, the Network hub fix):
+   ```powershell
+   cd C:\services\alpha-tunnel; git checkout main; git pull
+   node scripts/apply-alpha-update.mjs --alpha-root <folder holding Alpha>            # report
+   node scripts/apply-alpha-update.mjs --alpha-root <folder holding Alpha> --apply --restart
+   ```
+   It applies the diff from `alpha-full`, not whole files, so local changes
+   elsewhere in a file survive. It refuses the whole update if any edit
+   does not fit, backs up first, rebuilds the frontend, and rolls back by
+   itself on a failed build or a Python file that does not parse. It prints
+   the undo command.
 1. Push the live Alpha source with `scripts/publish-alpha.mjs` (audit) and then
    `scripts/publish-alpha-push.ps1 -Push` (to branch `alpha-from-host`).
    Until this happens, every fix in `alpha-full` reaches the host only by
