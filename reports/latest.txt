@@ -1,45 +1,56 @@
-laptop41-doctor 20261002-195440 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alpha, checkout C:\AlphaData\doctor)
+laptop41-doctor 20261004-032940 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
-=== 0. Where Alpha lives under C:\AlphaData\Alpha ===
-  PROBLEM: C:\AlphaData\Alpha does not exist
+=== 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
+  top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
+  port 8001 : pid 11360 python.exe: 
+  ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
+  task Alpha runs: "C:\Program Files\nodejs\npm.cmd" run preview -- --host 0.0.0.0 --port 4173
+              in: C:/Users/Vyo/Downloads/vyoS-advance-tech-ai/software/frontend
+  port 4173 : pid 11948 node.exe: "C:\Program Files\nodejs\node.exe" scripts\alpha-preview.mjs 4173
+  frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:False
+  ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
+  PROBLEM: the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder
 
 === 1. Backend (port 8001) ===
-  ok: /health answers 200
+  PROBLEM: backend /health answered 000
+  PROBLEM: live main.py still has the dictionary bug (fix: -Fix)
 
 === 2. Chat ===
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
-  bundle in dist     
+  dist built     2026-10-04 02:06
+  newest source  2026-10-04 01:18  src\musicSimpleMode.test.js
+  ok: build is newer than every source file
+  bundle in dist     /assets/index-Dw6pYeGt.js
   bundle on :4173   
-  bundle public      /assets/index-KfJpFbW8.js
+  bundle public      /assets/index-Dw6pYeGt.js
   public headers: Server: cloudflare
   PROBLEM: nothing serves Alpha on 4173
-  PROBLEM: the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
+  PROBLEM: the public site serves /assets/index-Dw6pYeGt.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
 
 === 4. Public alpha-ai.uk and the boot tasks ===
   ok: https://alpha-ai.uk/ answers 200
-  task Alpha            Ready    last run 2026-10-01 23:00 result 0xC000013A (killed: Ctrl+C or its console closed - the process did not survive)
-  PROBLEM: task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine
+  task Alpha            Disabled last run 2026-10-01 23:00 result 0xC000013A (killed: Ctrl+C or its console closed - the process did not survive)
+  task Alpha Backend    Running  last run 2026-10-04 03:27 result 0x00041301 (still running)
   PROBLEM: task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine
-  cloudflared service: Running
+  cloudflared service: Stopped
   cloudflared processes on this machine: 1
 
 === 5. alpha-tunnel coordinator (port 8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
   port 8787 : pid 21440 node.exe: node  src\host\index.js 
   --- agents
-    No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- stats
-    No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- keys
-    No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- tasks
-    No credential. Set ALPHA_ADMIN_TOKEN (or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
     COM7   in use by another program?
-    COM13   in use by another program?
     COM20   in use by another program?
     COM32   in use by another program?
     COM33   in use by another program?
@@ -53,35 +64,38 @@ laptop41-doctor 20261002-195440 on DESKTOP-41HPLCN  (alpha root C:\AlphaData\Alp
   device: USB-SERIAL CH340 (COM50)
   device: USB Serial Device (COM7)
   device: Standard Serial over Bluetooth link (COM37)
-  device: USB-SERIAL CH340 (COM13)
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.1 of 15.8 GB RAM free
-  ok: C: 19 GB free
-  ChatGPT                         821 MB  pid 13392
-  python                          671 MB  pid 16276
-  MsMpEng                         580 MB  pid 6592
-  claude                          529 MB  pid 6140
-  ChatGPT                         465 MB  pid 12044
-  explorer                        330 MB  pid 16960
-  codex                           326 MB  pid 20352
-  ChatGPT                         291 MB  pid 11880
+  ok: 1.8 of 15.8 GB RAM free
+  ok: C: 9.6 GB free
+  ChatGPT                       1,068 MB  pid 13392
+  OneDrive                        875 MB  pid 3776
+  claude                          626 MB  pid 14368
+  MsMpEng                         553 MB  pid 6592
+  codex                           504 MB  pid 20352
+  ChatGPT                         363 MB  pid 12044
+  Spotify                         350 MB  pid 18616
+  Spotify                         333 MB  pid 21164
 
 === SUMMARY ===
-  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 57 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - C:\AlphaData\Alpha does not exist  (open 57 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 57 run(s), since 2026-10-01T03:28:49)
-  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 57 run(s), since 2026-10-01T03:28:49)
-  - the public site serves /assets/index-KfJpFbW8.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 3 run(s), since 2026-10-02T19:29:08)
+  this pass took 235s
+  - NEEDS A PERSON - nothing serves Alpha on 4173  (open 58 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine  (open 58 run(s), since 2026-10-01T03:28:49)
+  - NEEDS A PERSON - the public site serves /assets/index-Dw6pYeGt.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 4 run(s), since 2026-10-02T19:29:08)
+  - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 1 run(s), since 2026-10-04T03:33:34)
+  - backend /health answered 000  (open 1 run(s), since 2026-10-04T03:33:34)
+  - live main.py still has the dictionary bug (fix: -Fix)  (open 1 run(s), since 2026-10-04T03:33:34)
+  + fixed since last run: task Alpha Backend is not registered: repair-alpha-host.ps1 has never completed on this machine
+  + fixed since last run: C:\AlphaData\Alpha does not exist
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 57 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 57 runs NEEDS A PERSON] Merge PR vyos88/Personal-AI-1.2#46, git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
-  3. [open 3 runs] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
-  4. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
-  5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  6. [hardening] Run this doctor from the real checkout (C:\services\alpha-tunnel) once PR #46 is merged, then -InstallSchedule again from there and remove C:\AlphaData\doctor.
-  7. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
-  8. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  9. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  1. [open 58 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 58 runs NEEDS A PERSON] git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.
+  3. [open 4 runs NEEDS A PERSON] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  4. [new] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  5. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  6. [new] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
+  7. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
+  8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  9. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
