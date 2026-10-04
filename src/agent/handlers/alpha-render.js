@@ -435,6 +435,9 @@ export async function run(payload, { signal, log } = {}) {
         // `code ?? 0` read a render that blew its timeout or was aborted
         // mid-frame as a clean exit, and the guard below never fired.
         if (error && (error.killed || error.signal || error.code === 'ABORT_ERR')) {
+          // The half-written image is not output, and nothing else removes
+          // the staging directory once this task is gone.
+          rmSync(stagingDir, { recursive: true, force: true });
           rejectPromise(
             new ProtocolError(
               `Blender was killed before it finished (${error.signal ?? error.code}). ` +
