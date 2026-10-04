@@ -41,9 +41,14 @@ anything longer in a dated handoff that this page links to.
 ## Open, needs the owner (settings only)
 
 - This repo's default branch → `main`.
-- `vyos88/Alpha`: GitHub Actions jobs never start (`startup_failure`, zero
-  jobs). Check Settings → Actions and Billing. This repo's own CI
-  (`.github/workflows/test.yml`) runs `npm test` on every PR.
+- **GitHub Actions cannot run jobs on this account.** In `vyos88/Alpha`
+  every run is a `startup_failure` with zero jobs. Here, every job ends within
+  three seconds with no runner assigned. Check github.com → Settings →
+  Billing and plans (a failed payment or a $0 spending limit locks Actions,
+  public repos included) and each repo's Settings → Actions.
+  `.github/workflows/test.yml` is ready, but manual-only until then, so it
+  does not email a failure on every push. Restore its `push`/`pull_request`
+  triggers once a manual run passes.
 
 ## The docs here, and which are current
 

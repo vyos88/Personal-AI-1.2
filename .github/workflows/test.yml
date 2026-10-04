@@ -2,10 +2,16 @@ name: test
 
 # The suite boots a real coordinator and agents over loopback (CLAUDE.md,
 # "Testing conventions"); it needs nothing but Node.
+#
+# Manual only for now. On 2026-10-04 every job on this account ended within
+# three seconds with no runner assigned and no step run, here and in
+# vyos88/Alpha: an account-level Actions block (billing or settings), not this
+# file. On push and pull_request it would send a failure email for every
+# change. Once Actions runs jobs again, restore:
+#   push:
+#     branches: [main]
+#   pull_request:
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 
 permissions:
