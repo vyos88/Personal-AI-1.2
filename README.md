@@ -1,5 +1,7 @@
 # alpha-tunnel
 
+> **Start at [`docs/STATUS.md`](docs/STATUS.md)** for current state, open items and which docs are superseded. Clone with `--branch main`.
+
 Coordinator (**host**) and worker (**agent**) for running Alpha tasks on a
 second machine, with real accounts behind it: users, invitations, scoped API
 keys, and revocation.
