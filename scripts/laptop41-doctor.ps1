@@ -313,10 +313,26 @@ function Run-Checks {
   Note "bundle public      $pubBundle"
   $cf = (& curl.exe -sI --max-time 10 "https://$PublicHost/" 2>$null | Select-String -Pattern '^(cf-cache-status|age|cache-control|last-modified|server):' | ForEach-Object { $_.Line.Trim() }) -join '; '
   Note "public headers: $cf"
-  if (-not $localBundle) { $script:frontendStale = $true; Problem "nothing serves Alpha on $FrontendPort" }
+  if (-not $localBundle) {
+    # Empty with the public Host header is not yet "nothing there": Vite answers
+    # 403 "Blocked request" to a host it was not told about. Ask again without
+    # the header and say which of the two it is.
+    $code = (& curl.exe -s -o NUL -w '%{http_code}' --max-time 10 "http://127.0.0.1:$FrontendPort/" 2>$null) -join ''
+    $plain = Body "http://127.0.0.1:$FrontendPort/"
+    $blocked = (Body "http://127.0.0.1:$FrontendPort/" $PublicHost) -match 'Blocked request'
+    $script:frontendStale = $true
+    if ($blocked) { Problem "$FrontendPort refuses Host: $PublicHost (Vite 'Blocked request'): add it to preview.allowedHosts in vite.config" }
+    elseif (BundleOf $plain) { Problem "$FrontendPort serves $(BundleOf $plain) on 127.0.0.1 but nothing when asked as $PublicHost" }
+    elseif ($code -and $code -ne '000') { Problem "$FrontendPort answers HTTP $code with no Alpha page" }
+    else { Problem "nothing listens on $FrontendPort (connection refused or timed out)" }
+  }
   elseif ($fileBundle -and $localBundle -ne $fileBundle) { $script:frontendStale = $true; Problem "$FrontendPort serves an older build than dist holds; the server needs a restart" }
   else { OK "$FrontendPort serves the build in dist" }
-  if ($pubBundle -and $pubBundle -ne $localBundle) {
+  if ($pubBundle -and $pubBundle -ne $localBundle -and $fileBundle -and $pubBundle -eq $fileBundle) {
+    # The public build is the one in this machine's dist, so the public site is
+    # this machine; what differs is only which local port the connector uses.
+    OK "public site serves this machine's current dist build ($pubBundle), through an origin other than :$FrontendPort"
+  } elseif ($pubBundle -and $pubBundle -ne $localBundle) {
     Problem "the public site serves $pubBundle, which this machine's $FrontendPort does not: Cloudflare cache or another origin/connector is answering for $PublicHost"
     # Which local server, if any, has that build.
     $listen = @(Get-NetTCPConnection -State Listen -EA SilentlyContinue | Where-Object { $_.LocalAddress -in '127.0.0.1', '0.0.0.0', '::', '::1' } |
