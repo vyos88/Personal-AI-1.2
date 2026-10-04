@@ -219,6 +219,18 @@ export async function run(payload, { signal, log } = {}) {
           );
           return;
         }
+        // A child killed by a signal reports `code: null`, so `code ?? 0`
+        // read a run that blew its 120s timeout, or was aborted with its
+        // lease, as a clean exit. Nothing ran to completion: fail the task.
+        if (error && (error.killed || error.signal || error.code === 'ABORT_ERR')) {
+          rejectPromise(
+            new ProtocolError(
+              `the coordination tunnel was killed before it finished (${error.signal ?? error.code})`,
+              { status: 500, code: 'coordination_killed' },
+            ),
+          );
+          return;
+        }
         // A non-zero exit is a real outcome of the tunnel (e.g. a refused
         // claim), so report it as data rather than throwing.
         resolvePromise({ stdout: out ?? '', stderr: err ?? '', code: error?.code ?? 0 });
