@@ -1,26 +1,26 @@
 {
     "cloudSeen":  null,
     "lastPost":  null,
-    "lastRun":  "2026-10-04T23:11:28",
+    "lastRun":  "2026-10-04T23:26:29",
     "open":  {
                  "live main.py still has the dictionary bug (fix: -Fix)":  {
                                                                                "since":  "2026-10-04T03:33:34",
-                                                                               "runs":  76,
+                                                                               "runs":  77,
                                                                                "text":  "live main.py still has the dictionary bug (fix: -Fix)"
                                                                            },
                  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder":  {
                                                                                                                                                                       "since":  "2026-10-04T03:33:34",
-                                                                                                                                                                      "runs":  76,
+                                                                                                                                                                      "runs":  77,
                                                                                                                                                                       "text":  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder"
                                                                                                                                                                   },
                  "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
                                                                                                                 "since":  "2026-10-04T19:56:41",
-                                                                                                                "runs":  14,
+                                                                                                                "runs":  15,
                                                                                                                 "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
                                                                                                             },
                  "task Alpha Self-Heal is not registered: repair-alpha-host.ps# has never completed on this machine":  {
                                                                                                                            "since":  "2026-10-01T03:28:49",
-                                                                                                                           "runs":  133,
+                                                                                                                           "runs":  134,
                                                                                                                            "text":  "task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine"
                                                                                                                        }
              }
