@@ -137,7 +137,15 @@ export class ReceiptStore {
     if (this.#receipts.length > this.maxReceipts) {
       this.#receipts.splice(0, this.#receipts.length - this.maxReceipts);
     }
-    this.save();
+    // The ledger is the expendable half: a write that fails (full disk,
+    // read-only mount) is logged, never left as an unhandled rejection, which
+    // would take the coordinator down with every lease it holds.
+    this.save().catch((error) => {
+      log.error('receipt ledger write failed; the receipt is kept in memory', {
+        path: this.path,
+        error: error.message,
+      });
+    });
     return receipt;
   }
 
