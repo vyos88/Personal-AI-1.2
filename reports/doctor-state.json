@@ -1,36 +1,36 @@
 {
     "cloudSeen":  null,
     "lastPost":  null,
-    "lastRun":  "2026-10-04T08:56:52",
+    "lastRun":  "2026-10-04T09:11:56",
     "open":  {
                  "task Alpha Self-Heal is not registered: repair-alpha-host.ps# has never completed on this machine":  {
                                                                                                                            "since":  "2026-10-01T03:28:49",
-                                                                                                                           "runs":  77,
+                                                                                                                           "runs":  78,
                                                                                                                            "text":  "task Alpha Self-Heal is not registered: repair-alpha-host.ps1 has never completed on this machine"
                                                                                                                        },
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-10-04T08:56:52",
-                                                     "runs":  1,
-                                                     "text":  "only 1.4 of 15.8 GB RAM free"
+                                                     "runs":  2,
+                                                     "text":  "only 1.5 of 15.8 GB RAM free"
                                                  },
                  "live main.py still has the dictionary bug (fix: -Fix)":  {
                                                                                "since":  "2026-10-04T03:33:34",
-                                                                               "runs":  20,
+                                                                               "runs":  21,
                                                                                "text":  "live main.py still has the dictionary bug (fix: -Fix)"
                                                                            },
                  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder":  {
                                                                                                                                                                       "since":  "2026-10-04T03:33:34",
-                                                                                                                                                                      "runs":  20,
+                                                                                                                                                                      "runs":  21,
                                                                                                                                                                       "text":  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder"
                                                                                                                                                                   },
                  "the public site serves \u003cbundle\u003e, which this machine\u0027s # does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk":  {
                                                                                                                                                                                     "since":  "2026-10-02T19:29:08",
-                                                                                                                                                                                    "runs":  23,
+                                                                                                                                                                                    "runs":  24,
                                                                                                                                                                                     "text":  "the public site serves /assets/index-DSDRYSun.js, which this machine\u0027s 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk"
                                                                                                                                                                                 },
                  "nothing serves Alpha on #":  {
                                                    "since":  "2026-10-01T03:28:49",
-                                                   "runs":  77,
+                                                   "runs":  78,
                                                    "text":  "nothing serves Alpha on 4173"
                                                }
              }
