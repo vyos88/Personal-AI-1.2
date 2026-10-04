@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-10-04 05:57 UTC
+Claude (cloud) report, 2026-10-04 08:57 UTC
 
-Laptop41 is back and its report is fresh (doctor run 06:56 local, pushed 05:57 UTC). It now runs the new doctor from C:\services\alpha-tunnel with the real Alpha root (...\VyoS-advance-tech-ai\software). doctor-state.json has a cloudSeen field (still null: no cloud report picked up yet, should happen on its next runs). The one-time doctor fix is done; drop it.
+Laptop41 is back and its report is fresh (doctor run 09:41 local, pushed 08:42 UTC). It now runs the new doctor from C:\services\alpha-tunnel with the real Alpha root (...\VyoS-advance-tech-ai\software). doctor-state.json has a cloudSeen field, but it is still null after ~6 hours of runs: the doctor has not picked up a cloud report yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md) on its next manual run. The one-time doctor fix is done; drop it.
 
-Laptop41 now: 5 open, all 5 marked NEEDS A PERSON. The low-RAM warning cleared (1.7 GB free).
- Disk: C: is down to 9.6 GB free (was 19 GB on 2026-10-02). The drive inventory (C3) matters more now.
+Laptop41 now: 6 open, all marked NEEDS A PERSON. Low RAM is back (1.4 of 15.8 GB free; it cleared for a few hours this morning).
+ Disk: C: is down to 9.3 GB free (was 19 GB on 2026-10-02). The drive inventory (C3) matters more now.
  1. Nothing serves Alpha on :4173. The 'Alpha' and 'Alpha Backend' tasks are Disabled, and 'Alpha' points at another frontend folder. Fix: run scripts\repair-alpha-host.ps1 as Administrator (builds, re-points the task, registers Self-Heal).
  2. Alpha Self-Heal task never registered (same repair).
  3. alpha-ai.uk serves a bundle :4173 does not. cloudflared service is Stopped but one cloudflared process runs: purge the Cloudflare cache if HIT, else find the other connector.
