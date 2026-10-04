@@ -16,7 +16,8 @@ anything longer in a dated handoff that this page links to.
   `git show origin/status/laptop41:reports/latest.txt` (the host's doctor) and
   `git show origin/status/cloud:reports/cloud.md` (the cloud relay). See
   `CLOUD_RELAY.md`.
-- **Latest handoff:** [`HANDOFF_2026-10-04b.md`](HANDOFF_2026-10-04b.md).
+- **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
+- **Latest handoff:** [`HANDOFF_2026-10-04c.md`](HANDOFF_2026-10-04c.md).
 
 ## Where things are
 
