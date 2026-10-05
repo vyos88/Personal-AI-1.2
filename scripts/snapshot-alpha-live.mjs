@@ -18,6 +18,12 @@
  *   node scripts/snapshot-alpha-live.mjs --alpha-root <dir>          report: pushes nothing
  *   node scripts/snapshot-alpha-live.mjs --alpha-root <dir> --push   commit and push the branch
  *
+ * A finding is printed with its line, every long value cut to its first four
+ * characters and its length ("'alph…(28)'"), so it can be pasted to a reviewer
+ * without leaking it. Once a reviewer has cleared exactly those lines:
+ *   ... --push --allow software/frontend/src/tabs/Hubs.jsx:111,software/...
+ * Any finding not on that list still stops the push.
+ *
  * The branch is alpha-from-host-<date>-<time>, new each run, from alpha-full.
  * Never main, never alpha-full, never forced. Alpha is private; the push uses
  * this machine's git credentials.
@@ -52,6 +58,7 @@ export function parseArgs(argv) {
     else if (a === '--ops') opts.ops = next();
     else if (a === '--work') opts.work = next();
     else if (a === '--branch') opts.branch = next();
+    else if (a === '--allow') opts.allow = next().split(',').map((x) => x.trim()).filter(Boolean);
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
@@ -89,7 +96,22 @@ export function inRepoShape(liveBytes, repoBytes) {
   return repo.bom ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), out]) : out;
 }
 
-/** Added lines that look like a credential, as file and line, never the value. */
+/**
+ * The line with every value long enough to be a secret cut to its first four
+ * characters and its length. Short words, names and syntax stay readable, so a
+ * reviewer can tell a storage-key name from a real key.
+ */
+export function maskLine(text) {
+  const cut = (v) => `${v.slice(0, 4)}…(${v.length})`;
+  return text
+    .replace(/(['"`])([^'"`]{8,})\1/g, (_m, q, v) => `${q}${cut(v)}${q}`)
+    // Unquoted: only runs with a digit in them, so identifiers stay readable.
+    .replace(/(^|[^A-Za-z0-9_…(])([A-Za-z0-9_\-.+/]{16,})/g, (m, pre, v) => (/\d/.test(v) ? `${pre}${cut(v)}` : m))
+    .trim()
+    .slice(0, 160);
+}
+
+/** Added lines that look like a credential: file, line and the masked line. */
 export function scanAddedLines(diff) {
   const findings = [];
   let file = null;
@@ -100,7 +122,7 @@ export function scanAddedLines(diff) {
     if (hunk) { line = Number(hunk[1]); continue; }
     if (raw.startsWith('+')) {
       const hit = SECRET_CONTENT.find(({ re }) => re.test(raw.slice(1)));
-      if (hit) findings.push({ file, line, label: hit.label });
+      if (hit) findings.push({ file, line, label: hit.label, text: maskLine(raw.slice(1)) });
       line++;
     } else if (!raw.startsWith('-') && !raw.startsWith('\\')) {
       line++;
@@ -158,14 +180,20 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   const stat = git(['diff', '--stat=120', '--stat-count=60'], { cwd: work }).stdout.trimEnd();
   log(stat.split('\n').map((l) => `  ${l}`).join('\n'));
 
-  const findings = scanAddedLines(git(['diff', '-U0', '--no-color'], { cwd: work }).stdout);
-  if (findings.length) {
-    log('\nPOSSIBLE CREDENTIALS in lines this machine added (values not printed):');
-    for (const f of findings) log(`  ${f.file.slice(BASE.length + 1)}:${f.line}  ${f.label}`);
-    log('\nREFUSED: nothing was pushed. Look at each line. If one holds a real secret, move it to .env.local and rotate it; then run this again.');
+  const findings = scanAddedLines(git(['diff', '-U0', '--no-color'], { cwd: work }).stdout)
+    .map((f) => ({ ...f, id: `${f.file.slice(BASE.length + 1)}:${f.line}` }));
+  const allowed = new Set(opts.allow ?? []);
+  const open = findings.filter((f) => !allowed.has(f.id));
+  if (open.length) {
+    log('\nPOSSIBLE CREDENTIALS in lines this machine added (long values cut to 4 characters):');
+    for (const f of open) log(`  ${f.id}  ${f.label}\n      ${f.text}`);
+    log('\nREFUSED: nothing was pushed. If a line holds a real secret, move it to .env.local and rotate it.');
+    log('  If a reviewer has cleared every line above, add:  --allow ' + open.map((f) => f.id).join(','));
     return 2;
   }
-  log('  no credential-looking lines among the changes');
+  log(findings.length
+    ? `  ${findings.length} credential-looking line(s), every one cleared with --allow`
+    : '  no credential-looking lines among the changes');
 
   if (!opts.push) {
     log(`\nREADY: ${changed} file(s) would go to a new branch of vyos88/Alpha. Nothing was pushed.`);
