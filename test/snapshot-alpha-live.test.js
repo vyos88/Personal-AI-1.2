@@ -101,3 +101,26 @@ test('added-line scan reports the new file line number', () => {
   const diff = ['+++ b/x.py', '@@ -3,0 +4,2 @@', '+ok = 1', '+SECRET_KEY = "0123456789abcdef0123"'].join('\n');
   assert.deepEqual(scanAddedLines(diff).map((f) => [f.file, f.line]), [['x.py', 5]]);
 });
+
+test('findings print the line with long values cut, and --allow clears exactly those lines', async () => {
+  const f = fixture({ liveMain: 'def login():\n    return "old"\nAPI_TOKEN = "abcdefghijklmnopqrstuvwxyz123456"\n' });
+  const log = quiet();
+  assert.equal(await main(args(f, '--push'), log), 2);
+  const text = log.lines.join('\n');
+  assert.match(text, /API_TOKEN = "abcd…\(32\)"/);
+  assert.doesNotMatch(text, /efghij/);
+  assert.match(text, /--allow software\/backend\/main\.py:3/);
+
+  const wrong = quiet();
+  assert.equal(await main(args(f, '--push', '--allow', 'software/backend/main.py:2'), wrong), 2, 'another line does not clear it');
+
+  const ok = quiet();
+  assert.equal(await main(args(f, '--push', '--branch', 'alpha-from-host-allowed', '--allow', 'software/backend/main.py:3'), ok), 0, ok.lines.join('\n'));
+  assert.match(ok.lines.join('\n'), /1 credential-looking line\(s\), every one cleared/);
+});
+
+test('masking keeps names readable and cuts token-shaped values, quoted or not', async () => {
+  const { maskLine } = await import('../scripts/snapshot-alpha-live.mjs');
+  assert.equal(maskLine("const CHAT_DOCK_MODE_KEY = 'alphaChatDockModeV2';"), "const CHAT_DOCK_MODE_KEY = 'alph…(19)';");
+  assert.equal(maskLine('TOKEN=alpha_agent_ab12cd34.Zx9_long-secret-part-here'), 'TOKEN=alph…(46)');
+});
