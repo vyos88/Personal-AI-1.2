@@ -264,6 +264,102 @@ test('failed logins for made-up emails are tracked within a bound', async () => 
   assert.ok(auth.trackedLoginFailures <= 3, `tracked ${auth.trackedLoginFailures}`);
 });
 
+/**
+ * A user with a password, built through the real invite path so the stored
+ * hash is the one `login` verifies against.
+ */
+async function userWithPassword(auth, { email, password }) {
+  const admin = await auth.authenticate(TOKEN);
+  const { token } = await auth.createInvite({ email, scopes: 'viewer', invitedBy: admin });
+  const { user } = await auth.redeemInvite({ token, password });
+  return user;
+}
+
+const LOCKOUT_ATTEMPTS = 8;
+
+test('an admin password reset gets a locked-out user back in immediately', async () => {
+  const auth = new AuthService({
+    store: new AuthStore({ path: null }),
+    bootstrapToken: TOKEN,
+  });
+  await auth.load();
+  const user = await userWithPassword(auth, {
+    email: 'locked@example.com',
+    password: 'the-old-password-1',
+  });
+
+  for (let i = 0; i < LOCKOUT_ATTEMPTS; i++) {
+    await assert.rejects(() => auth.login({ email: user.email, password: 'wrong-password' }));
+  }
+  // Locked out, and the right password would be refused too.
+  await assert.rejects(
+    () => auth.login({ email: user.email, password: 'the-old-password-1' }),
+    (err) => err.code === 'locked_out',
+  );
+
+  const { temporaryPassword: temporary } = await auth.adminResetPassword({
+    userId: user.id,
+    by: { label: 'admin' },
+  });
+  assert.ok(temporary, 'a generated password is returned exactly once');
+
+  // The point: the temporary password works now, not in fifteen minutes. The
+  // count was a count against a secret that no longer exists.
+  const session = await auth.login({ email: user.email, password: temporary });
+  assert.equal(session.user.id, user.id);
+  assert.equal(auth.trackedLoginFailures, 0);
+});
+
+test('changing a password clears the failures recorded against the old one', async () => {
+  const auth = new AuthService({
+    store: new AuthStore({ path: null }),
+    bootstrapToken: TOKEN,
+  });
+  await auth.load();
+  const user = await userWithPassword(auth, {
+    email: 'changer@example.com',
+    password: 'the-old-password-1',
+  });
+
+  for (let i = 0; i < LOCKOUT_ATTEMPTS; i++) {
+    await assert.rejects(() => auth.login({ email: user.email, password: 'wrong-password' }));
+  }
+
+  // changePassword revokes every session, so the user has to log in again at
+  // once -- which is exactly when a stale lockout bites hardest.
+  await auth.changePassword({
+    userId: user.id,
+    currentPassword: 'the-old-password-1',
+    newPassword: 'the-new-password-2',
+  });
+  const session = await auth.login({ email: user.email, password: 'the-new-password-2' });
+  assert.equal(session.user.id, user.id);
+});
+
+test('re-enabling a disabled user does not forgive its failed attempts', async () => {
+  const auth = new AuthService({
+    store: new AuthStore({ path: null }),
+    bootstrapToken: TOKEN,
+  });
+  await auth.load();
+  const user = await userWithPassword(auth, {
+    email: 'disabled@example.com',
+    password: 'the-old-password-1',
+  });
+  await auth.setUserStatus(user.id, 'disabled', { label: 'admin' });
+
+  for (let i = 0; i < LOCKOUT_ATTEMPTS; i++) {
+    await assert.rejects(() => auth.login({ email: user.email, password: 'wrong-password' }));
+  }
+  await auth.setUserStatus(user.id, 'active', { label: 'admin' });
+
+  // The password did not change, so the guesses against it still count.
+  await assert.rejects(
+    () => auth.login({ email: user.email, password: 'the-old-password-1' }),
+    (err) => err.code === 'locked_out',
+  );
+});
+
 // ---------------------------------------------------------------- login sessions
 
 test('expired login sessions are pruned from the store, live ones and API keys are not', async (t) => {

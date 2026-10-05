@@ -540,6 +540,25 @@ export class AuthService {
     if (this.#loginFailures.size > this.maxTrackedLoginFailures) this.#forgetLoginFailures();
   }
 
+  /**
+   * Forget the failures recorded against an email.
+   *
+   * Called when the password itself changes, because the count is a count of
+   * failures against a secret that no longer exists. Without this, the one
+   * user who most needs to get back in cannot: eight wrong attempts and an
+   * admin reset leave a *correct* temporary password answering 429 for the
+   * rest of the lockout window, and `changePassword` is worse still — it
+   * revokes every session, so the user must log in again immediately with a
+   * password nobody has ever failed on.
+   *
+   * Deliberately *not* called from `setUserStatus`. Re-enabling a user does
+   * not change their password, so failures against it are still failures
+   * against a live secret and still worth counting.
+   */
+  #clearLoginFailures(email) {
+    this.#loginFailures.delete(normalizeEmail(email));
+  }
+
   #forgetLoginFailures() {
     const cutoff = this.now() - LOGIN_LOCKOUT_MS;
     for (const [key, entry] of this.#loginFailures) {
@@ -713,6 +732,8 @@ export class AuthService {
       }
     });
 
+    this.#clearLoginFailures(this.store.data.users[userId].email);
+
     log.info('password reset by admin', { userId, by: by?.label });
     return {
       user: publicUser(this.store.data.users[userId]),
@@ -749,6 +770,8 @@ export class AuthService {
         }
       }
     });
+
+    this.#clearLoginFailures(this.store.data.users[userId].email);
 
     log.info('password changed', { userId });
     return publicUser(this.store.data.users[userId]);
