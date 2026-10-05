@@ -1,23 +1,19 @@
-Claude (cloud) report, 2026-10-05 00:58 UTC
+Claude (cloud) report, 2026-10-05 01:57 UTC
 
-Laptop41's report is fresh (doctor run 01:56 local, pushed 00:56 UTC). cloudSeen is still null after ~22 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
+Laptop41 (now Worker1) report is fresh (doctor run 02:56 local, pushed 01:56 UTC). cloudSeen is still null after ~23 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
 
-URGENT on Laptop41: the self-heal is now running, and at 00:52 UTC it rolled back the frontend. Its probe of https://127.0.0.1:4173 fails on the self-signed certificate ("unable to verify the first certificate"), so it treats a healthy frontend as dead. It restored dist.last-good, kept the build it replaced as dist.failed-*, killed the wrapper and restarted the 'Alpha' task. Since then the doctor reports nothing on :4173. alpha-ai.uk still answers 200 and serves the same bundle as dist (index-Chc8mN8H). The fix is merged: #89 (self-heal reads its BOM'd config and accepts the loopback self-signed cert). V: git pull main in C:\services\alpha-tunnel now, before the next rollback.
+The host move happened. The coordinator now runs on laptop-gj8dfmlk (Host, 100.93.104.24:8787, healthy, 1.7.0). Laptop41 runs no coordinator, as intended. One agent is attached: worker1 (Laptop41; alpha.coordination, echo, grow, sysinfo; queue empty). No 'host' agent yet. #90 taught the doctor to probe the coordinator ALPHA_HOST_URL names. The "coordinator down" alarm around 01:29 UTC was a false alarm, corrected in docs/HANDOFF_2026-10-05_coordinator-down.md.
 
-Laptop41: 6 open, 4 NEEDS A PERSON:
- 1. Alpha Self-Heal: the doctor still says not registered, though selfheal.jsonl shows it running.
+Laptop41 recovered since the last report. Self-heal probes have been all green since about 01:50 UTC: backend, :4173 frontend, public site and control. :4173, dist and alpha-ai.uk serve the same bundle (index-Chc8mN8H). The rollback alarm is over, and C: is back to 8.4 GB free.
+Still open, 4 items for a person. The doctor reset its counters this run, so none are flagged NEEDS A PERSON yet:
+ 1. The doctor still says the Alpha Self-Heal task is not registered, though self-heal writes entries every 2 min. Check which task name it runs under.
  2. Live main.py dictionary bug: doctor -Fix as Administrator (apply-chat-fix.ps1, backup first).
  3. The 'Alpha' task does not point at the real frontend folder: repair-alpha-host.ps1 re-points it.
- 4. Build older than source (21:02 vs 21:05 local): rebuild dist.
- Plus: nothing on :4173 since the rollback, and the doctor reads the public bundle as another origin. #89 also stops the doctor calling this machine's own build another origin.
-Still from the 2026-10-04 repair session: 'Alpha Backend' boot task needs the jwt module; an unknown cloudflared process carries the public site; no chat model (Ollama).
-Resources: RAM 3.4 of 15.8 GB free. C: 5.5 GB free, down 1.2 GB in an hour (19 GB on 2026-10-02).
+ 4. Build older than source (21:02 vs 21:05 local on 2026-10-04): rebuild dist.
+Still from 2026-10-04: 'Alpha Backend' boot task needs the jwt module; an unknown cloudflared process carries the public site; no chat model (Ollama). RAM 3.4 of 15.8 GB free.
 
-New on main (merged ~00:10-00:50 UTC):
- - #88 + docs/HANDOFF_2026-10-05b_host-move.md: the owner decided the coordinator moves to laptop-gj8dfmlk (formerly "Jacks laptop"), which becomes Host. Laptop41 becomes Worker1 and keeps Alpha and its agent (renamed worker1). Parts A (Laptop41) and B (gj8dfmlk) are steps for a person; state files go by USB, never through chat.
- - #89 self-heal https/BOM fix (above); #87 BACKLOG H6, install the host tools opt-in handlers call; #85 removed ten superseded docs.
- - Merged from older PRs: #76 remove vocals, #70 music bridge recipes, #59 login-failure logging, #58 shared PATH lookup.
-Open: #86 claude.exec (Claude-to-Claude handler), #83 alpha.grow-render (needs a merge decision, docs/HANDOFF_2026-10-05_grow-render-pr83.md), #66 (its fix landed as #89), plus older #64, #62, #50, #49, #45.
+New on main since last report: #90 (doctor probes the remote coordinator), docs/HANDOFF_2026-10-05_coordinator-down.md. Earlier today: #88 host move, #89 self-heal https/BOM fix, #87, #85, #76, #70, #59, #58.
+Open: #86 claude.exec (Claude-to-Claude handler), #83 alpha.grow-render (needs a merge decision), #66 (its fix landed as #89), plus older #64, #62, #50, #49, #45.
 
 Still stands:
  - Do not start task-queue Q1 or Q7. Two plan systems: bridge Stripe plans (#67, merged) vs Alpha's api/monetization.py (Alpha #24, open). V decides.
@@ -25,6 +21,6 @@ Still stands:
  - Drive space (C3): Alpha / Codex, do NOT move or delete anything. Inventory only: each backup, archive or old copy over 500 MB under C:\ (path, size, last modified), and the external drive's letter. Never list data\auth.json, .env files or keys. V moves files by hand.
  - The six failed sign-ins of 2026-10-04 00:19-00:25 UTC: V to confirm whether they were V.
 
-Jack's laptop (now laptop-gj8dfmlk, the future Host) and the phones publish no status yet.
+Host (laptop-gj8dfmlk, formerly Jack's laptop) and the phones publish no status branch yet; Host is visible only through the coordinator's healthz.
 
-Codex: the drive inventory (C3) is now urgent, C: under 6 GB. Alpha: nothing to run; the host move and #89 pull need V.
+Codex: answer the drive inventory (C3). Alpha: nothing to run; the 4 items above need V.
