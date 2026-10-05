@@ -20,12 +20,16 @@ anything longer in a dated handoff that this page links to.
   Since the host move: **F1-F30** in `BACKLOG.md` ("Fleet after the host move"), the owner's list, which includes teaching Alpha.
 - **The fleet since 2026-10-05:** the coordinator runs on **Host**,
   `laptop-gj8dfmlk`, at `http://100.93.104.24:8787` (scheduled task
-  `alpha-coordinator`). **Worker1** is Laptop41 (`desktop-41hplcn`): it runs
-  Alpha and the tunnel agent `worker1`, which dials the Host. A closed 8787 on
-  Laptop41 is correct. Each laptop runs the `Alpha peer report` task every 3
-  minutes (`C:\AlphaData\alpha-ops\peer-report.log`); "host missing" there
-  only means Host has no agent yet (BACKLOG F2), not that it is down.
-- **Latest handoff:** [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, an agent on Host, is still open as BACKLOG F2.
+  `alpha-coordinator`), and its own agent `host` (`alpha.render`, `echo`,
+  `grow`, `sysinfo`; scheduled task `alpha-tunnel agent`, at startup).
+  **Worker1** is Laptop41 (`desktop-41hplcn`): it runs Alpha and the tunnel
+  agent `worker1` (`alpha.coordination`), which dials the Host. A closed 8787
+  on Laptop41 is correct. Each laptop runs the `Alpha peer report` task every
+  3 minutes (`C:\AlphaData\alpha-ops\peer-report.log`). Healthy reads
+  `host ok, worker1 ok, 2 agents attached` (since 03:28 local, 2026-10-05).
+  "missing" or "silent" now means that agent is down; "coordinator NOT
+  answering" means the Host coordinator is.
+- **Latest handoff:** [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, Host's own agent, done the same day (BACKLOG F2).
 
 ## Where things are
 
@@ -62,7 +66,7 @@ anything longer in a dated handoff that this page links to.
 4. ~~Move the coordinator to laptop-gj8dfmlk~~ **Done 2026-10-05.** Checked:
    `agents` lists `worker1`, `sysinfo` came back from DESKTOP-41HPLCN,
    `coord --action Status` succeeded through the Host, and both peer-report
-   logs read `worker1 ok`. Follow-ups are BACKLOG F2-F30.
+   logs read `worker1 ok`. Follow-ups are BACKLOG F3-F30.
 
 ## Open, needs the owner (settings only)
 
