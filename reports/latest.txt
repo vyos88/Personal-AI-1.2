@@ -1,4 +1,4 @@
-laptop41-doctor 20261005-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261005-224102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -35,13 +35,13 @@ laptop41-doctor 20261005-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-05 01:52 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-04 10:08 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-05T21:20:15.592Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-05T21:22:15.620Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-05T21:24:15.597Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T21:36:15.670Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T21:38:15.655Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T21:40:15.786Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -63,27 +63,27 @@ laptop41-doctor 20261005-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.2 of 15.8 GB RAM free
+  ok: 3.1 of 15.8 GB RAM free
   ok: C: 32.9 GB free
-  claude                          545 MB  pid 1736
-  ChatGPT                         544 MB  pid 13000
+  claude                          559 MB  pid 1736
+  ChatGPT                         542 MB  pid 13000
   explorer                        541 MB  pid 15236
-  MsMpEng                         483 MB  pid 6592
-  ChatGPT                         478 MB  pid 2504
-  Memory Compression              316 MB  pid 4612
-  ChatGPT                         307 MB  pid 19224
+  MsMpEng                         498 MB  pid 6592
+  ChatGPT                         473 MB  pid 2504
+  ChatGPT                         320 MB  pid 19224
   ChatGPT                         251 MB  pid 19936
+  claude                          244 MB  pid 11956
 
 === SUMMARY ===
-  this pass took 16s
-  - NEEDS A PERSON - the build is older than the source: the site shows the old Alpha until dist is rebuilt  (open 79 run(s), since 2026-10-05T02:56:26)
-  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 79 run(s), since 2026-10-05T02:56:26)
-  - NEEDS A PERSON - live main.py still has the dictionary bug (fix: -Fix)  (open 79 run(s), since 2026-10-05T02:56:26)
+  this pass took 17s
+  - NEEDS A PERSON - the build is older than the source: the site shows the old Alpha until dist is rebuilt  (open 80 run(s), since 2026-10-05T02:56:26)
+  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 80 run(s), since 2026-10-05T02:56:26)
+  - NEEDS A PERSON - live main.py still has the dictionary bug (fix: -Fix)  (open 80 run(s), since 2026-10-05T02:56:26)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 79 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 79 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  3. [open 79 runs NEEDS A PERSON] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
+  1. [open 80 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 80 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  3. [open 80 runs NEEDS A PERSON] Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.
   4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   5. [hardening] Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.
   6. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
