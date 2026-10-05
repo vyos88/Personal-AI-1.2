@@ -17,7 +17,7 @@ anything longer in a dated handoff that this page links to.
   `git show origin/status/cloud:reports/cloud.md` (the cloud relay). See
   `CLOUD_RELAY.md`.
 - **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
-- **Latest handoff:** [`HANDOFF_2026-10-05_worker1.md`](HANDOFF_2026-10-05_worker1.md) (a new worker laptop); before it, [`HANDOFF_2026-10-04c.md`](HANDOFF_2026-10-04c.md).
+- **Latest handoff:** [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the coordinator moves to `laptop-gj8dfmlk` (now **Host**); Laptop41 keeps Alpha and becomes **Worker1**; both report to each other every 3 minutes. It replaces [`HANDOFF_2026-10-05_worker1.md`](HANDOFF_2026-10-05_worker1.md).
 
 ## Where things are
 
@@ -51,9 +51,10 @@ anything longer in a dated handoff that this page links to.
 3. The repair sequence in `HANDOFF_2026-10-02_laptop41-repair.md`: nothing
    serves `:4173`, and the backend and self-heal tasks are not registered.
 
-4. **Add worker1**, the new worker laptop: a key from here, then
-   `setup-agent.mjs` and `install-always-on.ps1` on worker1. Steps in
-   [`HANDOFF_2026-10-05_worker1.md`](HANDOFF_2026-10-05_worker1.md).
+4. **Move the coordinator to laptop-gj8dfmlk** (Host). Laptop41 becomes
+   Worker1 and keeps Alpha. Both laptops get a 3-minute peer report. Steps,
+   in order and per laptop, in
+   [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md).
 
 ## Open, needs the owner (settings only)
 
@@ -73,10 +74,11 @@ anything longer in a dated handoff that this page links to.
 |---|---|
 | `HOST_SETUP.md`, `FLEET.md`, `ALWAYS_ON.md`, `AUTO_UPDATE.md`, `HOST_DOWN.md`, `COORDINATOR_MIGRATION.md`, `MASTER_HOST_REPAIR.md` | runbooks |
 | `CODEX_BRIDGE.md`, `CLOUD_RELAY.md`, `MUSIC_SUBSCRIPTIONS.md` | how a subsystem works |
-| `HANDOFF_2026-10-05_worker1.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
+| `HANDOFF_2026-10-05b_host-move.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
 
 | Superseded (kept for history; do not act on its status sections) | Superseded by |
 |---|---|
+| `HANDOFF_2026-10-05_worker1.md` | `HANDOFF_2026-10-05b_host-move.md`: there is no separate new laptop; Worker1 is Laptop41. |
 | `HANDOFF_LAPTOP41_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later. Kept because `src/admin/cli.js` points at its §3 (music handler setup). |
 
 Removed 2026-10-05 as superseded, and still in git history: `ALPHA_HANDOVER_2026-09-30.md`,
