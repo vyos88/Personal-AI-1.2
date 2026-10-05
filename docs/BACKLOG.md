@@ -38,6 +38,7 @@ next.
 | H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`) | the branch exists on GitHub |
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
+| H5 | Add worker1 to the fleet: key on Laptop41, `setup-agent.mjs --name worker1` and `install-always-on.ps1` on worker1 (`HANDOFF_2026-10-05_worker1.md`) | `run.js task --type sysinfo --agent worker1` comes back from worker1 |
 
 ## Next — code (any session)
 
