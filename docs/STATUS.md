@@ -75,8 +75,12 @@ anything longer in a dated handoff that this page links to.
 | `CODEX_BRIDGE.md`, `CLOUD_RELAY.md`, `MUSIC_SUBSCRIPTIONS.md` | how a subsystem works |
 | `HANDOFF_2026-10-05_worker1.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
 
-| Superseded (kept for history; do not act on their status sections) | Superseded by |
+| Superseded (kept for history; do not act on its status sections) | Superseded by |
 |---|---|
-| `ALPHA_HANDOVER_2026-09-30.md`, `ALPHA_AUDIT.md`, `AUDIT_2026-10-01.md`, `STABILITY_AUDIT_2026-09-29.md`, `WORK_AUDIT_2026-09-15.md` | this page and the 2026-10-04 handoffs. Most of their BROKEN items are now fixed: 2FA, `/chat` 500, receipts crash, the coordination exit code, the render staging leak, the panel `/stats` names. |
-| `HANDOFF_LAPTOP41_2026-09-30.md`, `HANDOFF_2026-10-01.md`, `CODEX_MESSAGE_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later |
-| `MUSIC_CREATOR_STATUS.md`, `MUSIC_GENRES_REPORT.md`, `PANEL_HANDOFF.md` | `HANDOFF_2026-10-02_music-creator.md`; the panel firmware README |
+| `HANDOFF_LAPTOP41_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later. Kept because `src/admin/cli.js` points at its §3 (music handler setup). |
+
+Removed 2026-10-05 as superseded, and still in git history: `ALPHA_HANDOVER_2026-09-30.md`,
+`ALPHA_AUDIT.md`, `AUDIT_2026-10-01.md`, `STABILITY_AUDIT_2026-09-29.md`,
+`WORK_AUDIT_2026-09-15.md`, `HANDOFF_2026-10-01.md`, `CODEX_MESSAGE_2026-09-30.md`,
+`MUSIC_CREATOR_STATUS.md`, `MUSIC_GENRES_REPORT.md`, `PANEL_HANDOFF.md`
+(`git show 46f0adb:docs/<name>` reads any of them).
