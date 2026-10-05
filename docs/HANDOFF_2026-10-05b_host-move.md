@@ -16,7 +16,7 @@ For whoever is at the two laptops: the owner, and Claude or Codex running on
 either one. Work through it in order. Each part says which laptop it runs on,
 so you know when to switch.
 
-This **replaces** `HANDOFF_2026-10-05_worker1.md`. There is no separate new
+This **replaces** `HANDOFF_2026-10-05_worker1.md` (removed; `git show a4a50fe:docs/HANDOFF_2026-10-05_worker1.md`). There is no separate new
 worker laptop: the name Worker1 now belongs to Laptop41.
 
 ## The new roles
