@@ -473,6 +473,15 @@ function Run-Checks {
     if ($desc.Length -gt 160) { $desc = $desc.Substring(0, 160) + '...' }
     Note "port $imgPort : $desc"
   }
+  # Alpha's own scripts\alpha_comfyui_bridge*.py takes A1111-style txt2img on
+  # this port and hands the job to ComfyUI. It has no /sdapi/v1/sd-models, so
+  # probe what it depends on instead: ComfyUI's own API.
+  if ($holder -and "$($holder.CommandLine)" -match 'comfyui_bridge') {
+    $comfy = Http 'http://127.0.0.1:8188/system_stats'
+    if ($comfy -like '2*') { OK "port $imgPort is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 ($comfy)" }
+    else { Problem "image port $imgPort is Alpha's ComfyUI bridge, but ComfyUI does not answer on 8188 ($comfy): chat images fail with HTTP 503" }
+    return
+  }
   $api = Http "$imgBase/sdapi/v1/sd-models"
   if ($api -like '2*') {
     OK "Stable Diffusion API answers on $imgBase ($api)"
@@ -592,6 +601,7 @@ $rules = @(
   @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
+  @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
