@@ -1116,6 +1116,14 @@ npm run admin -- coord --action Post --actor claude-cowork \
   --paths "software/backend/main.py,memory/knowledge/pack.json"
 ```
 
+A peer answers one of Alpha's handoffs (Alpha PR #59) with `Ack`, naming the
+handoff's event id (from `Status`) and, optionally, how far it has got:
+
+```bash
+npm run admin -- coord --action Ack --actor claude \
+  --event-id <handoff id> --stage accepted --message "accepted: claiming files"
+```
+
 Or as a plain task, which is what `coord` builds:
 
 ```bash
@@ -1134,11 +1142,13 @@ live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
 are constrained, and paths must be repo-relative with no `..` traversal, no
 drive letters and no commas (the argv joins on commas).
 
-**Verified against the real script.** All five actions and the argv shape were
+**Verified against the real script.** The first five actions and the argv shape were
 confirmed on the Alpha host: `Init` and `Post` from observed usage, and
 `Status`, `Claim` and `Release` by running a claim cycle through this handler
 and reading the held path back from `Status`. The comma-joined `-Paths` form
-binds as intended.
+binds as intended. `Ack` (`-EventId`, `-Stage`) was verified under PowerShell 7
+against Alpha PR #59's script and against the one before it, which ignores
+`-Stage`; not yet on the host (`docs/HANDOFF_2026-10-05e_claude-ack.md`).
 
 The tests pin the exact argv, so if the script's contract ever changes, adjust
 `buildArgs` and the expectation moves with it.
