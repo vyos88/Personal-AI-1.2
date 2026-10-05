@@ -102,7 +102,7 @@ write to those.
 | F27 | code | `run.js login` must never print a session token. One was pasted into a chat on 2026-10-05 and had to be revoked. Show `saved:` only; print the token only with an explicit flag | a test asserts that no token is printed |
 | F28 | person | Rotate agent keys issued before the move, including `laptop-41-v2-agent`, which `worker1` now uses: issue a new key, update `.env.agent`, revoke the old one | `keys` shows no agent key from before 2026-10-05 in use |
 | F29 | code | One coordinator only: the doctor's split-fleet check exists (#90). Add the same check on gj8, through the peer report: Worker1's 8787 must stay closed | the peer report on Host flags a coordinator answering on Worker1 |
-| F30 | code | Runbook for the new layout: what Worker1 does if Host sleeps or dies (`HOST_DOWN.md` and `standby-alpha.mjs` were written for the old layout) | `HOST_DOWN.md` describes Host = gj8, Worker1 = Laptop41 |
+| F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
 
 ## Next — code (any session)
 
