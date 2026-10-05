@@ -1301,6 +1301,11 @@ against a stub interpreter that records exactly what it was handed (including a
 message full of shell metacharacters), and the opt-in mechanism refusing
 handler names that could escape the handlers directory.
 
+`test/coordination-events.test.js` (12) — merging a standby's copy of Alpha's
+coordination log back into Worker1's (`scripts/merge-coordination-events.mjs`):
+only missing ids are appended, oldest first, a second run adds nothing, and a
+bad incoming line refuses the merge with the master untouched.
+
 ## Layout
 
 ```
