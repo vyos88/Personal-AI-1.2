@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createHost } from '../src/host/server.js';
-import { AuthService, UserStatus } from '../src/host/auth/service.js';
+import { AuthService, UserStatus, loginFailureReason } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { normalizeScopes, hasScope, SCOPES } from '../src/host/auth/scopes.js';
@@ -411,6 +411,106 @@ test('login issues a session and rejects a wrong password', async (t) => {
     }),
     rejectsWith(401),
   );
+});
+
+/**
+ * Captures what the host writes to stderr, which is where warn-level lines go.
+ *
+ * Asserting on the real stream rather than a stubbed logger is the point: the
+ * thing being tested is that an operator reading the log can answer "who was
+ * that", and a stub would pass even if nothing ever reached the log.
+ */
+function captureStderr(t) {
+  const lines = [];
+  const original = process.stderr.write.bind(process.stderr);
+  process.stderr.write = (chunk, ...rest) => {
+    lines.push(String(chunk));
+    return original(chunk, ...rest);
+  };
+  t.after(() => {
+    process.stderr.write = original;
+  });
+  return lines;
+}
+
+test('a failed login says who it was, and never says what they typed', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+  await inviteAndRedeem(host.url, { email: 'watched@example.com', scopes: 'operator' });
+
+  const logged = captureStderr(t);
+  const secret = 'a-password-that-must-not-be-logged';
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'watched@example.com', password: secret },
+    }),
+    rejectsWith(401),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1, 'expected exactly one failure line');
+  assert.match(failures[0], /wrong_password/);
+  assert.match(failures[0], /watched@example\.com/);
+  assert.match(failures[0], /failures=1|"failures":1/);
+
+  // The one thing a security log must never collect. A mistyped password is
+  // usually a real password, often the right one for somewhere else.
+  for (const line of logged) assert.ok(!line.includes(secret), 'the password reached the log');
+});
+
+test('a login for something that is not an email is logged rather than vanishing', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const logged = captureStderr(t);
+  // The shape of a scan. It is refused by validation before any credential is
+  // looked at, so before this it left no trace at all.
+  await assert.rejects(
+    () => call(host.url, '/auth/login', { method: 'POST', body: { email: 'admin', password: 'x' } }),
+    rejectsWith(400),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /malformed_email/);
+  assert.match(failures[0], /admin/);
+});
+
+test('a forged newline cannot buy an attacker a second log line', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const logged = captureStderr(t);
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'nope\n2026-01-01 WARN [host:auth] login succeeded userId=admin', password: 'x' },
+    }),
+    rejectsWith(400),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1, 'the newline bought a second record');
+  assert.ok(!failures[0].slice(0, -1).includes('\n'), 'a newline survived into the log');
+  // The forged text is still echoed — that is the point of logging what was
+  // attempted — but only ever inside the failure record, as a quoted value,
+  // never as a record of its own.
+  const forged = logged.filter((l) => l.includes('login succeeded'));
+  assert.ok(
+    forged.every((l) => l.includes('login failed')),
+    'the forged text became a record of its own',
+  );
+  assert.match(failures[0], /email="nope /);
+});
+
+test('the log tells apart what the response deliberately does not', () => {
+  // The 401 is identical for all three so a stranger cannot enumerate accounts.
+  // The operator is not a stranger.
+  assert.equal(loginFailureReason(null, false), 'no_such_user');
+  assert.equal(loginFailureReason({ status: UserStatus.ACTIVE }, false), 'wrong_password');
+  assert.equal(loginFailureReason({ status: UserStatus.DISABLED }, true), 'user_disabled');
+  assert.equal(loginFailureReason({ status: UserStatus.ACTIVE }, true), null);
 });
 
 test('login does not reveal whether an account exists', async (t) => {

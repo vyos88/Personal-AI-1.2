@@ -119,6 +119,15 @@ function Describe($p) {
   if (-not $p) { return 'nothing listening' }
   return "pid $($p.ProcessId) $($p.Name): $($p.CommandLine)"
 }
+# Self-heal writes one line to its log every pass (2 minutes). A log written
+# in the last 10 minutes proves it runs, whether or not this account can see
+# its scheduled task.
+function SelfHealAge {
+  $log = Join-Path $OpsDir 'logs\selfheal.jsonl'
+  if (-not (Test-Path $log)) { return $null }
+  return [int]((Get-Date) - (Get-Item $log).LastWriteTime).TotalMinutes
+}
+function SelfHealFresh { $age = SelfHealAge; return ($null -ne $age -and $age -le 10) }
 function TaskResult($code) {
   $hex = '0x{0:X8}' -f ([int64]$code -band 0xFFFFFFFF)
   switch ($hex) {
@@ -371,6 +380,12 @@ function Run-Checks {
   foreach ($t in 'Alpha', 'Alpha Backend', 'Alpha Self-Heal') {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
     if ($st) { $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult)) }
+    elseif ($t -eq 'Alpha Self-Heal' -and (SelfHealFresh)) {
+      # Registered elevated by repair-alpha-host, the task can be invisible to
+      # the account the scheduled doctor runs as, while its log shows it running
+      # every 2 minutes. That read as "not registered" on every pass (BACKLOG F8).
+      OK "self-heal is running (its log was written $(SelfHealAge) min ago); task $t is not visible to this account"
+    }
     elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
     elseif ($t -eq 'Alpha Self-Heal' -and (Test-Path (Join-Path $OpsDir 'selfheal.json'))) {
       # The repair registers it as SYSTEM, and a SYSTEM task is hidden from a
@@ -393,10 +408,29 @@ function Run-Checks {
   if (Test-Path $sh) { Note 'last self-heal entries:'; Get-Content $sh -Tail 3 | ForEach-Object { Note "  $_" } }
 
   # ------------------------------------------------------------ tunnel
-  Section "5. alpha-tunnel coordinator (port $CoordinatorPort)"
-  $hz = Body "http://127.0.0.1:$CoordinatorPort/healthz"
-  if ($hz) { OK "healthz: $hz" } else { Problem "no coordinator answering on $CoordinatorPort" }
-  Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
+  # The coordinator need not run here: since HANDOFF_2026-10-05b_host-move.md
+  # it lives on laptop-gj8dfmlk. Probe the one this checkout dials, the way
+  # run.js resolves it (the environment first, then .env), not loopback only,
+  # which read a deliberate move as an outage on every pass.
+  $coordUrl = "http://127.0.0.1:$CoordinatorPort"
+  if ($env:ALPHA_HOST_URL) { $coordUrl = $env:ALPHA_HOST_URL }
+  else {
+    $envFile = Join-Path $repo '.env'
+    $line = if (Test-Path $envFile) { Select-String -Path $envFile -Pattern '^ALPHA_HOST_URL=(.+)$' | Select-Object -Last 1 }
+    if ($line) { $coordUrl = $line.Matches[0].Groups[1].Value }
+  }
+  $coordUrl = $coordUrl.Trim().Trim('"', "'").TrimEnd('/')
+  $remote = $coordUrl -notmatch '^https?://(127\.0\.0\.1|localhost|\[::1\])(:|/|$)'
+  Section "5. alpha-tunnel coordinator ($coordUrl)"
+  $hz = Body "$coordUrl/healthz"
+  if ($hz) { OK "healthz: $hz" } else { Problem "no coordinator answering at $coordUrl" }
+  if ($remote) {
+    Note 'the coordinator runs on another machine; none should listen here'
+    $here = Owner $CoordinatorPort
+    if ($here) { Problem "port $CoordinatorPort here is held by $(Describe $here): a second coordinator beside $coordUrl splits the fleet" }
+  } else {
+    Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
+  }
   if ($hz) {
     foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') { Note "--- $cmd"; Indent (Admin $cmd) }
   }
@@ -526,13 +560,14 @@ $rules = @(
   @{ m = 'public site serves';                                                                  r = 'alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).' },
   @{ m = "task Alpha is not registered|'Alpha' task does not mention|Alpha .*0xC000013A";      r = "Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported)." },
   @{ m = 'changed after the backend started';                                                   r = 'Restart the backend so it runs the code on disk: apply-chat-fix.ps1 -Restart, or stop the python on 8001 and let its task start it.' },
-  @{ m = 'no coordinator answering';                                                            r = 'Start the alpha-tunnel coordinator as a boot task (docs/HOST_SETUP.md); move-coordinator-here.mjs sets it up but leaves nothing running.' },
+  @{ m = 'no coordinator answering';                                                            r = 'Start the alpha-tunnel coordinator on the machine ALPHA_HOST_URL names (laptop-gj8dfmlk since 2026-10-05: its alpha-coordinator task); on this machine only if .env points at loopback.' },
+  @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
-  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (Test-Path (Join-Path $OpsDir 'selfheal.json')) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
+  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
   @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },

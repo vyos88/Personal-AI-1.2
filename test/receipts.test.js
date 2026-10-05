@@ -154,6 +154,34 @@ test('a species with no renders is absent rather than zero', async () => {
   assert.deepEqual(store.summary().species, {});
 });
 
+test('music receipts are counted by genre, and by subgenre within its genre', async () => {
+  const store = new ReceiptStore({ path: null });
+  await store.load();
+  const music = (id, genre, subgenre) =>
+    finished({ id, type: 'alpha.music', result: { recipe: { genre, subgenre, seed: 1 } } });
+
+  store.record(music('a', 'Electronic', 'Rollers'));
+  store.record(music('b', 'Electronic', 'Rollers'));
+  store.record(music('c', 'Electronic', 'Ambient'));
+  // The same subgenre name under another genre is a different thing.
+  store.record(music('d', 'Jazz', 'Ambient'));
+  store.record(finished({ id: 'e', result: { recipe: { species: 'fern', seed: 0 } } }));
+
+  const summary = store.summary();
+  assert.deepEqual(summary.genres, { Electronic: 3, Jazz: 1 });
+  assert.deepEqual(summary.subgenres, { Electronic: { Rollers: 2, Ambient: 1 }, Jazz: { Ambient: 1 } });
+  assert.deepEqual(summary.species, { fern: 1 });
+});
+
+test('a fleet that never made music has no genres rather than zeroes', async () => {
+  const store = new ReceiptStore({ path: null });
+  await store.load();
+  store.record(finished({ result: { recipe: { species: 'fern', seed: 0 } } }));
+
+  assert.deepEqual(store.summary().genres, {});
+  assert.deepEqual(store.summary().subgenres, {});
+});
+
 test('the record survives the restart that empties the queue', async () => {
   const dir = await tempDir();
   const path = join(dir, 'receipts.json');

@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
-import { delimiter, extname, join, resolve, sep } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Generates a 3D creature or plant by driving Blender's Python API, so the
@@ -347,36 +348,6 @@ export function available() {
     };
   }
   return { ok: true };
-}
-
-/**
- * Where a command would be found, or null.
- *
- * `execFile` resolves a bare name against PATH, so the check has to as well or
- * the default `blender` would look missing on every machine that has it
- * installed normally. Windows needs PATHEXT too: `blender` there is
- * `blender.exe`, and a check that only looked for the bare name would take the
- * host's own GPU machine out of the running.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions =
-    // A name that already has an extension (powershell.exe, the default for
-    // device.inventory) is looked up as given; appending PATHEXT to it made
-    // every Windows machine report PowerShell as missing.
-    process.platform === 'win32' && !extname(command)
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-      : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
 }
 
 export async function run(payload, { signal, log } = {}) {

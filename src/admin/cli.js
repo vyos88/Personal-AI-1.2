@@ -919,7 +919,7 @@ async function doctor(flags) {
   const offering = (type) => agents.filter((a) => a.capabilities.includes(type)).map((a) => a.name);
   for (const [type, fix] of [
     ['codex.exec', 'on the Codex laptop: add codex-exec to ALPHA_EXTRA_HANDLERS in .env.agent and restart its agent; its log says why if it declines (docs/CODEX_BRIDGE.md)'],
-    ['alpha.music', 'on the music machine: add alpha-music,alpha-music-audio to ALPHA_EXTRA_HANDLERS in .env.agent and restart its agent (docs/HANDOFF_LAPTOP41_2026-09-30.md §3)'],
+    ['alpha.music', 'on the music machine: add alpha-music,alpha-music-audio to ALPHA_EXTRA_HANDLERS in .env.agent and restart its agent (docs/HANDOFF_LAPTOP41_2026-09-30.md §3); add alpha-music-stems too for vocal removal (needs scripts/requirements-stems.txt)'],
   ]) {
     const names = offering(type);
     if (names.length) ok(`${type} offered by ${names.join(', ')}`);

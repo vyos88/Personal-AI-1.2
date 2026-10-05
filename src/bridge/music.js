@@ -8,13 +8,18 @@ import { ProtocolError, TERMINAL_STATUSES } from '../common/protocol.js';
 import { validateSettings } from '../agent/handlers/alpha-music.js';
 
 /**
- * The Music Creator panel's backend: two routes that turn a Generate click
+ * The Music Creator panel's backend: the routes that turn a Generate click
  * into an `alpha.music` task and report on it.
  *
  *   POST /music/generate     { genre, subgenre, bpm?, key, vocals, seed, durationSec? }
  *                            → 202 { taskId, recipe, agentAvailable, targetAttached }
  *   GET  /music/tasks/:id    → { taskId, status, recipe, outputs, error, ... }
  *   GET  /music/tasks/:id/audio → the track itself, with Range support
+ *   POST /music/tasks/:id/remove-vocals → queues `alpha.music.stems` against the
+ *                            same track, on the same machine → 202 { taskId, ... }
+ *                            (poll and play it back with the same two routes above)
+ *   GET  /music/recipes      → { recipes: [...] } recent alpha.music receipts
+ *   GET  /music/fleet        → { machines: [...] } who offers alpha.music now
  *   /music/billing/*         → subscriptions, when billing is configured (billing.js)
  *
  * Why a bridge rather than the browser calling the coordinator: queueing a task
@@ -25,6 +30,17 @@ import { validateSettings } from '../agent/handlers/alpha-music.js';
  * machine taken from its own configuration, never from the request. And it
  * reads back only `alpha.music` tasks, so it cannot be used to browse the rest
  * of the queue by id.
+ *
+ * The two read-only routes keep that shape. `/music/recipes` reads the
+ * coordinator's ledger with `type=alpha.music` and passes on the recipe, the
+ * outcome, the machine's name, output names and sizes and the times — never
+ * paths, errors' internals or anything another task type left there. It needs
+ * no scope beyond tasks:read, which the key already holds. `/music/fleet` reads
+ * `/agents`, which needs agents:read; a key without it gets a 502
+ * `bridge_key_rejected` naming that scope, and every other route goes on
+ * working. Only machines offering `alpha.music` are listed, and only their
+ * name, idle time and in-flight count: not ids, addresses, owners, memory or
+ * the rest of their capabilities.
  *
  * Settings are validated with the handler's own `validateSettings`, so the
  * panel gets a 400 with the reason instead of a task that fails on a laptop a
@@ -43,6 +59,12 @@ const MAX_BODY_BYTES = 16 * 1024;
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const AUDIO_TYPES = { wav: 'audio/wav', mp3: 'audio/mpeg', flac: 'audio/flac', ogg: 'audio/ogg' };
 const AUDIO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.(wav|mp3|flac|ogg)$/;
+// Both task types the bridge will read back: a generation and a vocal removal
+// run on one of its tracks. Anything else stays a 404, the "reads back music
+// tasks only" rule this bridge has always held.
+const MUSIC_TASK_TYPES = new Set(['alpha.music', 'alpha.music.stems']);
+const DEFAULT_RECIPES = 50;
+const MAX_RECIPES = 200;
 
 /** The track a finished music task made, if it made one the bridge can serve. */
 export function audioOutput(task) {
@@ -133,6 +155,42 @@ export function describeTask(task) {
   };
 }
 
+/**
+ * One ledger receipt as the panel's recipe book sees it. The ledger keeps
+ * output paths on the generating machine and an agent id; neither means
+ * anything to a browser, so neither goes back. The task id does, because it
+ * is what `/music/tasks/:id/audio` plays.
+ */
+export function describeReceipt(receipt) {
+  return {
+    taskId: receipt.id,
+    status: receipt.status,
+    recipe: receipt.recipe ?? null,
+    agent: receipt.agent ?? null,
+    outputs: Array.isArray(receipt.outputs)
+      ? receipt.outputs.map((output) => ({ name: output?.name ?? null, bytes: output?.bytes ?? null }))
+      : [],
+    createdAt: receipt.createdAt ?? null,
+    finishedAt: receipt.finishedAt ?? null,
+    durationMs: receipt.durationMs ?? null,
+  };
+}
+
+/**
+ * One attached machine as the panel's fleet line sees it, or null for a
+ * machine that does not make music. `stale` is passed on only when the
+ * coordinator reports it, rather than guessed from idle time here.
+ */
+export function describeMachine(agent) {
+  if (!Array.isArray(agent?.capabilities) || !agent.capabilities.includes('alpha.music')) return null;
+  return {
+    name: agent.name ?? null,
+    idleMs: Number.isFinite(agent.idleMs) ? agent.idleMs : null,
+    inFlight: Number.isFinite(agent.inFlight) ? agent.inFlight : 0,
+    ...(typeof agent.stale === 'boolean' ? { stale: agent.stale } : {}),
+  };
+}
+
 export function createMusicBridge({
   hostUrl,
   token,
@@ -196,12 +254,13 @@ export function createMusicBridge({
     });
   }
 
-  /** A music task by id, or null for anything else: not a window onto the queue. */
+  /** A music task (generation or vocal removal) by id, or null for anything
+   * else: not a window onto the queue. */
   async function musicTask(taskId) {
     if (!TASK_ID_PATTERN.test(taskId)) throw new ProtocolError('bad task id', { code: 'bad_task_id' });
     try {
       const { body: task } = await coordinator(`/tasks/${encodeURIComponent(taskId)}`);
-      return task?.type === 'alpha.music' ? task : null;
+      return task?.type && MUSIC_TASK_TYPES.has(task.type) ? task : null;
     } catch (error) {
       if (error instanceof HttpError && error.status === 404) return null;
       throw error;
@@ -212,6 +271,48 @@ export function createMusicBridge({
     const task = await musicTask(taskId);
     if (!task) return send(res, 404, { error: 'unknown_task' });
     return send(res, 200, describeTask(task));
+  }
+
+  /**
+   * Queues `alpha.music.stems` against a track a Generate click already made,
+   * on the same machine that holds it — the file never leaves that machine,
+   * so there is nowhere else to run the separation. Reuses the generate
+   * route's shape (`taskId`, `agentAvailable`, `targetAttached`) rather than
+   * inventing a second one: the panel polls and plays it back exactly the way
+   * it does a generated track, via the same `/music/tasks/:id` and
+   * `/music/tasks/:id/audio` routes.
+   */
+  async function removeVocals(res, sourceTaskId) {
+    const source = await musicTask(sourceTaskId);
+    if (!source || source.type !== 'alpha.music') return send(res, 404, { error: 'unknown_task' });
+    if (source.status !== 'succeeded') {
+      return send(res, 409, { error: 'not_ready', message: `the track is ${source.status}` });
+    }
+    const track = audioOutput(source);
+    if (!track) return send(res, 404, { error: 'no_audio', message: 'this task wrote no audio' });
+    if (!source.targetAgent) {
+      return send(res, 409, {
+        error: 'no_music_machine',
+        message: 'removing vocals needs the machine that holds the track, and this task names none',
+      });
+    }
+    const genre = source.result?.recipe?.genre ?? source.payload?.genre;
+    const { body } = await coordinator('/tasks', {
+      method: 'POST',
+      body: {
+        type: 'alpha.music.stems',
+        payload: { genre, name: track.name },
+        leaseMs,
+        targetAgent: source.targetAgent,
+      },
+    });
+    return send(res, 202, {
+      taskId: body.id,
+      status: body.status,
+      agentAvailable: body.agentAvailable ?? null,
+      targetAgent: body.targetAgent ?? null,
+      targetAttached: body.targetAttached ?? null,
+    });
   }
 
   /** Queues one slice fetch on the music machine and waits for its answer. */
@@ -272,6 +373,36 @@ export function createMusicBridge({
     throw new ProtocolError(`${name} kept changing while it was being fetched`, { status: 502, code: 'fetch_failed' });
   }
 
+  async function recipes(res, url) {
+    const raw = url.searchParams.get('limit');
+    const limit = raw === null ? DEFAULT_RECIPES : Number(raw);
+    if (!Number.isInteger(limit) || limit < 1 || limit > MAX_RECIPES) {
+      throw new ProtocolError(`limit must be a whole number from 1 to ${MAX_RECIPES}`, { code: 'bad_limit' });
+    }
+    const { body } = await coordinator(`/receipts?type=alpha.music&limit=${limit}`);
+    // Filtered again here: the bridge's promise is music only, and it should
+    // not rest on the coordinator honouring a query parameter.
+    const rows = Array.isArray(body?.receipts) ? body.receipts.filter((r) => r?.type === 'alpha.music') : [];
+    return send(res, 200, { recipes: rows.map(describeReceipt) });
+  }
+
+  async function fleet(res) {
+    let body;
+    try {
+      ({ body } = await coordinator('/agents'));
+    } catch (error) {
+      if (error instanceof HttpError && (error.status === 401 || error.status === 403)) {
+        throw new ProtocolError(
+          'the music bridge\'s tunnel key cannot list machines; issue it with agents:read as well to see the fleet',
+          { status: 502, code: 'bridge_key_rejected' },
+        );
+      }
+      throw error;
+    }
+    const agents = Array.isArray(body?.agents) ? body.agents : [];
+    return send(res, 200, { machines: agents.map(describeMachine).filter(Boolean) });
+  }
+
   const downloads = new Map();
 
   /** Drops the least recently fetched tracks beyond cacheMaxTracks, never `keep`. */
@@ -322,8 +453,12 @@ export function createMusicBridge({
       if (req.method === 'POST' && url.pathname === '/music/generate') return await generate(req, res);
       const audioMatch = /^\/music\/tasks\/([^/]+)\/audio$/.exec(url.pathname);
       if (req.method === 'GET' && audioMatch) return await audio(req, res, decodeURIComponent(audioMatch[1]));
+      const stemsMatch = /^\/music\/tasks\/([^/]+)\/remove-vocals$/.exec(url.pathname);
+      if (req.method === 'POST' && stemsMatch) return await removeVocals(res, decodeURIComponent(stemsMatch[1]));
       const match = /^\/music\/tasks\/([^/]+)$/.exec(url.pathname);
       if (req.method === 'GET' && match) return await status(res, decodeURIComponent(match[1]));
+      if (req.method === 'GET' && url.pathname === '/music/recipes') return await recipes(res, url);
+      if (req.method === 'GET' && url.pathname === '/music/fleet') return await fleet(res);
       if (req.method === 'GET' && url.pathname === '/music/healthz') return send(res, 200, { ok: true });
       if (url.pathname === '/music/billing' || url.pathname.startsWith('/music/billing/')) {
         if (billing) return await billing.handle(req, res, url.pathname, send);

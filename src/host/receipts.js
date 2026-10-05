@@ -167,7 +167,10 @@ export class ReceiptStore {
    *
    * `species` is counted only for receipts that carry a recipe, so it stays
    * empty for a fleet that has never rendered rather than inventing a zero for
-   * every name someone once mentioned.
+   * every name someone once mentioned. `genres` and `subgenres` are the same
+   * rule for `alpha.music` recipes. Subgenres are counted under their genre,
+   * not flat: the same subgenre name can sit under two genres, and a flat count
+   * would add them together.
    */
   summary({ since = null } = {}) {
     const rows = Number.isFinite(since)
@@ -177,6 +180,8 @@ export class ReceiptStore {
     const byType = {};
     const byStatus = {};
     const species = {};
+    const genres = {};
+    const subgenres = {};
     const machines = {};
     let outputs = 0;
     let bytes = 0;
@@ -189,6 +194,15 @@ export class ReceiptStore {
         const name = receipt.recipe.species;
         species[name] = (species[name] ?? 0) + 1;
       }
+      const genre = typeof receipt.recipe?.genre === 'string' ? receipt.recipe.genre : null;
+      if (genre) {
+        genres[genre] = (genres[genre] ?? 0) + 1;
+        const sub = receipt.recipe.subgenre;
+        if (typeof sub === 'string' && sub) {
+          subgenres[genre] ??= {};
+          subgenres[genre][sub] = (subgenres[genre][sub] ?? 0) + 1;
+        }
+      }
       for (const file of receipt.outputs ?? []) {
         outputs += 1;
         bytes += Number.isFinite(file.bytes) ? file.bytes : 0;
@@ -200,6 +214,8 @@ export class ReceiptStore {
       byType,
       byStatus,
       species,
+      genres,
+      subgenres,
       machines,
       outputs,
       bytes,

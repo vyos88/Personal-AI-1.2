@@ -15,7 +15,7 @@
                           it, and hands back when the host returns
 
   Neither is installed twice: re-running replaces the task. -WhatIfOnly prints
-  the schtasks lines instead of running them.
+  what would be registered instead of registering it.
 
   The standby half is skipped without -AlphaRoot: a machine that only lends
   capacity does not need it, and a half-configured failover is worse than none.
@@ -51,27 +51,39 @@ $node = (Get-Command node -ErrorAction SilentlyContinue).Source
 if (-not $node) { throw 'node is not on PATH. Install Node >= 20, or open a shell that has it.' }
 
 function Quote([string[]] $arguments) {
-  ($arguments | ForEach-Object { if ($_ -match '\s') { '\"' + $_ + '\"' } else { $_ } }) -join ' '
+  ($arguments | ForEach-Object { if ($_ -match '\s') { '"' + $_ + '"' } else { $_ } }) -join ' '
 }
 
 function Install([string] $name, [string[]] $arguments) {
-  $command = '"' + $node + '" ' + (Quote $arguments)
+  $argumentLine = Quote $arguments
   Write-Host ''
   Write-Host "task  : $name"
-  Write-Host "runs  : $command"
+  Write-Host "runs  : `"$node`" $argumentLine"
 
   if ($WhatIfOnly) {
-    Write-Host "schtasks /Create /TN `"$name`" /SC ONLOGON /RL LIMITED /TR `"$command`" /F"
+    Write-Host "Register-ScheduledTask -TaskName `"$name`" (at logon of $env:USERNAME, limited rights)"
     return
   }
 
-  # ONLOGON rather than ONSTART: these run as this user, with this user's
+  # The task is built with the ScheduledTasks cmdlets, not schtasks /TR. Node's
+  # usual home is C:\Program Files\nodejs, and Windows PowerShell 5.1 hands a
+  # /TR value holding quoted paths with spaces to schtasks mangled ("Invalid
+  # argument/option - 'Files\nodejs\node.exe ...'"), so the task was never
+  # created. Execute and Argument are separate fields here; nothing is
+  # re-parsed.
+  #
+  # At logon rather than at startup: these run as this user, with this user's
   # network and this user's Tailscale, and a task that starts before either is
   # a task that fails quietly every boot.
-  $result = schtasks /Create /TN $name /SC ONLOGON /RL LIMITED /TR $command /F 2>&1
-  $code = $LASTEXITCODE
-  $result | ForEach-Object { Write-Host $_ }
-  if ($code -ne 0) { throw "schtasks exited $code" }
+  $action = New-ScheduledTaskAction -Execute $node -Argument $argumentLine -WorkingDirectory $root
+  $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+  $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Limited
+  # No task-level restart: keep-agent already restarts the agent, and it exits
+  # on purpose when another agent on this machine has taken over.
+  $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
+    -ExecutionTimeLimit ([TimeSpan]::Zero)
+  Register-ScheduledTask -TaskName $name -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
+  Write-Host "registered: $name"
 }
 
 # --- the agent: this laptop taking work from the host ----------------------
@@ -100,8 +112,8 @@ if ($AlphaRoot) {
 if (-not $WhatIfOnly) {
   Write-Host ''
   Write-Host 'Installed. Start them now rather than waiting for the next logon:'
-  Write-Host '  schtasks /Run /TN "alpha-tunnel agent"'
-  if ($AlphaRoot) { Write-Host '  schtasks /Run /TN "alpha-tunnel standby"' }
+  Write-Host "  Start-ScheduledTask -TaskName 'alpha-tunnel agent'"
+  if ($AlphaRoot) { Write-Host "  Start-ScheduledTask -TaskName 'alpha-tunnel standby'" }
   Write-Host ''
   Write-Host 'And prove the agent is attached, from the host rather than by eye:'
   Write-Host '  node scripts\watchdog.mjs --no-update --json'

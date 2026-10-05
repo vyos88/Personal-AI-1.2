@@ -9,6 +9,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createHost } from '../src/host/server.js';
+import { AuthService } from '../src/host/auth/service.js';
+import { AuthStore } from '../src/host/auth/store.js';
+import { fetchJson } from '../src/common/http.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import * as music from '../src/agent/handlers/alpha-music.js';
@@ -119,6 +122,111 @@ test('an unreachable coordinator is a 502, not a hang or a crash', async (t) => 
   assert.equal(body.error, 'coordinator_unreachable');
 });
 
+const finishedMusic = (over = {}) => ({
+  id: 'task_music',
+  type: 'alpha.music',
+  status: 'succeeded',
+  agentId: 'agent_secret',
+  attempts: 1,
+  declines: 0,
+  createdAt: 1_000,
+  finishedAt: 5_000,
+  error: null,
+  result: {
+    recipe: SETTINGS,
+    outputs: [{ name: 'track.wav', path: 'C:\\Users\\someone\\music\\track.wav', bytes: 4_096 }],
+    stdout: 'generator chatter',
+  },
+  ...over,
+});
+
+test('the recipe book is the ledger\'s music receipts, and only what the panel needs', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url);
+  host.receipts.record(finishedMusic({ id: 'task_old' }), { agentName: 'laptop41' });
+  host.receipts.record(
+    { ...finishedMusic(), id: 'task_codex', type: 'codex.exec', result: { recipe: { prompt: 'secret' } } },
+    { agentName: 'laptop41' },
+  );
+  host.receipts.record(
+    finishedMusic({ id: 'task_new', status: 'failed', result: null, error: { message: 'boom', code: 'x' } }),
+    { agentName: 'alpha-host' },
+  );
+
+  const { status, body } = await get(bridge, '/music/recipes');
+  assert.equal(status, 200);
+  assert.deepEqual(body.recipes, [
+    { taskId: 'task_new', status: 'failed', recipe: null, agent: 'alpha-host', outputs: [], createdAt: 1_000, finishedAt: 5_000, durationMs: 4_000 },
+    {
+      taskId: 'task_old',
+      status: 'succeeded',
+      recipe: SETTINGS,
+      agent: 'laptop41',
+      outputs: [{ name: 'track.wav', bytes: 4_096 }],
+      createdAt: 1_000,
+      finishedAt: 5_000,
+      durationMs: 4_000,
+    },
+  ]);
+  assert.doesNotMatch(JSON.stringify(body), /someone|agent_secret|secret|chatter/);
+
+  assert.equal((await get(bridge, '/music/recipes?limit=1')).body.recipes.length, 1);
+  for (const bad of ['0', '201', 'abc', '1.5']) {
+    const refused = await get(bridge, `/music/recipes?limit=${bad}`);
+    assert.equal(refused.status, 400, bad);
+    assert.equal(refused.body.error, 'bad_limit');
+  }
+});
+
+test('the fleet line lists music machines only, by name, idle time and work in hand', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url);
+  const laptop = host.registry.register({ name: 'laptop41', capabilities: ['alpha.music', 'alpha.music.audio'], remoteAddress: '100.64.0.9', userId: 'user_x' });
+  host.registry.register({ name: 'render-box', capabilities: ['alpha.render', 'echo'], remoteAddress: '100.64.0.10' });
+  host.registry.admit(laptop.id, { type: 'alpha.music', minMemoryMB: 0 });
+
+  const { status, body } = await get(bridge, '/music/fleet');
+  assert.equal(status, 200);
+  assert.equal(body.machines.length, 1);
+  const [machine] = body.machines;
+  assert.equal(machine.name, 'laptop41');
+  assert.equal(machine.inFlight, 1);
+  assert.ok(Number.isFinite(machine.idleMs) && machine.idleMs >= 0);
+  // Whatever else the registry reports, only these fields cross the bridge
+  // (`stale` once the registry reports one).
+  for (const key of Object.keys(machine)) assert.ok(['name', 'idleMs', 'inFlight', 'stale'].includes(key), key);
+  assert.doesNotMatch(JSON.stringify(body), /100\.64|user_x|agent_|render-box|alpha\.render/);
+});
+
+test('a bridge key without agents:read loses the fleet line, and only that', async (t) => {
+  const BOOTSTRAP = 'bootstrap-token-long-enough-for-tests';
+  const auth = new AuthService({ store: new AuthStore({ path: null }), bootstrapToken: BOOTSTRAP });
+  await auth.load();
+  const host = createHost({ auth });
+  const url = await listen(host.server);
+  t.after(() => host.close());
+
+  const { body: invite } = await fetchJson(`${url}/invites`, { method: 'POST', token: BOOTSTRAP, body: { email: 'o@example.test', scopes: 'admin' } });
+  await fetchJson(`${url}/invites/redeem`, { method: 'POST', body: { token: invite.token, password: 'a-perfectly-fine-password' } });
+  const { body: users } = await fetchJson(`${url}/users`, { token: BOOTSTRAP });
+  const { body: key } = await fetchJson(`${url}/keys`, {
+    method: 'POST',
+    token: BOOTSTRAP,
+    body: { userId: users.users[0].id, scopes: ['tasks:read', 'tasks:write'], name: 'music-bridge' },
+  });
+  host.receipts.record(finishedMusic(), { agentName: 'laptop41' });
+
+  const bridge = await startBridge(t, url, { token: key.token });
+  const fleet = await get(bridge, '/music/fleet');
+  assert.equal(fleet.status, 502);
+  assert.equal(fleet.body.error, 'bridge_key_rejected');
+  assert.match(fleet.body.message, /agents:read/);
+
+  const recipes = await get(bridge, '/music/recipes');
+  assert.equal(recipes.status, 200);
+  assert.equal(recipes.body.recipes.length, 1);
+});
+
 test('no CORS header: another origin cannot queue work through the bridge', async (t) => {
   const host = await startHost(t);
   const bridge = await startBridge(t, host.url);
@@ -159,6 +267,61 @@ test('task status names outputs but not paths on the generating machine', () => 
   assert.deepEqual(view.outputs, [{ name: 'x.wav', bytes: 10 }]);
   assert.equal(view.agent, null, 'an untargeted task names no machine rather than a registration id');
   assert.equal(describeTask({ id: 't2', status: 'leased', attempts: 1, agentId: 'agent_x', targetAgent: 'laptop41' }).agent, 'laptop41');
+});
+
+async function post2(url, path, body) {
+  const response = await fetch(`${url}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.json() };
+}
+
+test('removing vocals is refused before a track exists, with no music machine, or on someone else\'s task', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url);
+
+  const { body: queued } = await post(bridge, SETTINGS);
+  let response = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'not_ready');
+
+  const task = host.queue.get(queued.taskId);
+  Object.assign(task, { status: 'succeeded', result: { recipe: SETTINGS, outputs: [{ name: 'x.wav', bytes: 4 }] } });
+  response = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'no_music_machine');
+
+  const other = host.queue.enqueue({ type: 'codex.exec', payload: { prompt: 'secret' }, leaseMs: 60_000, maxAttempts: 1, minMemoryMB: 0, targetAgent: null });
+  assert.equal((await post2(bridge, `/music/tasks/${other.id}/remove-vocals`)).status, 404);
+  assert.equal((await post2(bridge, '/music/tasks/nope/remove-vocals')).status, 404);
+});
+
+test('removing vocals queues alpha.music.stems on the same machine that holds the track', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url, { leaseMs: 300_000 });
+
+  const { body: queued } = await post(bridge, SETTINGS);
+  const task = host.queue.get(queued.taskId);
+  Object.assign(task, {
+    status: 'succeeded',
+    targetAgent: 'music-box',
+    result: { recipe: SETTINGS, outputs: [{ name: 'track.wav', bytes: 4 }] },
+  });
+
+  const { status, body } = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(status, 202);
+  assert.equal(body.targetAgent, 'music-box');
+
+  const stemsTask = host.queue.get(body.taskId);
+  assert.equal(stemsTask.type, 'alpha.music.stems');
+  assert.equal(stemsTask.targetAgent, 'music-box');
+  assert.equal(stemsTask.leaseMs, 300_000);
+  assert.deepEqual(stemsTask.payload, { genre: 'Electronic', name: 'track.wav' });
+
+  // The bridge now reads the stems task back too, through the same GET route.
+  assert.equal((await get(bridge, `/music/tasks/${body.taskId}`)).status, 200);
 });
 
 const python = ['python3', 'python'].find((name) => spawnSync(name, ['--version']).status === 0);

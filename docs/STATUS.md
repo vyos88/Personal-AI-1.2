@@ -4,7 +4,7 @@ The one page for where Alpha and this tunnel stand. Keep it current: a session
 that changes what is true here edits this file in the same PR, and puts
 anything longer in a dated handoff that this page links to.
 
-*Last updated 2026-10-04.*
+*Last updated 2026-10-05.*
 
 ## Read this first
 
@@ -17,7 +17,20 @@ anything longer in a dated handoff that this page links to.
   `git show origin/status/cloud:reports/cloud.md` (the cloud relay). See
   `CLOUD_RELAY.md`.
 - **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
-- **Latest handoff:** [`HANDOFF_2026-10-04c.md`](HANDOFF_2026-10-04c.md).
+  Since the host move: **F1-F30** in `BACKLOG.md` ("Fleet after the host move"), the owner's list, which includes teaching Alpha.
+- **The fleet since 2026-10-05:** the coordinator runs on **Host**,
+  `laptop-gj8dfmlk`, at `http://100.93.104.24:8787` (scheduled task
+  `alpha-coordinator`), and its own agent `host` (`alpha.render`, `echo`,
+  `grow`, `sysinfo`; scheduled task `alpha-tunnel agent`, at startup).
+  **Worker1** is Laptop41 (`desktop-41hplcn`): it runs Alpha and the tunnel
+  agent `worker1` (`alpha.coordination`), which dials the Host. A closed 8787
+  on Laptop41 is correct. Each laptop runs the `Alpha peer report` task every
+  3 minutes (`C:\AlphaData\alpha-ops\peer-report.log`). Healthy reads
+  `host ok, worker1 ok, 2 agents attached` (since 03:28 local, 2026-10-05).
+  "missing" or "silent" now means that agent is down; "coordinator NOT
+  answering" means the Host coordinator is.
+- **Next: server day** (expected 2026-10-06): [`HANDOFF_2026-10-06_server-day.md`](HANDOFF_2026-10-06_server-day.md), BACKLOG S1-S7. First a real model for Alpha on the server, then the server as Host.
+- **Latest handoff:** [`HANDOFF_2026-10-05c_failover.md`](HANDOFF_2026-10-05c_failover.md): automatic failover, so Worker1 covers when the Host is down (BACKLOG F30, not yet run). Before it: [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, Host's own agent, done the same day (BACKLOG F2).
 
 ## Where things are
 
@@ -26,7 +39,7 @@ anything longer in a dated handoff that this page links to.
 | Coordinator, agents, handlers, music bridge | this repo, `main` |
 | Alpha app (backend, Deck frontend) | `vyos88/Alpha`, branch `alpha-full`, under `BuildArtifacts/installers/Alpha-Full/software/` |
 | Alpha Music Creator shell, agent routine | `vyos88/Alpha`, branch `main` (`AGENTS.md`, `scripts/tunnel-sync.mjs`) |
-| What actually runs | Laptop41's local working copy. It is **not in git** yet. See the handoff, step 1. |
+| What actually runs | Alpha: Worker1's (Laptop41's) local working copy, under `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software`. It is **not in git** yet (item 1 below). The coordinator: Host (`laptop-gj8dfmlk`), `C:\services\alpha-tunnel` on `main`. |
 
 ## Open, needs a person at Laptop41
 
@@ -51,6 +64,11 @@ anything longer in a dated handoff that this page links to.
 3. The repair sequence in `HANDOFF_2026-10-02_laptop41-repair.md`: nothing
    serves `:4173`, and the backend and self-heal tasks are not registered.
 
+4. ~~Move the coordinator to laptop-gj8dfmlk~~ **Done 2026-10-05.** Checked:
+   `agents` lists `worker1`, `sysinfo` came back from DESKTOP-41HPLCN,
+   `coord --action Status` succeeded through the Host, and both peer-report
+   logs read `worker1 ok`. Follow-ups are BACKLOG F3-F30.
+
 ## Open, needs the owner (settings only)
 
 - This repo's default branch → `main`.
@@ -69,10 +87,16 @@ anything longer in a dated handoff that this page links to.
 |---|---|
 | `HOST_SETUP.md`, `FLEET.md`, `ALWAYS_ON.md`, `AUTO_UPDATE.md`, `HOST_DOWN.md`, `COORDINATOR_MIGRATION.md`, `MASTER_HOST_REPAIR.md` | runbooks |
 | `CODEX_BRIDGE.md`, `CLOUD_RELAY.md`, `MUSIC_SUBSCRIPTIONS.md` | how a subsystem works |
-| `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
+| `HANDOFF_2026-10-05b_host-move.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
 
-| Superseded (kept for history; do not act on their status sections) | Superseded by |
+| Superseded (kept for history; do not act on its status sections) | Superseded by |
 |---|---|
-| `ALPHA_HANDOVER_2026-09-30.md`, `ALPHA_AUDIT.md`, `AUDIT_2026-10-01.md`, `STABILITY_AUDIT_2026-09-29.md`, `WORK_AUDIT_2026-09-15.md` | this page and the 2026-10-04 handoffs. Most of their BROKEN items are now fixed: 2FA, `/chat` 500, receipts crash, the coordination exit code, the render staging leak, the panel `/stats` names. |
-| `HANDOFF_LAPTOP41_2026-09-30.md`, `HANDOFF_2026-10-01.md`, `CODEX_MESSAGE_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later |
-| `MUSIC_CREATOR_STATUS.md`, `MUSIC_GENRES_REPORT.md`, `PANEL_HANDOFF.md` | `HANDOFF_2026-10-02_music-creator.md`; the panel firmware README |
+| `HANDOFF_2026-10-05_coordinator-down.md` | `HANDOFF_2026-10-05b_host-move.md`: the coordinator was moved on purpose, not lost. |
+| `HANDOFF_2026-10-05_worker1.md` | `HANDOFF_2026-10-05b_host-move.md`: there is no separate new laptop; Worker1 is Laptop41. |
+| `HANDOFF_LAPTOP41_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later. Kept because `src/admin/cli.js` points at its §3 (music handler setup). |
+
+Removed 2026-10-05 as superseded, and still in git history: `ALPHA_HANDOVER_2026-09-30.md`,
+`ALPHA_AUDIT.md`, `AUDIT_2026-10-01.md`, `STABILITY_AUDIT_2026-09-29.md`,
+`WORK_AUDIT_2026-09-15.md`, `HANDOFF_2026-10-01.md`, `CODEX_MESSAGE_2026-09-30.md`,
+`MUSIC_CREATOR_STATUS.md`, `MUSIC_GENRES_REPORT.md`, `PANEL_HANDOFF.md`
+(`git show 46f0adb:docs/<name>` reads any of them).
