@@ -30,7 +30,7 @@ anything longer in a dated handoff that this page links to.
   "missing" or "silent" now means that agent is down; "coordinator NOT
   answering" means the Host coordinator is.
 - **Next: server day** (expected 2026-10-06): [`HANDOFF_2026-10-06_server-day.md`](HANDOFF_2026-10-06_server-day.md), BACKLOG S1-S7. First a real model for Alpha on the server, then the server as Host.
-- **Latest handoff:** [`HANDOFF_2026-10-05e_claude-ack.md`](HANDOFF_2026-10-05e_claude-ack.md): a Claude on another machine can acknowledge Alpha's handoffs through `alpha.coordination` (`Ack`, `--event-id`, `--stage`); pairs with Alpha#59, which makes Alpha send them. Worker1 needs a pull and a `worker1` agent restart. Before it: [`HANDOFF_2026-10-05d_stewards.md`](HANDOFF_2026-10-05d_stewards.md): Alpha's stewards no longer lock the owner out (Alpha#58), phones get one layout (Alpha#57), and `apply-alpha-update.mjs` now updates the stewards too. Worker1 needs H1 and a steward restart. Before it: [`HANDOFF_2026-10-05c_failover.md`](HANDOFF_2026-10-05c_failover.md): automatic failover, so Worker1 covers when the Host is down (BACKLOG F30, not yet run). Before it: [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, Host's own agent, done the same day (BACKLOG F2).
+- **Latest handoff:** [`HANDOFF_2026-10-05e_claude-ack.md`](HANDOFF_2026-10-05e_claude-ack.md): a Claude on another machine can acknowledge Alpha's handoffs through `alpha.coordination` (`Ack`, `--event-id`, `--stage`); pairs with Alpha#59, which makes Alpha send them; both merged 2026-10-05. Worker1 needs a pull and a `worker1` agent restart, and Alpha#59 in the live install (item 0). Before it: [`HANDOFF_2026-10-05d_stewards.md`](HANDOFF_2026-10-05d_stewards.md): Alpha's stewards no longer lock the owner out (Alpha#58), phones get one layout (Alpha#57), and `apply-alpha-update.mjs` now updates the stewards too. Worker1 needs H1 and a steward restart. Before it: [`HANDOFF_2026-10-05c_failover.md`](HANDOFF_2026-10-05c_failover.md): automatic failover, so Worker1 covers when the Host is down (BACKLOG F30, not yet run). Before it: [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, Host's own agent, done the same day (BACKLOG F2).
 
 ## Where things are
 
@@ -45,8 +45,10 @@ anything longer in a dated handoff that this page links to.
 
 0. **Bring the merged Alpha changes into the live install** (fonts, the new
    chrome, login hardening, owner-only audit, the Network hub fix, one layout
-   on phones, and the steward fixes, which now come along under `scripts\`;
-   restart the stewards afterwards, `HANDOFF_2026-10-05d_stewards.md`):
+   on phones, the steward fixes, which now come along under `scripts\`, and
+   Alpha#59's Claude handoffs with receipts). Afterwards restart the stewards
+   (`HANDOFF_2026-10-05d_stewards.md`) and the `worker1` agent, which the pull
+   below updates (`HANDOFF_2026-10-05e_claude-ack.md`):
    ```powershell
    cd C:\services\alpha-tunnel; git checkout main; git pull
    node scripts/apply-alpha-update.mjs --alpha-root <folder holding Alpha>            # report

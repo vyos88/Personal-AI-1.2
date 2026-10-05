@@ -6,8 +6,8 @@ For Alpha, Claude sessions and the next session. Read `STATUS.md` first.
 
 | PR | What |
 |---|---|
-| vyos88/Alpha#59 (`alpha-full`, draft) | Alpha sends an owner's "ask Claude to ..." as a `handoff` event on its coordination tunnel instead of routing it to Beta. Its receipt shows `sent`, then `received`/`accepted`/`applied`/`tested` only as Claude acknowledges them. The tunnel script gains `-Action Handoff` and `-Action Ack -Stage <stage>`. |
-| this PR | `alpha.coordination` passes `Ack`, with `eventId` and an optional `stage`, so a Claude on another machine can answer a handoff through the coordinator. `alpha-admin coord` takes `--event-id` and `--stage`. |
+| vyos88/Alpha#59 (`alpha-full`, merged 2026-10-05) | Alpha sends an owner's "ask Claude to ..." as a `handoff` event on its coordination tunnel instead of routing it to Beta. Its receipt shows `sent`, then `received`/`accepted`/`applied`/`tested` only as Claude acknowledges them. The tunnel script gains `-Action Handoff` and `-Action Ack -Stage <stage>`. |
+| vyos88/Personal-AI-1.2#104 (`main`, merged 2026-10-05) | `alpha.coordination` passes `Ack`, with `eventId` and an optional `stage`, so a Claude on another machine can answer a handoff through the coordinator. `alpha-admin coord` takes `--event-id` and `--stage`. |
 
 ## How a remote Claude answers a handoff
 
@@ -45,9 +45,10 @@ action.
 
 1. Pull `main` here and restart the `worker1` agent, so it runs the new
    handler.
-2. Once Alpha#59 is merged, apply it to the live Alpha
-   (`apply-alpha-update.mjs`) and restart the backend. Before that, Alpha
-   sends no handoffs, so there is nothing to acknowledge.
+2. Apply Alpha#59 to the live Alpha (`apply-alpha-update.mjs`, STATUS.md
+   item 0) and restart the backend. It is merged into `alpha-full` but not
+   yet in the live install, and until it is, Alpha sends no handoffs, so
+   there is nothing to acknowledge.
 3. Check once: have Alpha send a handoff (owner chat: "Ask Claude to ..."),
    run the two commands above from another machine, and ask Alpha "did
    Claude receive it?". The reply should name the Ack.
