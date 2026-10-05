@@ -1,21 +1,21 @@
 {
     "cloudSeen":  null,
     "lastPost":  null,
-    "lastRun":  "2026-10-06T00:41:40",
+    "lastRun":  "2026-10-06T00:56:25",
     "open":  {
                  "image port # is held by python.exe, not Stable Diffusion\u0027s API (/sdapi/v#/sd-models answers #): chat images fail with HTTP #":  {
                                                                                                                                                            "since":  "2026-10-05T23:30:11",
-                                                                                                                                                           "runs":  6,
+                                                                                                                                                           "runs":  7,
                                                                                                                                                            "text":  "image port 7860 is held by python.exe, not Stable Diffusion\u0027s API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503"
                                                                                                                                                        },
                  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder":  {
                                                                                                                                                                       "since":  "2026-10-05T02:56:26",
-                                                                                                                                                                      "runs":  89,
+                                                                                                                                                                      "runs":  90,
                                                                                                                                                                       "text":  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder"
                                                                                                                                                                   },
                  "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
                                                                                                                 "since":  "2026-10-05T02:56:26",
-                                                                                                                "runs":  89,
+                                                                                                                "runs":  90,
                                                                                                                 "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
                                                                                                             }
              }
