@@ -8,13 +8,16 @@ import { ProtocolError, TERMINAL_STATUSES } from '../common/protocol.js';
 import { validateSettings } from '../agent/handlers/alpha-music.js';
 
 /**
- * The Music Creator panel's backend: two routes that turn a Generate click
+ * The Music Creator panel's backend: the routes that turn a Generate click
  * into an `alpha.music` task and report on it.
  *
  *   POST /music/generate     { genre, subgenre, bpm?, key, vocals, seed, durationSec? }
  *                            → 202 { taskId, recipe, agentAvailable, targetAttached }
  *   GET  /music/tasks/:id    → { taskId, status, recipe, outputs, error, ... }
  *   GET  /music/tasks/:id/audio → the track itself, with Range support
+ *   POST /music/tasks/:id/remove-vocals → queues `alpha.music.stems` against the
+ *                            same track, on the same machine → 202 { taskId, ... }
+ *                            (poll and play it back with the same two routes above)
  *   GET  /music/recipes      → { recipes: [...] } recent alpha.music receipts
  *   GET  /music/fleet        → { machines: [...] } who offers alpha.music now
  *   /music/billing/*         → subscriptions, when billing is configured (billing.js)
@@ -56,6 +59,10 @@ const MAX_BODY_BYTES = 16 * 1024;
 const TASK_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const AUDIO_TYPES = { wav: 'audio/wav', mp3: 'audio/mpeg', flac: 'audio/flac', ogg: 'audio/ogg' };
 const AUDIO_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}\.(wav|mp3|flac|ogg)$/;
+// Both task types the bridge will read back: a generation and a vocal removal
+// run on one of its tracks. Anything else stays a 404, the "reads back music
+// tasks only" rule this bridge has always held.
+const MUSIC_TASK_TYPES = new Set(['alpha.music', 'alpha.music.stems']);
 const DEFAULT_RECIPES = 50;
 const MAX_RECIPES = 200;
 
@@ -247,12 +254,13 @@ export function createMusicBridge({
     });
   }
 
-  /** A music task by id, or null for anything else: not a window onto the queue. */
+  /** A music task (generation or vocal removal) by id, or null for anything
+   * else: not a window onto the queue. */
   async function musicTask(taskId) {
     if (!TASK_ID_PATTERN.test(taskId)) throw new ProtocolError('bad task id', { code: 'bad_task_id' });
     try {
       const { body: task } = await coordinator(`/tasks/${encodeURIComponent(taskId)}`);
-      return task?.type === 'alpha.music' ? task : null;
+      return task?.type && MUSIC_TASK_TYPES.has(task.type) ? task : null;
     } catch (error) {
       if (error instanceof HttpError && error.status === 404) return null;
       throw error;
@@ -263,6 +271,48 @@ export function createMusicBridge({
     const task = await musicTask(taskId);
     if (!task) return send(res, 404, { error: 'unknown_task' });
     return send(res, 200, describeTask(task));
+  }
+
+  /**
+   * Queues `alpha.music.stems` against a track a Generate click already made,
+   * on the same machine that holds it — the file never leaves that machine,
+   * so there is nowhere else to run the separation. Reuses the generate
+   * route's shape (`taskId`, `agentAvailable`, `targetAttached`) rather than
+   * inventing a second one: the panel polls and plays it back exactly the way
+   * it does a generated track, via the same `/music/tasks/:id` and
+   * `/music/tasks/:id/audio` routes.
+   */
+  async function removeVocals(res, sourceTaskId) {
+    const source = await musicTask(sourceTaskId);
+    if (!source || source.type !== 'alpha.music') return send(res, 404, { error: 'unknown_task' });
+    if (source.status !== 'succeeded') {
+      return send(res, 409, { error: 'not_ready', message: `the track is ${source.status}` });
+    }
+    const track = audioOutput(source);
+    if (!track) return send(res, 404, { error: 'no_audio', message: 'this task wrote no audio' });
+    if (!source.targetAgent) {
+      return send(res, 409, {
+        error: 'no_music_machine',
+        message: 'removing vocals needs the machine that holds the track, and this task names none',
+      });
+    }
+    const genre = source.result?.recipe?.genre ?? source.payload?.genre;
+    const { body } = await coordinator('/tasks', {
+      method: 'POST',
+      body: {
+        type: 'alpha.music.stems',
+        payload: { genre, name: track.name },
+        leaseMs,
+        targetAgent: source.targetAgent,
+      },
+    });
+    return send(res, 202, {
+      taskId: body.id,
+      status: body.status,
+      agentAvailable: body.agentAvailable ?? null,
+      targetAgent: body.targetAgent ?? null,
+      targetAttached: body.targetAttached ?? null,
+    });
   }
 
   /** Queues one slice fetch on the music machine and waits for its answer. */
@@ -403,6 +453,8 @@ export function createMusicBridge({
       if (req.method === 'POST' && url.pathname === '/music/generate') return await generate(req, res);
       const audioMatch = /^\/music\/tasks\/([^/]+)\/audio$/.exec(url.pathname);
       if (req.method === 'GET' && audioMatch) return await audio(req, res, decodeURIComponent(audioMatch[1]));
+      const stemsMatch = /^\/music\/tasks\/([^/]+)\/remove-vocals$/.exec(url.pathname);
+      if (req.method === 'POST' && stemsMatch) return await removeVocals(res, decodeURIComponent(stemsMatch[1]));
       const match = /^\/music\/tasks\/([^/]+)$/.exec(url.pathname);
       if (req.method === 'GET' && match) return await status(res, decodeURIComponent(match[1]));
       if (req.method === 'GET' && url.pathname === '/music/recipes') return await recipes(res, url);

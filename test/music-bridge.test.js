@@ -269,6 +269,61 @@ test('task status names outputs but not paths on the generating machine', () => 
   assert.equal(describeTask({ id: 't2', status: 'leased', attempts: 1, agentId: 'agent_x', targetAgent: 'laptop41' }).agent, 'laptop41');
 });
 
+async function post2(url, path, body) {
+  const response = await fetch(`${url}${path}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  return { status: response.status, body: await response.json() };
+}
+
+test('removing vocals is refused before a track exists, with no music machine, or on someone else\'s task', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url);
+
+  const { body: queued } = await post(bridge, SETTINGS);
+  let response = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'not_ready');
+
+  const task = host.queue.get(queued.taskId);
+  Object.assign(task, { status: 'succeeded', result: { recipe: SETTINGS, outputs: [{ name: 'x.wav', bytes: 4 }] } });
+  response = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, 'no_music_machine');
+
+  const other = host.queue.enqueue({ type: 'codex.exec', payload: { prompt: 'secret' }, leaseMs: 60_000, maxAttempts: 1, minMemoryMB: 0, targetAgent: null });
+  assert.equal((await post2(bridge, `/music/tasks/${other.id}/remove-vocals`)).status, 404);
+  assert.equal((await post2(bridge, '/music/tasks/nope/remove-vocals')).status, 404);
+});
+
+test('removing vocals queues alpha.music.stems on the same machine that holds the track', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url, { leaseMs: 300_000 });
+
+  const { body: queued } = await post(bridge, SETTINGS);
+  const task = host.queue.get(queued.taskId);
+  Object.assign(task, {
+    status: 'succeeded',
+    targetAgent: 'music-box',
+    result: { recipe: SETTINGS, outputs: [{ name: 'track.wav', bytes: 4 }] },
+  });
+
+  const { status, body } = await post2(bridge, `/music/tasks/${queued.taskId}/remove-vocals`);
+  assert.equal(status, 202);
+  assert.equal(body.targetAgent, 'music-box');
+
+  const stemsTask = host.queue.get(body.taskId);
+  assert.equal(stemsTask.type, 'alpha.music.stems');
+  assert.equal(stemsTask.targetAgent, 'music-box');
+  assert.equal(stemsTask.leaseMs, 300_000);
+  assert.deepEqual(stemsTask.payload, { genre: 'Electronic', name: 'track.wav' });
+
+  // The bridge now reads the stems task back too, through the same GET route.
+  assert.equal((await get(bridge, `/music/tasks/${body.taskId}`)).status, 200);
+});
+
 const python = ['python3', 'python'].find((name) => spawnSync(name, ['--version']).status === 0);
 
 test('click to WAV to playback: bridge, coordinator, agent and the real generator', { skip: !python && 'no Python 3' }, async (t) => {
