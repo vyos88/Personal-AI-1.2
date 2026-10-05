@@ -107,6 +107,15 @@ function Describe($p) {
   if (-not $p) { return 'nothing listening' }
   return "pid $($p.ProcessId) $($p.Name): $($p.CommandLine)"
 }
+# Self-heal writes one line to its log every pass (2 minutes). A log written
+# in the last 10 minutes proves it runs, whether or not this account can see
+# its scheduled task.
+function SelfHealAge {
+  $log = Join-Path $OpsDir 'logs\selfheal.jsonl'
+  if (-not (Test-Path $log)) { return $null }
+  return [int]((Get-Date) - (Get-Item $log).LastWriteTime).TotalMinutes
+}
+function SelfHealFresh { $age = SelfHealAge; return ($null -ne $age -and $age -le 10) }
 function TaskResult($code) {
   $hex = '0x{0:X8}' -f ([int64]$code -band 0xFFFFFFFF)
   switch ($hex) {
@@ -359,6 +368,12 @@ function Run-Checks {
   foreach ($t in 'Alpha', 'Alpha Backend', 'Alpha Self-Heal') {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
     if ($st) { $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult)) }
+    elseif ($t -eq 'Alpha Self-Heal' -and (SelfHealFresh)) {
+      # Registered elevated by repair-alpha-host, the task can be invisible to
+      # the account the scheduled doctor runs as, while its log shows it running
+      # every 2 minutes. That read as "not registered" on every pass (BACKLOG F8).
+      OK "self-heal is running (its log was written $(SelfHealAge) min ago); task $t is not visible to this account"
+    }
     elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
     else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
@@ -526,7 +541,7 @@ $rules = @(
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
-  @{ done = { Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
+  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
   @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel; PR #46 is merged), then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },

@@ -65,7 +65,6 @@ write to those.
 
 | ID | Who | Item | Done when |
 |---|---|---|---|
-| F8 | code | "Alpha Self-Heal is not registered" is a false alarm: the task exists (`Get-ScheduledTask` finds it when run elevated) but the doctor's scheduled run cannot see it. Fall back to `schtasks /query /tn "Alpha Self-Heal"`, and report "not visible to this account" rather than "not registered" | the doctor stops flagging it while the task exists |
 | F9 | person | Run the doctor once with `-Fix` as Administrator on Worker1. It patches the main.py dictionary bug through `apply-chat-fix.ps1` and keeps a backup | the doctor no longer reports the dictionary bug |
 | F10 | person | Run `scripts\repair-alpha-host.ps1 -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software` as Administrator on Worker1. It points the `Alpha` task at the real frontend and rebuilds the stale `dist`, with rollback | no "serves some other folder" and no "build is older than the source" in the doctor |
 | F11 | Alpha / Codex, then person | C: on Worker1 is at about 5 GB free and fell 1.2 GB in an hour. First an inventory only (BACKLOG C3 rules: list, never move or delete), then the owner moves files by hand | C: above 20 GB free |
@@ -99,7 +98,7 @@ write to those.
 
 | ID | Who | Item | Done when |
 |---|---|---|---|
-| F27 | code | `run.js login` must never print a session token. One was pasted into a chat on 2026-10-05 and had to be revoked. Show `saved:` only; print the token only with an explicit flag | a test asserts that no token is printed |
+| F27 | person | `run.js login` on `main` already never prints the session token (test: admin-cli "the token is never printed"). The token pasted into a chat on 2026-10-05 came from an **old tunnel checkout on gj8**, `C:\Users\jack\alpha-tunnel` (and `C:\Users\jack\alpha-tunnel-main`), which still prints it. Delete both old checkouts on gj8; use `C:\services\alpha-tunnel` only | neither folder exists on gj8 |
 | F28 | person | Rotate agent keys issued before the move, including `laptop-41-v2-agent`, which `worker1` now uses: issue a new key, update `.env.agent`, revoke the old one | `keys` shows no agent key from before 2026-10-05 in use |
 | F29 | code | One coordinator only: the doctor's split-fleet check exists (#90). Add the same check on gj8, through the peer report: Worker1's 8787 must stay closed | the peer report on Host flags a coordinator answering on Worker1 |
 | F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
