@@ -82,6 +82,51 @@ tunnel **before and after** it works on either laptop
 (`-Action Post -Actor <you>`). A cloud session cannot reach the tunnel, so it
 says in its PR what a session on the laptop should post.
 
+## Failed logins (the owner's report, 2026-10-05)
+
+The owner sees "a lot of failed logins". Two places log them, and the cloud
+session that wrote this could read neither. So there are two read-only checks;
+neither prints a password or `.env.local`.
+
+- **On Host, the coordinator:**
+  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-coordinator-logins.ps1`.
+  It counts `login failed` lines in `alpha-tunnel-coordinator.log` by reason,
+  address tried and source. Only a password login (`alpha-admin login`, or
+  something else reaching port 8787) writes one; rejected API keys are not
+  logged. Trust a count of 0 only if the line naming the log shows a recent
+  "last written" time: the coordinator may be writing its log somewhere else.
+- **On Worker1, Alpha:**
+  `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-alpha-logins.ps1`.
+  It groups the last 24 hours of Alpha's failed sign-ins by address, account
+  and client, and shows the stewards' credential and backoff files and
+  whether they are running.
+
+**Most likely source:** Worker1's stewards, still on the scripts from before
+Alpha#58. Those are the 11 `scripts\` files H1 refuses. The old chat steward
+signs in again every 30 seconds after an error, Gmail and spatial every 60,
+the coding monitor every 4, and the manager up to three times every 3 seconds.
+With a stale saved password every attempt fails, and on the old backend
+enough of them lock the owner out. The check shows these as `127.0.0.1` with
+a `WindowsPowerShell` client. The fix, on Worker1:
+
+1. Close the "Alpha Governed Agents" windows, so the stewards stop.
+2. Wait 15 minutes, so Alpha's lockout clears.
+3. Run `scripts\set-alpha-local-credential.ps1` in the Alpha folder with the
+   current password. It signs in with it before saving, so a wrong one is
+   never saved.
+4. Open "Alpha Governed Agents" again, and run the check after an hour: no new
+   `127.0.0.1` failures.
+
+The lasting fix is Alpha#58's stewards (route B). They pause every steward
+for 15 minutes after one rejected password, instead of retrying.
+
+Other sources the check can show: browser clients from public addresses are
+people or bots at alpha-ai.uk, which the per-address and per-account limits
+already handle. Other scripts in `alpha-full` still sign in on their own in a
+loop, and could flood the same way if a scheduled task runs them:
+`alpha-autonomous-loop.ps1` retries every 60 seconds, and
+`alpha-host-device-bridge.ps1` signs in again after every failed sync.
+
 ## Two routes
 
 **A. #59 only, now (BACKLOG H7).** Seven files: in `software\backend`,
