@@ -29,6 +29,7 @@ anything longer in a dated handoff that this page links to.
   `host ok, worker1 ok, 2 agents attached` (since 03:28 local, 2026-10-05).
   "missing" or "silent" now means that agent is down; "coordinator NOT
   answering" means the Host coordinator is.
+- **Next: server day** (expected 2026-10-06): [`HANDOFF_2026-10-06_server-day.md`](HANDOFF_2026-10-06_server-day.md), BACKLOG S1-S7. First a real model for Alpha on the server, then the server as Host.
 - **Latest handoff:** [`HANDOFF_2026-10-05c_failover.md`](HANDOFF_2026-10-05c_failover.md): automatic failover, so Worker1 covers when the Host is down (BACKLOG F30, not yet run). Before it: [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the host move, **done 2026-10-05** (Parts A-E). Part B8, Host's own agent, done the same day (BACKLOG F2).
 
 ## Where things are

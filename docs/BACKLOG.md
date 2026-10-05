@@ -104,6 +104,21 @@ write to those.
 | F29 | code | One coordinator only: the doctor's split-fleet check exists (#90). Add the same check on gj8, through the peer report: Worker1's 8787 must stay closed | the peer report on Host flags a coordinator answering on Worker1 |
 | F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
 
+## Server day — S1-S7 (server expected 2026-10-06)
+
+Steps in `HANDOFF_2026-10-06_server-day.md`. The owner's goal: Alpha's chat,
+coding and execution, on 256 GB RAM and 2 × 14 cores.
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| S1 | person | The server joins: Tailscale, Node, git, Python, sleep off, the tunnel on `main`, agent `server` (handoff Part 1) | `agents` lists `server`; `sysinfo --agent server` reports its CPUs |
+| S2 | person | Ollama on the server, bound to its tailnet address only, model kept loaded (Part 2) | `curl http://<SERVER_IP>:11434/api/tags` answers from Worker1 |
+| S3 | person / code | Measure candidate models and choose one; record the numbers in the handoff's table (Part 3) | the table is filled in, and the choice is justified by it |
+| S4 | person | Point Alpha at the server: PyJWT, `.env.local` (`OLLAMA_BASE_URL`, `OLLAMA_MODEL`), restart the backend (Part 4) | Alpha answers in chat within seconds, and says the coordinator runs on Host |
+| S5 | person | The server becomes Host; gj8 becomes the standby (Part 5) | the 05b checks pass on the server; the failover drill passes with gj8 as standby |
+| S6 | code | Fleet names and knowledge for the server: `Server` in Alpha's `fleetNames.js` and its test, gj8 renamed, and a knowledge record of the change | the watcher shows "Server"; Alpha answers where each role runs |
+| S7 | code | Let Alpha use two models: a fast one for chat, a larger one for background coding (today `OLLAMA_MODEL` is one setting for everything) | a config setting for each, with tests, and both used |
+
 ## Next — code (any session)
 
 | ID | Item | Done when |
