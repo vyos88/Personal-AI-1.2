@@ -51,7 +51,10 @@ anything longer in a dated handoff that this page links to.
    below updates (`HANDOFF_2026-10-05e_claude-ack.md`). **On Worker1 this
    refuses 36 locally edited files, 25 of them in `software\`**, so
    `--skip-scripts` does not help. `HANDOFF_2026-10-05f_worker1-deploy.md` has
-   route A (Alpha#59 by itself) and route B (the merge that unblocks the rest):
+   route A (Alpha#59 by itself) and route B (the merge that unblocks the rest).
+   Before any `--restart`, check that the Python the `Alpha Backend` task runs
+   can `import jwt` (`HANDOFF_2026-10-06_server-day.md`, Part 4 step 1);
+   otherwise the restarted backend may not come back:
    ```powershell
    cd C:\services\alpha-tunnel; git checkout main; git pull
    node scripts/apply-alpha-update.mjs --alpha-root <folder holding Alpha>            # report
