@@ -38,13 +38,14 @@ next.
 | H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`) | the branch exists on GitHub |
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
-| H5 | Add worker1 to the fleet: key on Laptop41, `setup-agent.mjs --name worker1` and `install-always-on.ps1` on worker1 (`HANDOFF_2026-10-05_worker1.md`) | `run.js task --type sysinfo --agent worker1` comes back from worker1 |
+| H5 | Move the coordinator to laptop-gj8dfmlk (Host); Laptop41 becomes Worker1; install the 3-minute peer report on both (`HANDOFF_2026-10-05b_host-move.md`, Parts A-E) | Part D passes: `sysinfo` comes back from worker1 and `coord --action Status` succeeds; `peer-report.log` on each laptop shows both ok |
 | H6 | Install the host tools the opt-in handlers call. A worker can be alive and fresh in `agents` while the capability it exists for cannot run at all — `available()` only proves the machine looks configured, not that the binary behind it works. At least: `pip install -r scripts/requirements-stems.txt` (Demucs, for the just-merged `alpha-music-stems`/#76) and `requirements-music.txt` (MusicGen) wherever `ALPHA_EXTRA_HANDLERS` names them; `arduino-cli` on PATH for `alpha.panel` (the doctor already sees the CrowPanel on COM7/COM20, so the board is there — whether the CLI is, is unconfirmed); the real Codex CLI (native binary, not the npm `.cmd` shim) on Jack's laptop for `codex.exec`. | `node src/admin/run.js agents` shows each machine's capability list actually includes the opt-in types its `.env.agent` configures, with no `not offering a handler this machine cannot run` warnings in its log |
 
 ## Next — code (any session)
 
 | ID | Item | Done when |
 |---|---|---|
+| A-host-move | `scripts/laptop41-doctor.ps1` section 5 probes `127.0.0.1:$CoordinatorPort` only. Once the coordinator lives on laptop-gj8dfmlk that is a false "no coordinator answering" on Laptop41 every run. Probe `ALPHA_HOST_URL` from `.env` when it is not loopback, and say which machine answered. | after the move, the doctor on Laptop41 reports the coordinator as up |
 | A1 | Two frontend buttons call routes that do not exist: `/recommendations/debug` (Hubs) and `/arduino/elegoo/install-alpha-firmware` (Devices). Add the route if a backend function already does the job, else remove the button. | both are gone from `KNOWN_MISSING` in `tests/test_frontend_api_contract.py` |
 | A2 | Delete the dead copies of shadowed routes, one `api/*.py` module per PR (`tests/route_shadow_baseline.json`, 189 entries; start with `api.missions`, 13). First check that each is identical to the `main.py` copy that serves; one that differs is a bug to raise, not delete. | its lines are gone from the baseline and the suite passes |
 | A3 | Split `main.py` (39k lines) one hub at a time into `api/<hub>.py` routers. The shadow ratchet makes each move safe. | one hub per PR, no new shadowing |
