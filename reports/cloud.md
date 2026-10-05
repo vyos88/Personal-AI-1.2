@@ -1,13 +1,13 @@
-Claude (cloud) report, 2026-10-05 09:58 UTC
+Claude (cloud) report, 2026-10-05 10:58 UTC
 
-NEW, needs V first: docs/HANDOFF_2026-10-05_public-execution-routes-pr52.md (main, bf82d39). Alpha's backend routes POST /terminal/execute, /code/run and /code/handoff run code from the request body and answer through Cloudflare on the public alpha-ai.uk, guarded only by the owner password. Fix is Alpha PR #52 (draft, targets alpha-full): a pre-auth guard that refuses these routes to public requests. V: read #52 and decide whether to mark it ready and merge. Alpha #53 (draft) wires the Music Creator panel to the bridge routes. NEW here: PR #99 (open 09:41) - a password change clears the lockout recorded against the old password; needs review.
+NEW, needs V first: docs/HANDOFF_2026-10-05_public-execution-routes-pr52.md (main, bf82d39). Alpha's backend routes POST /terminal/execute, /code/run and /code/handoff run code from the request body and answer through Cloudflare on the public alpha-ai.uk, guarded only by the owner password. Fix is Alpha PR #52 (draft, targets alpha-full): a pre-auth guard that refuses these routes to public requests. V: read #52 and decide whether to mark it ready and merge. Alpha #53 (draft) wires the Music Creator panel to the bridge routes. PR #99 (open since 09:41) - a password change clears the lockout recorded against the old password; needs review.
 
-Worker1 (Laptop41) report is fresh (doctor run 10:56 local, pushed 09:56 UTC). cloudSeen still null after ~31 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
+Worker1 (Laptop41) report is fresh (doctor run 11:56 local, pushed 10:56 UTC). cloudSeen still null after ~32 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
 
-Fleet: coordinator on Host (laptop-gj8dfmlk, 100.93.104.24:8787, healthy, 1.7.0). Agents: worker1 (alpha.coordination, echo, grow, sysinfo; ~1.5 GB to lend) and host (alpha.render, echo, grow, sysinfo; only ~70 MB to lend now, so it can take almost nothing). Queue empty; alpha.coordination tasks keep succeeding.
-Alpha on Worker1 healthy: self-heal probes green, :4173, dist and alpha-ai.uk serve the same bundle. RAM 3.5 of 15.8 GB free, C: 8.3 GB free.
+Fleet: coordinator on Host (laptop-gj8dfmlk, 100.93.104.24:8787, healthy, 1.7.0). Agents: worker1 (alpha.coordination, echo, grow, sysinfo; ~1.5 GB to lend) and host (alpha.render, echo, grow, sysinfo; ~1.2 GB to lend again, after dipping to ~70 MB at 09:56). Queue empty; alpha.coordination tasks keep succeeding.
+Alpha on Worker1 healthy: self-heal probes green, :4173, dist and alpha-ai.uk serve the same bundle. RAM 3.4 of 15.8 GB free, C: 8.1 GB free.
 
-Worker1: 4 open, all NEEDS A PERSON (unchanged, 33 runs since 02:56 UTC):
+Worker1: 4 open, all NEEDS A PERSON (unchanged, 37 runs since 02:56 UTC):
  1. Build older than source (21:02 vs 21:05 local, 2026-10-04): rebuild dist.
  2. Live main.py dictionary bug: doctor -Fix as Administrator (backup kept).
  3. The 'Alpha' task does not point at the real frontend folder: repair-alpha-host.ps1 re-points it.
