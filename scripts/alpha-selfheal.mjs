@@ -103,7 +103,9 @@ const NOT_RESTARTABLE = {
 // configuration and state
 
 export function loadConfig(path) {
-  const raw = JSON.parse(readFileSync(path, 'utf8'));
+  // Windows PowerShell 5.1 writes UTF-8 with a BOM, which JSON.parse refuses;
+  // a config written by repair-alpha-host.ps1 failed every pass with exit 3.
+  const raw = JSON.parse(readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
   const config = { ...DEFAULTS, ...raw };
   const missing = [];
   if (!config.stateDir) missing.push('stateDir');
@@ -284,7 +286,11 @@ function request(url, { timeoutMs, hostHeader } = {}) {
     // Node's http lets a probe send the Host the tunnel sends, which is the
     // only way to see what cloudflared will be told. fetch forbids it.
     if (hostHeader) headers.host = hostHeader;
-    const req = lib.request(target, { method: 'GET', headers, timeout: timeoutMs }, (res) => {
+    // Vite preview serves TLS with its own certificate on loopback; the probe
+    // asks whether it answers, not who signed it. Remote URLs stay verified.
+    const loopback = ['127.0.0.1', 'localhost', '[::1]'].includes(target.hostname);
+    const tls = target.protocol === 'https:' && loopback ? { rejectUnauthorized: false } : {};
+    const req = lib.request(target, { method: 'GET', headers, timeout: timeoutMs, ...tls }, (res) => {
       let body = '';
       res.setEncoding('utf8');
       res.on('data', (chunk) => {

@@ -10,6 +10,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import https from 'node:https';
+import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -17,6 +19,7 @@ import { join } from 'node:path';
 import {
   decide,
   emptyState,
+  loadConfig,
   probeAll,
   rollbackDist,
   runPass,
@@ -225,6 +228,40 @@ test('probes send the tunnel\'s Host and recognise vite refusing it', async (t) 
   assert.equal(probes.frontend.ok, false);
   assert.equal(probes.frontend.reason, 'vite-host-blocked');
   assert.equal(probes.public.skipped, true);
+});
+
+test('a config written by Windows PowerShell, BOM and all, loads', (t) => {
+  const dir = tempDir(t);
+  const file = join(dir, 'selfheal.json');
+  const body = { stateDir: dir, backend: { url: 'http://127.0.0.1:8001/health' }, frontend: { url: 'https://127.0.0.1:4173/' } };
+  writeFileSync(file, `\uFEFF${JSON.stringify(body)}`, 'utf8');
+  assert.equal(loadConfig(file).frontend.url, 'https://127.0.0.1:4173/');
+});
+
+// Vite preview on Laptop41 serves TLS with its own certificate, and cloudflared
+// is pointed at https://127.0.0.1:4173. A probe that refused the certificate
+// would call a healthy frontend down and restart it every few minutes.
+test('a loopback https frontend with a self-signed certificate is probed, not refused', async (t) => {
+  const dir = tempDir(t);
+  try {
+    execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=localhost',
+      '-keyout', join(dir, 'key.pem'), '-out', join(dir, 'cert.pem')], { stdio: 'ignore' });
+  } catch {
+    t.skip('openssl not available to mint a test certificate');
+    return;
+  }
+  const server = https.createServer(
+    { key: readFileSync(join(dir, 'key.pem')), cert: readFileSync(join(dir, 'cert.pem')) },
+    (req, res) => res.writeHead(200, { 'content-type': 'text/html' }).end('<div id="root"></div>'),
+  );
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => server.close());
+  const backend = await serve(t, (req, res) => res.writeHead(200).end('{"status":"ok"}'));
+  const probes = await probeAll({
+    backend: { url: `${backend}/health` },
+    frontend: { url: `https://127.0.0.1:${server.address().port}/`, hostHeader: 'alpha-ai.uk' },
+  });
+  assert.equal(probes.frontend.ok, true, probes.frontend.reason);
 });
 
 test('a 200 without the app in it is not healthy, and a 502 at the edge is a connector fault', async (t) => {
