@@ -39,6 +39,7 @@ next.
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
 | H5 | Add worker1 to the fleet: key on Laptop41, `setup-agent.mjs --name worker1` and `install-always-on.ps1` on worker1 (`HANDOFF_2026-10-05_worker1.md`) | `run.js task --type sysinfo --agent worker1` comes back from worker1 |
+| H6 | Install the host tools the opt-in handlers call. A worker can be alive and fresh in `agents` while the capability it exists for cannot run at all — `available()` only proves the machine looks configured, not that the binary behind it works. At least: `pip install -r scripts/requirements-stems.txt` (Demucs, for the just-merged `alpha-music-stems`/#76) and `requirements-music.txt` (MusicGen) wherever `ALPHA_EXTRA_HANDLERS` names them; `arduino-cli` on PATH for `alpha.panel` (the doctor already sees the CrowPanel on COM7/COM20, so the board is there — whether the CLI is, is unconfirmed); the real Codex CLI (native binary, not the npm `.cmd` shim) on Jack's laptop for `codex.exec`. | `node src/admin/run.js agents` shows each machine's capability list actually includes the opt-in types its `.env.agent` configures, with no `not offering a handler this machine cannot run` warnings in its log |
 
 ## Next — code (any session)
 
