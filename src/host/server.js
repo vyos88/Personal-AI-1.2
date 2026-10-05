@@ -248,7 +248,20 @@ async function handle(req, res, ctx) {
 
     if (method === 'POST' && url.pathname === '/auth/login') {
       const body = await readJson(req);
-      return sendJson(res, 200, await ctx.auth.login({ email: body?.email, password: body?.password }));
+      return sendJson(
+        res,
+        200,
+        await ctx.auth.login({
+          email: body?.email,
+          password: body?.password,
+          // Passed only so a failure can say where it came from. The socket
+          // address is the truthful one; the header is whatever the client
+          // claimed, and is here because behind Cloudflare the socket is the
+          // tunnel and the header is the only view of the person.
+          remoteAddress: req.socket.remoteAddress ?? null,
+          forwardedFor: clientClaimedAddress(req.headers),
+        }),
+      );
     }
 
     // --------------------------------------------------------- authentication
@@ -724,6 +737,24 @@ async function handle(req, res, ctx) {
 }
 
 /** Best-effort redeem URL, so an inviter has something to paste into a message. */
+/**
+ * The address the client says it is at, or null.
+ *
+ * Never trusted as identity — anyone can send either header — but behind
+ * Cloudflare `req.socket.remoteAddress` is cloudflared on loopback, so without
+ * this every failed login in the log reads as coming from 127.0.0.1 and the
+ * log answers nothing. `cf-connecting-ip` is preferred because Cloudflare sets
+ * it itself; `x-forwarded-for` is a chain, and its first entry is the closest
+ * thing in it to an origin.
+ */
+function clientClaimedAddress(headers) {
+  const cloudflare = headers['cf-connecting-ip'];
+  if (typeof cloudflare === 'string' && cloudflare.trim()) return cloudflare.trim();
+  const forwarded = headers['x-forwarded-for'];
+  if (typeof forwarded !== 'string' || !forwarded.trim()) return null;
+  return forwarded.split(',')[0].trim() || null;
+}
+
 function inviteUrl(req, token) {
   const base = process.env.ALPHA_INVITE_BASE_URL ?? `http://${req.headers.host ?? 'localhost'}`;
   return `${base.replace(/\/+$/, '')}/invites/redeem#${encodeURIComponent(token)}`;
