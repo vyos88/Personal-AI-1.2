@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, extname, join, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Reports and advances the Alpha working copy on the host, by queued task.
@@ -243,29 +244,6 @@ export async function run(payload, { signal, log } = {}) {
     stderr: pulled.stderr.slice(-MAX_OUTPUT),
     ...after,
   };
-}
-
-/**
- * Resolves a command the way the OS will. `git` carries no extension, so on
- * Windows it is looked up against PATHEXT; `git.exe` or an absolute path is
- * taken as given.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions =
-    process.platform === 'win32' && !extname(command)
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-      : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
 }
 
 /**

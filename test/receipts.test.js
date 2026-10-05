@@ -154,6 +154,34 @@ test('a species with no renders is absent rather than zero', async () => {
   assert.deepEqual(store.summary().species, {});
 });
 
+test('music receipts are counted by genre, and by subgenre within its genre', async () => {
+  const store = new ReceiptStore({ path: null });
+  await store.load();
+  const music = (id, genre, subgenre) =>
+    finished({ id, type: 'alpha.music', result: { recipe: { genre, subgenre, seed: 1 } } });
+
+  store.record(music('a', 'Electronic', 'Rollers'));
+  store.record(music('b', 'Electronic', 'Rollers'));
+  store.record(music('c', 'Electronic', 'Ambient'));
+  // The same subgenre name under another genre is a different thing.
+  store.record(music('d', 'Jazz', 'Ambient'));
+  store.record(finished({ id: 'e', result: { recipe: { species: 'fern', seed: 0 } } }));
+
+  const summary = store.summary();
+  assert.deepEqual(summary.genres, { Electronic: 3, Jazz: 1 });
+  assert.deepEqual(summary.subgenres, { Electronic: { Rollers: 2, Ambient: 1 }, Jazz: { Ambient: 1 } });
+  assert.deepEqual(summary.species, { fern: 1 });
+});
+
+test('a fleet that never made music has no genres rather than zeroes', async () => {
+  const store = new ReceiptStore({ path: null });
+  await store.load();
+  store.record(finished({ result: { recipe: { species: 'fern', seed: 0 } } }));
+
+  assert.deepEqual(store.summary().genres, {});
+  assert.deepEqual(store.summary().subgenres, {});
+});
+
 test('the record survives the restart that empties the queue', async () => {
   const dir = await tempDir();
   const path = join(dir, 'receipts.json');
@@ -287,4 +315,26 @@ test('a host with real credentials keeps a real ledger', async () => {
   await auth.load();
 
   assert.equal(createHost({ auth }).receipts.persistent, true);
+});
+
+test('a ledger write that fails is logged, and does not take the process down', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'receipts-fail-'));
+  // A path whose parent is a file: mkdir fails, as it would on a full disk.
+  await writeFile(join(dir, 'blocker'), 'x');
+  const store = new ReceiptStore({ path: join(dir, 'blocker', 'receipts.json') });
+  const unhandled = [];
+  const onUnhandled = (reason) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const receipt = store.record({
+      id: 'task_1', type: 'echo', status: TaskStatus.SUCCEEDED, attempts: 1, createdAt: 1, finishedAt: 2, result: {},
+    });
+    assert.equal(receipt.id, 'task_1');
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    assert.deepEqual(unhandled, []);
+    // The receipt is still answerable from memory.
+    assert.equal(store.list()[0].id, 'task_1');
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
 });

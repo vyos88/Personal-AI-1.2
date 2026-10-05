@@ -18,11 +18,10 @@ export const DEFAULT_MAX_RECEIPTS = 5_000;
 /**
  * A durable record of every task that finished.
  *
- * The queue is deliberately in memory — a queue that empties on reboot is an
- * inconvenience, and keeping it in one Map is what makes leasing simple. But
- * that also means the *answer* died with it: after a restart there was no way
- * to say how many renders ran last night, which species came back, or which
- * machine did them. "It rendered, and the image is on the host somewhere" is
+ * The queue keeps finished tasks only for a day (and, before the task journal
+ * existed, not even across a restart), so the *answer* goes with it: there
+ * was no way to say how many renders ran last night, which species came back,
+ * or which machine did them. "It rendered, and the image is on the host somewhere" is
  * not a record.
  *
  * So terminal tasks are appended here as they finish. This is a ledger, not a
@@ -138,7 +137,15 @@ export class ReceiptStore {
     if (this.#receipts.length > this.maxReceipts) {
       this.#receipts.splice(0, this.#receipts.length - this.maxReceipts);
     }
-    this.save();
+    // The ledger is the expendable half: a write that fails (full disk,
+    // read-only mount) is logged, never left as an unhandled rejection, which
+    // would take the coordinator down with every lease it holds.
+    this.save().catch((error) => {
+      log.error('receipt ledger write failed; the receipt is kept in memory', {
+        path: this.path,
+        error: error.message,
+      });
+    });
     return receipt;
   }
 
@@ -160,7 +167,10 @@ export class ReceiptStore {
    *
    * `species` is counted only for receipts that carry a recipe, so it stays
    * empty for a fleet that has never rendered rather than inventing a zero for
-   * every name someone once mentioned.
+   * every name someone once mentioned. `genres` and `subgenres` are the same
+   * rule for `alpha.music` recipes. Subgenres are counted under their genre,
+   * not flat: the same subgenre name can sit under two genres, and a flat count
+   * would add them together.
    */
   summary({ since = null } = {}) {
     const rows = Number.isFinite(since)
@@ -170,6 +180,8 @@ export class ReceiptStore {
     const byType = {};
     const byStatus = {};
     const species = {};
+    const genres = {};
+    const subgenres = {};
     const machines = {};
     let outputs = 0;
     let bytes = 0;
@@ -182,6 +194,15 @@ export class ReceiptStore {
         const name = receipt.recipe.species;
         species[name] = (species[name] ?? 0) + 1;
       }
+      const genre = typeof receipt.recipe?.genre === 'string' ? receipt.recipe.genre : null;
+      if (genre) {
+        genres[genre] = (genres[genre] ?? 0) + 1;
+        const sub = receipt.recipe.subgenre;
+        if (typeof sub === 'string' && sub) {
+          subgenres[genre] ??= {};
+          subgenres[genre][sub] = (subgenres[genre][sub] ?? 0) + 1;
+        }
+      }
       for (const file of receipt.outputs ?? []) {
         outputs += 1;
         bytes += Number.isFinite(file.bytes) ? file.bytes : 0;
@@ -193,6 +214,8 @@ export class ReceiptStore {
       byType,
       byStatus,
       species,
+      genres,
+      subgenres,
       machines,
       outputs,
       bytes,
