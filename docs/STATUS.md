@@ -17,6 +17,7 @@ anything longer in a dated handoff that this page links to.
   `git show origin/status/cloud:reports/cloud.md` (the cloud relay). See
   `CLOUD_RELAY.md`.
 - **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
+  Since the host move: **F1-F30** in `BACKLOG.md` ("Fleet after the host move"), the owner's list, which includes teaching Alpha.
 - **Latest handoff:** [`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md): the coordinator moves to `laptop-gj8dfmlk` (now **Host**); Laptop41 keeps Alpha and becomes **Worker1**; both report to each other every 3 minutes. It replaces [`HANDOFF_2026-10-05_worker1.md`](HANDOFF_2026-10-05_worker1.md).
 
 ## Where things are
