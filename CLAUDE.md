@@ -787,8 +787,9 @@ so a machine can offer either capability without the other.
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
 shell metacharacters is data, not syntax. Its contract is **verified against the
-real script** — all five actions and `-Paths` as one comma-joined token. The
-tests pin the exact argv, so if the script's contract changes, update
+real script** — the five original actions and `-Paths` as one comma-joined
+token on the host, and `Ack` (`-EventId`, `-Stage`) under PowerShell 7 off it.
+The tests pin the exact argv, so if the script's contract changes, update
 `buildArgs` and the expectation together.
 
 ## Testing conventions
