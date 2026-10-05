@@ -2,9 +2,12 @@
 
 > **Done 2026-10-05.** The owner ran Parts A-E. Part D passed (worker1
 > attached, sysinfo from DESKTOP-41HPLCN, coord Status through the Host), and
-> both peer reports run. Not done: B8, an agent on Host. It is BACKLOG F2:
-> the `.env.agent` on gj8 holds a key from its old 2026-09-15 store, which is
-> void. Where the steps below differ from what was actually run (the old
+> both peer reports run. B8, Host's own agent, was done the same day
+> (BACKLOG F2): a fresh `agent:connect` key `host-agent`, agent name `host`,
+> and the scheduled task `alpha-tunnel agent` at startup (registered with
+> Register-ScheduledTask, because `install-always-on.ps1` then failed on the
+> `C:\Program Files` path; fixed in #93). The peer reports have read
+> `host ok, worker1 ok, 2 agents attached` since 03:28 local. Where the steps below differ from what was actually run (the old
 > coordinator was kept up by a `run-coordinator.cmd` loop, a scheduled task
 > and a Startup `.vbs`, not nssm), `memory/knowledge/alpha_session_record_2026_10_05_host_move.json`
 > in vyos88/Alpha records what happened.
