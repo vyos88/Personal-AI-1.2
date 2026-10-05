@@ -127,9 +127,9 @@ node scripts\keep-agent.mjs         # or install it as the alpha-keeper service,
 ```
 
 Queue music work to it by name, with `--agent jack-music`, so it never lands on
-the host. No `music.*` handler exists yet. Until one does, the laptop lends
-`echo`/`sysinfo`/`grow`/`memory.store` like any worker. The handler is the first
-Music Creator recommendation in [ALPHA_AUDIT.md](ALPHA_AUDIT.md).
+the host. To give it the music handlers, add `alpha-music,alpha-music-audio` to
+`ALPHA_EXTRA_HANDLERS` in its `.env.agent` (`HANDOFF_LAPTOP41_2026-09-30.md` §3).
+Without them it lends `echo`/`sysinfo`/`grow`/`memory.store` like any worker.
 
 ## Three immediate reliability improvements (after the repair)
 

@@ -44,7 +44,7 @@ below — it will say exactly which step the bridge setup is stuck on.
   `/music` proxy line it describes is already done correctly in `alpha-full`
   (PR #16, with the local-only guard). Adding it again by hand in a different
   `vite.config.js` is how you'd accidentally publish an unauthenticated music
-  bridge to the public internet — `docs/AUDIT_2026-10-01.md` §"Corrections"
+  bridge to the public internet — `docs/AUDIT_2026-10-01.md` §"Corrections" (removed 2026-10-05; `git show 46f0adb:docs/AUDIT_2026-10-01.md`)
   has the detail if you want it.
 
 ## 4. Three PRs waiting on a decision, not merged by this session on purpose
