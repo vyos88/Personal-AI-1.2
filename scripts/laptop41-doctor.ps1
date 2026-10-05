@@ -370,10 +370,29 @@ function Run-Checks {
   if (Test-Path $sh) { Note 'last self-heal entries:'; Get-Content $sh -Tail 3 | ForEach-Object { Note "  $_" } }
 
   # ------------------------------------------------------------ tunnel
-  Section "5. alpha-tunnel coordinator (port $CoordinatorPort)"
-  $hz = Body "http://127.0.0.1:$CoordinatorPort/healthz"
-  if ($hz) { OK "healthz: $hz" } else { Problem "no coordinator answering on $CoordinatorPort" }
-  Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
+  # The coordinator need not run here: since HANDOFF_2026-10-05b_host-move.md
+  # it lives on laptop-gj8dfmlk. Probe the one this checkout dials, the way
+  # run.js resolves it (the environment first, then .env), not loopback only,
+  # which read a deliberate move as an outage on every pass.
+  $coordUrl = "http://127.0.0.1:$CoordinatorPort"
+  if ($env:ALPHA_HOST_URL) { $coordUrl = $env:ALPHA_HOST_URL }
+  else {
+    $envFile = Join-Path $repo '.env'
+    $line = if (Test-Path $envFile) { Select-String -Path $envFile -Pattern '^ALPHA_HOST_URL=(.+)$' | Select-Object -Last 1 }
+    if ($line) { $coordUrl = $line.Matches[0].Groups[1].Value }
+  }
+  $coordUrl = $coordUrl.Trim().Trim('"', "'").TrimEnd('/')
+  $remote = $coordUrl -notmatch '^https?://(127\.0\.0\.1|localhost|\[::1\])(:|/|$)'
+  Section "5. alpha-tunnel coordinator ($coordUrl)"
+  $hz = Body "$coordUrl/healthz"
+  if ($hz) { OK "healthz: $hz" } else { Problem "no coordinator answering at $coordUrl" }
+  if ($remote) {
+    Note 'the coordinator runs on another machine; none should listen here'
+    $here = Owner $CoordinatorPort
+    if ($here) { Problem "port $CoordinatorPort here is held by $(Describe $here): a second coordinator beside $coordUrl splits the fleet" }
+  } else {
+    Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
+  }
   if ($hz) {
     foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') { Note "--- $cmd"; Indent (Admin $cmd) }
   }
@@ -500,7 +519,8 @@ $rules = @(
   @{ m = 'public site serves';                                                                  r = 'alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).' },
   @{ m = "task Alpha is not registered|'Alpha' task does not mention|Alpha .*0xC000013A";      r = "Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported)." },
   @{ m = 'changed after the backend started';                                                   r = 'Restart the backend so it runs the code on disk: apply-chat-fix.ps1 -Restart, or stop the python on 8001 and let its task start it.' },
-  @{ m = 'no coordinator answering';                                                            r = 'Start the alpha-tunnel coordinator as a boot task (docs/HOST_SETUP.md); move-coordinator-here.mjs sets it up but leaves nothing running.' },
+  @{ m = 'no coordinator answering';                                                            r = 'Start the alpha-tunnel coordinator on the machine ALPHA_HOST_URL names (laptop-gj8dfmlk since 2026-10-05: its alpha-coordinator task); on this machine only if .env points at loopback.' },
+  @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }

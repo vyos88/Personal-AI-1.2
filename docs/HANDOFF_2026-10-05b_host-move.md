@@ -388,12 +388,9 @@ publishing `status/laptop41` from Worker1. Its admin commands go through
 `run.js`, which reads `ALPHA_HOST_URL` from the `.env` that C2 points at the
 Host.
 
-**Expect one false alarm.** The doctor's section 5 probes
-`http://127.0.0.1:8787/healthz` on the machine it runs on. After the move that
-check reports "no coordinator answering" on Worker1, because the coordinator
-is not supposed to run there any more. Until the doctor is taught to probe
-`ALPHA_HOST_URL` (BACKLOG item A-host-move), ignore that one line and read the
-peer report instead.
+The doctor's section 5 follows `ALPHA_HOST_URL` from Worker1's `.env`, so
+after C2 it probes the Host, lists its agents, and flags a coordinator still
+listening on Worker1 as a split fleet.
 
 Neither laptop publishes the peer report to GitHub. The cloud reads it only
 through the coordination events the doctor relays.

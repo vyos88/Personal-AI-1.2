@@ -45,7 +45,6 @@ next.
 
 | ID | Item | Done when |
 |---|---|---|
-| A-host-move | `scripts/laptop41-doctor.ps1` section 5 probes `127.0.0.1:$CoordinatorPort` only. Once the coordinator lives on laptop-gj8dfmlk that is a false "no coordinator answering" on Laptop41 every run. Probe `ALPHA_HOST_URL` from `.env` when it is not loopback, and say which machine answered. | after the move, the doctor on Laptop41 reports the coordinator as up |
 | A1 | Two frontend buttons call routes that do not exist: `/recommendations/debug` (Hubs) and `/arduino/elegoo/install-alpha-firmware` (Devices). Add the route if a backend function already does the job, else remove the button. | both are gone from `KNOWN_MISSING` in `tests/test_frontend_api_contract.py` |
 | A2 | Delete the dead copies of shadowed routes, one `api/*.py` module per PR (`tests/route_shadow_baseline.json`, 189 entries; start with `api.missions`, 13). First check that each is identical to the `main.py` copy that serves; one that differs is a bug to raise, not delete. | its lines are gone from the baseline and the suite passes |
 | A3 | Split `main.py` (39k lines) one hub at a time into `api/<hub>.py` routers. The shadow ratchet makes each move safe. | one hub per PR, no new shadowing |
