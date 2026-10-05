@@ -1,4 +1,4 @@
-laptop41-doctor 20261005-235603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-001104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -35,13 +35,13 @@ laptop41-doctor 20261005-235603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-05 01:52 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-05 23:40 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-05T22:50:15.925Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-05T22:52:15.904Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-05T22:54:17.567Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T23:06:15.943Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T23:08:15.955Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-05T23:10:16.005Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -62,15 +62,15 @@ laptop41-doctor 20261005-235603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 7. Memory, disk, heaviest processes ===
   ok: 2.4 of 15.8 GB RAM free
-  ok: C: 32 GB free
-  claude                          691 MB  pid 1736
-  explorer                        584 MB  pid 15236
-  ChatGPT                         567 MB  pid 13000
-  ChatGPT                         543 MB  pid 2504
-  MsMpEng                         452 MB  pid 6592
-  python                          331 MB  pid 15924
-  ChatGPT                         304 MB  pid 19224
-  msedge                          294 MB  pid 6736
+  ok: C: 30.6 GB free
+  claude                          682 MB  pid 1736
+  explorer                        577 MB  pid 15236
+  ChatGPT                         572 MB  pid 13000
+  ChatGPT                         476 MB  pid 2504
+  MsMpEng                         468 MB  pid 6592
+  ChatGPT                         319 MB  pid 19224
+  msedge                          288 MB  pid 6736
+  msedge                          278 MB  pid 24272
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -78,16 +78,15 @@ laptop41-doctor 20261005-235603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
 
 === SUMMARY ===
-  this pass took 19s
-  - NEEDS A PERSON - the build is older than the source: the site shows the old Alpha until dist is rebuilt  (open 86 run(s), since 2026-10-05T02:56:26)
-  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 86 run(s), since 2026-10-05T02:56:26)
-  - image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503  (open 3 run(s), since 2026-10-05T23:30:11)
-  + fixed since last run: backend /health answered 000
+  this pass took 23s
+  - NEEDS A PERSON - the build is older than the source: the site shows the old Alpha until dist is rebuilt  (open 87 run(s), since 2026-10-05T02:56:26)
+  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 87 run(s), since 2026-10-05T02:56:26)
+  - NEEDS A PERSON - image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503  (open 4 run(s), since 2026-10-05T23:30:11)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 86 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  2. [open 86 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  3. [open 3 runs] Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend.
+  1. [open 87 runs NEEDS A PERSON] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  2. [open 87 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  3. [open 4 runs NEEDS A PERSON] Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend.
   4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
