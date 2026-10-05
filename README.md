@@ -1096,6 +1096,7 @@ Configure the host agent:
 | `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
 | `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
 | `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
+| `ALPHA_COORDINATION_ACTIONS` | Comma-separated subset of the actions this agent takes; unset means all. A standby keeping the records while Worker1 is away sets `Post,Ack,Status`, so claims wait for Worker1 (Alpha's `WORKER1_FAILOVER_PLAN.md`). A name that is not an action stops the agent offering the type. |
 | `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
 
 On the Alpha host, `npm run setup:host -- --email you@example.com --alpha-root
@@ -1294,7 +1295,7 @@ the tunnel and reads it back.
 reserve's floor and cap, host URLs that are not URLs, the configuration it
 writes, and that the store and a capability list appear only when asked for.
 
-`test/alpha-coordination.test.js` (16) — action allowlisting, actor and path
+`test/alpha-coordination.test.js` (26) — action allowlisting and its per-agent narrowing, actor and path
 validation (traversal, drive letters, commas), argv construction asserted
 against a stub interpreter that records exactly what it was handed (including a
 message full of shell metacharacters), and the opt-in mechanism refusing

@@ -9,6 +9,8 @@ import {
   ACK_STAGES,
   ALLOWED_ACTIONS,
   buildArgs,
+  configuredActions,
+  requireOffered,
   run,
   validateAck,
   validateAction,
@@ -112,6 +114,59 @@ test('only allowlisted actions are accepted', () => {
   assert.throws(() => validateAction('Delete'), /unsupported action/);
   assert.throws(() => validateAction('post'), /unsupported action/); // case matters
   assert.throws(() => validateAction(undefined), /unsupported action/);
+});
+
+test('ALPHA_COORDINATION_ACTIONS narrows the actions, and unset means all of them', () => {
+  assert.deepEqual(configuredActions(undefined), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(''), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(' Post , Ack,Status,Post '), ['Post', 'Ack', 'Status']);
+  // A typo must not leave a standby taking claims, or taking nothing quietly.
+  assert.throws(() => configuredActions('Post,claim'), /"claim", which is not one of/);
+  assert.throws(() => configuredActions('Post,Delete'), /"Delete"/);
+  assert.throws(() => configuredActions(' , '), /names no action/);
+});
+
+test('an action this agent was configured not to take is refused with the reason', () => {
+  const offered = configuredActions('Post,Ack,Status');
+  assert.equal(requireOffered('Post', offered), 'Post');
+  assert.throws(
+    () => requireOffered('Claim', offered),
+    (error) =>
+      error.code === 'action_not_offered' &&
+      /takes only Post, Ack, Status/.test(error.message) &&
+      /Claim waits for the main coordination agent/.test(error.message),
+  );
+  // Every allowed action passes when nothing narrows the list.
+  for (const action of ALLOWED_ACTIONS) assert.equal(requireOffered(action, configuredActions('')), action);
+});
+
+test('a narrowed agent refuses Claim before running anything, and still posts', async () => {
+  const { root, stub, argvLog } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Ack,Status' },
+    async () => {
+      await assert.rejects(
+        () => run({ action: 'Claim', actor: 'claude', paths: ['a.txt'] }),
+        /takes only Post, Ack, Status/,
+      );
+      await assert.rejects(() => readFile(argvLog), { code: 'ENOENT' });
+      const result = await run({ action: 'Post', actor: 'claude', message: 'standby note' });
+      assert.equal(result.exitCode, 0);
+    },
+  );
+});
+
+test('available() reports a bad ALPHA_COORDINATION_ACTIONS instead of offering the type', async () => {
+  const { available } = await import('../src/agent/handlers/alpha-coordination.js');
+  const { root, stub } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Relase' },
+    async () => {
+      const verdict = available();
+      assert.equal(verdict.ok, false);
+      assert.match(verdict.reason, /"Relase"/);
+    },
+  );
 });
 
 test('actor names are constrained to something legible', () => {
