@@ -431,6 +431,69 @@ function Run-Checks {
   if ($tq -and -not (Test-Path $tq)) { Problem "TEMP points at $env:TEMP, on a drive that is not there (the removed USB?)" }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+
+  # ------------------------------------------------------------ images
+  # Chat image requests go to IMAGE_GEN_URL (an AUTOMATIC1111 /sdapi/v1/txt2img
+  # endpoint). The backend counts any HTTP answer on that port as "reachable",
+  # so another program on the port (a Gradio app such as ACE-Step also
+  # defaults to 7860) turns every image into "image backend failed: HTTP 503".
+  Section '8. Image generation'
+  $imgUrl = ''
+  $imgFrom = ''
+  foreach ($scope in 'Process', 'User', 'Machine') {
+    $v = [Environment]::GetEnvironmentVariable('IMAGE_GEN_URL', $scope)
+    if ($v -and -not $imgUrl) { $imgUrl = $v.Trim(); $imgFrom = "environment ($scope)" }
+  }
+  if (-not $imgUrl) {
+    # .env.local first: the .bak copies beside it carry old values.
+    $envFiles = @((Join-Path $AlphaRoot 'backend\.env.local'), (Join-Path $AlphaRoot '.env.local'), (Join-Path (Split-Path $AlphaRoot -Parent) '.env.local'),
+                  (Join-Path $AlphaRoot 'backend\.env'), (Join-Path $AlphaRoot '.env'), (Join-Path (Split-Path $AlphaRoot -Parent) '.env'))
+    # Select-String stops at the first path that does not exist, so pass only real files.
+    $envFiles = @($envFiles | Where-Object { Test-Path -LiteralPath $_ -PathType Leaf })
+    foreach ($hit in @(if ($envFiles) { Select-String -LiteralPath $envFiles -Pattern '^\s*IMAGE_GEN_URL\s*=' -EA SilentlyContinue })) {
+      if (-not $imgUrl) { $imgUrl = ($hit.Line -split '=', 2)[1].Trim().Trim('"', "'"); $imgFrom = $hit.Filename }
+    }
+  }
+  $imgPort = 7860
+  $imgBase = 'http://127.0.0.1:7860'
+  if ($imgUrl) {
+    try {
+      $u = [Uri]$imgUrl
+      $imgPort = $u.Port
+      $imgBase = "$($u.Scheme)://$($u.Host):$($u.Port)"
+      Note "IMAGE_GEN_URL = $($u.Scheme)://$($u.Host):$($u.Port)$($u.AbsolutePath)  (from $imgFrom)"
+    } catch { Note "IMAGE_GEN_URL is set but is not a URL (from $imgFrom)" }
+  } else {
+    Note 'IMAGE_GEN_URL is not set in the environment or the backend .env files; probing the default http://127.0.0.1:7860'
+  }
+  $local = $imgBase -match '://(127\.0\.0\.1|localhost)[:/]'
+  $holder = if ($local) { Owner $imgPort } else { $null }
+  if ($local) {
+    $desc = Describe $holder
+    if ($desc.Length -gt 160) { $desc = $desc.Substring(0, 160) + '...' }
+    Note "port $imgPort : $desc"
+  }
+  # Alpha's own scripts\alpha_comfyui_bridge*.py takes A1111-style txt2img on
+  # this port and hands the job to ComfyUI. It has no /sdapi/v1/sd-models, so
+  # probe what it depends on instead: ComfyUI's own API.
+  if ($holder -and "$($holder.CommandLine)" -match 'comfyui_bridge') {
+    $comfy = Http 'http://127.0.0.1:8188/system_stats'
+    if ($comfy -like '2*') { OK "port $imgPort is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 ($comfy)" }
+    else { Problem "image port $imgPort is Alpha's ComfyUI bridge, but ComfyUI does not answer on 8188 ($comfy): chat images fail with HTTP 503" }
+    return
+  }
+  $api = Http "$imgBase/sdapi/v1/sd-models"
+  if ($api -like '2*') {
+    OK "Stable Diffusion API answers on $imgBase ($api)"
+  } elseif ($api -eq '000') {
+    if ($imgUrl) { Problem "image backend not running: nothing answers on $imgBase (chat images fail)" }
+    else { Note 'no image backend running on 7860 (chat images are off until IMAGE_GEN_URL points at one)' }
+  } elseif ($api -eq '404') {
+    $who = if ($holder) { $holder.Name } else { 'another program' }
+    Problem "image port $imgPort is held by $who, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503"
+  } else {
+    Problem "image backend on $imgBase answers $api to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
+  }
 }
 
 # ------------------------------------------------------------ schedule
@@ -538,6 +601,9 @@ $rules = @(
   @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
+  @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
+  @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
+  @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },
   @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
