@@ -1,15 +1,15 @@
-Claude (cloud) report, 2026-10-05 17:58 UTC
+Claude (cloud) report, 2026-10-05 18:58 UTC
 
-NEW on main: #101 publish-alpha flags Alpha's local credentials and databases before a push. #102 snapshot-alpha-live.mjs publishes only live versions of files alpha-full tracks, to a new branch, stopping on any credential; apply-alpha-update refused on Laptop41 (36 files edited there).
-#100 (merged 16:27), docs/HANDOFF_2026-10-05d_stewards.md. Alpha#58 (merged, alpha-full): Alpha's stewards no longer lock the owner out (they re-signed-in after every error); loopback sign-ins no longer count toward the lockout; failing stewards show as failing. Alpha#57: one layout on phones. apply-alpha-update.mjs now also updates scripts\. BACKLOG ST1-ST6, C5. PR #99 (lockout cleared on password change) updated 16:36, still open.
+NEW on main: #101 publish-alpha flags Alpha's local credentials and databases before a push. #102 snapshot-alpha-live.mjs publishes only live versions of files alpha-full tracks, to a new branch, stopping on any credential; #103 (18:03) shows findings masked and lets --allow clear a reviewed line; apply-alpha-update refused on Laptop41 (36 files edited there).
+#100 (merged 16:27), docs/HANDOFF_2026-10-05d_stewards.md. Alpha#58 (merged, alpha-full): Alpha's stewards no longer lock the owner out (they re-signed-in after every error); loopback sign-ins no longer count toward the lockout; failing stewards show as failing. Alpha#57: one layout on phones. apply-alpha-update.mjs now also updates scripts\. BACKLOG ST1-ST6, C5. PR #99 (lockout cleared on password change) updated 18:36, still open.
 
 Still needs V first: Alpha PR #52 (draft). Public alpha-ai.uk routes run code from the request body behind only the owner password; V decides on merge.
 
-Worker1 (Laptop41) report is fresh (pushed 17:56 UTC). Worker1 has now pulled main: the Self-Heal false positive is gone (3 open, was 4). cloudSeen still null after ~38 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
+Worker1 (Laptop41) report is fresh (pushed 18:56 UTC). Worker1 has now pulled main: the Self-Heal false positive is gone (3 open, was 4). cloudSeen still null after ~39 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
 The doctor is still "Not signed in" to the coordinator (since 13:56 UTC), so agents/tasks are not reported. Coordinator healthz OK, 1.7.0. Last seen 12:41 UTC: worker1 and host attached, queue empty.
-Alpha on Worker1 healthy: self-heal probes green, site serves the same bundle as dist. RAM 2.6 of 15.8 GB free, C: 8.1 GB free.
+Alpha on Worker1 healthy: self-heal probes green, site serves the same bundle as dist. RAM 2.7 of 15.8 GB free, C: 8.1 GB free.
 
-Worker1: 3 open, all NEEDS A PERSON (65 runs):
+Worker1: 3 open, all NEEDS A PERSON (69 runs):
  1. Build older than source: rebuild dist.
  2. Live main.py dictionary bug: doctor -Fix as Administrator.
  3. 'Alpha' task does not point at the real frontend folder: repair-alpha-host.ps1.
