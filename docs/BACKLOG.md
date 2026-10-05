@@ -38,7 +38,6 @@ next.
 | H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`) | the branch exists on GitHub |
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
-| H5 | Move the coordinator to laptop-gj8dfmlk (Host); Laptop41 becomes Worker1; install the 3-minute peer report on both (`HANDOFF_2026-10-05b_host-move.md`, Parts A-E) | Part D passes: `sysinfo` comes back from worker1 and `coord --action Status` succeeds; `peer-report.log` on each laptop shows both ok |
 | H6 | Install the host tools the opt-in handlers call. A worker can be alive and fresh in `agents` while the capability it exists for cannot run at all — `available()` only proves the machine looks configured, not that the binary behind it works. At least: `pip install -r scripts/requirements-stems.txt` (Demucs, for the just-merged `alpha-music-stems`/#76) and `requirements-music.txt` (MusicGen) wherever `ALPHA_EXTRA_HANDLERS` names them; `arduino-cli` on PATH for `alpha.panel` (the doctor already sees the CrowPanel on COM7/COM20, so the board is there — whether the CLI is, is unconfirmed); the real Codex CLI (native binary, not the npm `.cmd` shim) on Jack's laptop for `codex.exec`. | `node src/admin/run.js agents` shows each machine's capability list actually includes the opt-in types its `.env.agent` configures, with no `not offering a handler this machine cannot run` warnings in its log |
 
 ## Fleet after the host move — F1-F30 (owner's list, 2026-10-05)
@@ -56,7 +55,6 @@ write to those.
 
 | ID | Who | Item | Done when |
 |---|---|---|---|
-| F1 | code | Mark the move done in `STATUS.md` (Laptop41 item 4, latest handoff) and close H5, so cloud, Codex and gj8's Claude stop reading it as pending or as an outage | STATUS.md says Host = gj8, Worker1 = Laptop41, move complete |
 | F2 | person | Give gj8 its own agent, named `host`: a fresh `agent:connect` key from the moved store (its `.env.agent` key came from gj8's old 2026-09-15 store and is void), `ALPHA_HOST_URL=http://127.0.0.1:8787`, then the always-on keeper. Its RTX 3050 takes render work again | `agents` lists `host`; the peer report reads `host ok` |
 | F3 | person | Back up gj8's `data\auth.json` nightly to the WD external drive. It is now the only live copy of every key | a dated copy from last night exists on the drive |
 | F4 | person | After 48 h without a rollback, delete Laptop41's rollback: `C:\services\alpha-tunnel\data\auth.json`, the disabled `alpha-coordinator` task, and `C:\AlphaData\alpha-ops\disabled-startup\Alpha Tunnel Coordinator.vbs` | none of the three exist on Laptop41 |

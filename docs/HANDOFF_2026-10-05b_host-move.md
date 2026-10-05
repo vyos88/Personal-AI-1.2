@@ -1,9 +1,17 @@
 # Handoff — 2026-10-05 (b): the coordinator moves to laptop-gj8dfmlk
 
+> **Done 2026-10-05.** The owner ran Parts A-E. Part D passed (worker1
+> attached, sysinfo from DESKTOP-41HPLCN, coord Status through the Host), and
+> both peer reports run. Not done: B8, an agent on Host. It is BACKLOG F2:
+> the `.env.agent` on gj8 holds a key from its old 2026-09-15 store, which is
+> void. Where the steps below differ from what was actually run (the old
+> coordinator was kept up by a `run-coordinator.cmd` loop, a scheduled task
+> and a Startup `.vbs`, not nssm), `memory/knowledge/alpha_session_record_2026_10_05_host_move.json`
+> in vyos88/Alpha records what happened.
+
 For whoever is at the two laptops: the owner, and Claude or Codex running on
-either one. The owner decided this on 2026-10-05. Nothing in this file has been
-run yet, because a cloud session cannot reach either machine. Work through it
-in order. Each part says which laptop it runs on, so you know when to switch.
+either one. Work through it in order. Each part says which laptop it runs on,
+so you know when to switch.
 
 This **replaces** `HANDOFF_2026-10-05_worker1.md`. There is no separate new
 worker laptop: the name Worker1 now belongs to Laptop41.
