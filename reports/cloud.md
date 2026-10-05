@@ -1,24 +1,30 @@
-Claude (cloud) report, 2026-10-04 23:57 UTC
+Claude (cloud) report, 2026-10-05 00:58 UTC
 
-Laptop41's report is fresh (doctor run 00:56 local, pushed 23:56 UTC). It runs the new doctor from C:\services\alpha-tunnel. cloudSeen is still null after ~21 hours: the doctor has not picked up a cloud report yet. V: check its cloud relay step (docs/CLOUD_RELAY.md).
+Laptop41's report is fresh (doctor run 01:56 local, pushed 00:56 UTC). cloudSeen is still null after ~22 hours: no cloud report has reached Alpha yet. V: check the doctor's cloud relay step (docs/CLOUD_RELAY.md).
 
-Big change: Alpha is served. A Claude repair session on Laptop41 (addendum at 09:14 UTC) found :4173 was up all along on https (node, vite preview); every earlier "nothing serves 4173" came from probes using http. The doctor now probes https: :4173, dist and alpha-ai.uk all serve the same current build, and the 'Alpha' and 'Alpha Backend' tasks are Running. Now 4 open, all NEEDS A PERSON:
- 1. Alpha Self-Heal. The doctor says not registered; the repair session says it is registered but exits 3 every pass because its selfheal.json has a BOM. Fix is in PR #66 (branch claude/wizardly-brown-o23nhl, now also carries the self-heal BOM and https-probe fixes). V: pull #66 once merged and fix selfheal.json in place.
- 2. Live main.py still has the dictionary bug: doctor -Fix as Administrator (apply-chat-fix.ps1, backup first).
- 3. The 'Alpha' task runs C:\ProgramData\AlphaBoot\run-alpha.cmd, not the real frontend folder; repair-alpha-host.ps1 re-points it.
-Also from the repair session: the 'Alpha Backend' boot task fails on a missing jwt module, so today's backend was started by hand and will not survive a reboot. An unknown cloudflared process carries the public site while the cloudflared service is Stopped. No chat model (Ollama). Full notes: docs/handoffs/CODEX_2026-10-04-laptop41.txt on claude/wizardly-brown-o23nhl.
- 4. NEW since ~19:00 UTC: someone is editing Alpha's frontend on Laptop41. Latest build 21:02 local is live; source was edited again at 21:05 and nothing since, so the live site is one edit behind until dist is rebuilt (npm run build, or repair-alpha-host.ps1).
-Resources: RAM 3.4 of 15.8 GB free. C: 6.7 GB free (8.0 at 19:56 UTC; 19 GB on 2026-10-02). Coordinator :8787 is still the 1.7.0 process, so #72 queue journaling is not active until it is restarted.
+URGENT on Laptop41: the self-heal is now running, and at 00:52 UTC it rolled back the frontend. Its probe of https://127.0.0.1:4173 fails on the self-signed certificate ("unable to verify the first certificate"), so it treats a healthy frontend as dead. It restored dist.last-good, kept the build it replaced as dist.failed-*, killed the wrapper and restarted the 'Alpha' task. Since then the doctor reports nothing on :4173. alpha-ai.uk still answers 200 and serves the same bundle as dist (index-Chc8mN8H). The fix is merged: #89 (self-heal reads its BOM'd config and accepts the loopback self-signed cert). V: git pull main in C:\services\alpha-tunnel now, before the next rollback.
 
-Nothing new merged on main since 02:51 UTC (#79-#82: CI, docs/STATUS.md, apply-alpha-update.mjs, docs/BACKLOG.md). For V at Laptop41, BACKLOG H1-H4: H1 apply-alpha-update.mjs --apply --restart (brings in Alpha #36-#41); H2 publish the live source to alpha-from-host; H3 the repair; H4 GitHub billing/Actions and this repo's default branch -> main.
-Newly opened: PR #83 (alpha.grow-render: grow organisms to PNG via headless Chromium). Open PRs here also: #66, #76, #59, #70, #58.
+Laptop41: 6 open, 4 NEEDS A PERSON:
+ 1. Alpha Self-Heal: the doctor still says not registered, though selfheal.jsonl shows it running.
+ 2. Live main.py dictionary bug: doctor -Fix as Administrator (apply-chat-fix.ps1, backup first).
+ 3. The 'Alpha' task does not point at the real frontend folder: repair-alpha-host.ps1 re-points it.
+ 4. Build older than source (21:02 vs 21:05 local): rebuild dist.
+ Plus: nothing on :4173 since the rollback, and the doctor reads the public bundle as another origin. #89 also stops the doctor calling this machine's own build another origin.
+Still from the 2026-10-04 repair session: 'Alpha Backend' boot task needs the jwt module; an unknown cloudflared process carries the public site; no chat model (Ollama).
+Resources: RAM 3.4 of 15.8 GB free. C: 5.5 GB free, down 1.2 GB in an hour (19 GB on 2026-10-02).
+
+New on main (merged ~00:10-00:50 UTC):
+ - #88 + docs/HANDOFF_2026-10-05b_host-move.md: the owner decided the coordinator moves to laptop-gj8dfmlk (formerly "Jacks laptop"), which becomes Host. Laptop41 becomes Worker1 and keeps Alpha and its agent (renamed worker1). Parts A (Laptop41) and B (gj8dfmlk) are steps for a person; state files go by USB, never through chat.
+ - #89 self-heal https/BOM fix (above); #87 BACKLOG H6, install the host tools opt-in handlers call; #85 removed ten superseded docs.
+ - Merged from older PRs: #76 remove vocals, #70 music bridge recipes, #59 login-failure logging, #58 shared PATH lookup.
+Open: #86 claude.exec (Claude-to-Claude handler), #83 alpha.grow-render (needs a merge decision, docs/HANDOFF_2026-10-05_grow-render-pr83.md), #66 (its fix landed as #89), plus older #64, #62, #50, #49, #45.
 
 Still stands:
  - Do not start task-queue Q1 or Q7. Two plan systems: bridge Stripe plans (#67, merged) vs Alpha's api/monetization.py (Alpha #24, open). V decides.
- - The queue file is only on unmerged PR #25. CrowPanel PRs #18 and #26 duplicate each other. No busy work for the 70% target.
- - Drive space (C3): Alpha / Codex, do NOT move or delete anything. Reply with an inventory only: each backup, archive or old copy over 500 MB under C:\ (path, size, last modified), and the external drive's letter. Never list or copy data\auth.json, .env files or keys. V moves files by hand.
+ - Queue file only on unmerged PR #25; CrowPanel PRs #18 and #26 duplicate each other; no busy work for the 70% target.
+ - Drive space (C3): Alpha / Codex, do NOT move or delete anything. Inventory only: each backup, archive or old copy over 500 MB under C:\ (path, size, last modified), and the external drive's letter. Never list data\auth.json, .env files or keys. V moves files by hand.
  - The six failed sign-ins of 2026-10-04 00:19-00:25 UTC: V to confirm whether they were V.
 
-Jack's laptop and the phones publish no status yet (no status/<name> branch for them).
+Jack's laptop (now laptop-gj8dfmlk, the future Host) and the phones publish no status yet.
 
-Codex: BACKLOG reports C1-C3, read-only (C3 = drive inventory, now urgent with C: under 7 GB). Alpha: nothing to run; the three open items need V.
+Codex: the drive inventory (C3) is now urgent, C: under 6 GB. Alpha: nothing to run; the host move and #89 pull need V.
