@@ -1,69 +1,49 @@
-# Handoff: the alpha-tunnel coordinator on Laptop41 is down
+# Correction: the "coordinator down" alert below is expected, not a problem
 
-**Written by:** automated hourly handoff check, 2026-10-05 01:28 UTC (Laptop41
-local report timestamped 2026-10-05 02:11)
-**Status:** live, current — needs a person on Laptop41, not something this
-session can fix
+**This doc's original claim was wrong — kept for history, corrected here.**
 
-## What changed
+The original version of this file flagged `status/laptop41`'s
+"no coordinator answering on 8787" as a new, unexplained outage needing a
+person on Laptop41. A push notification went out saying the same thing.
+That was a false alarm, and the real explanation was sitting in a PR that
+merged minutes before this file was written but after this check had
+already read the `docs/` listing:
 
-`status/laptop41/reports/latest.txt` (posted every 15-20 min by
-`scripts/laptop41-doctor.ps1 -Watch`, confirmed live) went from a healthy
-coordinator to this, new this pass:
+**[`HANDOFF_2026-10-05b_host-move.md`](HANDOFF_2026-10-05b_host-move.md)**
+(added by [Personal-AI-1.2#88](https://github.com/vyos88/Personal-AI-1.2/pull/88),
+merged 2026-10-05 00:46:57 UTC) — the owner decided to move the coordinator
+from Laptop41 to `laptop-gj8dfmlk` (now "Host"); Laptop41 becomes "Worker1"
+and keeps Alpha itself. That doc says, verbatim, under "What a cloud session
+can and cannot see":
 
-```
-=== 5. alpha-tunnel coordinator (port 8787) ===
-  PROBLEM: no coordinator answering on 8787
-  port 8787 : nothing listening
-```
+> **Expect one false alarm.** The doctor's section 5 probes
+> `http://127.0.0.1:8787/healthz` on the machine it runs on. After the move
+> that check reports "no coordinator answering" on Worker1, because the
+> coordinator is not supposed to run there any more. Until the doctor is
+> taught to probe `ALPHA_HOST_URL` (BACKLOG item A-host-move), ignore that
+> one line and read the peer report instead.
 
-The previous pass (about an hour earlier) showed `ok: healthz:
-{"ok":true,"protocolVersion":1,"version":"1.7.0"}` and a live `node.exe`
-on port 8787. It is not listening at all now — not a slow response, nothing
-on the port.
+So: nothing is down. `status/laptop41`'s doctor is checking the wrong
+address for the coordinator now that it has (intentionally) moved off that
+machine, exactly as `HANDOFF_2026-10-05b_host-move.md` anticipated. The real
+signal to watch is the 3-minute peer report (`peer-report.log` on both
+laptops, Part E of that handoff) and `node src/admin/run.js coord --action
+Status`, not the doctor's loopback-only port probe.
 
-**Why this matters beyond the usual recurring items below:** the task
-queue, agent registry, and every opt-in handler (including the new
-`claude.exec` from PR #86) run through this coordinator. While it's down,
-nothing on the fleet can claim or report a task — Alpha's own task-driven
-features (render, music, devices, the tunnel) are unreachable, not just
-degraded.
+**What this session should have done differently:** re-read the `docs/`
+directory listing fresh each pass rather than relying on one read from
+earlier in the same check — the real explanation had already been merged by
+the time this file's push notification went out, and a second look would
+have caught it before alarming anyone.
 
-## What a person on Laptop41 needs to do
+**Open backlog item, already tracked:** `A-host-move` in `docs/BACKLOG.md`
+— teach the doctor to probe `ALPHA_HOST_URL` instead of loopback once the
+move is confirmed done, so this stops being a standing false alarm.
 
-The doctor's own top recommendation, unchanged from before but now sharper
-given the coordinator is actually down:
+---
 
-1. `git pull` in `C:\services\alpha-tunnel` (PR #46 is already merged there).
-2. Start the coordinator — it isn't a boot task yet. `docs/HOST_SETUP.md`
-   covers this; `move-coordinator-here.mjs` sets the coordinator up but,
-   per the doctor's own new recommendation #5, "leaves nothing running."
-   Until it's a registered boot task (or at least started by hand), a
-   restart or crash takes the whole tunnel down with no auto-recovery.
-3. Longer-term: `scripts\repair-alpha-host.ps1` (still never completed on
-   this machine per the standing `Alpha Self-Heal` PROBLEM below) would
-   cover exactly this with streaks/cooldowns/budgets — see recommendation 1.
+*Original (incorrect) content below, struck through for the record:*
 
-## Also unchanged from the last two passes (still open, not new)
-
-- `NEEDS A PERSON` — `Alpha Self-Heal` task never registered (145 runs,
-  since 2026-10-01)
-- `NEEDS A PERSON` — the `Alpha` scheduled task points at the wrong frontend
-  folder (88 runs, since 2026-10-04)
-- `NEEDS A PERSON` — live `main.py` still has the dictionary bug (88 runs,
-  since 2026-10-04)
-- `NEEDS A PERSON` — the build is older than the source, so the site serves
-  a stale dist (26 runs, since 2026-10-04)
-- RAM: 3.6 of 15.8 GB free — tight, consistent with prior passes
-
-Two things the doctor marked **fixed since the last run**: the public site
-now serves the same bundle this machine's `:4173` does (was a mismatch), and
-`:4173` now serves something (was serving nothing). Neither is this
-session's doing — noted here only because the doctor flagged the change.
-
-## No new PRs
-
-Open, non-draft PRs are unchanged from the last check: `Personal-AI-1.2#86`
-(this session's `claude.exec`, awaiting review) and `#83` (`alpha.grow-render`,
-already flagged in `docs/HANDOFF_2026-10-05_grow-render-pr83.md`). Nothing
-new to merge or flag on either repo.
+~~The alpha-tunnel coordinator on Laptop41 just went down: port 8787 was
+healthy an hour ago, now shows `nothing listening`. ... needs someone on
+Laptop41 to start it.~~ — wrong; see the correction above.
