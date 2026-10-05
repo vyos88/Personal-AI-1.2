@@ -41,6 +41,72 @@ next.
 | H5 | Move the coordinator to laptop-gj8dfmlk (Host); Laptop41 becomes Worker1; install the 3-minute peer report on both (`HANDOFF_2026-10-05b_host-move.md`, Parts A-E) | Part D passes: `sysinfo` comes back from worker1 and `coord --action Status` succeeds; `peer-report.log` on each laptop shows both ok |
 | H6 | Install the host tools the opt-in handlers call. A worker can be alive and fresh in `agents` while the capability it exists for cannot run at all — `available()` only proves the machine looks configured, not that the binary behind it works. At least: `pip install -r scripts/requirements-stems.txt` (Demucs, for the just-merged `alpha-music-stems`/#76) and `requirements-music.txt` (MusicGen) wherever `ALPHA_EXTRA_HANDLERS` names them; `arduino-cli` on PATH for `alpha.panel` (the doctor already sees the CrowPanel on COM7/COM20, so the board is there — whether the CLI is, is unconfirmed); the real Codex CLI (native binary, not the npm `.cmd` shim) on Jack's laptop for `codex.exec`. | `node src/admin/run.js agents` shows each machine's capability list actually includes the opt-in types its `.env.agent` configures, with no `not offering a handler this machine cannot run` warnings in its log |
 
+## Fleet after the host move — F1-F30 (owner's list, 2026-10-05)
+
+The coordinator now runs on laptop-gj8dfmlk (**Host**). Laptop41 (**Worker1**)
+keeps Alpha and its `worker1` agent (`HANDOFF_2026-10-05b_host-move.md`). The
+owner asked for all thirty of these. **Who** says who can do the item: *person*
+needs someone at a laptop, *code* is any session's PR, *Alpha* is work Alpha
+does through the tunnel or that teaches Alpha. Alpha does not learn by
+retraining here. It learns from `memory/knowledge/*.json`, the repair playbooks,
+the coordination events and the receipt ledger, so the "teach Alpha" items
+write to those.
+
+### Make the Host move solid
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| F1 | code | Mark the move done in `STATUS.md` (Laptop41 item 4, latest handoff) and close H5, so cloud, Codex and gj8's Claude stop reading it as pending or as an outage | STATUS.md says Host = gj8, Worker1 = Laptop41, move complete |
+| F2 | person | Give gj8 its own agent, named `host`: a fresh `agent:connect` key from the moved store (its `.env.agent` key came from gj8's old 2026-09-15 store and is void), `ALPHA_HOST_URL=http://127.0.0.1:8787`, then the always-on keeper. Its RTX 3050 takes render work again | `agents` lists `host`; the peer report reads `host ok` |
+| F3 | person | Back up gj8's `data\auth.json` nightly to the WD external drive. It is now the only live copy of every key | a dated copy from last night exists on the drive |
+| F4 | person | After 48 h without a rollback, delete Laptop41's rollback: `C:\services\alpha-tunnel\data\auth.json`, the disabled `alpha-coordinator` task, and `C:\AlphaData\alpha-ops\disabled-startup\Alpha Tunnel Coordinator.vbs` | none of the three exist on Laptop41 |
+| F5 | person | Revoke admin login sessions that are no longer used (`node src/admin/run.js keys`, then `revoke-key <id>` for each stale `ses`) | `keys` shows only sessions in use |
+| F6 | code | Peer report, second probe: also ping the other laptop's tailnet address, so "worker1 missing" says *network down* or *agent down* | the log line names which one |
+| F7 | code | Put the newest peer-report line in the doctor's `status/laptop41` report, so cloud sessions see the pair's health | `reports/latest.txt` has a peer-report line |
+
+### Fix what the doctor still flags
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| F8 | code | "Alpha Self-Heal is not registered" is a false alarm: the task exists (`Get-ScheduledTask` finds it when run elevated) but the doctor's scheduled run cannot see it. Fall back to `schtasks /query /tn "Alpha Self-Heal"`, and report "not visible to this account" rather than "not registered" | the doctor stops flagging it while the task exists |
+| F9 | person | Run the doctor once with `-Fix` as Administrator on Worker1. It patches the main.py dictionary bug through `apply-chat-fix.ps1` and keeps a backup | the doctor no longer reports the dictionary bug |
+| F10 | person | Run `scripts\repair-alpha-host.ps1 -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software` as Administrator on Worker1. It points the `Alpha` task at the real frontend and rebuilds the stale `dist`, with rollback | no "serves some other folder" and no "build is older than the source" in the doctor |
+| F11 | Alpha / Codex, then person | C: on Worker1 is at about 5 GB free and fell 1.2 GB in an hour. First an inventory only (BACKLOG C3 rules: list, never move or delete), then the owner moves files by hand | C: above 20 GB free |
+| F12 | code | The cloud relay has posted nothing to Alpha in about 22 hours (`cloudSeen` null in `doctor-state.json`). Find out why the doctor's relay step does not post | the next cloud report shows up in Alpha's coordination feed |
+
+### Teach Alpha from what happened
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| F13 | code / Alpha | Write `memory/knowledge/alpha_session_record_2026_10_05_host_move.json` (Alpha repo): the roles and addresses; the three ways the old coordinator came back (the `run-coordinator.cmd` loop, the `alpha-coordinator` task, the Startup `.vbs`); the self-signed-certificate restart loop; the doctor's loopback-only blind spot | the file exists and Alpha can answer "where does the coordinator run?" correctly |
+| F14 | code | Repair playbook entry: when self-heal fails a healthy frontend on a TLS or certificate error, check the probe, not the frontend. On 2026-10-05 this rolled back a working build | the entry is in the repair playbook, with a test |
+| F15 | code | Teach Alpha the fleet names (Host, Worker1, Pixel, Pixel 2, Flat 2) as a knowledge file, matching `frontend/src/config/fleetNames.js`, so chat says "Host" and not "100.93.104.24" | Alpha names machines this way in chat |
+| F16 | code | Teach Alpha how to read the peer report: "host missing" while the coordinator answers means "no lending agent on Host", not an outage | the rule is in knowledge; Alpha does not alarm on it |
+| F17 | code | Record a receipt for each self-heal repair in the ledger, so Alpha can tell repairs that hold from repairs that keep coming back | self-heal actions appear in `receipts.json` |
+| F18 | Alpha | Weekly recap: Alpha reads the week's doctor reports and the self-heal log, and posts one summary to the coordination tunnel: what broke, what repeated, what needs a person | one recap per week in the feed |
+| F19 | Alpha / every session | Read `docs/STATUS.md` and the latest handoff before acting on live telemetry. The hourly session that misread the host move as an outage (commits 3730490, 8a1b6c8) skipped this step | written into the routine every agent follows |
+
+### Make Alpha better at execution
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| F20 | Alpha | Let Alpha run read-only checks through the tunnel by itself (`sysinfo`, `agents`, `coord Status`), so it proves a machine is alive rather than guessing | Alpha's health answers cite a task id |
+| F21 | code / Alpha | Updates through `alpha.update`: Alpha proposes an update, the owner approves it, and the handler applies it with the existing rollback | one update applied end to end that way |
+| F22 | Alpha | One task, one receipt: every action Alpha takes ends with a tunnel post saying what it did and how it checked | its actions in the feed all carry a check |
+| F23 | code | Hard limits on Alpha's own actions: at most 3 restarts an hour (self-heal already has its budget), and never keys, `auth.json` or `.env` | the limits are enforced in code, with tests |
+| F24 | Alpha | Ask Codex for a second opinion on risky plans: a read-only `codex.exec` review before a person runs them | used on the next risky change |
+| F25 | Alpha | Target machines by name (`--agent worker1`, `--agent host`) and record which machine did what. The watcher already shows the device per event | Alpha's posts name the machine |
+| F26 | code | CrowPanel fleet line: "Host ✓ Worker1 ✓", taken from the peer report | the panel shows it |
+
+### Safety and hygiene
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| F27 | code | `run.js login` must never print a session token. One was pasted into a chat on 2026-10-05 and had to be revoked. Show `saved:` only; print the token only with an explicit flag | a test asserts that no token is printed |
+| F28 | person | Rotate agent keys issued before the move, including `laptop-41-v2-agent`, which `worker1` now uses: issue a new key, update `.env.agent`, revoke the old one | `keys` shows no agent key from before 2026-10-05 in use |
+| F29 | code | One coordinator only: the doctor's split-fleet check exists (#90). Add the same check on gj8, through the peer report: Worker1's 8787 must stay closed | the peer report on Host flags a coordinator answering on Worker1 |
+| F30 | code | Runbook for the new layout: what Worker1 does if Host sleeps or dies (`HOST_DOWN.md` and `standby-alpha.mjs` were written for the old layout) | `HOST_DOWN.md` describes Host = gj8, Worker1 = Laptop41 |
+
 ## Next — code (any session)
 
 | ID | Item | Done when |
