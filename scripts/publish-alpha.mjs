@@ -91,7 +91,7 @@ const LOCAL_STATE = /(^|[\\/])memory[\\/]local[\\/]/i;
  * gets pasted into chats and terminals, and a tool that scolds you about a
  * secret by printing it has leaked it a second time.
  */
-const SECRET_CONTENT = [
+export const SECRET_CONTENT = [
   { label: 'private key block', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----/ },
   { label: 'AWS access key id', re: /\bAKIA[0-9A-Z]{16}\b/ },
   // Any *_token / *_key / *_secret assigned a long literal. Deliberately broad:
