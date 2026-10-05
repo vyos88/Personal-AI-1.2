@@ -43,8 +43,8 @@ next.
 
 | ID | Item | Done when |
 |---|---|---|
-| A1 | Two frontend buttons call routes that do not exist: `/recommendations/debug` (Hubs) and `/arduino/elegoo/install-alpha-firmware` (Devices). Add the route if a backend function already does the job, else remove the button. | both are gone from `KNOWN_MISSING` in `tests/test_frontend_api_contract.py` |
-| A2 | Delete the dead copies of shadowed routes, one `api/*.py` module per PR (`tests/route_shadow_baseline.json`, 189 entries; start with `api.missions`, 13). First check that each is identical to the `main.py` copy that serves; one that differs is a bug to raise, not delete. | its lines are gone from the baseline and the suite passes |
+| A1 | Two frontend buttons call routes that do not exist. `/recommendations/debug`: written and tested (commit `14d7571`, see `handoffs/CLAUDE_2026-10-05-codex-reports.md`), waiting for a branch to land on. `/arduino/elegoo/install-alpha-firmware`: **needs V** — no function maps its three targets to a sketch and board (C1 answer); name the sketch and FQBN per target, or remove the six buttons. | both are gone from `KNOWN_MISSING` in `tests/test_frontend_api_contract.py` |
+| A2 | Delete the dead copies of shadowed routes, one `api/*.py` module per PR (`tests/route_shadow_baseline.json`, 189 entries). First check that each is identical to the `main.py` copy that serves; one that differs is a bug to raise, not delete. `api.missions` (13) is checked (C2 answer): all 13 differ, the live copy is newer and safer in every case, and three dead copies drop the owner check, so delete them; do not reconcile towards them. | its lines are gone from the baseline and the suite passes |
 | A3 | Split `main.py` (39k lines) one hub at a time into `api/<hub>.py` routers. The shadow ratchet makes each move safe. | one hub per PR, no new shadowing |
 | A4 | Replace inline `current_user.get('role') != 'owner'` checks with the `require_owner` dependency. | `grep -c "role') != 'owner'" main.py` reaches 0 |
 | V1 | Type floor 8px → 11px, one sheet at a time, with a visual-audit run before and after each. | no text under 11px in `visual-audit.mjs` tiny counts |
@@ -59,8 +59,6 @@ next.
 
 | ID | Ask |
 |---|---|
-| C1 | For A1: does a backend function already do what each missing route should? Name it, or say the button should go. |
-| C2 | For A2: for `api.missions`, list which shadowed handlers differ from the `main.py` copy that serves, with the differing lines. |
 | C3 | The drive inventory from `status/cloud` (2026-10-03): every backup, archive or old copy over 500 MB under `C:\` (path, size, last modified) and the external drive letter. **Inventory only.** Never list `auth.json`, `.env` or keys. |
 | C4 | Read `frontend/visual-audit/summary.txt` after the next audit run on the host, and rank its problems by how many routes each one affects. |
 

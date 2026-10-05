@@ -18,6 +18,8 @@ anything longer in a dated handoff that this page links to.
   `CLOUD_RELAY.md`.
 - **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
 - **Latest handoff:** [`HANDOFF_2026-10-04c.md`](HANDOFF_2026-10-04c.md).
+  Codex reports C1 and C2 are answered in
+  [`handoffs/CLAUDE_2026-10-05-codex-reports.md`](handoffs/CLAUDE_2026-10-05-codex-reports.md).
 
 ## Where things are
 
