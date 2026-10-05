@@ -29,7 +29,8 @@
  */
 
 import { readdirSync, readFileSync, statSync, existsSync } from 'node:fs';
-import { join, relative, extname, basename } from 'node:path';
+import { join, relative, extname, basename, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
@@ -60,9 +61,28 @@ const SECRET_NAMES = [
   /^token(s)?\.(json|txt)$/i,
   /^auth(-store)?\.json$/i,
   /^secrets?\.(json|yml|yaml|env|txt)$/i,
+  // PowerShell Export-Clixml output: Alpha's stewards keep the owner's
+  // password in memory\local\alpha-local-service.credential.xml. DPAPI
+  // encrypts it for one Windows user, but it is still the password.
+  /\.credential\.xml$/i,
+  /\.clixml$/i,
+  /\.token$/i,
 ];
 
-const SECRET_EXTENSIONS = new Set(['.pem', '.key', '.pfx', '.p12', '.keystore', '.jks']);
+const SECRET_EXTENSIONS = new Set(['.pem', '.key', '.pfx', '.p12', '.keystore', '.jks', '.enc']);
+
+/**
+ * Databases: Alpha keeps its user accounts (password hashes, 2FA secrets) and
+ * encrypted connector credentials in SQLite, so a database file is a
+ * credentials file until someone has looked.
+ */
+const DATABASE_EXTENSIONS = new Set(['.db', '.sqlite', '.sqlite3']);
+
+/**
+ * Machine-local state, by path. Alpha writes sessions, saved credentials and
+ * recovery receipts under memory/local; none of it belongs in git.
+ */
+const LOCAL_STATE = /(^|[\\/])memory[\\/]local[\\/]/i;
 
 /**
  * Content that looks like a live credential.
@@ -110,7 +130,7 @@ function parseArgs(argv) {
   return options;
 }
 
-function walk(root) {
+export function walk(root) {
   const files = [];
   const skipped = new Map();
 
@@ -142,13 +162,21 @@ function walk(root) {
   return { files, skipped };
 }
 
-function scanForSecrets(files) {
+export function scanForSecrets(files) {
   const findings = [];
 
   for (const file of files) {
     const name = basename(file.rel);
     const ext = extname(name).toLowerCase();
 
+    if (LOCAL_STATE.test(file.rel)) {
+      findings.push({ rel: file.rel, why: 'under memory/local: machine-local state (sessions, saved credentials)' });
+      continue;
+    }
+    if (DATABASE_EXTENSIONS.has(ext)) {
+      findings.push({ rel: file.rel, why: `${ext} database: may hold accounts and credentials` });
+      continue;
+    }
     if (SECRET_NAMES.some((re) => re.test(name))) {
       findings.push({ rel: file.rel, why: 'filename looks like a credentials file' });
       continue;
@@ -176,7 +204,7 @@ function scanForSecrets(files) {
   return findings;
 }
 
-function suggestedIgnore(skipped) {
+export function suggestedIgnore(skipped) {
   const present = [...skipped.keys()].filter((name) => name !== '.git').sort();
   return [
     '# Installed or generated — rebuildable, machine-specific, and what would',
@@ -197,6 +225,18 @@ function suggestedIgnore(skipped) {
     'credentials.json',
     'service-account*.json',
     'auth-store.json',
+    'auth.json',
+    '*.credential.xml',
+    '*.clixml',
+    '*.token',
+    '*.enc',
+    '',
+    '# Alpha\'s machine-local state and databases (accounts, sessions,',
+    '# saved credentials).',
+    'memory/local/',
+    '*.db',
+    '*.sqlite',
+    '*.sqlite3',
     '',
     '# Local noise',
     '*.log',
@@ -268,9 +308,11 @@ function main(argv) {
     : EXIT_OK;
 }
 
-try {
-  process.exit(main(process.argv.slice(2)));
-} catch (error) {
-  console.error(`publish-alpha: ${error.message}`);
-  process.exit(EXIT_ERROR);
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    process.exit(main(process.argv.slice(2)));
+  } catch (error) {
+    console.error(`publish-alpha: ${error.message}`);
+    process.exit(EXIT_ERROR);
+  }
 }
