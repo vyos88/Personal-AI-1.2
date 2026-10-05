@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { delimiter, extname, isAbsolute, join, resolve, sep } from 'node:path';
+import { isAbsolute, join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Drives Alpha's coordination tunnel (`scripts/alpha_coordination_tunnel.ps1`)
@@ -219,6 +220,18 @@ export async function run(payload, { signal, log } = {}) {
           );
           return;
         }
+        // A child killed by a signal reports `code: null`, so `code ?? 0`
+        // read a run that blew its 120s timeout, or was aborted with its
+        // lease, as a clean exit. Nothing ran to completion: fail the task.
+        if (error && (error.killed || error.signal || error.code === 'ABORT_ERR')) {
+          rejectPromise(
+            new ProtocolError(
+              `the coordination tunnel was killed before it finished (${error.signal ?? error.code})`,
+              { status: 500, code: 'coordination_killed' },
+            ),
+          );
+          return;
+        }
         // A non-zero exit is a real outcome of the tunnel (e.g. a refused
         // claim), so report it as data rather than throwing.
         resolvePromise({ stdout: out ?? '', stderr: err ?? '', code: error?.code ?? 0 });
@@ -234,32 +247,6 @@ export async function run(payload, { signal, log } = {}) {
     stdout: stdout.slice(-16_000),
     stderr: stderr.slice(-16_000),
   };
-}
-
-/**
- * Resolves a command the way the OS will, so a missing interpreter is a
- * refusal to offer the type rather than a failed task.
- *
- * A name that already carries an extension (`powershell.exe`, the default
- * here) is looked up as given: appending PATHEXT to it reports PowerShell as
- * missing on every Windows machine.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions =
-    process.platform === 'win32' && !extname(command)
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-      : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
 }
 
 /**

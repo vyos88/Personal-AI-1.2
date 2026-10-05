@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
-import { delimiter, extname, join, resolve, sep } from 'node:path';
+import { resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Reports what is physically plugged into this machine, as a task.
@@ -72,32 +73,6 @@ function scriptPath() {
 
 function interpreter() {
   return process.env.ALPHA_POWERSHELL ?? 'powershell.exe';
-}
-
-/**
- * Where a command would be found, or null. Same reasoning as alpha-render's:
- * `execFile` resolves a bare name against PATH, so a check that did not would
- * report a working machine as unable.
- */
-function resolveExecutable(command) {
-  if (command.includes('/') || command.includes(sep)) {
-    return existsSync(command) ? command : null;
-  }
-  const extensions =
-    // A name that already has an extension (powershell.exe, the default for
-    // device.inventory) is looked up as given; appending PATHEXT to it made
-    // every Windows machine report PowerShell as missing.
-    process.platform === 'win32' && !extname(command)
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
-      : [''];
-  for (const directory of (process.env.PATH ?? '').split(delimiter)) {
-    if (!directory) continue;
-    for (const extension of extensions) {
-      const candidate = join(directory, command + extension);
-      if (existsSync(candidate)) return candidate;
-    }
-  }
-  return null;
 }
 
 /**

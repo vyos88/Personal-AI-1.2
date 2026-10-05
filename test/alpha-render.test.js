@@ -244,6 +244,10 @@ test('a render killed mid-flight is a failure, not a silent success', async (t) 
   await chmod(f.blender, 0o755);
 
   await assert.rejects(run({ species: 'beetle', seed: 1234 }), /killed before it finished/);
+  // Nor may a killed render leave its half-written staging directory behind:
+  // nothing else removes it once the task is gone.
+  const left = (await readdir(join(f.root, 'output'))).filter((n) => n.startsWith('.render-'));
+  assert.deepEqual(left, []);
 });
 
 test('a blank environment variable means unset, not empty', (t) => {

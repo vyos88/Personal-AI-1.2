@@ -316,3 +316,25 @@ test('a host with real credentials keeps a real ledger', async () => {
 
   assert.equal(createHost({ auth }).receipts.persistent, true);
 });
+
+test('a ledger write that fails is logged, and does not take the process down', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'receipts-fail-'));
+  // A path whose parent is a file: mkdir fails, as it would on a full disk.
+  await writeFile(join(dir, 'blocker'), 'x');
+  const store = new ReceiptStore({ path: join(dir, 'blocker', 'receipts.json') });
+  const unhandled = [];
+  const onUnhandled = (reason) => unhandled.push(reason);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    const receipt = store.record({
+      id: 'task_1', type: 'echo', status: TaskStatus.SUCCEEDED, attempts: 1, createdAt: 1, finishedAt: 2, result: {},
+    });
+    assert.equal(receipt.id, 'task_1');
+    await new Promise((resolveWait) => setTimeout(resolveWait, 100));
+    assert.deepEqual(unhandled, []);
+    // The receipt is still answerable from memory.
+    assert.equal(store.list()[0].id, 'task_1');
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+});

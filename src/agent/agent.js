@@ -20,6 +20,7 @@ import {
   loadReportToQuery,
   memoryReportToQuery,
   MB,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -28,6 +29,9 @@ import { ALPHA_VERSION } from '../common/version.js';
 // coming home costs a re-registration, and doing that during work would leave
 // leases with a coordinator the agent has walked away from.
 const PRIMARY_RECHECK_MS = 60_000;
+// Consecutive unanswered heartbeats before the agent warns that it has lost
+// the coordinator. At the host's default 20s beat, a minute of silence.
+export const HEARTBEAT_WARN_AFTER = 3;
 
 const log = createLogger('agent');
 
@@ -65,6 +69,9 @@ export class TunnelAgent {
   #throttledSince = null;
   #readMemory;
   #stoodDown = false;
+  // Heartbeats in a row that got no answer from the coordinator. See
+  // `#startHeartbeat`: this is what lets a laptop say it is cut off.
+  #heartbeatFailures = 0;
 
   constructor({
     hostUrl,
@@ -102,6 +109,10 @@ export class TunnelAgent {
     // How long an aborted handler gets before its slot is taken back. A seam
     // for tests; see HANDLER_ABORT_GRACE_MS.
     abortGraceMs = HANDLER_ABORT_GRACE_MS,
+    // How many heartbeats in a row may go unanswered before this agent says,
+    // at warn, that it has lost the coordinator. One miss is a blip; three is
+    // a minute of a laptop working for nobody.
+    heartbeatWarnAfter = HEARTBEAT_WARN_AFTER,
   }) {
     if (!hostUrl && !hostUrls) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
@@ -128,6 +139,7 @@ export class TunnelAgent {
     this.#load = loadSampler;
     this.#readMemory = memoryReader;
     this.abortGraceMs = abortGraceMs;
+    this.heartbeatWarnAfter = Math.max(1, heartbeatWarnAfter);
 
     // An explicit capability list may only narrow what this agent advertises;
     // claiming a type with no handler would strand every task of that type.
@@ -382,7 +394,7 @@ export class TunnelAgent {
         hint: 'git pull on this machine so both run the same version',
       });
     }
-    this.#startHeartbeat(body.heartbeatIntervalMs ?? 20_000);
+    this.#startHeartbeat(body.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS);
   }
 
   /**
@@ -770,11 +782,53 @@ export class TunnelAgent {
         // the id is exactly what would make the next pass register straight
         // back in and evict the process that just took over.
         if (isStandDown(error)) void this.#standDown().catch(() => {});
-        else if (error instanceof HttpError && error.status === 410) this.#agentId = null;
-        else log.debug('heartbeat failed', { message: error.message });
+        else if (error instanceof HttpError && error.status === 410) {
+          // The coordinator answered — it just does not know this id, which
+          // is what a restarted host says. That is reachability, not loss.
+          this.#heartbeatAnswered();
+          this.#agentId = null;
+        } else this.#heartbeatMissed(error);
+        return;
       }
+      this.#heartbeatAnswered();
     }, intervalMs);
     this.#heartbeatTimer.unref?.();
+  }
+
+  /**
+   * Counting is all this does. It never clears the id or re-registers: those
+   * belong to the 410 branches above, and a heartbeat that cannot reach the
+   * host has learned nothing about whether this registration is still good.
+   * Debug for the first misses, because a single dropped beat is routine on a
+   * laptop changing networks; warn once at the threshold, so a fleet that has
+   * lost its coordinator says so without repeating it every beat.
+   */
+  #heartbeatMissed(error) {
+    this.#heartbeatFailures += 1;
+    if (this.#heartbeatFailures === this.heartbeatWarnAfter) {
+      log.warn('lost the coordinator: heartbeats are not being answered', {
+        host: this.hostUrl,
+        missed: this.#heartbeatFailures,
+        message: error.message,
+      });
+    } else {
+      log.debug('heartbeat failed', { message: error.message, missed: this.#heartbeatFailures });
+    }
+  }
+
+  #heartbeatAnswered() {
+    if (this.#heartbeatFailures >= this.heartbeatWarnAfter) {
+      log.info('coordinator is answering heartbeats again', {
+        host: this.hostUrl,
+        missed: this.#heartbeatFailures,
+      });
+    }
+    this.#heartbeatFailures = 0;
+  }
+
+  /** Heartbeats missed in a row since the coordinator last answered one. */
+  get heartbeatFailures() {
+    return this.#heartbeatFailures;
   }
 
   #stopHeartbeat() {

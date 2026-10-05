@@ -18,11 +18,10 @@ export const DEFAULT_MAX_RECEIPTS = 5_000;
 /**
  * A durable record of every task that finished.
  *
- * The queue is deliberately in memory — a queue that empties on reboot is an
- * inconvenience, and keeping it in one Map is what makes leasing simple. But
- * that also means the *answer* died with it: after a restart there was no way
- * to say how many renders ran last night, which species came back, or which
- * machine did them. "It rendered, and the image is on the host somewhere" is
+ * The queue keeps finished tasks only for a day (and, before the task journal
+ * existed, not even across a restart), so the *answer* goes with it: there
+ * was no way to say how many renders ran last night, which species came back,
+ * or which machine did them. "It rendered, and the image is on the host somewhere" is
  * not a record.
  *
  * So terminal tasks are appended here as they finish. This is a ledger, not a
@@ -138,7 +137,15 @@ export class ReceiptStore {
     if (this.#receipts.length > this.maxReceipts) {
       this.#receipts.splice(0, this.#receipts.length - this.maxReceipts);
     }
-    this.save();
+    // The ledger is the expendable half: a write that fails (full disk,
+    // read-only mount) is logged, never left as an unhandled rejection, which
+    // would take the coordinator down with every lease it holds.
+    this.save().catch((error) => {
+      log.error('receipt ledger write failed; the receipt is kept in memory', {
+        path: this.path,
+        error: error.message,
+      });
+    });
     return receipt;
   }
 

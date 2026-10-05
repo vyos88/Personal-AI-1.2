@@ -1,5 +1,7 @@
 # alpha-tunnel
 
+> **Start at [`docs/STATUS.md`](docs/STATUS.md)** for current state, open items and which docs are superseded. Clone with `--branch main`.
+
 Coordinator (**host**) and worker (**agent**) for running Alpha tasks on a
 second machine, with real accounts behind it: users, invitations, scoped API
 keys, and revocation.
@@ -201,6 +203,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_HOST_PORT` | host | `8787` | Listen port. |
 | `ALPHA_HOST_BIND` | host | `127.0.0.1` | Comma-separated listen addresses. |
 | `ALPHA_AUTH_STORE` | host | `./data/auth.json` | Where users/keys/invites persist. |
+| `ALPHA_TASK_JOURNAL` | host | `tasks.json` beside `ALPHA_AUTH_STORE` | Where the task queue is kept across restarts. `off` keeps nothing. |
 | `ALPHA_BOOTSTRAP_TOKEN` | host | — | Break-glass admin credential. Remove after setup. |
 | `ALPHA_INVITE_BASE_URL` | host | request `Host` | Base for the printed redeem link. |
 | `ALPHA_BIND_WAIT_MS` | host | `300000` | How long to wait for a bind address that is not up yet (Tailscale at boot). |
@@ -315,8 +318,29 @@ picks it up, up to `maxAttempts` (default 3). Results from an agent that no
 longer holds the lease are rejected with `409`, so a slow straggler can't
 overwrite the answer from the agent that actually owns the work.
 
-The task queue is in memory and clears on restart. Accounts and credentials are
-not — they persist to `ALPHA_AUTH_STORE`.
+The task queue survives a coordinator restart. It is copied to
+`ALPHA_TASK_JOURNAL` (default `tasks.json` beside the auth store) whenever it changes, and
+read back before the restarted host answers anything:
+
+| Before the restart | After it |
+|---|---|
+| `queued` | `queued`, as it was |
+| `leased` | `queued`, with the attempt it was on counted; `failed` (`coordinator_restarted`) if that was its last |
+| finished | kept for the usual retention (24 h, newest 1 000), then dropped |
+
+A late result from the agent that held a lease across the restart is refused
+(`410`, its registration is gone), and the agent registers again and carries on.
+What is written down: queued and leased tasks whole; finished results up to
+8 KB, and above that only the recipe, outputs and stats — an
+`alpha.music.audio` slice never reaches disk. A task whose payload carries a
+password, token or secret (a CrowPanel Provision) is never written, so it does
+not survive a restart. `ALPHA_TASK_JOURNAL=off` turns it off; a host whose auth
+store is in memory never keeps one. Accounts and credentials persist separately,
+to `ALPHA_AUTH_STORE`.
+
+An agent that stops hearing back from its heartbeats says so: one warning after
+three in a row go unanswered (`lost the coordinator: heartbeats are not being
+answered`), and an info line when they are answered again.
 
 ## Lending the host RAM
 
@@ -691,9 +715,9 @@ and `flat` restores the old behaviour.
 
 ### The receipt ledger
 
-The task queue is in memory, so `/tasks` is empty after a restart and every
-record of what ran went with it. Finished tasks are now also appended to a
-ledger at `ALPHA_RECEIPT_STORE` (default `./data/receipts.json`), which is what
+The task queue keeps finished tasks for a day, so `/tasks` forgets what ran
+long before anyone asks how many renders there were last month. Finished tasks
+are also appended to a ledger at `ALPHA_RECEIPT_STORE` (default `./data/receipts.json`), which is what
 `report` reads and what lets seeds continue.
 
 | Endpoint | Scope | What it answers |

@@ -53,6 +53,41 @@ the sweeper requeues it up to `maxAttempts`. A result from an agent that no
 longer holds the lease is rejected with 409 — that is deliberate, so a slow
 straggler cannot overwrite the answer from the agent that owns the work.
 
+**The queue survives a restart; the registry does not.** The Alpha host is
+restarted routinely, and a queue that emptied with it made the Music Creator
+tell people "the tunnel no longer remembers this track". `src/host/journal.js`
+copies the queue to `ALPHA_TASK_JOURNAL` (default `tasks.json` beside the auth
+store, so `./data/tasks.json`; `off` keeps nothing) on every change, and
+`queue.restore()` takes it back before the first request is served. Four things it rests on:
+
+- **The Map is still the queue.** The journal is a snapshot written through the
+  queue's `onChange` seam, coalesced so a burst of changes is one write, and
+  write-then-rename like the auth store. Being a snapshot is what bounds it:
+  the file holds exactly what the queue holds, and finished tasks leave it on
+  the same retention (`FINISHED_TASK_RETENTION_MS`, `MAX_FINISHED_TASKS`) they
+  leave the queue on. There is no log to compact.
+- **A leased task comes back queued, its attempt spent** — the lease-expiry
+  rule, applied early. Its agent's registration died with the old process, so
+  anything it reports gets the existing 410 (unknown id) or 409 (not leased to
+  it). Waiting out the old lease would gain nothing: nothing could complete it.
+  One with no attempts left fails with `coordinator_restarted`, and gets its
+  receipt; the restore runs after the receipt ledger loads so that receipt is
+  not overwritten.
+- **Bulk does not reach disk.** Queued tasks keep their payload whole (they
+  cannot run without it). A finished task keeps its result under
+  `MAX_KEPT_BYTES` (8 KB); over it, only what a receipt keeps — `recipe`,
+  `outputs`, `stats` — marked `resultTrimmed`. An `alpha.music.audio` slice is
+  ~700 KB of base64 and the whole file is rewritten per change.
+- **A task whose payload names a credential is never written.** `alpha.panel`'s
+  Provision carries a WiFi password; such a task is forgotten by a restart, as
+  every task was before. `key` is deliberately not on the list — it is a
+  musical key and a memstore key.
+
+It follows the receipt ledger on the two choices that differ from AuthStore:
+a corrupt journal is moved aside and the host starts empty rather than not at
+all, and only a host with a persistent auth store keeps one, so a test host
+never writes tasks the next real coordinator would pick up and run.
+
 **Placement is memory-aware.** `src/host/registry.js` doubles as an admission
 controller: a task with `minMemoryMB` is only offered to an agent whose last
 memory report can cover it, and that much is held against the agent. Without the
@@ -249,6 +284,12 @@ say so at each site; this is the short list.
   A port already in use still fails fast — waiting could never fix that.
 - **Every handler path must end the response.** Returning from the long-poll
   abort branch without `res.end()` leaves the request open and blocks close.
+- **A heartbeat that cannot reach the host counts, and does nothing else.**
+  `#heartbeatMissed` warns once at `HEARTBEAT_WARN_AFTER` (3) consecutive
+  misses and `#heartbeatAnswered` says so at info when one lands — a 410 counts
+  as an answer, because a restarted host saying "who are you" is reachable.
+  Neither clears the id or re-registers: those stay with the 410 branches, and
+  clearing the id on a stand-down is exactly the eviction loop they warn about.
 - **An agent must not deregister while tasks are still reporting.** `stop()`
   drains first, then aborts, then deregisters. Deregistering up front makes
   every in-flight result a 410, and the host re-runs work that succeeded.

@@ -5,6 +5,7 @@ import { AgentRegistry } from './registry.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
 import { ReceiptStore } from './receipts.js';
+import { TaskJournal, defaultJournalPath } from './journal.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
 import { bearerFrom } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
@@ -18,6 +19,7 @@ import {
   memoryReportFromQuery,
   validateLoadReport,
   loadReportFromQuery,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -44,6 +46,14 @@ export function createHost({
   // builds an ephemeral service, and via an `auth` whose store is in memory.
   // Pass `receipts` explicitly to override.
   receipts = new ReceiptStore(auth?.store?.persistent ? {} : { path: null }),
+  // The queue itself, written down so a restart is not a reset. Persists on
+  // the same rule as the ledger above, and for the same reason: a test host
+  // must never write its fabricated tasks into the real ./data/tasks.json,
+  // where the next real coordinator would pick them up and run them. Kept
+  // beside the auth store unless ALPHA_TASK_JOURNAL says otherwise.
+  journal = new TaskJournal({
+    path: auth?.store?.persistent ? defaultJournalPath(auth.store.path) : null,
+  }),
   queue = new TaskQueue({
     admission: registry,
     // The queue forgets; this is what remembers. Resolving the agent's *name*
@@ -51,11 +61,14 @@ export function createHost({
     // live at this instant, and a minute later the id is unresolvable.
     onTerminal: (task) =>
       receipts.record(task, { agentName: registry.get?.(task.agentId)?.name ?? null }),
+    // `queue` is this parameter's own binding; it is assigned long before the
+    // first change can fire.
+    onChange: () => journal.schedule(() => queue.snapshot()),
   }),
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
   // test should take.
-  heartbeatIntervalMs = 20_000,
+  heartbeatIntervalMs = HEARTBEAT_INTERVAL_MS,
 } = {}) {
   // `token` is the convenience path: it builds an ephemeral auth service whose
   // only credential is that bootstrap token. Real deployments pass `auth` so
@@ -66,13 +79,21 @@ export function createHost({
     throw new Error('createHost requires either an AuthService (`auth`) or a bootstrap `token`');
   }
 
-  // Both stores have to be readable before the first request is served. A
-  // receipt ledger that cannot be read does not stop the host — see
-  // ReceiptStore.load — so this only ever rejects on the auth store.
+  // Every store has to be readable before the first request is served. A
+  // receipt ledger or task journal that cannot be read does not stop the host
+  // — see ReceiptStore.load and TaskJournal.load — so this only ever rejects
+  // on the auth store.
+  //
+  // The queue is restored only after the ledger has loaded: a task that was
+  // leased with no attempts left fails during the restore, and its receipt
+  // written into a ledger that has not loaded yet would be overwritten by it.
   const ready = Promise.all([
     auth ? Promise.resolve(authService) : authService.load(),
     receipts.loaded ? Promise.resolve(receipts) : receipts.load(),
-  ]).then(() => authService);
+  ])
+    .then(() => journal.load())
+    .then((tasks) => queue.restore?.(tasks))
+    .then(() => authService);
 
   /**
    * Every listener shares one queue, registry and auth service — they are the
@@ -172,9 +193,23 @@ export function createHost({
     } finally {
       clearTimeout(forced);
     }
+    // The last results reported before the listeners shut are only in memory
+    // until this lands; exiting first would lose them to the restart.
+    await journal.flush();
   }
 
-  return { server, servers, listen, queue, registry, receipts, auth: authService, ready, close };
+  return {
+    server,
+    servers,
+    listen,
+    queue,
+    registry,
+    receipts,
+    journal,
+    auth: authService,
+    ready,
+    close,
+  };
 }
 
 async function handle(req, res, ctx) {
@@ -213,7 +248,20 @@ async function handle(req, res, ctx) {
 
     if (method === 'POST' && url.pathname === '/auth/login') {
       const body = await readJson(req);
-      return sendJson(res, 200, await ctx.auth.login({ email: body?.email, password: body?.password }));
+      return sendJson(
+        res,
+        200,
+        await ctx.auth.login({
+          email: body?.email,
+          password: body?.password,
+          // Passed only so a failure can say where it came from. The socket
+          // address is the truthful one; the header is whatever the client
+          // claimed, and is here because behind Cloudflare the socket is the
+          // tunnel and the header is the only view of the person.
+          remoteAddress: req.socket.remoteAddress ?? null,
+          forwardedFor: clientClaimedAddress(req.headers),
+        }),
+      );
     }
 
     // --------------------------------------------------------- authentication
@@ -689,6 +737,24 @@ async function handle(req, res, ctx) {
 }
 
 /** Best-effort redeem URL, so an inviter has something to paste into a message. */
+/**
+ * The address the client says it is at, or null.
+ *
+ * Never trusted as identity — anyone can send either header — but behind
+ * Cloudflare `req.socket.remoteAddress` is cloudflared on loopback, so without
+ * this every failed login in the log reads as coming from 127.0.0.1 and the
+ * log answers nothing. `cf-connecting-ip` is preferred because Cloudflare sets
+ * it itself; `x-forwarded-for` is a chain, and its first entry is the closest
+ * thing in it to an origin.
+ */
+function clientClaimedAddress(headers) {
+  const cloudflare = headers['cf-connecting-ip'];
+  if (typeof cloudflare === 'string' && cloudflare.trim()) return cloudflare.trim();
+  const forwarded = headers['x-forwarded-for'];
+  if (typeof forwarded !== 'string' || !forwarded.trim()) return null;
+  return forwarded.split(',')[0].trim() || null;
+}
+
 function inviteUrl(req, token) {
   const base = process.env.ALPHA_INVITE_BASE_URL ?? `http://${req.headers.host ?? 'localhost'}`;
   return `${base.replace(/\/+$/, '')}/invites/redeem#${encodeURIComponent(token)}`;

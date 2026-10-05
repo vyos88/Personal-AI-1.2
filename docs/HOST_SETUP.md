@@ -433,6 +433,12 @@ is holding. A `-` in `CPU` means the agent has not reported load or its report
 went stale — the host reads that as **unknown, not idle**, so a silent machine
 never wins work by saying nothing.
 
+A `!` after `IDLE` (`52s !`) means the host has not heard from that machine in
+over two heartbeats (45s), and the table names it underneath. The row stays —
+and the host may still place work on it — until the stale sweep drops it at
+90s, so treat a marked row as a machine to go and look at, not as attached.
+`--json` carries the same thing as `stale` and `lastSeenAt` on each row.
+
 Two things that look like faults and are not:
 
 - **A busy machine sitting at `RUN 0`.** It is over its ceiling and standing
@@ -557,12 +563,13 @@ node src/admin/run.js agents      # the agent should be listed again
 Then reboot the machine once and run `node src/admin/run.js agents` after it
 comes up. That is the only check that actually proves the boot path.
 
-### What still does not survive a restart
+### What survives a restart, and what to protect
 
-The **task queue is in memory**. A coordinator restart drops queued and
-in-flight tasks — accounts, keys and invites persist, but pending work does
-not. For the coordination tunnel this is usually fine, because tasks are short
-and you re-issue them; it matters if you ever queue long-running work.
+The **task queue survives a coordinator restart**: it is kept in
+`data\tasks.json` (`ALPHA_TASK_JOURNAL`). Queued tasks stay queued; a task
+that was running is queued again with that attempt counted, because the agent
+running it has to register with the new process. A task carrying a credential
+(a CrowPanel Provision) is never written to disk and does not survive.
 
 Two things to protect:
 

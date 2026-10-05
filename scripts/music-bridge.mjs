@@ -24,9 +24,21 @@
  *   ALPHA_MUSIC_BRIDGE_PORT        default 8790
  *   ALPHA_MUSIC_BRIDGE_CACHE       where fetched tracks are kept (default: the OS temp dir)
  *   ALPHA_MUSIC_BRIDGE_CACHE_TRACKS  how many tracks it keeps (default 50; older ones are re-fetched)
+ *
+ * Subscriptions (all of these, or none: with none, every click generates):
+ *   STRIPE_SECRET_KEY              sk_live_... / sk_test_... (Stripe Dashboard -> Developers -> API keys)
+ *   STRIPE_PRICE_ID                price_... of the monthly Music Creator plan
+ *   STRIPE_WEBHOOK_SECRET          whsec_... of the endpoint <ALPHA_PUBLIC_URL>/music/billing/webhook
+ *   ALPHA_PUBLIC_URL               where people open Alpha, e.g. https://alpha-ai.uk
+ *   ALPHA_MUSIC_COOKIE_SECRET      32+ random characters; changing it signs everyone out of their plan
+ *   ALPHA_MUSIC_BILLING_STORE      accounts file (default: billing/music-accounts.json beside the checkout)
+ *   ALPHA_MUSIC_FREE_TRACKS        free tracks per account per month (default 3)
  */
 
+import { join } from 'node:path';
+
 import { loadEnv } from '../src/common/env.js';
+import { createBilling } from '../src/bridge/billing.js';
 import { createMusicBridge, DEFAULT_LEASE_MS } from '../src/bridge/music.js';
 
 loadEnv();
@@ -50,9 +62,26 @@ if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 3_600_000) {
   process.exit(1);
 }
 
+const BILLING_VARS = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'STRIPE_WEBHOOK_SECRET', 'ALPHA_PUBLIC_URL', 'ALPHA_MUSIC_COOKIE_SECRET'];
+const billingWanted = BILLING_VARS.some((name) => env(name, null) !== null);
+const freeTracks = Number(env('ALPHA_MUSIC_FREE_TRACKS', 3));
+
 let bridge;
+let billing = null;
 try {
+  if (billingWanted) {
+    billing = createBilling({
+      secretKey: env('STRIPE_SECRET_KEY', null),
+      priceId: env('STRIPE_PRICE_ID', null),
+      webhookSecret: env('STRIPE_WEBHOOK_SECRET', null),
+      publicUrl: env('ALPHA_PUBLIC_URL', null),
+      cookieSecret: env('ALPHA_MUSIC_COOKIE_SECRET', null),
+      storePath: env('ALPHA_MUSIC_BILLING_STORE', join(process.cwd(), 'billing', 'music-accounts.json')),
+      freeTracksPerMonth: freeTracks,
+    });
+  }
   bridge = createMusicBridge({
+    billing,
     hostUrl: env('ALPHA_HOST_URL', 'http://127.0.0.1:8787'),
     token: env('ALPHA_MUSIC_BRIDGE_TOKEN', null),
     targetAgent: env('ALPHA_MUSIC_AGENT', null),
@@ -71,6 +100,7 @@ bridge.server.on('error', (error) => {
 });
 bridge.server.listen(port, bind, () => {
   console.log(`music bridge on http://${bind}:${port}/music/ -> ${env('ALPHA_HOST_URL', 'http://127.0.0.1:8787')}`);
+  console.log(billing ? `subscriptions on: ${freeTracks} free tracks a month, then the Stripe plan` : 'subscriptions off: every click generates');
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
