@@ -615,8 +615,8 @@ cloudflared section names the ingress port the tunnel is actually using.
 
 ## The verified contract
 
-All five actions and the argv shape have been confirmed against the real
-`alpha_coordination_tunnel.ps1`:
+The first five actions and the argv shape have been confirmed against the real
+`alpha_coordination_tunnel.ps1` on the host; `Ack` so far only off it:
 
 | Action | Confirmed by |
 |---|---|
@@ -625,6 +625,7 @@ All five actions and the argv shape have been confirmed against the real
 | `Status` | run through the handler, returned "tunnel ready, no paths held" |
 | `Claim` | claim cycle, path reported held afterwards |
 | `Release` | same cycle, path released afterwards |
+| `Ack` | PowerShell 7 on Linux, not the host: `-EventId` and `-Stage` against Alpha PR #59's script, read back from `Status`. The script before #59 ignores `-Stage` (a plain script puts unknown arguments in `$args`) and records a stage-less ack |
 
 `-Paths` is passed as one comma-joined token (`-Paths a/b.py,c/d.py`), which is
 what PowerShell binds to a `[string[]]` parameter through `-File`. Confirmed by
