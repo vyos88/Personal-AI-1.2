@@ -27,8 +27,14 @@
  * including software\). Alpha is a private repository, so the fetch uses this
  * machine's own git credentials. Nothing from Alpha is stored in this repo.
  *
+ * The scripts\ folder beside software\ (the stewards, the Agent Manager) is
+ * updated the same way, when it exists. It keeps its own last-applied commit,
+ * because runs before 2026-10-05 updated software\ only. If the live scripts
+ * have drifted and refuse, --skip-scripts updates software\ alone.
+ *
  * Other options: --from <commit>  --to <branch|commit>  --repo <url>
  *   --ops <dir> (default C:\AlphaData\alpha-ops)  --python <exe>  --skip-build
+ *   --skip-scripts
  *
  * Exit codes: 0 done or nothing to do; 2 refused (a change does not apply),
  * nothing written; 1 could not run, or applied and then rolled back.
@@ -50,6 +56,7 @@ export const DEFAULTS = {
   // <ops>/alpha-full-applied.json instead.
   from: '872a06a66c9428bc8d5c2a6ce7d6d1c8b8e39b00',
   subdir: 'BuildArtifacts/installers/Alpha-Full/software',
+  scriptsSubdir: 'BuildArtifacts/installers/Alpha-Full/scripts',
   ops: platform() === 'win32' ? 'C:\\AlphaData\\alpha-ops' : join(homedir(), 'alpha-ops'),
 };
 
@@ -58,7 +65,7 @@ const EXIT_ERROR = 1;
 const EXIT_REFUSED = 2;
 
 export function parseArgs(argv) {
-  const opts = { apply: false, restart: false, skipBuild: false };
+  const opts = { apply: false, restart: false, skipBuild: false, skipScripts: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     const next = () => {
@@ -68,6 +75,7 @@ export function parseArgs(argv) {
     if (a === '--apply') opts.apply = true;
     else if (a === '--restart') opts.restart = true;
     else if (a === '--skip-build') opts.skipBuild = true;
+    else if (a === '--skip-scripts') opts.skipScripts = true;
     else if (a === '--alpha-root') opts.alphaRoot = next();
     else if (a === '--from') opts.from = next();
     else if (a === '--to') opts.to = next();
@@ -142,14 +150,14 @@ function writeLive(file, text, { bom = false, crlf = false } = {}) {
  * Copies the live files the patch touches into a scratch tree, LF-normalised,
  * and asks git file by file: does it apply, is it already applied, or neither.
  */
-export function plan({ softwareRoot, patch, files }) {
+export function plan({ root, patch, files }) {
   const stage = mkdtempSync(join(tmpdir(), 'alpha-update-'));
   const patchFile = join(stage, '.update.patch');
   writeFileSync(patchFile, patch);
   const tree = join(stage, 'tree');
   const meta = {};
   for (const f of files) {
-    const live = join(softwareRoot, f.path);
+    const live = join(root, f.path);
     if (existsSync(live)) {
       const r = readLive(live);
       meta[f.path] = { bom: r.bom, crlf: r.crlf, existed: true };
@@ -187,6 +195,22 @@ function pythonParses(python, file) {
   return { ok: r.status === 0, detail: (r.stderr || '').trim().split('\n').pop() };
 }
 
+function findPowerShell() {
+  for (const name of platform() === 'win32' ? ['powershell', 'pwsh'] : ['pwsh']) {
+    const r = spawnSync(name, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { encoding: 'utf8' });
+    if (r.status === 0) return name;
+  }
+  return null;
+}
+
+function powerShellParses(ps, file) {
+  // The path goes in through the environment, never into the command text
+  // (-Command joins extra arguments into the script rather than passing them).
+  const code = '$e=$null;$t=$null;[void][Management.Automation.Language.Parser]::ParseFile($env:ALPHA_PARSE_FILE,[ref]$t,[ref]$e);if($e.Count){$e[0].Message;exit 1}';
+  const r = spawnSync(ps, ['-NoProfile', '-Command', code], { encoding: 'utf8', env: { ...process.env, ALPHA_PARSE_FILE: file } });
+  return { ok: r.status === 0, detail: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n')[0] };
+}
+
 function npm(args, cwd) {
   // npm on Windows is npm.cmd, which cannot be spawned without a shell. The
   // arguments here are fixed strings, never input.
@@ -198,11 +222,15 @@ function npm(args, cwd) {
 /** Puts every file in a backup back, and removes the ones the apply added. */
 export function rollback(backupDir, log = console.log) {
   const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8'));
-  for (const path of manifest.changed) {
-    cpSync(join(backupDir, 'files', path), join(manifest.softwareRoot, path));
+  // Backups from before scripts\ was handled have one area, at the top level.
+  const areas = manifest.areas ?? [{ name: '', root: manifest.softwareRoot, changed: manifest.changed, added: manifest.added }];
+  for (const area of areas) {
+    for (const path of area.changed) {
+      cpSync(join(backupDir, 'files', area.name, path), join(area.root, path));
+    }
+    for (const path of area.added) rmSync(join(area.root, path), { force: true });
+    log(`  restored ${area.changed.length} file(s), removed ${area.added.length} added file(s) under ${area.root}`);
   }
-  for (const path of manifest.added) rmSync(join(manifest.softwareRoot, path), { force: true });
-  log(`  restored ${manifest.changed.length} file(s), removed ${manifest.added.length} added file(s) under ${manifest.softwareRoot}`);
   return manifest;
 }
 
@@ -260,52 +288,82 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   if (!from || !to) { log(`STOP: cannot resolve ${!from ? 'the --from commit' : 'the --to commit'} in ${branch}`); return EXIT_ERROR; }
   log(`changes: ${from.slice(0, 7)}..${to.slice(0, 7)} of ${branch}${recorded ? ` (last applied here: ${recorded.to.slice(0, 7)})` : ''}`);
 
-  const { patch, files } = buildPatch({ cache, from, to, subdir: DEFAULTS.subdir });
-  if (!files.length) { log('ok: nothing new on alpha-full since the last apply'); return EXIT_OK; }
+  const areas = [{ name: 'software', root: softwareRoot, from, ...buildPatch({ cache, from, to, subdir: DEFAULTS.subdir }) }];
+  const scriptsRoot = join(dirname(softwareRoot), 'scripts');
+  let scriptsTo = recorded?.scripts_to ?? null;
+  if (opts.skipScripts) {
+    log('  scripts: skipped (--skip-scripts)');
+  } else if (!existsSync(scriptsRoot)) {
+    log(`  scripts: no ${scriptsRoot} here, skipped`);
+  } else {
+    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? DEFAULTS.from);
+    if (!scriptsFrom) { log('STOP: cannot resolve the commit scripts were last updated from'); return EXIT_ERROR; }
+    areas.push({ name: 'scripts', root: scriptsRoot, from: scriptsFrom, ...buildPatch({ cache, from: scriptsFrom, to, subdir: DEFAULTS.scriptsSubdir }) });
+    scriptsTo = to;
+  }
+  const live = areas.filter((area) => area.files.length);
+  if (!live.length) { log('ok: nothing new on alpha-full since the last apply'); writeState(statePath, to, scriptsTo); return EXIT_OK; }
 
-  const p = plan({ softwareRoot, patch, files });
+  for (const area of live) Object.assign(area, plan({ root: area.root, patch: area.patch, files: area.files }));
   try {
-    for (const r of p.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${r.path}${r.why ? `  -- ${r.why}` : ''}`);
-    const conflicts = p.rows.filter((r) => r.state === 'conflict');
-    const todo = p.rows.filter((r) => r.state === 'applies');
+    for (const area of live) {
+      for (const r of area.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${area.name === 'software' ? '' : `${area.name}/`}${r.path}${r.why ? `  -- ${r.why}` : ''}`);
+    }
+    const conflicts = live.flatMap((area) => area.rows.filter((r) => r.state === 'conflict').map(() => area.name));
+    for (const area of live) area.todo = area.rows.filter((r) => r.state === 'applies');
+    const todoCount = live.reduce((n, area) => n + area.todo.length, 0);
     if (conflicts.length) {
       log(`\nREFUSED: ${conflicts.length} file(s) here differ where the change was made. Nothing was written.`);
       log('  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.');
+      if (conflicts.every((name) => name === 'scripts')) {
+        log('  Every refusal is under scripts\\. To update software\\ now and leave the scripts as they are: add --skip-scripts.');
+      }
       return EXIT_REFUSED;
     }
-    if (!todo.length) {
+    if (!todoCount) {
       log('\nok: every change is already here');
-      writeState(statePath, to);
+      writeState(statePath, to, scriptsTo);
       return EXIT_OK;
     }
     if (!opts.apply) {
-      log(`\nREADY: ${todo.length} file(s) would change, and all of them apply cleanly. Nothing was written.`);
+      log(`\nREADY: ${todoCount} file(s) would change, and all of them apply cleanly. Nothing was written.`);
       log('  Apply:  node scripts/apply-alpha-update.mjs --alpha-root <same folder> --apply --restart');
       return EXIT_OK;
     }
 
-    // Apply in the scratch tree, then copy back with each file's own endings.
-    const applied = git(['apply', ...todo.map((r) => `--include=${r.path}`), p.patchFile], { cwd: p.tree, allowFail: true });
-    if (applied.status !== 0) { log(`STOP: git apply failed: ${applied.stderr.trim()}`); return EXIT_ERROR; }
+    // Apply in each scratch tree, then copy back with each file's own endings.
+    for (const area of live.filter((x) => x.todo.length)) {
+      const applied = git(['apply', ...area.todo.map((r) => `--include=${r.path}`), area.patchFile], { cwd: area.tree, allowFail: true });
+      if (applied.status !== 0) { log(`STOP: git apply failed: ${applied.stderr.trim()}`); return EXIT_ERROR; }
+    }
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const backupDir = join(ops, 'backups', `alpha-full-update-${stamp}`);
-    const changed = todo.filter((r) => p.meta[r.path].existed).map((r) => r.path);
-    const added = todo.filter((r) => !p.meta[r.path].existed).map((r) => r.path);
-    const frontendTouched = todo.some((r) => r.path.startsWith('frontend/'));
-    for (const path of changed) {
-      mkdirSync(dirname(join(backupDir, 'files', path)), { recursive: true });
-      cpSync(join(softwareRoot, path), join(backupDir, 'files', path));
+    const manifestAreas = live.map((area) => ({
+      name: area.name,
+      root: area.root,
+      changed: area.todo.filter((r) => area.meta[r.path].existed).map((r) => r.path),
+      added: area.todo.filter((r) => !area.meta[r.path].existed).map((r) => r.path),
+    }));
+    const frontendTouched = areas[0].todo?.some((r) => r.path.startsWith('frontend/')) ?? false;
+    const scriptsTouched = live.some((area) => area.name === 'scripts' && area.todo.length);
+    for (const area of manifestAreas) {
+      for (const path of area.changed) {
+        mkdirSync(dirname(join(backupDir, 'files', area.name, path)), { recursive: true });
+        cpSync(join(area.root, path), join(backupDir, 'files', area.name, path));
+      }
     }
-    writeFileSync(join(backupDir, 'manifest.json'), JSON.stringify({ softwareRoot, from, to, changed, added, frontendTouched }, null, 2));
+    writeFileSync(join(backupDir, 'manifest.json'), JSON.stringify({ softwareRoot, from, to, frontendTouched, areas: manifestAreas }, null, 2));
     log(`\n  backup: ${backupDir}`);
 
-    for (const r of todo) {
-      const target = join(softwareRoot, r.path);
-      if (r.status === 'D') { rmSync(target, { force: true }); continue; }
-      writeLive(target, readFileSync(join(p.tree, r.path), 'utf8'), p.meta[r.path]);
+    for (const area of live) {
+      for (const r of area.todo) {
+        const target = join(area.root, r.path);
+        if (r.status === 'D') { rmSync(target, { force: true }); continue; }
+        writeLive(target, readFileSync(join(area.tree, r.path), 'utf8'), area.meta[r.path]);
+      }
     }
-    log(`  ok: wrote ${todo.length} file(s)`);
+    log(`  ok: wrote ${todoCount} file(s)`);
 
     const undo = (why) => {
       log(`  ${why} -- putting everything back`);
@@ -313,15 +371,29 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
       return EXIT_ERROR;
     };
 
-    const pyFiles = todo.filter((r) => r.path.endsWith('.py') && r.status !== 'D');
+    const written = live.flatMap((area) => area.todo.filter((r) => r.status !== 'D').map((r) => join(area.root, r.path)));
+    const pyFiles = written.filter((f) => f.endsWith('.py'));
     if (pyFiles.length) {
       const python = findPython(opts.python);
       if (!python) return undo('no Python found to check the backend files (pass --python)');
-      for (const r of pyFiles) {
-        const res = pythonParses(python, join(softwareRoot, r.path));
-        if (!res.ok) return undo(`${r.path} does not parse: ${res.detail}`);
+      for (const file of pyFiles) {
+        const res = pythonParses(python, file);
+        if (!res.ok) return undo(`${file} does not parse: ${res.detail}`);
       }
       log(`  ok: ${pyFiles.length} Python file(s) parse`);
+    }
+    const psFiles = written.filter((f) => f.endsWith('.ps1'));
+    if (psFiles.length) {
+      const ps = findPowerShell();
+      if (!ps) {
+        log(`  note: no PowerShell found to check ${psFiles.length} .ps1 file(s); not checked`);
+      } else {
+        for (const file of psFiles) {
+          const res = powerShellParses(ps, file);
+          if (!res.ok) return undo(`${file} does not parse: ${res.detail}`);
+        }
+        log(`  ok: ${psFiles.length} PowerShell file(s) parse`);
+      }
     }
 
     if (frontendTouched && !opts.skipBuild) {
@@ -334,19 +406,22 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
       log('  ok: frontend built');
     }
 
-    writeState(statePath, to);
+    writeState(statePath, to, scriptsTo);
     log(`\nDONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "${backupDir}"${frontendTouched ? '' : ' --skip-build'} --restart`);
     if (opts.restart) restartWindows(log);
     else log('  The running Alpha has the old code until the backend and frontend restart (re-run with --restart).');
+    if (scriptsTouched) {
+      log('  The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").');
+    }
     return EXIT_OK;
   } finally {
-    rmSync(p.stage, { recursive: true, force: true });
+    for (const area of live) if (area.stage) rmSync(area.stage, { recursive: true, force: true });
   }
 }
 
-function writeState(statePath, to) {
+function writeState(statePath, to, scriptsTo = null) {
   mkdirSync(dirname(statePath), { recursive: true });
-  writeFileSync(statePath, JSON.stringify({ to, at: new Date().toISOString() }, null, 2));
+  writeFileSync(statePath, JSON.stringify({ to, scripts_to: scriptsTo, at: new Date().toISOString() }, null, 2));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
