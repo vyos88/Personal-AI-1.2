@@ -34,7 +34,7 @@ next.
 
 | ID | Item | Done when |
 |---|---|---|
-| H1 | Bring merged Alpha changes into the live install: `node scripts/apply-alpha-update.mjs --alpha-root <Alpha> --apply --restart` | it prints DONE, alpha-ai.uk shows the new fonts and chrome |
+| H1 | Bring merged Alpha changes into Worker1's live install: `node scripts/apply-alpha-update.mjs --alpha-root <Alpha> --apply --restart`. It now updates `scripts\` (the stewards) as well as `software\`; then restart the stewards (`HANDOFF_2026-10-05d_stewards.md`, steps 1-3) | it prints DONE, alpha-ai.uk shows the new fonts and chrome, and the manager window shows no `local-authentication-unavailable` |
 | H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`) | the branch exists on GitHub |
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
@@ -133,6 +133,19 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | V6 | Deck heroes: with the full-size gradient slab removed (2026-10-04), several decks (Hardware, Knowledge, Network, Admin, Automation, Terminal) show a large dark hero with only a headline. Give it the deck's real content, or size it to the text. | no hero more than half empty at 1440x900 |
 | V7 | The collapsed capability rail floats bottom-left on phones and covers content as you scroll. Its position is deliberate (see the comment in `styles-astral-unification.css`); consider hiding it while scrolling, or docking it in the taskbar. | it never covers text a reader is reading |
 
+## Alpha's stewards — ST1-ST6 (`HANDOFF_2026-10-05d_stewards.md`)
+
+The fleet that "Alpha Governed Agents" starts on Worker1. Scripts are in `vyos88/Alpha`, `alpha-full`, under `BuildArtifacts/installers/Alpha-Full/scripts/`. Check with `test_alpha_agent_manager.ps1`, which also runs `test_alpha_steward_common.ps1`.
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| ST1 | person / code | Only if H1 needed `--skip-scripts`: merge the Alpha#58 steward changes into Worker1's own `scripts\` copies by hand | `apply-alpha-update.mjs` reports `already` for every `scripts/` file |
+| ST2 | code | `-NoExit` (`start_visible_alpha_codex_agents.ps1`, `Open-AgentWindow`) keeps a crashed hidden worker's window alive, so the manager never sees it exit and never restarts it. First confirm that every worker's command loops forever (voice, interface style, evolution, the tunnel `Watch`), then drop `-NoExit` for hidden windows | a worker that throws shows `exited` in the manager and is restarted by auto-heal |
+| ST3 | code | `Get-AlphaOwnerTokenViaPython` (manager, deck, API, workspace monitor) runs Python with no timeout; a hung venv hangs the manager's 3s loop | the call returns within 20s whatever Python does, with a test |
+| ST4 | code | The package and voice stewards have no DPAPI fallback, so they stop when the credential cannot be decrypted in their context | both pass `-TokenFallback` like the deck steward |
+| ST5 | code | PID reuse is accepted on the process name alone (any `powershell` with that PID counts as the worker), and `-ForceNew` starts a second fleet beside the first | the registry records each worker's start time and the manager checks it; `-ForceNew` stops the old fleet first |
+| ST6 | code | The manager gives a campaign agent's `/run` 30s (`Invoke-CampaignAgentCycleIfDue`); a real cycle takes longer and is recorded as an error | the timeout matches the agent's cycle budget, or the call is fire-and-forget with the receipt read later |
+
 ## Reports — for Codex (read-only)
 
 | ID | Ask |
@@ -141,6 +154,7 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | C2 | For A2: for `api.missions`, list which shadowed handlers differ from the `main.py` copy that serves, with the differing lines. |
 | C3 | The drive inventory from `status/cloud` (2026-10-03): every backup, archive or old copy over 500 MB under `C:\` (path, size, last modified) and the external drive letter. **Inventory only.** Never list `auth.json`, `.env` or keys. |
 | C4 | Read `frontend/visual-audit/summary.txt` after the next audit run on the host, and rank its problems by how many routes each one affects. |
+| C5 | Read `scripts/alpha_steward_common.ps1` and every script `start_visible_alpha_codex_agents.ps1` starts (Alpha `alpha-full`). Does any of them still reach `/auth/login`, or retry a sign-in in a loop, by a route the contract test's text search misses? |
 
 ## Ongoing — never "done"
 

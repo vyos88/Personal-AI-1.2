@@ -8,6 +8,9 @@ import { join } from 'node:path';
 import { main, findSoftwareRoot } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
+const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
+const BASE_STEWARD = ['# steward', '$login = "every 30s"', '$other = 1', ''].join('\n');
+const HEAD_STEWARD = BASE_STEWARD.replace('every 30s', 'cached');
 const PY = (() => {
   for (const name of ['python3', 'python']) {
     try { execFileSync(name, ['--version']); return name; } catch { /* next */ }
@@ -31,7 +34,7 @@ const HEAD_MAIN = BASE_MAIN.replace('return "old"', 'return "new"');
  * live copy taken from the base that has drifted since: CRLF line endings and
  * an unrelated edit in the same file the update touches.
  */
-function fixture({ headMain = HEAD_MAIN } = {}) {
+function fixture({ headMain = HEAD_MAIN, liveScripts = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), 'alpha-update-test-'));
   const repo = join(dir, 'alpha');
   mkdirSync(repo);
@@ -42,6 +45,7 @@ function fixture({ headMain = HEAD_MAIN } = {}) {
   write(repo, `${SUB}/frontend/package.json`, '{"name":"x"}\n');
   write(repo, `${SUB}/frontend/src/a.css`, '.a{color:red}\n.b{color:blue}\n');
   write(repo, 'Models/big.bin', 'not under software/, never applied\n');
+  write(repo, `${SCRIPTS}/steward.ps1`, BASE_STEWARD);
   git(repo, 'add', '-A');
   git(repo, 'commit', '-qm', 'base');
   const base = git(repo, 'rev-parse', 'HEAD').trim();
@@ -49,6 +53,8 @@ function fixture({ headMain = HEAD_MAIN } = {}) {
   write(repo, `${SUB}/frontend/src/a.css`, '.a{color:green}\n.b{color:blue}\n');
   write(repo, `${SUB}/frontend/src/fonts.css`, '@font-face{}\n');
   write(repo, 'Models/big.bin', 'changed outside software/\n');
+  write(repo, `${SCRIPTS}/steward.ps1`, HEAD_STEWARD);
+  write(repo, `${SCRIPTS}/steward_common.ps1`, '# new helper\n');
   git(repo, 'add', '-A');
   git(repo, 'commit', '-qm', 'update');
 
@@ -56,6 +62,7 @@ function fixture({ headMain = HEAD_MAIN } = {}) {
   write(live, 'backend/main.py', BASE_MAIN.replace('return 1', 'return 2  # changed on the host').replace(/\n/g, '\r\n'));
   write(live, 'frontend/package.json', '{"name":"x"}\n');
   write(live, 'frontend/src/a.css', '.a{color:red}\n.b{color:blue}\n');
+  if (liveScripts) write(join(dir, 'live'), 'scripts/steward.ps1', BASE_STEWARD.replace(/\n/g, '\r\n'));
   return { dir, repo: `file://${repo}`, base, live, ops: join(dir, 'ops') };
 }
 
@@ -148,4 +155,69 @@ test('an unreachable repository stops with what to do, and writes nothing', asyn
   const bad = args(f).map((a) => (a === f.repo ? `file://${join(f.dir, 'nope')}` : a));
   assert.equal(await main(bad, log), 1);
   assert.match(log.lines.join('\n'), /could not fetch alpha-full[\s\S]*credentials/);
+});
+
+test('the scripts folder beside software is updated too, and rolled back with it', { skip: !PY && 'no python' }, async () => {
+  const f = fixture({ liveScripts: true });
+  const scripts = join(f.live, '..', 'scripts');
+  const before = readFileSync(join(scripts, 'steward.ps1'), 'utf8');
+  const log = quiet();
+  assert.equal(await main(args(f, '--apply'), log), 0, log.lines.join('\n'));
+  const text = log.lines.join('\n');
+  assert.match(text, /applies +M scripts\/steward\.ps1/);
+  assert.match(text, /restart them too/);
+  const steward = readFileSync(join(scripts, 'steward.ps1'), 'utf8');
+  assert.match(steward, /cached/);
+  assert.ok(steward.includes('\r\n'), 'keeps CRLF');
+  assert.equal(readFileSync(join(scripts, 'steward_common.ps1'), 'utf8'), '# new helper\n');
+  const state = JSON.parse(readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8'));
+  assert.equal(state.scripts_to, state.to);
+
+  const backup = join(f.ops, 'backups', readdirSync(join(f.ops, 'backups'))[0]);
+  assert.equal(await main(['--rollback', backup, '--skip-build'], quiet()), 0);
+  assert.equal(readFileSync(join(scripts, 'steward.ps1'), 'utf8'), before);
+  assert.equal(existsSync(join(scripts, 'steward_common.ps1')), false);
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "old"/);
+});
+
+test('without a scripts folder only software is updated', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  const log = quiet();
+  assert.equal(await main(args(f, '--apply'), log), 0, log.lines.join('\n'));
+  assert.match(log.lines.join('\n'), /scripts: no .* here, skipped/);
+  assert.equal(existsSync(join(f.live, '..', 'scripts')), false, 'no scripts folder is created');
+  assert.equal(JSON.parse(readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8')).scripts_to, null);
+});
+
+test('drifted scripts refuse the update, and --skip-scripts updates software alone', { skip: !PY && 'no python' }, async () => {
+  const f = fixture({ liveScripts: true });
+  const scripts = join(f.live, '..', 'scripts');
+  write(scripts, 'steward.ps1', BASE_STEWARD.replace('every 30s', 'edited on the host'));
+  const log = quiet();
+  assert.equal(await main(args(f, '--apply'), log), 2);
+  assert.match(log.lines.join('\n'), /conflict +M scripts\/steward\.ps1[\s\S]*--skip-scripts/);
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "old"/, 'nothing written');
+
+  const skipped = quiet();
+  assert.equal(await main(args(f, '--apply', '--skip-scripts'), skipped), 0, skipped.lines.join('\n'));
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "new"/);
+  assert.match(readFileSync(join(scripts, 'steward.ps1'), 'utf8'), /edited on the host/);
+  assert.equal(JSON.parse(readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8')).scripts_to, null, 'scripts not recorded as applied');
+});
+
+const HAS_PWSH = (() => { try { execFileSync('pwsh', ['-NoProfile', '-Command', '1']); return true; } catch { return false; } })();
+
+test('a PowerShell script that no longer parses is put back', { skip: (!PY || !HAS_PWSH) && 'needs python and pwsh' }, async () => {
+  const f = fixture({ liveScripts: true });
+  const scripts = join(f.live, '..', 'scripts');
+  // The live copy already has the change, minus a closing quote: applying the
+  // new helper is clean, but the steward check must catch the broken file.
+  const repoDir = f.repo.replace('file://', '');
+  write(repoDir, `${SCRIPTS}/steward_common.ps1`, 'function x { if ($true) { "unclosed"\n');
+  git(repoDir, 'commit', '-qam', 'broken helper');
+  const log = quiet();
+  assert.equal(await main(args(f, '--apply'), log), 1, log.lines.join('\n'));
+  assert.match(log.lines.join('\n'), /steward_common\.ps1 does not parse/);
+  assert.equal(existsSync(join(scripts, 'steward_common.ps1')), false);
+  assert.match(readFileSync(join(scripts, 'steward.ps1'), 'utf8'), /every 30s/);
 });
