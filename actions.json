@@ -82,6 +82,12 @@
       "do": "enable-music",
       "bridge": true,
       "why": "Music Creator: MusicGen + alpha-music on this agent, and the music bridge (auto: tracks shared with Host) (Personal-AI-1.2#130)"
+    },
+    {
+      "id": "20261006-18-music-route",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "route the Music Creator Generate button to the music bridge instead of the backend (Alpha#73 af139ec); job 16 ran before it was pushed"
     }
   ]
 }
