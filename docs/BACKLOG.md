@@ -106,6 +106,40 @@ write to those.
 | F31 | person | Keep the coordination notes going when Worker1 is down: check the probe address, then Parts W, H and D of `HANDOFF_2026-10-05g_worker1-down.md` (needs #109 and #110 merged) | the Part D drill passes: with Worker1 off the tailnet a note posts from the Host, and once Worker1 is back that note is in its `events.jsonl` exactly once |
 | F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
 
+## Every agent reports, the other takes over, both update themselves — R1-R8 (owner's ask, 2026-10-06)
+
+The owner's goal: every agent and worker on either laptop reports its work
+through the tunnel. Then the other laptop or agent can see it stop and take
+over, and each machine updates itself. The table below shows where that stood
+on 2026-10-06 at about 18:00 UTC. It comes from status/laptop41,
+status/laptop41-autopilot, status/host-autopilot, status/claude-laptop41 and
+status/cloud; nothing here was measured on the machines directly.
+
+| Runs on | What | Reports through | Taken over when it stops | Updates itself |
+|---|---|---|---|---|
+| Host | coordinator (8787) | Worker1's doctor, section 5 (healthz only) | no (F30, F31) | yes (autopilot pulls `main`) |
+| Host | agent `host` | coordinator heartbeat, visible only when signed in (R2) | music and images move to Worker1 (#130, #132) | yes (autopilot) |
+| Host | autopilot | `status/host-autopilot` | n/a | yes |
+| Host | anything else | nothing: the Host has no doctor (R1) | n/a | n/a |
+| Worker1 | agent `worker1` | coordinator heartbeat (R2) | music and images move to Host | yes (autopilot) |
+| Worker1 | Alpha backend and site | doctor: `status/laptop41`, and a post in the tunnel | no standby (Alpha#60 plan) | no: route B (R7) |
+| Worker1 | Alpha Agent Manager and its stewards | Alpha's own agent manager only (R5) | no | no (ST1) |
+| Worker1 | doctor, self-heal, autopilot | `status/laptop41`, `status/laptop41-autopilot` | n/a | yes (tunnel checkout) |
+| Worker1 | music bridge 8790, image bridge 7861 | doctor sections 5b and 8 | send work to the less busy machine | through `enable-music` / `enable-image` |
+| cloud | relay and handoffs | `status/cloud`, `status/claude-laptop41`; the doctor posts them into the tunnel | n/a | n/a |
+| none | Codex, phones | nothing | n/a | n/a |
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| R1 | code | **A doctor for the Host.** Run it from the Host autopilot every 15 min. It pushes `status/host` with the coordinator, the `host` agent's handlers, the bridges, Ollama, RAM and disk, the way `laptop41-doctor.ps1` does for Worker1. It must not assume an Alpha install, because the Host has none. | `status/host` holds a report under 30 min old |
+| R2 | person | Store the coordinator admin key on both machines (`ALPHA_ADMIN_TOKEN`, user scope). Without it no report can show an agent's last heartbeat, so nobody sees one stop. | Worker1's doctor, section 5, lists the agents with their last-seen times |
+| R3 | code | **A stopped agent is restarted by the other machine.** The signed-in doctor flags any agent whose heartbeat is over 5 min old and posts it to the coordination tunnel. Add a new autopilot action, `restart-agent`, that the other machine's autopilot can queue for it. Test it with a stand-in coordinator. | stopping `worker1` on purpose brings it back within 20 min, with no person involved |
+| R4 | code | The Network Hub shows 0 of 16 peers with a heartbeat. The Worker1 cloud session has named this as its next job (`status/claude-laptop41`, 18:05 UTC): take it only after checking it is still free. | the hub shows each live peer with a fresh heartbeat |
+| R5 | person, then code | **Alpha's stewards.** First the owner restarts the Agent Manager and the stewards: #121 found 1,789 failed sign-ins from 127.0.0.1, the stewards' stale saved password. Then ST1-ST6. Then the Agent Manager posts one line per cycle to the coordination tunnel (who ran, who failed), so the Host can see Worker1's stewards. | `check-alpha-logins.ps1` reports 0 failures in the last 15 min, and the tunnel has a steward line for each cycle |
+| R6 | person | Taking over when Worker1 is down: decide F30 and F31, then the drafts #109, #110 and #111. | the failover drill in `HANDOFF_2026-10-05g_worker1-down.md` passes |
+| R7 | person, then code | **Alpha updates itself.** Route B first (the owner's answer on `software\backend\README.md:59`, then the snapshot and the merge). Then an autopilot setting, like `autofix.brainTopology`, runs `apply-update` whenever `alpha-full` moves and reports the result. | a merge to `alpha-full` reaches Worker1 with no person involved |
+| R8 | person, then code | **The voice is better on Laptop41 than on the other laptop.** Alpha speaks with Piper on the machine that runs its backend: `piper-tts==1.6.0` plus the model files in `backend\voice_models\*.onnx`, which are not in git. A browser that cannot use that voice falls back to its system voice (see V1 and Alpha#54). First find which Alpha the other laptop's browser uses: alpha-ai.uk, Worker1 over the tailnet, or a local copy. If it is a local copy, add an autopilot action `enable-voice` that installs `piper-tts==1.6.0` into that backend's Python, downloads the same model files Worker1 has, and restarts the backend. | `/voice/provider-status` shows `output_available: true` for that browser's Alpha, and both laptops speak with the same voice |
+
 ## Server day — S1-S7 (server expected 2026-10-06)
 
 Steps in `HANDOFF_2026-10-06_server-day.md`. The owner's goal: Alpha's chat,
