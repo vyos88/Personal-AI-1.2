@@ -76,6 +76,12 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "why": "watcher shows machine names for the observed checkout, tailnet peers and claim owners (vyos88/Alpha#73, 47f0c5c)"
+    },
+    {
+      "id": "20261006-17-enable-music",
+      "do": "enable-music",
+      "bridge": true,
+      "why": "Music Creator: MusicGen + alpha-music on this agent, and the music bridge (auto: tracks shared with Host) (Personal-AI-1.2#130)"
     }
   ]
 }
