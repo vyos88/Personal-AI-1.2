@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot } from '../scripts/apply-alpha-update.mjs';
+import { main, findSoftwareRoot, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -220,4 +220,72 @@ test('a PowerShell script that no longer parses is put back', { skip: (!PY || !H
   assert.match(log.lines.join('\n'), /steward_common\.ps1 does not parse/);
   assert.equal(existsSync(join(scripts, 'steward_common.ps1')), false);
   assert.match(readFileSync(join(scripts, 'steward.ps1'), 'utf8'), /every 30s/);
+});
+
+test('--branch follows a side branch with its own record and never moves alpha-full\'s', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  assert.equal(await main(args(f, '--apply'), quiet()), 0);
+  const fullState = readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8');
+  const fullTo = JSON.parse(fullState).to;
+
+  // A host branch: what this machine runs, plus one fix on top.
+  const repo = f.repo.replace('file://', '');
+  git(repo, 'checkout', '-q', '-b', 'alpha-live');
+  write(repo, `${SUB}/frontend/src/a.css`, '.a{color:green}\n.b{color:purple}\n');
+  git(repo, 'commit', '-qam', 'fix on the host branch');
+  git(repo, 'checkout', '-q', 'alpha-full');
+  const base = ['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--ops', f.ops, '--skip-build', '--python', PY, '--skip-scripts'];
+
+  const noFrom = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--apply'], noFrom), 1);
+  assert.match(noFrom.lines.join('\n'), /needs --from/);
+
+  const out = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--from', fullTo, '--apply'], out), 0, out.lines.join('\n'));
+  assert.equal(readFileSync(join(f.live, 'frontend/src/a.css'), 'utf8'), '.a{color:green}\n.b{color:purple}\n');
+  assert.equal(readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8'), fullState, 'alpha-full\'s record is untouched');
+  const side = JSON.parse(readFileSync(join(f.ops, 'applied-alpha-live.json'), 'utf8'));
+  assert.notEqual(side.to, fullTo);
+
+  // The next run on the side branch starts from its own record: nothing new.
+  const again = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--apply'], again), 0);
+  assert.match(again.lines.join('\n'), /nothing new/);
+});
+
+test('a branch name that is not one is refused', async () => {
+  const f = fixture();
+  const out = quiet();
+  assert.equal(await main(args(f, '--branch', '../../etc'), out), 1);
+  assert.match(out.lines.join('\n'), /not a branch name/);
+});
+
+test('packages are reinstalled only when they changed or are missing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-npm-'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), true, 'no node_modules: install');
+  mkdirSync(join(dir, 'node_modules'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), false);
+  assert.equal(needsPackageInstall(dir, ['frontend/package.json']), true);
+  assert.equal(needsPackageInstall(dir, ['frontend/package-lock.json']), true);
+});
+
+test('an update that changes no package builds without npm ci, which a running frontend would block', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  mkdirSync(join(f.live, 'frontend', 'node_modules'));
+  const bin = join(f.dir, 'bin');
+  mkdirSync(bin);
+  const calls = join(f.dir, 'npm-calls.txt');
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh\necho "$@" >> "${calls}"\nexit 0\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    const a = args(f, '--apply').filter((x) => x !== '--skip-build');
+    const out = quiet();
+    assert.equal(await main(a, out), 0, out.lines.join('\n'));
+    assert.match(out.lines.join('\n'), /packages unchanged and installed: building \(no npm ci\)/);
+  } finally {
+    process.env.PATH = path;
+  }
+  const lines = readFileSync(calls, 'utf8').trim().split('\n');
+  assert.deepEqual(lines, ['run build']);
 });

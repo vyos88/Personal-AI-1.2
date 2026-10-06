@@ -32,6 +32,12 @@
  * because runs before 2026-10-05 updated software\ only. If the live scripts
  * have drifted and refuse, --skip-scripts updates software\ alone.
  *
+ * --branch <name> follows another branch than alpha-full, with its own record
+ * of what was applied (<ops>/applied-<name>.json), so alpha-full's record is
+ * never moved by it. The first run on such a branch needs --from: the commit
+ * this machine matches (for a branch built on alpha-from-host-*, that
+ * snapshot's commit).
+ *
  * Other options: --from <commit>  --to <branch|commit>  --repo <url>
  *   --ops <dir> (default C:\AlphaData\alpha-ops)  --python <exe>  --skip-build
  *   --skip-scripts
@@ -79,6 +85,7 @@ export function parseArgs(argv) {
     else if (a === '--alpha-root') opts.alphaRoot = next();
     else if (a === '--from') opts.from = next();
     else if (a === '--to') opts.to = next();
+    else if (a === '--branch') opts.branch = next();
     else if (a === '--repo') opts.repo = next();
     else if (a === '--ops') opts.ops = next();
     else if (a === '--python') opts.python = next();
@@ -219,6 +226,28 @@ function npm(args, cwd) {
   return { ok: r.status === 0, tail: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join('\n') };
 }
 
+// npm ci deletes node_modules before installing. On a host where Alpha's
+// frontend is running, Windows refuses to delete a native module it has loaded
+// (EPERM on rolldown-binding.win32-x64-msvc.node, Worker1, 2026-10-06), so an
+// update that changed no package failed and was rolled back. Reinstall only
+// when the packages changed or are missing; otherwise just build.
+const PACKAGE_FILES = new Set(['frontend/package.json', 'frontend/package-lock.json']);
+export function needsPackageInstall(fe, touchedPaths) {
+  return !existsSync(join(fe, 'node_modules')) || touchedPaths.some((p) => PACKAGE_FILES.has(p));
+}
+
+function installAndBuild(fe, touchedPaths, log) {
+  if (needsPackageInstall(fe, touchedPaths)) {
+    log('  installing frontend packages (npm ci) and building...');
+    const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
+    if (!ci.ok) return { ok: false, why: `npm ci failed:\n${ci.tail}` };
+  } else {
+    log('  packages unchanged and installed: building (no npm ci)...');
+  }
+  const build = npm(['run', 'build'], fe);
+  return build.ok ? { ok: true } : { ok: false, why: `the frontend build failed:\n${build.tail}` };
+}
+
 /** Puts every file in a backup back, and removes the ones the apply added. */
 export function rollback(backupDir, log = console.log) {
   const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8'));
@@ -255,9 +284,9 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     if (!opts.skipBuild && manifest.frontendTouched) {
       const fe = join(manifest.softwareRoot, 'frontend');
       log('  rebuilding the frontend from the restored files');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      const build = ci.ok ? npm(['run', 'build'], fe) : ci;
-      log(build.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${build.tail}`);
+      const touched = (manifest.areas?.[0] ? [...manifest.areas[0].changed, ...manifest.areas[0].added] : []);
+      const built = installAndBuild(fe, touched, log);
+      log(built.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${built.why}`);
     }
     if (opts.restart) restartWindows(log);
     return EXIT_OK;
@@ -272,10 +301,21 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   log(`Alpha: ${softwareRoot}`);
 
   const ops = resolve(opts.ops ?? DEFAULTS.ops);
-  const statePath = join(ops, 'alpha-full-applied.json');
+  const branch = opts.branch ?? DEFAULTS.branch;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/.test(branch) || branch.includes('..')) {
+    log(`STOP: ${branch} is not a branch name`);
+    return EXIT_ERROR;
+  }
+  // Each branch keeps its own record. A side branch (a host's live code plus
+  // fixes) must never move alpha-full's: the next alpha-full update would then
+  // start from the side branch and undo everything only this host has.
+  const statePath = join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
   const recorded = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
+  if (branch !== DEFAULTS.branch && !opts.from && !recorded) {
+    log(`STOP: the first update from ${branch} needs --from <the commit this machine matches>; alpha-full's starting point would undo what only this machine has.`);
+    return EXIT_ERROR;
+  }
   const cache = join(ops, 'alpha-full-cache.git');
-  const branch = DEFAULTS.branch;
   try {
     fetchBranch({ cache, repo: opts.repo ?? DEFAULTS.repo, branch });
   } catch (e) {
@@ -296,13 +336,13 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   } else if (!existsSync(scriptsRoot)) {
     log(`  scripts: no ${scriptsRoot} here, skipped`);
   } else {
-    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? DEFAULTS.from);
+    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? (branch === DEFAULTS.branch ? DEFAULTS.from : recorded?.to));
     if (!scriptsFrom) { log('STOP: cannot resolve the commit scripts were last updated from'); return EXIT_ERROR; }
     areas.push({ name: 'scripts', root: scriptsRoot, from: scriptsFrom, ...buildPatch({ cache, from: scriptsFrom, to, subdir: DEFAULTS.scriptsSubdir }) });
     scriptsTo = to;
   }
   const live = areas.filter((area) => area.files.length);
-  if (!live.length) { log('ok: nothing new on alpha-full since the last apply'); writeState(statePath, to, scriptsTo); return EXIT_OK; }
+  if (!live.length) { log(`ok: nothing new on ${branch} since the last apply`); writeState(statePath, to, scriptsTo); return EXIT_OK; }
 
   for (const area of live) Object.assign(area, plan({ root: area.root, patch: area.patch, files: area.files }));
   try {
@@ -398,11 +438,8 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
 
     if (frontendTouched && !opts.skipBuild) {
       const fe = join(softwareRoot, 'frontend');
-      log('  installing frontend packages (npm ci) and building...');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      if (!ci.ok) return undo(`npm ci failed:\n${ci.tail}`);
-      const build = npm(['run', 'build'], fe);
-      if (!build.ok) return undo(`the frontend build failed:\n${build.tail}`);
+      const built = installAndBuild(fe, areas[0].todo.map((r) => r.path), log);
+      if (!built.ok) return undo(built.why);
       log('  ok: frontend built');
     }
 

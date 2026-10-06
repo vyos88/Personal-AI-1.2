@@ -29,11 +29,17 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'a8', do: 'start-task', task: 'Something Else' },
     { id: 'bad id!', do: 'doctor' },
     { id: 'a9', do: 'apply-update', skipScripts: true },
+    { id: 'b1', do: 'apply-update', branch: 'claude/x-alpha-live', from: '030195d38c9b7faae0c8176de498bc0695b6a017' },
+    { id: 'b2', do: 'apply-update', branch: '../x' },
+    { id: 'b3', do: 'apply-update', branch: 'ok', from: 'abc123' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1']);
+  assert.deepEqual(plan.b1.args.slice(-4), ['--branch', 'claude/x-alpha-live', '--from', '030195d38c9b7faae0c8176de498bc0695b6a017']);
+  assert.match(plan.b2.reason, /plain branch name/);
+  assert.match(plan.b3.reason, /40-character/);
   assert.deepEqual(plan.a2.args, ['pull', 'llama3.2:3b']);
   assert.deepEqual(plan.a4.args.slice(-2), ['--allow', 'software/a.jsx:111,scripts/b.ps1:2']);
   assert.ok(plan.a9.args.includes('--skip-scripts'));
