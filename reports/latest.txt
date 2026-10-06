@@ -1,12 +1,12 @@
-laptop41-doctor 20261006-031103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-031352 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 13920 python.exe: 
+  port 8001 : pid 13920 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\run_server.py --host 127.0.0.1,100.69.243.25,192.168.1.250 --port 8001 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
               in: 
-  port 4173 : pid 17780 node.exe: 
+  port 4173 : pid 17780 node.exe: "node"   "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview --host 127.0.0.1 --port 4173 --strictPort
   frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:False
   ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
   PROBLEM: the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder
@@ -14,7 +14,7 @@ laptop41-doctor 20261006-031103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 1. Backend (port 8001) ===
   ok: /health answers 200
   ok: chat fix (dictionary 500) is in the live main.py
-  main.py edited 2026-10-05 23:37; backend started 
+  main.py edited 2026-10-05 23:37; backend started 2026-10-06 03:01
 
 === 2. Chat ===
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
@@ -35,13 +35,13 @@ laptop41-doctor 20261006-031103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-06 03:02 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-06 03:00 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
+  task Alpha Self-Heal  Ready    last run 2026-10-06 03:13 result 0x00000000 (success)
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T02:05:39.549Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-    {"at":"2026-10-06T02:07:39.466Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
     {"at":"2026-10-06T02:09:39.490Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+    {"at":"2026-10-06T02:11:39.452Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+    {"at":"2026-10-06T02:13:39.510Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -65,34 +65,33 @@ laptop41-doctor 20261006-031103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 6 of 15.8 GB RAM free
+  ok: 5.7 of 15.8 GB RAM free
   ok: C: 27 GB free
-  Memory Compression              784 MB  pid 3840
-  node                            710 MB  pid 4100
-  claude                          589 MB  pid 4148
-  MsMpEng                         445 MB  pid 6040
+  claude                          719 MB  pid 4148
+  Memory Compression              719 MB  pid 3840
+  node                            718 MB  pid 4100
+  MsMpEng                         446 MB  pid 6040
   explorer                        335 MB  pid 10108
-  msedge                          255 MB  pid 19212
-  msedge                          220 MB  pid 17100
-  claude                          216 MB  pid 17380
+  msedge                          257 MB  pid 19212
+  claude                          231 MB  pid 7320
+  msedge                          219 MB  pid 17100
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
-  port 7860 : pid 16160 python.exe: 
-  PROBLEM: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
+  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
+  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
 
 === SUMMARY ===
   this pass took 27s
-  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 100 run(s), since 2026-10-05T02:56:26)
-  - image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503  (open 1 run(s), since 2026-10-06T03:11:28)
+  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 101 run(s), since 2026-10-05T02:56:26)
+  + fixed since last run: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 100 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  2. [new] Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend.
-  3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [open 101 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
