@@ -168,6 +168,12 @@
    "bridge": true,
    "machines": "host,worker1",
    "why": "the music bridge answered on 8790 at 19:53 (job 23) and was down by 20:26: 'Generate cannot queue anything'. Both bridges start at logon and nothing supervises them. enable-music re-registers and starts 'alpha-music bridge', and everything else in it is already done so it is quick. The cheap fix lands with PR #99 (start-task may start 'alpha-music bridge' / 'alpha-image bridge'); use that once it is on main."
+  },
+  {
+   "id": "20261006-30-live-test",
+   "do": "live-test",
+   "count": 2,
+   "why": "owner wants the live test results; bridges were found down at 20:26 (job 27 may have run without them). #141 restarts down bridges at the start of every pass, so this run starts with both up."
   }
  ],
  "autofix": {
