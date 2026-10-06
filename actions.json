@@ -291,6 +291,11 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "why": "jobs 38/40/41 all refused on 'main.py line 18004 invalid syntax'. The cause was in this script, not in the branch: #158 (on main) found that on Windows git apply writes CRLF into the scratch tree and writeLive then added its own, so every line end of a CRLF file became CR-CR-LF. Python reads that as a doubled newline, which turns any backslash continuation into a blank continuation line -- invalid syntax, far from any change, exactly what jobs 38/40/41 saw, and the same bug that broke alpha_agent_manager.ps1's backtick continuations. Verified from the cloud that route-b's own main.py parses at a1440fc and that applying dff4d98..a1440fc reproduces it byte for byte on LF, so there was never a bad hunk. This retry runs on #158. It rolls back on its own as before. Landing it also carries Alpha#26 (hunk #1: the assistant heartbeat), which is the doctor's third open problem."
+    },
+    {
+      "id": "20261007-wb01-doctor-wifi",
+      "do": "doctor",
+      "why": "verify the backend now listens on the new Wi-Fi address 192.168.2.151 after .env.local and run-alpha-backend.cmd were updated (wizardly-brown session); the CrowPanel needs it"
     }
   ],
   "autofix": {
