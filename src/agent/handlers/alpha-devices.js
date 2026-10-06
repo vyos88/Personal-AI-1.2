@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { ProtocolError } from '../../common/protocol.js';
 import { resolveExecutable } from '../../common/resolve-executable.js';
@@ -48,7 +49,7 @@ const DEFAULT_TIMEOUT_MS = 120_000;
 
 /** This checkout, which is the only place the script may come from. */
 function repoRoot() {
-  return resolve(new URL('../../..', import.meta.url).pathname);
+  return resolve(fileURLToPath(new URL('../../..', import.meta.url)));
 }
 
 function scriptPath() {

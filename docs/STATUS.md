@@ -97,16 +97,18 @@ anything longer in a dated handoff that this page links to.
 |---|---|
 | `HOST_SETUP.md`, `FLEET.md`, `ALWAYS_ON.md`, `AUTO_UPDATE.md`, `HOST_DOWN.md`, `COORDINATOR_MIGRATION.md`, `MASTER_HOST_REPAIR.md` | runbooks |
 | `CODEX_BRIDGE.md`, `CLOUD_RELAY.md`, `MUSIC_SUBSCRIPTIONS.md` | how a subsystem works |
-| `HANDOFF_2026-10-05f_worker1-deploy.md`, `HANDOFF_2026-10-05e_claude-ack.md`, `HANDOFF_2026-10-05d_stewards.md`, `HANDOFF_2026-10-05b_host-move.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_*.md` | recent handoffs, newest first |
+| `HANDOFF_2026-10-05f_worker1-deploy.md`, `HANDOFF_2026-10-05e_claude-ack.md`, `HANDOFF_2026-10-05d_stewards.md`, `HANDOFF_2026-10-05b_host-move.md`, `HANDOFF_2026-10-04c.md`, `HANDOFF_2026-10-04b.md`, `HANDOFF_2026-10-04.md`, `HANDOFF_2026-10-02_laptop41-repair.md` | recent handoffs, newest first |
 
 | Superseded (kept for history; do not act on its status sections) | Superseded by |
 |---|---|
-| `HANDOFF_2026-10-05_coordinator-down.md` | `HANDOFF_2026-10-05b_host-move.md`: the coordinator was moved on purpose, not lost. |
-| `HANDOFF_2026-10-05_worker1.md` | `HANDOFF_2026-10-05b_host-move.md`: there is no separate new laptop; Worker1 is Laptop41. |
-| `HANDOFF_LAPTOP41_2026-09-30.md` | `HANDOFF_2026-10-02_*.md` and later. Kept because `src/admin/cli.js` points at its §3 (music handler setup). |
+| `HANDOFF_LAPTOP41_2026-09-30.md` | `HANDOFF_2026-10-02_laptop41-repair.md` and later. Kept because `src/admin/cli.js` points at its §3 (music handler setup). |
 
 Removed 2026-10-05 as superseded, and still in git history: `ALPHA_HANDOVER_2026-09-30.md`,
 `ALPHA_AUDIT.md`, `AUDIT_2026-10-01.md`, `STABILITY_AUDIT_2026-09-29.md`,
 `WORK_AUDIT_2026-09-15.md`, `HANDOFF_2026-10-01.md`, `CODEX_MESSAGE_2026-09-30.md`,
 `MUSIC_CREATOR_STATUS.md`, `MUSIC_GENRES_REPORT.md`, `PANEL_HANDOFF.md`
-(`git show 46f0adb:docs/<name>` reads any of them).
+(`git show 46f0adb:docs/<name>` reads any of them). Also removed after the host
+move: `HANDOFF_2026-10-05_coordinator-down.md` and `HANDOFF_2026-10-05_worker1.md`
+(both replaced by `HANDOFF_2026-10-05b_host-move.md`), and
+`HANDOFF_2026-10-02_music-creator.md` (its PRs #67, #70 and #72 are merged)
+(`git show a4a50fe:docs/<name>` reads them).
