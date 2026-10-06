@@ -1,4 +1,4 @@
-laptop41-doctor 20261006-131104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-161103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261006-131104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 10s (load 8.1s, 11.6 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 10s (load 7.8s, 7.5 tokens/s): OK.
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
@@ -43,60 +43,21 @@ laptop41-doctor 20261006-131104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T12:05:39.704Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T12:07:39.679Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T12:09:39.655Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T15:05:39.333Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T15:07:39.383Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T15:09:39.353Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
   the coordinator runs on another machine; none should listen here
   --- agents
-    NAME     PRINCIPAL               VERSION  CAPABILITIES                                                                         RAM     FREE   HELD  CPU  RUN  IDLE
-    -------  ----------------------  -------  -----------------------------------------------------------------------------------  ------  -----  ----  ---  ---  ----
-    host     viorel.ciuca@gmail.com  1.7.0    alpha.render,alpha.render.inventory,device.inventory,echo,grow,memory.store,sysinfo  16147M  273M   0M    2%   0    9s  
-    worker1  viorel.ciuca@gmail.com  1.7.0    alpha.coordination,echo,grow,sysinfo                                                 16157M  3864M  0M    73%  0    11s 
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- stats
-    Alpha 1.7.0 ΓÇö 2 agent(s) attached
-      capabilities   alpha.coordination, alpha.render, alpha.render.inventory, device.inventory, echo, grow, memory.store, sysinfo
-      queue          0 pending, 2 agent(s) waiting
-      offered RAM    4137M
-      load           busiest 73%, idlest 2%, 0 task(s) running
-      Work is not spread evenly ΓÇö one machine is far busier than another.
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- keys
-    ID                KIND  NAME                     SCOPES                              LAST USED            REVOKED            
-    ----------------  ----  -----------------------  ----------------------------------  -------------------  -------------------
-    d9f8bb2fcf3d650b  ses   login session            admin                               2026-10-06 12:11:33  -                  
-    fd0e11b6b959c486  key   worker1-standby-agent    agent:connect                       -                    -                  
-    0f010981a4c89533  ses   login session            admin                               2026-10-06 01:28:19  -                  
-    06b288bc60f5deea  key   host-agent               agent:connect                       2026-10-06 12:11:24  -                  
-    ccce59b43a3ff4eb  key   host-agent               agent:connect                       -                    2026-10-05 22:49:51
-    b242ee916d3d8bf6  key   worker1-report           agents:read,tasks:read,tasks:write  2026-10-06 12:08:51  -                  
-    78012211a3220854  key   host-report              agents:read,tasks:read,tasks:write  2026-10-06 12:10:38  -                  
-    5b3f0539d22dfd09  key   laptop-41-v2-agent       agent:connect                       2026-10-06 12:11:21  -                  
-    0d61361ad3e7d604  key   initial key from invite  admin                               2026-09-29 18:19:20  -                  
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
   --- tasks
-    ID                     TYPE                STATUS     TRIES  DECLINED  CREATED            
-    ---------------------  ------------------  ---------  -----  --------  -------------------
-    task_zirgoulspnglwxoq  alpha.coordination  succeeded  1      0         2026-10-06 12:04:38
-    task_ruf5q0rmq4li7nmz  alpha.coordination  succeeded  1      0         2026-10-06 12:02:52
-    task_fwfnjuuywoiudjnc  alpha.coordination  succeeded  1      0         2026-10-06 11:01:39
-    task_bsm6xi46w47y3h2i  alpha.coordination  succeeded  1      0         2026-10-06 10:59:51
-    task_kuyuiuofku49axmo  alpha.coordination  succeeded  1      0         2026-10-06 09:58:39
-    task_24ppwdzwfvf4f415  alpha.coordination  succeeded  1      0         2026-10-06 09:56:50
-    task_yybt1nm3fa1bg9s2  alpha.coordination  succeeded  1      0         2026-10-06 08:55:39
-    task_la591f5kmjzbug4n  alpha.coordination  succeeded  1      0         2026-10-06 08:53:50
-    task_63a9b1gts8pljlpu  alpha.coordination  succeeded  1      0         2026-10-06 07:52:38
-    task_v37z44t0b3bttv2e  alpha.coordination  succeeded  1      0         2026-10-06 07:50:49
-    task_qn399f8alj6v3he4  alpha.coordination  succeeded  1      0         2026-10-06 06:49:38
-    task_nb5ijy8k1h6cv05e  alpha.coordination  succeeded  1      0         2026-10-06 06:47:50
-    task_1jp6p1v9xx5vv8k9  alpha.coordination  succeeded  1      0         2026-10-06 05:46:38
-    task_topnr7mxez6mo5qf  alpha.coordination  succeeded  1      0         2026-10-06 05:44:50
-    task_kp7l48pn34k6ulx3  alpha.coordination  succeeded  1      0         2026-10-06 04:43:39
-    task_p7o8mhi7x93oa0ku  alpha.coordination  succeeded  1      0         2026-10-06 04:41:50
-    task_su403yu4pjjspbqn  alpha.coordination  succeeded  1      0         2026-10-06 03:40:39
-    task_5sf00y1uyv1yelg7  alpha.coordination  succeeded  1      0         2026-10-06 03:38:50
-    task_0724xo8xyj2zlhnz  alpha.coordination  succeeded  1      0         2026-10-06 02:37:39
-    task_wg5py6fp2y20lgul  alpha.coordination  succeeded  1      0         2026-10-06 02:35:50
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
 
 === 6. CrowPanel ===
     COM4
@@ -109,15 +70,15 @@ laptop41-doctor 20261006-131104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 7. Memory, disk, heaviest processes ===
   ok: 4.3 of 15.8 GB RAM free
-  ok: C: 26.7 GB free
-  llama-server                  2,442 MB  pid 3044
-  node                            724 MB  pid 4636
-  Memory Compression              630 MB  pid 3840
-  claude                          551 MB  pid 4148
-  MsMpEng                         381 MB  pid 6040
-  explorer                        351 MB  pid 10108
-  msedge                          227 MB  pid 16264
-  msedge                          213 MB  pid 12440
+  ok: C: 26.8 GB free
+  llama-server                  2,442 MB  pid 7248
+  node                            735 MB  pid 4636
+  Memory Compression              615 MB  pid 3840
+  claude                          565 MB  pid 4148
+  MsMpEng                         386 MB  pid 6040
+  explorer                        349 MB  pid 10108
+  msedge                          240 MB  pid 16264
+  msedge                          219 MB  pid 12440
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -125,7 +86,7 @@ laptop41-doctor 20261006-131104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: port 7860 is held by python.exe (its command line is hidden without elevation), and ComfyUI answers on 8188 (200): Alpha's ComfyUI bridge
 
 === SUMMARY ===
-  this pass took 37s
+  this pass took 39s
   ok: no problems found
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
