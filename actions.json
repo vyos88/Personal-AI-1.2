@@ -16,6 +16,18 @@
    "installComfy": true,
    "backend": "comfyui",
    "why": "images on the RTX 3050 (GPU 0): ComfyUI + SD 1.5 with CUDA torch, alpha-image handlers (#132)"
+  },
+  {
+   "id": "20261006-h04-enable-music",
+   "do": "enable-music",
+   "why": "retry h02 with #137: torch check quoting fixed; confirms CUDA torch for the RTX 3050"
+  },
+  {
+   "id": "20261006-h05-enable-image",
+   "do": "enable-image",
+   "installComfy": true,
+   "backend": "comfyui",
+   "why": "retry h03 with #137: ComfyUI via start-comfyui.ps1 with a log (C:\\AlphaData\\comfyui.log), 7 min wait, log tail on failure; clone/checkpoint already done"
   }
  ],
  "autofix": {
