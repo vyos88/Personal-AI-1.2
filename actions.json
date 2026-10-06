@@ -116,5 +116,10 @@
    "count": 2,
    "why": "user asked: test music, images and a reel live on both machines; reports which machine made each"
   }
- ]
+ ],
+ "autofix": {
+  "brainTopology": {
+   "branch": "claude/friendly-wright-jw4ep6-route-b"
+  }
+ }
 }
