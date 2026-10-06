@@ -133,7 +133,7 @@ test('an update that leaves Python unparseable is put back on the spot', { skip:
   const before = readFileSync(join(f.live, 'backend/main.py'), 'utf8');
   const log = quiet();
   assert.equal(await main(args(f, '--apply'), log), 1);
-  assert.match(log.lines.join('\n'), /main\.py does not parse: line 4: .*\(inside the change at lines \d+-\d+\)/);
+  assert.match(log.lines.join('\n'), /main\.py does not parse: line 4: .*\(inside change #1 at lines \d+-\d+\)/);
   assert.doesNotMatch(log.lines.join('\n'), /return "new"/, 'the report names the line, never its text');
   const kept = /the merged file is kept at (.+)$/m.exec(log.lines.join('\n'))?.[1];
   assert.ok(kept && readFileSync(kept, 'utf8').includes('return "new"('), 'the broken merge is kept for whoever fixes it');
@@ -353,10 +353,16 @@ test('a renamed file this machine never had is a delete already done plus a new 
 test('a broken line is placed among the changes made to its file', () => {
   const patch = ['diff --git a/backend/x.py b/backend/x.py', '@@ -10,3 +10,5 @@ def a():', ' x', 'diff --git a/backend/main.py b/backend/main.py',
     '@@ -1,4 +1,4 @@', ' a', '@@ -40,6 +42,8 @@ def b():', ' b'].join('\n');
-  assert.equal(nearestHunk(patch, 'backend/main.py', 45), 'inside the change at lines 42-49');
-  assert.equal(nearestHunk(patch, 'backend/main.py', 30), '12 line(s) from the change at lines 42-49');
-  assert.equal(nearestHunk(patch, 'backend/main.py', 6), '2 line(s) from the change at lines 1-4');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 45), 'inside change #2 at lines 42-49');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 30), '12 line(s) from change #2 at lines 42-49');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 6), '2 line(s) from change #1 at lines 1-4');
   assert.equal(nearestHunk(patch, 'backend/other.py', 6), null);
+  // Worker1 job 40: "line 18004, 2300 lines from the change": the hunk had
+  // landed 2300 lines later in that machine's longer main.py.
+  const log = ['Checking patch backend/x.py...', 'Hunk #1 succeeded at 99 (offset 89 lines).', 'Checking patch backend/main.py...',
+    'Hunk #2 succeeded at 2340 (offset 2300 lines).', 'Applied patch backend/main.py cleanly.'].join('\n');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 2345, log), 'inside change #2 at lines 2342-2349, placed 2300 line(s) later than on the branch');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 6, log), '2 line(s) from change #1 at lines 1-4');
 });
 
 test('a branch name that is not one is refused', async () => {
