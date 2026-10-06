@@ -1,4 +1,4 @@
-laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-105602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 6.3s (load 4.9s, 13.2 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 6.8s (load 5.2s, 10 tokens/s): OK.
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
@@ -39,13 +39,13 @@ laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-06 03:02 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-06 03:00 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T09:35:40.047Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T09:37:40.034Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T09:39:40.055Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T09:51:40.109Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T09:53:40.071Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T09:55:40.083Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -53,25 +53,25 @@ laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   --- agents
     NAME     PRINCIPAL               VERSION  CAPABILITIES                                                                         RAM     FREE   HELD  CPU  RUN  IDLE
     -------  ----------------------  -------  -----------------------------------------------------------------------------------  ------  -----  ----  ---  ---  ----
-    host     viorel.ciuca@gmail.com  1.7.0    alpha.render,alpha.render.inventory,device.inventory,echo,grow,memory.store,sysinfo  16147M  1705M  0M    2%   0    2s  
-    worker1  viorel.ciuca@gmail.com  1.7.0    alpha.coordination,echo,grow,sysinfo                                                 16157M  2919M  0M    41%  0    7s  
+    host     viorel.ciuca@gmail.com  1.7.0    alpha.render,alpha.render.inventory,device.inventory,echo,grow,memory.store,sysinfo  16147M  489M   0M    6%   0    3s  
+    worker1  viorel.ciuca@gmail.com  1.7.0    alpha.coordination,echo,grow,sysinfo                                                 16157M  2419M  0M    37%  0    7s  
   --- stats
     Alpha 1.7.0 ΓÇö 2 agent(s) attached
       capabilities   alpha.coordination, alpha.render, alpha.render.inventory, device.inventory, echo, grow, memory.store, sysinfo
       queue          0 pending, 2 agent(s) waiting
-      offered RAM    4624M
-      load           busiest 41%, idlest 2%, 0 task(s) running
+      offered RAM    2909M
+      load           busiest 37%, idlest 6%, 0 task(s) running
   --- keys
     ID                KIND  NAME                     SCOPES                              LAST USED            REVOKED            
     ----------------  ----  -----------------------  ----------------------------------  -------------------  -------------------
-    d9f8bb2fcf3d650b  ses   login session            admin                               2026-10-06 09:41:23  -                  
+    d9f8bb2fcf3d650b  ses   login session            admin                               2026-10-06 09:56:24  -                  
     fd0e11b6b959c486  key   worker1-standby-agent    agent:connect                       -                    -                  
     0f010981a4c89533  ses   login session            admin                               2026-10-06 01:28:19  -                  
-    06b288bc60f5deea  key   host-agent               agent:connect                       2026-10-06 09:41:20  -                  
+    06b288bc60f5deea  key   host-agent               agent:connect                       2026-10-06 09:56:21  -                  
     ccce59b43a3ff4eb  key   host-agent               agent:connect                       -                    2026-10-05 22:49:51
-    b242ee916d3d8bf6  key   worker1-report           agents:read,tasks:read,tasks:write  2026-10-06 09:38:50  -                  
-    78012211a3220854  key   host-report              agents:read,tasks:read,tasks:write  2026-10-06 09:40:39  -                  
-    5b3f0539d22dfd09  key   laptop-41-v2-agent       agent:connect                       2026-10-06 09:41:16  -                  
+    b242ee916d3d8bf6  key   worker1-report           agents:read,tasks:read,tasks:write  2026-10-06 09:53:50  -                  
+    78012211a3220854  key   host-report              agents:read,tasks:read,tasks:write  2026-10-06 09:55:39  -                  
+    5b3f0539d22dfd09  key   laptop-41-v2-agent       agent:connect                       2026-10-06 09:56:16  -                  
     0d61361ad3e7d604  key   initial key from invite  admin                               2026-09-29 18:19:20  -                  
   --- tasks
     ID                     TYPE                STATUS     TRIES  DECLINED  CREATED            
@@ -100,23 +100,23 @@ laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 6. CrowPanel ===
     COM4
     COM20
-    COM50   in use by another program?
+    COM50
   device: USB-SERIAL CH340 (COM20)
   device: USB-SERIAL CH340 (COM50)
   device: USB-SERIAL CH340 (COM4)
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.6 of 15.8 GB RAM free
+  ok: 4.3 of 15.8 GB RAM free
   ok: C: 26.9 GB free
-  llama-server                  2,442 MB  pid 8868
-  msedge                          682 MB  pid 12440
-  Memory Compression              645 MB  pid 3840
-  claude                          564 MB  pid 4148
-  MsMpEng                         357 MB  pid 6040
-  explorer                        348 MB  pid 10108
+  llama-server                  2,443 MB  pid 4916
+  Memory Compression              757 MB  pid 3840
+  msedge                          688 MB  pid 12440
+  claude                          563 MB  pid 4148
+  MsMpEng                         371 MB  pid 6040
+  explorer                        349 MB  pid 10108
+  python                          311 MB  pid 13920
   msedge                          222 MB  pid 16264
-  powershell                      214 MB  pid 19800
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -124,9 +124,8 @@ laptop41-doctor 20261006-104102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: port 7860 is held by python.exe (its command line is hidden without elevation), and ComfyUI answers on 8188 (200): Alpha's ComfyUI bridge
 
 === SUMMARY ===
-  this pass took 25s
+  this pass took 29s
   ok: no problems found
-  + fixed since last run: chat model 'llama3.2:3b' took 71s for a one-word reply: chat will time out
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
