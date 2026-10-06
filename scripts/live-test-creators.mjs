@@ -22,7 +22,7 @@
  * job worked; the last line says whether the work was shared.
  *
  *   node scripts/live-test-creators.mjs [--count 2] [--music-seconds 5]
- *        [--image-size 256] [--image-steps 12] [--timeout-min 25]
+ *        [--image-size 256] [--image-steps 12] [--timeout-min 25] [--music-timeout-min 12]
  *        [--music URL] [--image URL] [--site URL] [--only music|image|video]
  *        [--video-python PATH --video-script PATH]
  */
@@ -42,6 +42,11 @@ const musicSeconds = Math.max(1, Math.min(30, Number(arg('music-seconds', 5)) ||
 const imageSize = Math.max(64, Math.min(1024, Number(arg('image-size', 256)) || 256)) & ~7;
 const imageSteps = Math.max(1, Math.min(40, Number(arg('image-steps', 12)) || 12));
 const timeoutMs = Math.max(1, Number(arg('timeout-min', 25)) || 25) * 60_000;
+// All tracks share one deadline. A track can never take longer than the
+// handler's own 10-minute limit plus fetching it, and on 2026-10-06 one stuck
+// track on Worker1 (waited on for 25 min) used up the whole 45-minute run, so
+// images and the reel were never tested.
+const musicTimeoutMs = Math.max(0.05, Number(arg('music-timeout-min', 12)) || 12) * 60_000;
 const musicUrl = arg('music', 'http://127.0.0.1:8790').replace(/\/+$/, '');
 const imageUrl = arg('image', 'http://127.0.0.1:7861').replace(/\/+$/, '');
 const siteUrl = arg('site', '').replace(/\/+$/, '');
@@ -92,11 +97,12 @@ async function testMusic() {
     // Let it be claimed, so the next pick sees this machine busy.
     if (i < count - 1) await waitFor(async () => (await json(`${musicUrl}/music/tasks/${q.body.taskId}`)).body?.status !== 'queued', 20_000);
   }
+  const musicDeadline = Date.now() + musicTimeoutMs;
   for (const job of jobs) {
     const done = await waitFor(async () => {
       const s = await json(`${musicUrl}/music/tasks/${job.id}`);
       return s.body?.done ? s.body : null;
-    }, timeoutMs);
+    }, Math.max(1_000, musicDeadline - Date.now()));
     const secs = ((Date.now() - job.t0) / 1000).toFixed(0);
     if (!done || done.status !== 'succeeded') {
       // Where it got stuck: "queued" means the machine never picked it up
