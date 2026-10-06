@@ -121,6 +121,13 @@
    "do": "enable-music",
    "bridge": true,
    "why": "owner asked (2026-10-06 18:4xZ): make music real on worker1. Job 17 got MusicGen, the model cache, .env.agent (alpha-music, alpha-music-audio) and the bridge on 8790, then failed only on 'no scheduled task alpha-tunnel agent to restart the agent with'. This re-run is idempotent; the agent restart still needs that task."
+  },
+  {
+   "id": "20261006-24-brain-topology",
+   "do": "brain-topology",
+   "fix": true,
+   "branch": "claude/friendly-wright-jw4ep6-brain-topology",
+   "why": "owner asked: make the Neurological Architecture deck live and correct. The live deck joins its regions in a ring and draws spokes from a fixed point (50,47) where no region sits, while /neurobrain/anatomy-map sends 9 regions and 11 real links. Alpha#68 (head 22b51f7) draws topologyEdges with the thalamus at the core. Checks backend map, deck source and built site; applies via apply-alpha-update with backups and rollback. Note: apply-update has been refused here before (50 drifted files) -- if it refuses, the report says so and nothing is written."
   }
  ],
  "autofix": {
