@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261006-114845
+﻿# laptop41 autopilot 20261006-175845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ccc37ac is current
+checkout 54c667d is current
+
+## 20261006-15-ollama-keepalive  ollama-keepalive  ->  0   (2026-10-06T17:58:49, 33s)
+```
+set OLLAMA_KEEP_ALIVE=24h for this user and the machine
+stopped 2 Ollama process(es)
+started the Ollama app
+loaded 'llama3.2:3b' in 23.5s
+ok: 'llama3.2:3b' is loaded and kept for 24 h after each use
+```
+
+## 20261006-16-watcher-machine-names  apply-update  ->  0   (2026-10-06T17:59:23, 120s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: bdd4244..47f0c5c of claude/frie...(30) (last applied here: bdd4244)
+  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
+  applies  M frontend/src/liveCoordinationLabels.js
+  applies  M frontend/src/liveCoordinationLabels.test.js
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 3 file(s)
+  packages unchanged and installed: building (no npm ci)...
+  ok: frontend built
+DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+  restarted task 'Alpha Backend'
+  restarted task 'Alpha'
+  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+```
 
 ## 20261006-14-apply-live-watcher  apply-update  ->  0   (2026-10-06T11:48:48, 138s)
 ```
