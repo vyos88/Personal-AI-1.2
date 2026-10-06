@@ -390,6 +390,46 @@ on. Its policy lives in the pure `decide()` and is pinned by
 - Probes send `Host: <public host>` through `node:http` because that is what
   cloudflared sends and `fetch` cannot.
 
+## Alpha's Agent Manager, seen from any machine
+
+Alpha's Agent Manager (`scripts/alpha_agent_manager.ps1` in vyos88/Alpha) runs
+on the machine that runs Alpha and is the one authority over Alpha's agents: it
+starts and stops them, holds a machine-wide mutex so a second copy exits, and
+checks an allocation before its `device-command` starts anything on another
+laptop. The owner asked to see every agent from either laptop, with no
+duplicate work and no loops between managers. That is answered here with a
+viewer, never a second manager:
+
+- **One manager, any number of viewers.** `scripts/fleet-agents.mjs` draws the
+  manager's snapshot beside the coordinator's agents and leases, in the
+  manager's own Norton layout. It sends reads and one task type,
+  `alpha.agent-manager.status`, at most one at a time and only when an attached,
+  non-silent agent offers it; a test pins that this is the whole of what it
+  sends. Installing the manager itself on a second laptop to "see" it is the
+  thing not to do: two authorities is exactly how stewards double up and
+  restart each other.
+- **The read is a handler because the HTTP route wants the owner.**
+  `/agent-manager/status` needs Alpha's owner login, which no scheduled
+  console should hold. `agent-manager-status.js` reads
+  `memory/local/agent-manager/manager-status.json` inside `ALPHA_REPO_ROOT` (the
+  root the coordination handler already uses), takes no arguments, starts no
+  process, and is opt-in. `available()` declines a root with no snapshot,
+  because the Host's records standby has an `ALPHA_REPO_ROOT` too.
+- **Stale is drawn as stale.** The manager rewrites its snapshot every 15 s;
+  both the handler and the viewer call it stale after two minutes, and the
+  viewer ages a kept snapshot by the time since it was read. An old snapshot
+  must never look like a live fleet.
+- **Managing across laptops is Alpha's, not this repo's.** Alpha already has
+  that half: `device-command` on the manager, `agent-control/poll` and
+  `receipt` from `alpha_agent_controller.py` on the other laptop, allowlisted
+  scripts only. A laptop takes part only if its device enrollment includes
+  `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
+  the "Managed control denied (HTTP=403)" in its supervisor log.
+
+Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
+that runs Alpha, then on any machine:
+`node scripts/fleet-agents.mjs --machines host=laptop-gj8dfmlk,worker1=desktop-41hplcn`.
+
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
