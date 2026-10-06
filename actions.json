@@ -28,6 +28,13 @@
    "installComfy": true,
    "backend": "comfyui",
    "why": "retry h03 with #137: ComfyUI via start-comfyui.ps1 with a log (C:\\AlphaData\\comfyui.log), 7 min wait, log tail on failure; clone/checkpoint already done"
+  },
+  {
+   "id": "20261006-h06-brain-topology",
+   "do": "brain-topology",
+   "fix": true,
+   "branch": "claude/friendly-wright-jw4ep6-brain-topology",
+   "why": "owner asked: same brain-deck fix on this laptop too (Alpha#68, head 22b51f7). If this machine serves no Alpha install, the check says so rather than changing anything."
   }
  ],
  "autofix": {
