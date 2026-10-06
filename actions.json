@@ -1,114 +1,120 @@
 {
-  "actions": [
-    {
-      "id": "20261006-01-repair",
-      "do": "repair-host"
-    },
-    {
-      "id": "20261006-02-lyrics-model",
-      "do": "ollama-pull",
-      "model": "llama3.2:3b"
-    },
-    {
-      "id": "20261006-03-doctor",
-      "do": "doctor"
-    },
-    {
-      "id": "20261006-04-snapshot",
-      "do": "snapshot"
-    },
-    {
-      "id": "20261006-05-apply-update",
-      "do": "apply-update"
-    },
-    {
-      "id": "20261006-06-snapshot-retry",
-      "do": "snapshot"
-    },
-    {
-      "id": "20261006-07-doctor",
-      "do": "doctor"
-    },
-    {
-      "id": "20261006-08-snapshot",
-      "do": "snapshot"
-    },
-    {
-      "id": "20261006-09-doctor",
-      "do": "doctor"
-    },
-    {
-      "id": "20261006-10-doctor-chat",
-      "do": "doctor"
-    },
-    {
-      "id": "20261006-11-snapshot-approved",
-      "do": "snapshot",
-      "allow": "software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113"
-    },
-    {
-      "id": "20261006-12-apply-live-watcher",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
-    },
-    {
-      "id": "20261006-13-apply-live-watcher",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
-    },
-    {
-      "id": "20261006-14-apply-live-watcher",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
-    },
-    {
-      "id": "20261006-15-ollama-keepalive",
-      "do": "ollama-keepalive",
-      "keepAlive": "24h",
-      "model": "llama3.2:3b",
-      "why": "cold reload took 75.6s at 16:26 UTC; keep the chat model loaded (Personal-AI-1.2#129)"
-    },
-    {
-      "id": "20261006-16-watcher-machine-names",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "why": "watcher shows machine names for the observed checkout, tailnet peers and claim owners (vyos88/Alpha#73, 47f0c5c)"
-    },
-    {
-      "id": "20261006-17-enable-music",
-      "do": "enable-music",
-      "bridge": true,
-      "why": "Music Creator: MusicGen + alpha-music on this agent, and the music bridge (auto: tracks shared with Host) (Personal-AI-1.2#130)"
-    },
-    {
-      "id": "20261006-18-music-route",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "why": "route the Music Creator Generate button to the music bridge instead of the backend (Alpha#73 af139ec); job 16 ran before it was pushed"
-    },
-    {
-      "id": "20261006-19-enable-music",
-      "do": "enable-music",
-      "bridge": true,
-      "machines": "host,worker1",
-      "why": "retry #132: own venv, put back the anyio pin job 17 broke, restart the alpha-agent service; bridge prefers Host GPU on equal load"
-    },
-    {
-      "id": "20261006-20-music-route",
-      "do": "apply-update",
-      "branch": "claude/friendly-wright-jw4ep6-route-b",
-      "why": "music route again, vite.config now self-contained (Alpha#73 207cafb; job 18 failed: musicBridge.js is not live)"
-    },
-    {
-      "id": "20261006-21-enable-image",
-      "do": "enable-image",
-      "bridge": true,
-      "backend": "a1111",
-      "machines": "host,worker1",
-      "why": "images shared with Host by load (#132): handlers on 7860, image bridge 7861, IMAGE_GEN_URL via bridge with 7860 fallback"
-    }
-  ]
+ "actions": [
+  {
+   "id": "20261006-01-repair",
+   "do": "repair-host"
+  },
+  {
+   "id": "20261006-02-lyrics-model",
+   "do": "ollama-pull",
+   "model": "llama3.2:3b"
+  },
+  {
+   "id": "20261006-03-doctor",
+   "do": "doctor"
+  },
+  {
+   "id": "20261006-04-snapshot",
+   "do": "snapshot"
+  },
+  {
+   "id": "20261006-05-apply-update",
+   "do": "apply-update"
+  },
+  {
+   "id": "20261006-06-snapshot-retry",
+   "do": "snapshot"
+  },
+  {
+   "id": "20261006-07-doctor",
+   "do": "doctor"
+  },
+  {
+   "id": "20261006-08-snapshot",
+   "do": "snapshot"
+  },
+  {
+   "id": "20261006-09-doctor",
+   "do": "doctor"
+  },
+  {
+   "id": "20261006-10-doctor-chat",
+   "do": "doctor"
+  },
+  {
+   "id": "20261006-11-snapshot-approved",
+   "do": "snapshot",
+   "allow": "software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113"
+  },
+  {
+   "id": "20261006-12-apply-live-watcher",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
+  },
+  {
+   "id": "20261006-13-apply-live-watcher",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
+  },
+  {
+   "id": "20261006-14-apply-live-watcher",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
+  },
+  {
+   "id": "20261006-15-ollama-keepalive",
+   "do": "ollama-keepalive",
+   "keepAlive": "24h",
+   "model": "llama3.2:3b",
+   "why": "cold reload took 75.6s at 16:26 UTC; keep the chat model loaded (Personal-AI-1.2#129)"
+  },
+  {
+   "id": "20261006-16-watcher-machine-names",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "watcher shows machine names for the observed checkout, tailnet peers and claim owners (vyos88/Alpha#73, 47f0c5c)"
+  },
+  {
+   "id": "20261006-17-enable-music",
+   "do": "enable-music",
+   "bridge": true,
+   "why": "Music Creator: MusicGen + alpha-music on this agent, and the music bridge (auto: tracks shared with Host) (Personal-AI-1.2#130)"
+  },
+  {
+   "id": "20261006-18-music-route",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "route the Music Creator Generate button to the music bridge instead of the backend (Alpha#73 af139ec); job 16 ran before it was pushed"
+  },
+  {
+   "id": "20261006-19-enable-music",
+   "do": "enable-music",
+   "bridge": true,
+   "machines": "host,worker1",
+   "why": "retry #132: own venv, put back the anyio pin job 17 broke, restart the alpha-agent service; bridge prefers Host GPU on equal load"
+  },
+  {
+   "id": "20261006-20-music-route",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "music route again, vite.config now self-contained (Alpha#73 207cafb; job 18 failed: musicBridge.js is not live)"
+  },
+  {
+   "id": "20261006-21-enable-image",
+   "do": "enable-image",
+   "bridge": true,
+   "backend": "a1111",
+   "machines": "host,worker1",
+   "why": "images shared with Host by load (#132): handlers on 7860, image bridge 7861, IMAGE_GEN_URL via bridge with 7860 fallback"
+  },
+  {
+   "id": "20261006-22-live-test",
+   "do": "live-test",
+   "count": 2,
+   "why": "user asked: test music, images and a reel live on both machines; reports which machine made each"
+  }
+ ]
 }
