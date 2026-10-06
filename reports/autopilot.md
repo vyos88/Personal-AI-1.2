@@ -1,8 +1,31 @@
-﻿# laptop41 autopilot 20261006-113345
+﻿# laptop41 autopilot 20261006-114845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout f2bb048 is current
+checkout ccc37ac is current
+
+## 20261006-14-apply-live-watcher  apply-update  ->  0   (2026-10-06T11:48:48, 138s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: 030195d..bdd4244 of claude/frie...(30)
+  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
+  applies  A frontend/src/liveCoordinationLabels.js
+  applies  A frontend/src/liveCoordinationLabels.test.js
+  applies  M scripts/alpha_agent_manager.ps1
+  applies  M scripts/test_alpha_agent_manager.ps1
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 5 file(s)
+  ok: 2 PowerShell file(s) parse
+  installed frontend packages are incomplete (an earlier install was cut short): reinstalling
+  stopped 2 frontend process(es) so packages can be reinstalled
+  installing frontend packages (npm ci) and building...
+  ok: frontend built
+DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+  restarted task 'Alpha Backend'
+  restarted task 'Alpha'
+  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+  The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").
+```
 
 ## 20261006-13-apply-live-watcher  apply-update  ->  1   (2026-10-06T11:33:48, 9s)
 ```
