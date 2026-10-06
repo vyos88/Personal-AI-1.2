@@ -32,6 +32,7 @@ import { existsSync, mkdtempSync, openSync, readSync, closeSync, statSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { audioOutput, describeWav, inspectWav, judgeTrack } from './wav-check.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -54,7 +55,7 @@ const only = arg('only', '');
 const videoPython = arg('video-python', '');
 const videoScript = arg('video-script', '');
 const work = mkdtempSync(join(tmpdir(), 'alpha-live-test-'));
-const made = { images: [], track: null };
+const made = { images: [], track: null, tracks: [] };
 
 const results = [];
 const say = (line) => console.log(line);
@@ -115,18 +116,40 @@ async function testMusic() {
       results.push({ kind: 'music', ok: false, machine: job.machine });
       continue;
     }
-    const audio = await fetch(`${musicUrl}/music/tasks/${job.id}/audio`, { headers: { range: 'bytes=0-11' } });
-    const head = Buffer.from(await audio.arrayBuffer());
-    const wav = head.subarray(0, 4).toString() === 'RIFF' && head.subarray(8, 12).toString() === 'WAVE';
-    const size = done.outputs?.[0]?.bytes;
+    // The whole track, judged by its bytes: the size printed before 2026-10-06
+    // was the JSON sidecar's (outputs sort by name), and a 12-byte header
+    // check passed silence and truncated files alike.
     const machine = done.agent || job.machine;
-    say(`${wav ? 'ok' : 'PROBLEM'}: track ${job.i + 1} made by ${machine} in ${secs}s, ${size ?? '?'} bytes${wav ? ', plays (WAV)' : `, audio did not start with a WAV header (HTTP ${audio.status})`}`);
-    if (wav && !made.track) {
-      const full = await fetch(`${musicUrl}/music/tasks/${job.id}/audio`);
-      if (full.ok) { made.track = join(work, `track-${job.id}.wav`); writeFileSync(made.track, Buffer.from(await full.arrayBuffer())); }
-    }
-    results.push({ kind: 'music', ok: wav, machine });
+    const track = audioOutput(done.outputs);
+    const full = await fetch(`${musicUrl}/music/tasks/${job.id}/audio`);
+    const bytes = full.ok ? Buffer.from(await full.arrayBuffer()) : Buffer.alloc(0);
+    const info = inspectWav(bytes);
+    const verdict = full.ok ? judgeTrack(info, musicSeconds) : { ok: false, reason: `the bridge would not play it (HTTP ${full.status})` };
+    say(`${verdict.ok ? 'ok' : 'PROBLEM'}: track ${job.i + 1} made by ${machine} in ${secs}s, ${track?.name ?? 'no audio file listed'} ${bytes.length || track?.bytes || '?'} bytes, ` +
+      (verdict.ok ? `plays (WAV, ${describeWav(info)})` : verdict.reason));
+    if (verdict.ok && !made.track) { made.track = join(work, `track-${job.id}.wav`); writeFileSync(made.track, bytes); }
+    if (verdict.ok) made.tracks.push(job.id);
+    results.push({ kind: 'music', ok: verdict.ok, machine });
   }
+  if (made.tracks.length) await checkPlaylist();
+}
+
+// The panel's recipe book (Alpha's playlist of made tracks) reads
+// /music/recipes: a track that plays but is missing there cannot be found
+// again once the page is reloaded.
+async function checkPlaylist() {
+  let listed = [];
+  const ok = await waitFor(async () => {
+    const r = await json(`${musicUrl}/music/recipes?limit=50`);
+    listed = Array.isArray(r.body?.recipes) ? r.body.recipes : [];
+    return made.tracks.every((id) => listed.some((row) => row.taskId === id && audioOutput(row.outputs)));
+  }, 30_000);
+  for (const id of made.tracks) {
+    const row = listed.find((x) => x.taskId === id);
+    if (row && audioOutput(row.outputs)) say(`ok: track ${id} is in the playlist (/music/recipes), ${audioOutput(row.outputs).name}`);
+    else say(`PROBLEM: track ${id} plays but is not in the playlist (/music/recipes${row ? ' lists it without an audio file' : ''})`);
+  }
+  results.push({ kind: 'playlist', ok: Boolean(ok), machine: 'music bridge' });
 }
 
 async function testImages() {
@@ -200,7 +223,7 @@ if (only !== 'image') await testMusic();
 if (only !== 'music') await testImages();
 if (!only || only === 'video') await testVideo();
 
-for (const kind of ['music', 'image', 'video']) {
+for (const kind of ['music', 'playlist', 'image', 'video']) {
   const mine = results.filter((r) => r.kind === kind);
   if (!mine.length) continue;
   const by = {};
