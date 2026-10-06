@@ -253,6 +253,66 @@ test('--branch follows a side branch with its own record and never moves alpha-f
   assert.match(again.lines.join('\n'), /nothing new/);
 });
 
+test('a file a changed script imports, which this machine never had, is brought whole', async () => {
+  // Worker1, 2026-10-06: the host branch held frontend/musicBridge.js (from
+  // alpha-full; the host never had it), the update changed vite.config.js to
+  // import it, and the build failed on "Could not resolve './musicBridge.js'".
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-update-imports-'));
+  const repo = join(dir, 'alpha');
+  mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'alpha-full');
+  git(repo, 'config', 'user.email', 't@t');
+  git(repo, 'config', 'user.name', 't');
+  const CONFIG = "import { defineConfig } from 'vite'\nexport default defineConfig({})\n";
+  write(repo, `${SUB}/backend/main.py`, BASE_MAIN);
+  write(repo, `${SUB}/frontend/package.json`, '{"name":"x"}\n');
+  write(repo, `${SUB}/frontend/vite.config.js`, CONFIG);
+  write(repo, `${SUB}/frontend/musicBridge.js`, "import { PORT } from './bridgeDefaults.js'\nexport const target = PORT\n");
+  write(repo, `${SUB}/frontend/bridgeDefaults.js`, 'export const PORT = 8790\n');
+  write(repo, `${SUB}/frontend/src/here.js`, 'export const here = 1\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'base');
+  const base = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/vite.config.js`, [
+    "import { defineConfig } from 'vite'",
+    "import { target } from './musicBridge.js'",
+    "import { here } from './src/here'",
+    "// import { gone } from './nowhere.js'",
+    'export default defineConfig({ target, here })',
+    '',
+  ].join('\n'));
+  git(repo, 'commit', '-qam', 'route /music to the bridge');
+
+  const live = join(dir, 'live', 'software');
+  write(live, 'backend/main.py', BASE_MAIN);
+  write(live, 'frontend/package.json', '{"name":"x"}\n');
+  write(live, 'frontend/vite.config.js', CONFIG);
+  write(live, 'frontend/src/here.js', 'export const here = 1 // edited here\n');
+  const ops = join(dir, 'ops');
+  const opts = ['--alpha-root', join(live, '..'), '--repo', `file://${repo}`, '--from', base, '--ops', ops, '--skip-build'];
+
+  const report = quiet();
+  assert.equal(await main(opts, report), 0);
+  const text = report.lines.join('\n');
+  assert.match(text, /applies +A frontend\/musicBridge\.js +\(imported by frontend\/vite\.config\.js; never on this machine\)/);
+  assert.match(text, /applies +A frontend\/bridgeDefaults\.js +\(imported by frontend\/musicBridge\.js; never on this machine\)/);
+  assert.doesNotMatch(text, /src\/here\.js/, 'a file this machine has is left as it is');
+  assert.doesNotMatch(text, /nowhere/, 'a file the branch does not hold cannot be brought');
+  assert.match(text, /READY: 3 file\(s\) would change/);
+  assert.equal(existsSync(join(live, 'frontend/musicBridge.js')), false, 'a report writes nothing');
+
+  assert.equal(await main([...opts, '--apply'], quiet()), 0);
+  assert.equal(readFileSync(join(live, 'frontend/musicBridge.js'), 'utf8'), "import { PORT } from './bridgeDefaults.js'\nexport const target = PORT\n");
+  assert.equal(readFileSync(join(live, 'frontend/bridgeDefaults.js'), 'utf8'), 'export const PORT = 8790\n');
+  assert.equal(readFileSync(join(live, 'frontend/src/here.js'), 'utf8'), 'export const here = 1 // edited here\n');
+
+  const backup = join(ops, 'backups', readdirSync(join(ops, 'backups'))[0]);
+  assert.equal(await main(['--rollback', backup, '--skip-build'], quiet()), 0);
+  assert.equal(existsSync(join(live, 'frontend/musicBridge.js')), false, 'rolled back with the change that needed it');
+  assert.equal(existsSync(join(live, 'frontend/bridgeDefaults.js')), false);
+  assert.equal(readFileSync(join(live, 'frontend/vite.config.js'), 'utf8'), CONFIG);
+});
+
 test('a branch name that is not one is refused', async () => {
   const f = fixture();
   const out = quiet();
