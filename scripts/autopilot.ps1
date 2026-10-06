@@ -327,9 +327,22 @@ else {
 $ran = New-Object System.Collections.ArrayList
 $bridgeLines = New-Object System.Collections.ArrayList
 if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
-  foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790 }, @{ task = 'alpha-image bridge'; port = 7861 })) {
-    if (-not (Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue)) { continue }
+  foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790; log = 'alpha-music-bridge.log' }, @{ task = 'alpha-image bridge'; port = 7861; log = 'alpha-image-bridge.log' })) {
+    $registered = Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue
+    if (-not $registered) { continue }
     if (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue) { continue }
+    # Why it went down, before it is restarted: whether the launcher loop was
+    # still running (only node died) or the whole task was ended, and the end
+    # of its log. Keys are masked; the bridges never log them, but be sure.
+    $info = Get-ScheduledTaskInfo -TaskName $b.task -EA SilentlyContinue
+    [void]$bridgeLines.Add("'$($b.task)' task was $($registered.State); last run $($info.LastRunTime), last result 0x$('{0:X}' -f [int64]$info.LastTaskResult)")
+    $logFile = Join-Path $env:TEMP $b.log
+    if (Test-Path -LiteralPath $logFile) {
+      Get-Content -LiteralPath $logFile -Tail 6 -EA SilentlyContinue | ForEach-Object {
+        $line = ("$_" -replace '(alpha_key_|sk-|ghp_|github_pat_)\S+', '$1***' -replace '[A-Za-z0-9+/_=-]{32,}', '***')
+        [void]$bridgeLines.Add("  log: $($line.Substring(0, [math]::Min(200, $line.Length)))")
+      }
+    } else { [void]$bridgeLines.Add("  no log at $logFile") }
     # A launcher loop that is still running but whose node died cannot be
     # told apart from outside: end the task's instance, then start it fresh.
     Stop-ScheduledTask -TaskName $b.task -EA SilentlyContinue

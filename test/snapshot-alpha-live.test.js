@@ -38,6 +38,7 @@ function fixture({ liveMain = 'def login():\r\n    return "live"\r\n' } = {}) {
   write(repo, `${BASE}/software/frontend/src/a.css`, '.a{color:red}\n');
   write(repo, `${BASE}/scripts/steward.ps1`, '# steward\n');
   write(repo, 'Models/big.bin', 'never part of a snapshot\n');
+  write(repo, '.gitignore', 'builds/\n');
   git(repo, 'add', '-A');
   git(repo, 'commit', '-qm', 'base');
   // A bare copy to push to, so the test can see what arrived.
@@ -153,10 +154,13 @@ test('--include-new brings new source files only, and scans every line of them',
   write(f.live, 'software/backend/big.py', `x = "${'a'.repeat(600 * 1024)}"\n`);
   write(f.live, 'software/backend/notes.txt', 'not source\n');
   write(f.live, 'Models/new.py', 'outside software and scripts\n');
+  // Laptop41 job 36: a path Alpha's .gitignore ignores stopped the snapshot.
+  write(f.live, 'scripts/games/guess/builds/run.js', 'x\n');
   const log = quiet();
   assert.equal(await main(args(f, '--push', '--include-new', '--branch', 'alpha-from-host-new'), log), 0, log.lines.join('\n'));
   const text = log.lines.join('\n');
   assert.match(text, /3 source file\(s\) only this machine has/);
+  assert.match(text, /not taken: 1 file\(s\) Alpha's \.gitignore ignores/);
   assert.match(text, /not taken: software\/backend\/secret_keys\.py \(named like a secret\)/);
   assert.match(text, /not taken: software\/backend\/big\.py \(over 512 KB\)/);
   const bare = f.remote.replace('file://', '');

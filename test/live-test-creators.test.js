@@ -8,11 +8,24 @@ import { join } from 'node:path';
 
 const SCRIPT = join(import.meta.dirname, '..', 'scripts', 'live-test-creators.mjs');
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]).toString('base64');
-const WAV = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WAVE')]);
+// A real 16-bit mono WAV: `seconds` long, a tone unless `silent`.
+function wav({ seconds = 5, silent = false, rate = 8000 } = {}) {
+  const n = Math.round(rate * seconds);
+  const b = Buffer.alloc(44 + n * 2);
+  b.write('RIFF', 0); b.writeUInt32LE(36 + n * 2, 4); b.write('WAVE', 8);
+  b.write('fmt ', 12); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22);
+  b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34);
+  b.write('data', 36); b.writeUInt32LE(n * 2, 40);
+  if (!silent) for (let i = 0; i < n; i++) b.writeInt16LE(Math.round(12000 * Math.sin(i / 5)), 44 + i * 2);
+  return b;
+}
+
+// As the music handler reports them: sorted by name, so the sidecar first.
+const OUTPUTS = [{ name: 'rollers_seed1000_5s.json', bytes: 511 }, { name: 'rollers_seed1000_5s.wav', bytes: 80044 }];
 
 // Stand-ins for the two bridges: two machines, and each new job goes to the
 // one with less in hand, the way the real bridges pick.
-function fakeBridges({ failImage = false, stuckMusic = false } = {}) {
+function fakeBridges({ failImage = false, stuckMusic = false, track = wav(), playlist = true } = {}) {
   const tasks = new Map();
   const load = { worker1: 0, host: 0 };
   const pick = () => (load.worker1 <= load.host ? 'worker1' : 'host');
@@ -29,12 +42,16 @@ function fakeBridges({ failImage = false, stuckMusic = false } = {}) {
         return send(res, 202, { taskId: id, status: 'queued', targetAgent: machine });
       }
       const audio = /^\/music\/tasks\/(t\d+)\/audio$/.exec(req.url);
-      if (audio) { res.writeHead(206, { 'content-type': 'audio/wav' }); return res.end(WAV); }
+      if (audio) { res.writeHead(200, { 'content-type': 'audio/wav' }); return res.end(track); }
+      if (req.url.startsWith('/music/recipes')) {
+        const recipes = playlist ? [...tasks.keys()].map((id) => ({ taskId: id, status: 'succeeded', outputs: OUTPUTS })) : [];
+        return send(res, 200, { recipes });
+      }
       const task = /^\/music\/tasks\/(t\d+)$/.exec(req.url);
       if (task) {
         const t = tasks.get(task[1]); t.polls++;
         const done = !stuckMusic && t.polls > 1;
-        return send(res, 200, { taskId: task[1], status: done ? 'succeeded' : 'running', done, agent: t.machine, outputs: [{ name: 'a.wav', bytes: 1234 }] });
+        return send(res, 200, { taskId: task[1], status: done ? 'succeeded' : 'running', done, agent: t.machine, outputs: OUTPUTS });
       }
       if (req.url === '/sdapi/v1/sd-models') return send(res, 200, [{ title: 'alpha-tunnel (worker1, host)' }]);
       if (req.url === '/sdapi/v1/txt2img') {
@@ -81,7 +98,10 @@ test('the live test makes tracks and images and says which machine made each', {
   const { code, text } = await runAgainst(fakeBridges());
   assert.equal(code, 0, text);
   assert.match(text, /ok: the site .* routes \/music to the music bridge/);
-  assert.match(text, /ok: track 1 made by worker1 .* plays \(WAV\)/);
+  assert.match(text, /ok: track 1 made by worker1 in \d+s, rollers_seed1000_5s\.wav 80044 bytes, plays \(WAV, 5\.0s, 8000 Hz mono, peak -\d+ dBFS\)/);
+  assert.doesNotMatch(text, /511 bytes/);
+  assert.match(text, /ok: track t1 is in the playlist \(\/music\/recipes\), rollers_seed1000_5s\.wav/);
+  assert.match(text, /playlist: 1\/1 worked/);
   assert.match(text, /ok: track 2 made by host/);
   assert.match(text, /ok: image 1 made by worker1 \(a1111\) .* PNG/);
   assert.match(text, /ok: image 2 made by host \(comfyui\)/);
@@ -117,4 +137,25 @@ test('stuck tracks share one deadline, and images are still tested', { timeout: 
   assert.equal((text.match(/PROBLEM: track \d on \w+: timed out while running/g) || []).length, 2, text);
   assert.match(text, /ok: image 1 made by/);
   assert.match(text, /ok: image 2 made by/);
+});
+
+// 2026-10-06: every track was reported as "511 bytes, plays (WAV)" from a
+// 12-byte header check. Silence and a cut-short file must now fail.
+test('a silent track fails the live test', { timeout: 120_000 }, async () => {
+  const { code, text } = await runAgainst(fakeBridges({ track: wav({ silent: true }) }), ['--only', 'music']);
+  assert.equal(code, 1);
+  assert.match(text, /PROBLEM: track 1 made by \w+ in \d+s, rollers_seed1000_5s\.wav \d+ bytes, the audio is silent/);
+});
+
+test('a track much shorter than asked for fails the live test', { timeout: 120_000 }, async () => {
+  const { code, text } = await runAgainst(fakeBridges({ track: wav({ seconds: 1 }) }), ['--only', 'music']);
+  assert.equal(code, 1);
+  assert.match(text, /only 1\.0s of audio \(asked for 5s\)/);
+});
+
+test('a track missing from the playlist fails the live test', { timeout: 120_000 }, async () => {
+  const { code, text } = await runAgainst(fakeBridges({ playlist: false }), ['--only', 'music', '--count', '1']);
+  assert.equal(code, 1);
+  assert.match(text, /ok: track 1 made by .* plays \(WAV/);
+  assert.match(text, /PROBLEM: track t1 plays but is not in the playlist/);
 });

@@ -24,8 +24,9 @@ import { ProtocolError } from '../../common/protocol.js';
  *
  * Same shape as alpha-devices.js:
  *
- * - Pinned file, which must resolve inside ALPHA_REPO_ROOT (the root the
- *   coordination handler already uses on that machine). Not configurable.
+ * - Pinned file, which must resolve inside the manager's Alpha install:
+ *   ALPHA_AGENT_MANAGER_ROOT, else ALPHA_REPO_ROOT (the root the coordination
+ *   handler already uses). The file's path inside it is not configurable.
  * - **No arguments at all**: a payload carrying anything is refused, so there
  *   is no path for caller data to travel.
  * - It starts no process. It is opt-in anyway, because it reads the
@@ -33,6 +34,7 @@ import { ProtocolError } from '../../common/protocol.js';
  *   machine with no snapshot rather than advertising a type it would fail.
  *
  *   ALPHA_EXTRA_HANDLERS=agent-manager-status
+ *   ALPHA_AGENT_MANAGER_ROOT=<Alpha install the manager runs from>   (optional)
  */
 
 export const type = 'alpha.agent-manager.status';
@@ -48,25 +50,36 @@ export const STALE_AFTER_MS = 120_000;
 const MAX_BYTES = 16 * 1024 * 1024;
 const LIMITS = Object.freeze({ devices: 16, agents: 120, recommendations: 12, handoffs: 4, campaigns: 8, text: 160 });
 
-function repoRoot() {
-  const raw = process.env.ALPHA_REPO_ROOT;
+/**
+ * The Alpha install whose Agent Manager runs here.
+ *
+ * Usually ALPHA_REPO_ROOT, the root the coordination handler uses. Not on
+ * Worker1: its coordination log lives in C:\Users\Vyo\Alpha-1.8 while the live
+ * Alpha, and the manager the owner watches, run from
+ * C:\Users\Vyo\Downloads\VyoS-advance-tech-ai. Read from ALPHA_REPO_ROOT there,
+ * this handler served Alpha-1.8's week-old snapshot (and said it was stale).
+ * ALPHA_AGENT_MANAGER_ROOT names the manager's install without moving the
+ * coordination log. Machine configuration, like ALPHA_REPO_ROOT: never payload.
+ */
+function managerRoot() {
+  const raw = process.env.ALPHA_AGENT_MANAGER_ROOT || process.env.ALPHA_REPO_ROOT;
   if (!raw) {
-    throw new ProtocolError('ALPHA_REPO_ROOT is not set: this machine has no Alpha whose manager could be read', {
-      status: 500,
-      code: 'not_configured',
-    });
+    throw new ProtocolError(
+      'neither ALPHA_AGENT_MANAGER_ROOT nor ALPHA_REPO_ROOT is set: this machine has no Alpha whose manager could be read',
+      { status: 500, code: 'not_configured' },
+    );
   }
   return resolve(raw);
 }
 
 /** The snapshot's path. Exported so a test can pin it. */
 export function snapshotPath() {
-  const root = repoRoot();
+  const root = managerRoot();
   const path = resolve(root, SNAPSHOT);
   // SNAPSHOT is a constant, so this cannot fail today; it is here so it still
   // cannot escape if someone later makes the path settable.
   if (!path.startsWith(root + sep)) {
-    throw new ProtocolError(`${SNAPSHOT} must live inside ALPHA_REPO_ROOT`, { status: 500, code: 'not_configured' });
+    throw new ProtocolError(`${SNAPSHOT} must live inside the manager's Alpha root`, { status: 500, code: 'not_configured' });
   }
   return path;
 }
