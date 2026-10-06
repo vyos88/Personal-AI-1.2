@@ -17,6 +17,11 @@
  * failed build, or a Python file that no longer parses, puts everything back
  * on the spot. Line endings (CRLF) and a UTF-8 BOM are kept per file.
  *
+ * One kind of file comes whole rather than as a change: one the branch holds,
+ * this machine has never had, and a script this update writes imports. Without
+ * it the build fails (missingImports below says how a branch comes to hold
+ * one). Each is listed with the file that imports it.
+ *
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir>            report: changes nothing
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir> --apply    apply, rebuild
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir> --apply --restart
@@ -51,7 +56,7 @@ import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = {
@@ -138,6 +143,59 @@ export function buildPatch({ cache, from, to, subdir }) {
       return { status: status[0], path };
     });
   return { patch, files };
+}
+
+// `from '…'`, `import '…'`, `import('…')`, `require('…')` naming a relative
+// path. Comments are not stripped: an import named only in a comment brings,
+// at worst, a file the branch already holds.
+const RELATIVE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"\n]+)\1/g;
+const SCRIPT_FILE = /\.(?:[cm]?js|jsx|tsx?)$/;
+const IMPORT_SUFFIXES = ['', '.js', '.jsx', '.mjs', '.ts', '.tsx', '/index.js', '/index.jsx'];
+
+export function relativeImports(text) {
+  return [...text.matchAll(RELATIVE_IMPORT)].map((m) => m[2]);
+}
+
+/**
+ * Files this update's scripts import that this machine has never had.
+ *
+ * A host branch is built from an alpha-from-host-* snapshot, which records
+ * the host's copy of every file alpha-full tracks and leaves the ones the host
+ * lacks as alpha-full has them. So the branch can hold a file the host never
+ * got, no diff ever carries it, and the first change that imports it fails the
+ * build: Worker1, 2026-10-06, vite.config.js importing ./musicBridge.js. Such a
+ * file is brought whole from the target commit, but only when the branch
+ * holds it, the host lacks it, and something this update writes imports it.
+ */
+export function missingImports({ cache, to, subdir, root, files }) {
+  const tracked = new Set(git(['ls-tree', '-r', '--name-only', to, '--', subdir], { cwd: cache }).stdout
+    .split('\n').filter(Boolean).map((p) => p.slice(subdir.length + 1)));
+  const seen = new Set(files.map((f) => f.path));
+  const queue = files.filter((f) => f.status !== 'D' && SCRIPT_FILE.test(f.path)).map((f) => f.path);
+  const found = [];
+  while (queue.length && found.length < 50) {
+    const path = queue.shift();
+    const shown = git(['show', `${to}:${subdir}/${path}`], { cwd: cache, allowFail: true });
+    if (shown.status !== 0) continue;
+    for (const spec of relativeImports(shown.stdout)) {
+      const base = posix.normalize(posix.join(posix.dirname(path), spec));
+      if (base.startsWith('..')) continue;
+      const hit = IMPORT_SUFFIXES.map((s) => base + s).find((p) => tracked.has(p));
+      if (!hit || seen.has(hit)) continue;
+      seen.add(hit);
+      if (existsSync(join(root, hit))) continue;
+      found.push({ status: 'A', path: hit, note: `imported by ${path}; never on this machine` });
+      if (SCRIPT_FILE.test(hit)) queue.push(hit);
+    }
+  }
+  return found;
+}
+
+/** Those files as a patch that creates them. */
+export function newFilesPatch({ cache, to, subdir, paths }) {
+  const empty = git(['hash-object', '-t', 'tree', '--stdin'], { cwd: cache, input: '' }).stdout.trim();
+  return git(['diff', '--no-color', '--no-ext-diff', `--relative=${subdir}`, empty, to, '--',
+    ...paths.map((p) => `${subdir}/${p}`)], { cwd: cache }).stdout;
 }
 
 function readLive(file) {
@@ -384,13 +442,20 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     areas.push({ name: 'scripts', root: scriptsRoot, from: scriptsFrom, ...buildPatch({ cache, from: scriptsFrom, to, subdir: DEFAULTS.scriptsSubdir }) });
     scriptsTo = to;
   }
+  for (const area of areas) {
+    const subdir = area.name === 'software' ? DEFAULTS.subdir : DEFAULTS.scriptsSubdir;
+    const extra = missingImports({ cache, to, subdir, root: area.root, files: area.files });
+    if (!extra.length) continue;
+    area.patch += newFilesPatch({ cache, to, subdir, paths: extra.map((f) => f.path) });
+    area.files.push(...extra);
+  }
   const live = areas.filter((area) => area.files.length);
   if (!live.length) { log(`ok: nothing new on ${branch} since the last apply`); writeState(statePath, to, scriptsTo); return EXIT_OK; }
 
   for (const area of live) Object.assign(area, plan({ root: area.root, patch: area.patch, files: area.files }));
   try {
     for (const area of live) {
-      for (const r of area.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${area.name === 'software' ? '' : `${area.name}/`}${r.path}${r.why ? `  -- ${r.why}` : ''}`);
+      for (const r of area.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${area.name === 'software' ? '' : `${area.name}/`}${r.path}${r.why ? `  -- ${r.why}` : ''}${r.note ? `  (${r.note})` : ''}`);
     }
     const conflicts = live.flatMap((area) => area.rows.filter((r) => r.state === 'conflict').map(() => area.name));
     for (const area of live) area.todo = area.rows.filter((r) => r.state === 'applies');

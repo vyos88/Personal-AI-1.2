@@ -237,6 +237,56 @@ test('the Music Creator path is checked link by link', { skip, timeout: 300_000 
   assert.match(out, /PROBLEM: image bridge is not running on 127\.0\.0\.1:7861/);
 });
 
+// Signed out of the coordinator, the doctor's agent list is the "Not signed
+// in" text. Read as a fleet, it said "no machine offers alpha.music" on every
+// run (Worker1, 2026-10-06), so the bridges are asked instead.
+async function doctorWithBridges(routes) {
+  const server = createServer((req, res) => {
+    const hit = routes[req.url];
+    if (hit) return json(res, hit[0], hit[1]);
+    json(res, 404, {});
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = String(server.address().port);
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-fleet-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
+  chmodSync(join(bin, 'curl.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', port, '-BackendPort', port,
+    '-MusicBridgePort', port, '-ImageBridgePort', port, '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  server.close();
+  return out;
+}
+
+test('signed out, the bridges say which machines make music and images', { skip, timeout: 300_000 }, async () => {
+  const out = await doctorWithBridges({
+    '/music/healthz': [200, { ok: true }],
+    '/music/fleet': [200, { machines: [{ name: 'worker1', idleMs: 10, inFlight: 0 }, { name: 'host', idleMs: 5, inFlight: 1 }] }],
+    '/healthz': [200, { ok: true }],
+    '/sdapi/v1/sd-models': [200, [{ title: 'Alpha (host, worker1)', model_name: 'Alpha' }]],
+  });
+  assert.match(out, /ok: the site routes \/music to the bridge/);
+  assert.match(out, /ok: machines that make music \(the music bridge's view\): worker1, host/);
+  assert.match(out, /ok: machines that make images \(the image bridge's view\): host, worker1/);
+  assert.doesNotMatch(out, /no machine offers alpha\.(music|image)/);
+});
+
+test('signed out, a bridge that cannot tell is not read as an empty fleet', { skip, timeout: 300_000 }, async () => {
+  const out = await doctorWithBridges({
+    '/music/healthz': [200, { ok: true }],
+    '/music/fleet': [502, { error: 'bridge_key_rejected', message: 'issue it with agents:read' }],
+    '/healthz': [200, { ok: true }],
+    '/sdapi/v1/sd-models': [503, { error: 'no_image_machine', message: 'no attached machine offers alpha.image' }],
+  });
+  assert.match(out, /which machines make music is not known here: .*cannot list machines \(it needs agents:read\)/);
+  assert.doesNotMatch(out, /no machine offers alpha\.music/);
+  assert.match(out, /PROBLEM: no machine offers alpha\.image: the image bridge has nowhere to send work/);
+});
+
 // Alpha's deck panel polls /panel/crowpanel/public-state with no credential.
 // The doctor says whether that feed is on, live, or stale and why.
 const deckFeed = (code, body) => (req, res) => {
