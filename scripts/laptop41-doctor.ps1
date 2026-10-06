@@ -744,6 +744,23 @@ function Find-CoordinationScript {
 }
 $relayNote = $null
 
+# Posts one message as $actor; returns the coordination script's exit code.
+# Not -Message $msg on the command line: Windows PowerShell 5.1 does not
+# escape a " inside a native argument, so any message quoting a name was split
+# and the post failed (exit 1) every run. The message goes through a file and
+# the command is base64, so nothing in it is ever parsed as arguments.
+function Post-ToAlpha($co, [string]$actor, [string]$msg) {
+  New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+  $msgFile = Join-Path $tmpDir "post-$actor.txt"
+  [IO.File]::WriteAllText($msgFile, $msg, (New-Object Text.UTF8Encoding($false)))
+  $q = { param($s) "'" + ($s -replace "'", "''") + "'" }
+  $cmd = "& $(& $q $co.FullName) -Action Post -Actor $(& $q $actor) -Message ([IO.File]::ReadAllText($(& $q $msgFile))); exit `$LASTEXITCODE"
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -EncodedCommand ([Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))) 2>&1 | Out-Null
+  $code = $LASTEXITCODE
+  Remove-Item $msgFile -Force -EA SilentlyContinue
+  return $code
+}
+
 # ------------------------------------------------------------ tell Alpha
 # On a change, and hourly while anything is open: every 15 minutes is noise
 # nobody reads.
@@ -762,8 +779,7 @@ if ($Watch -and $due) {
   $msg = Redact ($body -join "`n")
   if ($msg.Length -gt 3900) { $msg = $msg.Substring(0, 3900) }
   if ($co) {
-    & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'alpha-doctor' -Message $msg 2>&1 | Out-Null
-    $posted = ($LASTEXITCODE -eq 0)
+    $posted = ((Post-ToAlpha $co 'alpha-doctor' $msg) -eq 0)
     Write-Host ("posted to Alpha: {0}" -f $posted)
   } else { $relayNote = "no alpha_coordination_tunnel.ps1 near $AlphaRoot - not posted"; Write-Host $relayNote -ForegroundColor Yellow }
 }
@@ -787,12 +803,12 @@ function Relay-Branch([string]$branch, [string]$file, [string]$actor, [string]$s
   if (-not $co) { $script:relayNote = "no alpha_coordination_tunnel.ps1 near $AlphaRoot - $branch not relayed"; Write-Host $script:relayNote -ForegroundColor Yellow; return $seen }
   $msg = Redact $msg
   if ($msg.Length -gt 3900) { $msg = $msg.Substring(0, 3900) }
-  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor $actor -Message $msg 2>&1 | Out-Null
-  if ($LASTEXITCODE -eq 0) {
+  $code = Post-ToAlpha $co $actor $msg
+  if ($code -eq 0) {
     $script:relayNote = "relayed $branch $($head.Substring(0, 7))"; Write-Host "relayed $branch to Alpha"
     return $head
   }
-  $script:relayNote = "posting $branch failed (exit $LASTEXITCODE); will retry next run"; Write-Host $script:relayNote -ForegroundColor Yellow
+  $script:relayNote = "posting $branch failed (exit $code); will retry next run"; Write-Host $script:relayNote -ForegroundColor Yellow
   return $seen
 }
 $cloudSeen = if ($prev -and $prev.cloudSeen) { [string]$prev.cloudSeen } else { $null }

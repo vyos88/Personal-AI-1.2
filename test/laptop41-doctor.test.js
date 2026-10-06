@@ -61,7 +61,11 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   chmodSync(join(bin, 'powershell.exe'), 0o755);
   const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}` };
   const ops = join(dir, 'ops');
-  const args = ['-NoProfile', '-File', join(work, 'scripts', 'laptop41-doctor.ps1'), '-Watch', '-AlphaRoot', join(app, 'software'), '-OpsDir', ops];
+  // Laptop41 runs Windows PowerShell 5.1, which passes native arguments the
+  // legacy way: a " inside -Message is not escaped and splits the message.
+  // Legacy mode reproduces that here.
+  const args = ['-NoProfile', '-Command',
+    `$PSNativeCommandArgumentPassing = 'Legacy'; & '${join(work, 'scripts', 'laptop41-doctor.ps1')}' -Watch -AlphaRoot '${join(app, 'software')}' -OpsDir '${ops}'; exit $LASTEXITCODE`];
 
   const first = spawnSync(PWSH, args, { encoding: 'utf8', env });
   assert.equal(first.status, 0, first.stdout + first.stderr);
@@ -83,7 +87,7 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   // A new handoff arrives while nothing else changed: the relay alone is
   // reason to push, or the cloud session never sees that it got through.
   git(work, 'checkout', '-q', 'status/claude-laptop41');
-  writeFileSync(join(work, 'reports', 'handoff.md'), '# Claude handoff, second\n');
+  writeFileSync(join(work, 'reports', 'handoff.md'), '# Claude handoff, second: "Claude · Worker1" works\nline two\n');
   git(work, 'commit', '-qam', 'handoff 2');
   git(work, 'push', '-q', 'origin', 'status/claude-laptop41');
   const handoff2 = git(work, 'rev-parse', 'HEAD').trim();
@@ -95,7 +99,7 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   const again = readFileSync(posts, 'utf8').trim().split(/\r?\n/);
   assert.equal(again.filter((l) => l.startsWith('Post|claude-cloud|')).length, 1);
   assert.equal(again.filter((l) => l.startsWith('Post|claude-laptop41|')).length, 2);
-  assert.ok(again.includes('Post|claude-laptop41|# Claude handoff, second'), again.join('\n'));
+  assert.ok(again.includes('Post|claude-laptop41|# Claude handoff, second: "Claude · Worker1" works'), again.join('\n'));
   assert.equal(pushes(), pushedFirst + 1, 'the new relay was pushed');
   const pushedState = JSON.parse(git(remote, 'show', 'status/laptop41:reports/doctor-state.json'));
   assert.equal(pushedState.handoffSeen, handoff2);
