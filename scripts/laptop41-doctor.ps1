@@ -151,6 +151,99 @@ function Admin([string]$cmd) {
   try { return ((& node src\admin\run.js $cmd 2>&1 | Plain | Out-String)) } finally { Pop-Location }
 }
 
+# A backend setting: the environment first, then the .env files, .env.local
+# before .env (the .bak copies beside them carry old values). Within a file
+# the first line wins, as run_server.py loads it. Returns @{ value; from }.
+function EnvSetting([string]$name) {
+  foreach ($scope in 'Process', 'User', 'Machine') {
+    $v = [Environment]::GetEnvironmentVariable($name, $scope)
+    if ($v) { return @{ value = $v.Trim(); from = "environment ($scope)" } }
+  }
+  $files = @((Join-Path $AlphaRoot 'backend\.env.local'), (Join-Path $AlphaRoot '.env.local'), (Join-Path (Split-Path $AlphaRoot -Parent) '.env.local'),
+             (Join-Path $AlphaRoot 'backend\.env'), (Join-Path $AlphaRoot '.env'), (Join-Path (Split-Path $AlphaRoot -Parent) '.env'))
+  foreach ($f in $files) {
+    if (-not (Test-Path -LiteralPath $f -PathType Leaf)) { continue }
+    $hit = Select-String -LiteralPath $f -Pattern "^\s*$([regex]::Escape($name))\s*=" -EA SilentlyContinue | Select-Object -First 1
+    if ($hit) { return @{ value = ($hit.Line -split '=', 2)[1].Trim().Trim('"', "'"); from = $f } }
+  }
+  return $null
+}
+
+# Alpha's own deck firmware (hardware/examples/crowpanel_alpha_* in Alpha)
+# holds no credential: it polls /panel/crowpanel/public-state every 3 s.
+# Alpha's notes on getting it live (memory/knowledge/
+# alpha_crowpanel_live_deployment.json) check, in order: the route is on, the
+# backend listens on an address the panel can reach, that address is a
+# trusted host, a device actually calls in, and the feed is fresh. Each of
+# those has kept the panel dark once.
+function Check-DeckFeed {
+  Note "--- Alpha's deck feed (/panel/crowpanel/public-state)"
+  $lan = EnvSetting 'ALPHA_PANEL_LAN_READ'
+  $lanOn = [bool]($lan -and $lan.value -eq 'true')
+  $feedUrl = "http://127.0.0.1:$BackendPort/panel/crowpanel/public-state"
+  $code = Http $feedUrl
+  if ($code -eq '404') {
+    if ($lanOn) { Problem "Alpha's deck feed answers 404 though ALPHA_PANEL_LAN_READ=true ($($lan.from)): the backend started before that was set" }
+    else {
+      $was = if ($lan) { "'$($lan.value)' in $($lan.from)" } else { 'not set' }
+      Problem "Alpha's deck feed is off: ALPHA_PANEL_LAN_READ is $was, so the deck panel has nothing to read"
+    }
+  } elseif ($code -like '2*') {
+    $feed = $null
+    try { $feed = (Body $feedUrl) | ConvertFrom-Json } catch {}
+    if (-not $feed) { Problem "Alpha's deck feed answered $code without JSON" }
+    elseif ($feed.status -eq 'live') {
+      $age = if ($feed.freshness -and $null -ne $feed.freshness.heartbeat_age_s) { " (assistant heartbeat $($feed.freshness.heartbeat_age_s)s old)" } else { '' }
+      OK "Alpha's deck feed is live$age"
+    } elseif ($feed.freshness -and $feed.freshness.reason) {
+      Problem "Alpha's deck feed is $($feed.status): $($feed.freshness.reason). $($feed.freshness.advice)"
+    } else {
+      Problem "Alpha's deck feed is $($feed.status), and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
+    }
+  } else {
+    Problem "Alpha's deck feed answered $code"
+  }
+
+  # The panel is on WiFi; it reaches this machine on a home-network address
+  # only. HOST in .env.local names the addresses the backend binds, and a
+  # lease that moved leaves the panel pointed at nothing.
+  if (-not (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
+    Note 'cannot list listening addresses or callers here (no Get-NetTCPConnection)'
+    return
+  }
+  $homeNet = '^(::ffff:)?(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)'
+  $addrs = @(Get-NetIPAddress -AddressFamily IPv4 -EA SilentlyContinue)
+  $own = @($addrs |
+    Where-Object { $_.IPAddress -match $homeNet -and $_.InterfaceAlias -notmatch 'vEthernet|WSL|Hyper-V|VirtualBox|VMware|Loopback' } |
+    ForEach-Object { @{ ip = "$($_.IPAddress)"; nic = "$($_.InterfaceAlias)" } })
+  $listen = @(Get-NetTCPConnection -LocalPort $BackendPort -State Listen -EA SilentlyContinue | ForEach-Object { "$($_.LocalAddress)" } | Sort-Object -Unique)
+  if (-not $listen) { Note "nothing listens on port $BackendPort (section 1)"; return }
+  Note "backend listens on: $($listen -join ', ')"
+  $anyAddress = [bool]($listen | Where-Object { $_ -eq '0.0.0.0' -or $_ -eq '::' })
+  $reach = @($own | Where-Object { $anyAddress -or $listen -contains $_.ip })
+  foreach ($a in $own) { if ($reach -notcontains $a) { Note "not listening on $($a.ip) ($($a.nic))" } }
+  if ($own -and -not $reach) {
+    Problem "the backend listens on no home-network address (this machine has $(($own | ForEach-Object { "$($_.ip) on $($_.nic)" }) -join ', ')): the deck panel cannot reach it"
+  }
+  foreach ($a in $reach) {
+    $c = Http "http://$($a.ip):$BackendPort/health"
+    if ($c -like '2*') { OK "the panel's way in answers: http://$($a.ip):$BackendPort/health $c ($($a.nic))" }
+    elseif ($c -eq '400') { Problem "http://$($a.ip):$BackendPort answers 400: $($a.ip) is not a trusted host (ALPHA_TRUSTED_HOSTS is taken at startup)" }
+    else { Problem "http://$($a.ip):$BackendPort/health answered $c from this machine" }
+  }
+
+  # A 3-second poll leaves Established or TimeWait connections from the
+  # panel's address for a couple of minutes. None of this machine's own
+  # addresses (the probe above, the WSL switch) is a caller.
+  $ownIps = @($addrs | ForEach-Object { "$($_.IPAddress)" })
+  $callers = @(Get-NetTCPConnection -LocalPort $BackendPort -EA SilentlyContinue |
+    Where-Object { "$($_.RemoteAddress)" -match $homeNet -and ("$($_.State)" -eq 'Established' -or "$($_.State)" -eq 'TimeWait') -and $ownIps -notcontains ("$($_.RemoteAddress)" -replace '^::ffff:', '') } |
+    Group-Object { "$($_.RemoteAddress)" -replace '^::ffff:', '' } | ForEach-Object { "$($_.Name) ($($_.Count) connections)" })
+  if ($callers) { OK "home-network devices that called the backend in the last couple of minutes: $($callers -join ', ')" }
+  elseif ($lanOn) { Problem 'no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine' }
+  else { Note 'no device on the home network has called the backend in the last couple of minutes' }
+}
+
 # ------------------------------------------------------------ layout
 # Get-ChildItem -Recurse walks into node_modules (tens of thousands of files,
 # each one scanned by Defender) before any filter sees it; on Laptop41 that
@@ -492,7 +585,8 @@ function Run-Checks {
   Push-Location $repo
   try { Indent ((& node scripts\panel-up.mjs --list-ports 2>&1 | Plain | Out-String)) } finally { Pop-Location }
   foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) { Note "device: $($d.Name)" }
-  Note 'the panel is live only if its agents:read key in the keys list above was used in the last few seconds'
+  Note "the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds"
+  Check-DeckFeed
 
   # ------------------------------------------------------------ resources
   Section '7. Memory, disk, heaviest processes'
@@ -694,7 +788,12 @@ $rules = @(
   @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },
-  @{ m = 'not answering|answered 0|answers [45]';                                               r = 'An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
+  @{ m = 'deck feed is off';                                                                    r = 'Turn on the deck feed: set ALPHA_PANEL_LAN_READ=true in the .env.local section 6 names, then restart the backend (queue {"do":"restart-backend"} for the autopilot). The route serves status only, and only to home-network and loopback callers.' },
+  @{ m = 'deck feed answers 404 though|is not a trusted host';                                 r = 'Restart the backend so it reads its settings again and trusts the addresses this machine has now: queue {"do":"restart-backend"} for the autopilot.' },
+  @{ m = 'listens on no home-network address';                                                  r = 'Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.' },
+  @{ m = 'deck feed is (?!off)|does not say why: it predates';                                  r = "The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on." },
+  @{ m = 'no device on the home network has called';                                            r = 'The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.' },
+  @{ m = 'not answering|answered 0|answers [45]';                                               r ='An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
   @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
