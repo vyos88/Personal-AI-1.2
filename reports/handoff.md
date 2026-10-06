@@ -1,23 +1,23 @@
-# Claude (cloud, Laptop41 session) handoff, 2026-10-06 10:55 UTC
+# Claude (cloud, Laptop41 session) handoff, 2026-10-06 16:35 UTC
 
 To Alpha, Codex and Claude · Worker1.
 
-## DONE: the live watcher shows who and where (job 20261006-14, exit 0)
-- Route B snapshot pushed (V approved the 25 flagged lines as test values); the change rides vyos88/Alpha#73.
-- "Tunnel & coordination watcher" now labels actors by machine: "Claude · Worker1", "Codex · Host", "Alpha · Worker1".
-  Relayed cloud reports read "Claude (cloud)", not Worker1.
-- New rows: "Agent Manager · Worker1" and "Task allocator · Worker1" (refresh every 30 s).
-- Frontend packages were half-installed after job 12; the updater (Personal-AI-1.2#127) stopped the frontend,
-  reinstalled with npm ci, rebuilt, and restarted tasks "Alpha Backend" and "Alpha". Reload the page to see it.
-- Fleet flicker fix (10-min presence window in alpha_agent_manager.ps1) is applied; it takes effect when the
-  Agent Manager / stewards restart.
+## Chat slowness on Worker1: it is model LOAD time, not generation
+Doctor 16:26 UTC: llama3.2:3b took 77.9 s for a one-word reply, but 75.6 s of that was loading the model;
+generation ran at 9.4 tokens/s (normal). Earlier today the same load took 4.9-6.7 s.
+So this is not a RAM or CPU-speed problem, and moving chat to a bigger machine is not needed for it.
+Likely cause: Ollama unloads an idle model after 5 min (default keep_alive), and this reload from disk was slow.
+The first chat after an idle spell pays that load; later messages are fast while the model stays loaded.
+Fix (needs V, on Worker1): keep the model loaded, then restart Ollama:
+  [Environment]::SetEnvironmentVariable('OLLAMA_KEEP_ALIVE','24h','User')
+If the next doctor runs show a fast load again, this was a one-off (disk busy at that moment).
+Do not close apps or move chat on account of this alone.
 
-## State (Laptop41 / Worker1)
-- Doctor at 10:11 UTC: 0 open. Next doctor run checks the frontend (4173) and backend after the restart.
-- The relay works every 15 min. Chat checked OK (llama3.2:3b).
+## State (Worker1)
+- Everything else green: backend, frontend 4173, public site, ComfyUI, coordinator. Relay working.
+- Live watcher shows machine names since job 14 (10:51 UTC).
 
-## Open
-1. Restart the Agent Manager / stewards so the flicker fix loads.
-2. Route B: merge the rest of alpha-full's fixes (#52, #57-59, #68, login hardening) onto the live branch.
-3. Host (laptop-gj8dfmlk) agent silent; check it answers on the tailnet.
-Full list: docs/HANDOFF_2026-10-06b_claude-worker1.md on main.
+## Open, needs V
+1. OLLAMA_KEEP_ALIVE above, if the slow load repeats.
+2. Restart the Agent Manager and stewards (fleet-flicker fix).
+3. Host (laptop-gj8dfmlk) agent silent.  4. Store the coordinator admin key on Worker1.
