@@ -30,14 +30,20 @@ function alphaRoot({ snapshot = managerSnapshot(), raw = null, bom = true } = {}
   return root;
 }
 
-function useRoot(t, root) {
-  const previous = process.env.ALPHA_REPO_ROOT;
-  if (root === undefined) delete process.env.ALPHA_REPO_ROOT;
-  else process.env.ALPHA_REPO_ROOT = root;
+function useEnv(t, name, value) {
+  const previous = process.env[name];
+  if (value === undefined) delete process.env[name];
+  else process.env[name] = value;
   t.after(() => {
-    if (previous === undefined) delete process.env.ALPHA_REPO_ROOT;
-    else process.env.ALPHA_REPO_ROOT = previous;
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
   });
+}
+
+/** ALPHA_REPO_ROOT as given, and no manager override unless a test sets one. */
+function useRoot(t, root, managerRoot = undefined) {
+  useEnv(t, 'ALPHA_REPO_ROOT', root);
+  useEnv(t, 'ALPHA_AGENT_MANAGER_ROOT', managerRoot);
 }
 
 // ------------------------------------------------------------------ contract
@@ -87,6 +93,29 @@ test('a machine whose Alpha runs no manager does not offer it either', (t) => {
   const check = available();
   assert.equal(check.ok, false);
   assert.match(check.reason, /no Agent Manager snapshot/);
+});
+
+test('the manager may run from a different Alpha install than the coordination log', async (t) => {
+  // Worker1: the coordination log is in Alpha-1.8, the live manager in
+  // VyoS-advance-tech-ai. Read from ALPHA_REPO_ROOT, the handler served a
+  // week-old snapshot from the wrong install.
+  const coordination = alphaRoot({
+    snapshot: managerSnapshot({ generatedAt: '2026-09-29T18:02:44Z', workers: [] }),
+  });
+  const live = alphaRoot({ snapshot: managerSnapshot() });
+  useRoot(t, coordination, live);
+
+  assert.equal(snapshotPath(), resolve(live, SNAPSHOT));
+  assert.deepEqual(available(), { ok: true });
+  const result = await run({});
+  assert.equal(result.stale, false);
+  assert.equal(result.agentsTotal, 3);
+});
+
+test('with no manager root set, it reads ALPHA_REPO_ROOT as before', (t) => {
+  const root = alphaRoot();
+  useRoot(t, root, '');
+  assert.equal(snapshotPath(), resolve(root, SNAPSHOT));
 });
 
 test('a machine where the manager runs offers it', (t) => {
