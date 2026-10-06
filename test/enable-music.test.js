@@ -13,7 +13,7 @@ const skip = hasPwsh ? false : 'PowerShell not found (set PWSH)';
 const SCRIPT = join(import.meta.dirname, '..', 'scripts', 'enable-music.ps1');
 const SECRET = 'alpha_key_abcdef0123456789abcdef0123456789';
 
-const run = (repo, ...extra) => spawnSync(PWSH, ['-NoProfile', '-File', SCRIPT, '-Repo', repo, '-Python', process.execPath, '-SkipInstall', '-NoRestart', ...extra], { encoding: 'utf8' });
+const run = (repo, ...extra) => spawnSync(PWSH, ['-NoProfile', '-File', SCRIPT, '-Repo', repo, '-Python', process.execPath, '-SkipInstall', '-NoRestart', ...extra], { encoding: 'utf8', env: { ...process.env, HF_HOME: '' } });
 
 test('music handlers are added to .env.agent, everything else kept, nothing secret printed', { skip, timeout: 120_000 }, () => {
   const repo = mkdtempSync(join(tmpdir(), 'enable-music-'));
@@ -48,4 +48,19 @@ test('a machine without .env.agent gets one with the music settings', { skip, ti
   assert.equal(r.status, 0, r.stdout + r.stderr);
   assert.ok(existsSync(join(repo, '.env.agent')));
   assert.match(readFileSync(join(repo, '.env.agent'), 'utf8'), /^ALPHA_EXTRA_HANDLERS=alpha-music,alpha-music-audio$/m);
+});
+
+// Worker1, 2026-10-06: its agent is a service running as another account, so
+// it never saw the model cache enable-music filled, and every track timed out.
+test('the agent is pointed at the model cache this run filled', { skip, timeout: 60_000 }, () => {
+  const repo = mkdtempSync(join(tmpdir(), 'enable-music-'));
+  const cache = mkdtempSync(join(tmpdir(), 'hf-cache-'));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', SCRIPT, '-Repo', repo, '-Python', process.execPath, '-SkipInstall', '-NoRestart'],
+    { encoding: 'utf8', env: { ...process.env, HF_HOME: cache } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(readFileSync(join(repo, '.env.agent'), 'utf8'), new RegExp(`^HF_HOME=${cache.replace(/[\\/.]/g, '\\$&')}$`, 'm'));
+  const none = mkdtempSync(join(tmpdir(), 'enable-music-'));
+  spawnSync(PWSH, ['-NoProfile', '-File', SCRIPT, '-Repo', none, '-Python', process.execPath, '-SkipInstall', '-NoRestart'],
+    { encoding: 'utf8', env: { ...process.env, HF_HOME: join(cache, 'missing') } });
+  assert.doesNotMatch(readFileSync(join(none, '.env.agent'), 'utf8'), /HF_HOME/, 'no cache folder, no setting');
 });
