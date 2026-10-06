@@ -41,6 +41,12 @@
   with its backups and rollback). It reports only when the result changes, and
   tries a fix once per version of the deck's source.
 
+  Standing repair, every pass, always on: doubled line ends (CR CR LF) in
+  Alpha's software\ and scripts\ are put back to CRLF (fix-line-endings.mjs:
+  CR bytes only, originals backed up, only files changed since the last pass
+  plus a daily sweep). They break PowerShell backtick continuations; Worker1's
+  Agent Manager stopped on one. A repair is always reported.
+
   It refuses to run on any machine but -ExpectHost, so a copy on the wrong
   laptop does nothing.
 
@@ -454,7 +460,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); eolKey = $(if ($state) { [string]$state.eolKey } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -480,12 +486,35 @@ if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# 3c. Doubled line ends (CR CR LF) in Alpha's source, repaired by themselves.
+# apply-alpha-update.mjs wrote them on Windows until 2026-10-07: every
+# PowerShell backtick continuation then stops at the first CR (Worker1's Agent
+# Manager: "The term '-ReceiptStatus' is not recognized") and Python reads an
+# extra line end. Every pass, no id and no switch needed: it only ever changes
+# CR bytes, keeps a backup, and checks only what changed since the last pass.
+# A repair is always reported; a failure only when it differs from the last.
+$eolKey = if ($state -and $state.eolKey) { [string]$state.eolKey } else { '' }
+$eolScript = Join-Path $PSScriptRoot 'fix-line-endings.mjs'
+if ((Test-Path -LiteralPath $AlphaRoot) -and (Test-Path -LiteralPath $eolScript)) {
+  $started = Get-Date
+  $text = (& node $eolScript --alpha-root $AlphaRoot --ops $OpsDir --fix 2>&1 | Out-String)
+  $code = $LASTEXITCODE
+  $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^PROBLEM' }) -join ' | ')
+  if ($code -eq 2 -or ($code -ne 0 -and $key -ne $eolKey)) {
+    $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 40) -join "`n"
+    $result = if ($code -eq 2) { '0 (repaired)' } else { "$code (open)" }
+    [void]$ran.Add([ordered]@{ id = "auto-line-endings-$stamp"; do = 'line-endings (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+    Write-Host "line endings: $result"
+  }
+  $eolKey = $key
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; eolKey = $eolKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
