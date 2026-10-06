@@ -620,6 +620,18 @@ function Run-Checks {
     else { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
   }
 
+  # The brain deck draws the links /neurobrain/anatomy-map sends, and checks
+  # them, in the source and in the build the site serves. On 2026-10-06 the
+  # live deck drew a ring and spokes from an empty point under "Topology
+  # synchronized"; brain-topology-check.mjs reads all three layers.
+  Section '5d. Brain topology (neurological deck)'
+  $brainOut = (& node (Join-Path $PSScriptRoot 'brain-topology-check.mjs') --alpha-root $AlphaRoot 2>&1 | Out-String)
+  foreach ($bl in ($brainOut -split "`r?`n" | Where-Object { $_.Trim() })) {
+    if ($bl -match '^OK: (.*)') { OK "brain deck: $($Matches[1])" }
+    elseif ($bl -match '^PROBLEM: (.*)') { Problem "brain deck: $($Matches[1])" }
+    elseif ($bl -match '^NOTE: (.*)') { Note "brain deck: $($Matches[1])" }
+  }
+
   # ------------------------------------------------------------ panel
   Section '6. CrowPanel'
   Push-Location $repo
@@ -815,6 +827,9 @@ $rules = @(
   @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
   @{ m = 'image bridge is not running';                                                         r = 'Share images between machines: queue {"do":"enable-image","bridge":true} on Worker1''s autopilot (keeps 7860 as the fallback).' },
   @{ m = 'no machine offers alpha.image';                                                       r = 'Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).' },
+  @{ m = "brain deck: the deck's source|brain deck: the site serves the old deck";                  r = 'Bring in the fixed brain deck: the autopilot does it by itself when control/<channel> sets autofix.brainTopology.branch, or queue {"do":"brain-topology","fix":true,"branch":"<live Alpha branch>"}.' },
+  @{ m = 'brain deck: the site serves a build from before the fix';                              r = 'Rebuild the frontend so the site serves the fixed brain deck: repair-alpha-host.ps1 (rollback kept), or npm run build in the frontend folder, then Start-ScheduledTask Alpha.' },
+  @{ m = 'brain deck: the anatomy map';                                                         r = "The backend's /neurobrain/anatomy-map sends a link to a region it does not define (section 5d names it): fix the links list in main.py, then restart the backend." },
   @{ m = 'no machine offers alpha.music';                                                       r = 'Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).' },
   @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
   @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
