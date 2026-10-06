@@ -27,8 +27,6 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'a6', do: 'Invoke-Expression' },
     { id: 'a7', do: 'start-task', task: 'Alpha' },
     { id: 'a8', do: 'start-task', task: 'Something Else' },
-    { id: 'a10', do: 'start-task', task: 'alpha-music bridge' },
-    { id: 'a11', do: 'start-task', task: 'alpha-image bridge' },
     { id: 'bad id!', do: 'doctor' },
     { id: 'a9', do: 'apply-update', skipScripts: true },
     { id: 'b1', do: 'apply-update', branch: 'claude/x-alpha-live', from: '030195d38c9b7faae0c8176de498bc0695b6a017' },
@@ -54,7 +52,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a10', 'a11', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -84,10 +82,6 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.ok(plan.a9.args.includes('--skip-scripts'));
   assert.match(plan.a6.reason, /not on the menu/);
   assert.match(plan.a8.reason, /task must be one of/);
-  // Both bridges start at logon and nothing supervises them, so a session
-  // needs a way to start one again without a whole enable-* re-run.
-  assert.deepEqual(plan.a10.args, ['alpha-music bridge']);
-  assert.deepEqual(plan.a11.args, ['alpha-image bridge']);
   // The agent task is what enable-music restarts the agent with, and nothing
   // from the payload reaches install-always-on.ps1 -- so e2's extra keys are
   // dropped rather than passed on.

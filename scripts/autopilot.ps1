@@ -70,12 +70,7 @@ param(
 $ErrorActionPreference = 'Continue'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $taskName = 'Alpha Autopilot'
-# The two bridges are registered by enable-music/enable-image to start at
-# logon and nothing supervises them: worker1's music bridge answered at
-# 19:53 and was down by 20:26, with the doctor reporting 'Generate cannot
-# queue anything'. Starting a task again is the cheapest way back; the
-# alternative was a whole enable-music re-run for a process start.
-$tasksAllowed = @('Alpha', 'Alpha Backend', 'Alpha Self-Heal', 'Alpha Doctor', 'alpha-music bridge', 'alpha-image bridge')
+$tasksAllowed = @('Alpha', 'Alpha Backend', 'Alpha Self-Heal', 'Alpha Doctor')
 
 function Ps1([string]$file, [string[]]$rest) {
   @{ exe = 'powershell.exe'; args = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', (Join-Path $PSScriptRoot $file)) + $rest }
