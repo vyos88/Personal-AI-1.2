@@ -221,6 +221,25 @@
       "count": 1,
       "only": "image",
       "why": "owner asked (cloud relay session): generate one image; the bridge should give it to the Host's RTX 3050 first. Owner watches Host Task Manager: dedicated GPU memory should rise to ~2-3 GB if ComfyUI uses CUDA."
+    },
+    {
+      "id": "20261006-37-snapshot-new",
+      "do": "snapshot",
+      "includeNew": true,
+      "allow": "software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113",
+      "why": "retry 36: it stopped at 'git add -N' on a path Alpha's .gitignore ignores (games/.../builds); #152 leaves ignored files out. Also gives sessions this machine's live backend/main.py, which job 34's merge broke. Source only, credential-scanned; allow = exactly the 25 lines the owner approved 2026-10-05, nothing more. Any new finding stops the snapshot."
+    },
+    {
+      "id": "20261006-38-apply-route-b",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "retry 34 with #151: if main.py still does not parse after the merge, the report now names the line and the change it sits in, and keeps the merged file in the backup's failed folder. Rolls back on its own as before."
+    },
+    {
+      "id": "20261006-39-live-test",
+      "do": "live-test",
+      "count": 2,
+      "why": "live test 35: track 2 on worker1 timed out and the image bridge was down when images ran (both bridges died during the test). #151 makes the standing bridge restart say why a bridge was down. Host ComfyUI is up since h07."
     }
   ],
   "autofix": {
