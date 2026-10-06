@@ -545,6 +545,17 @@ function Run-Checks {
       OK "self-heal is running (its log was written $(SelfHealAge) min ago); task $t is not visible to this account"
     }
     elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
+    elseif ($t -eq 'Alpha Self-Heal' -and (Test-Path (Join-Path $OpsDir 'selfheal.json'))) {
+      # The repair registers it as SYSTEM, and a SYSTEM task is hidden from a
+      # non-elevated Get-ScheduledTask, which is how the scheduled doctor runs.
+      # Its log is the evidence this user can read.
+      $shLog = Join-Path $OpsDir 'logs\selfheal.jsonl'
+      if (Test-Path $shLog) {
+        $age = [int]((Get-Date) - (Get-Item $shLog).LastWriteTime).TotalMinutes
+        if ($age -le 10) { OK "self-heal runs (task is SYSTEM, not visible here; its log was written $age min ago)" }
+        else { Problem "self-heal is installed but its log is $age min old: check the task's last result as Administrator (3 = config unreadable)" }
+      } else { Problem 'self-heal is installed but has never written its log: check the task as Administrator (last result 3 = config unreadable)' }
+    }
     else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
   $cfs = Get-Service -Name cloudflared -EA SilentlyContinue
@@ -787,7 +798,10 @@ if ($InstallSchedule) {
 }
 
 $script:startedAt = Get-Date
-Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo)"
+# Which doctor wrote this report: a schedule left on an old checkout reports
+# yesterday's advice, and nothing else in the report would say so.
+$doctorRev = (git -C $repo log -1 --format='%h %cs' 2>$null | Plain | Out-String).Trim()
+Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo @ $doctorRev)"
 Run-Checks
 
 if ($Fix) {
@@ -851,7 +865,7 @@ $escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
 # climbs. What is left of the nine is standing hardening, dropped once done.
 $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
-  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
+  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 -AlphaRoot <the copy that is running> as Administrator (-ReportOnly first): boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = 'music bridge is not running';                                                         r = 'Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).' },
   @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
@@ -888,7 +902,7 @@ $rules = @(
 $standing = @(
   @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
-  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel; PR #46 is merged), then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
+  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
   @{ done = { Test-Path (Join-Path $OpsDir 'backups') };                               r = 'Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.' },
   @{ done = { $false };                                                                r = 'Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.' },
