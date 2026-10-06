@@ -43,11 +43,15 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'e3', do: 'enable-image', backend: 'comfyui; calc' },
     { id: 'f1', do: 'live-test', count: 2, only: 'image' },
     { id: 'f2', do: 'live-test', count: 99 },
+    { id: 'g1', do: 'brain-topology' },
+    { id: 'g2', do: 'brain-topology', fix: true, branch: 'claude/x-route-b' },
+    { id: 'g3', do: 'brain-topology', fix: true, branch: '../x' },
+    { id: 'g4', do: 'brain-topology', fix: true },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -56,6 +60,11 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.deepEqual(plan.f1.args.slice(plan.f1.args.indexOf('--count'), plan.f1.args.indexOf('--count') + 4), ['--count', '2', '--only', 'image']);
   assert.match(plan.f1.args[plan.f1.args.indexOf('--video-script') + 1], /scripts[\\/]alpha_video_creator\.py$/);
   assert.match(plan.f2.reason, /count must be 1 to 6/);
+  assert.match(plan.g1.args[0], /brain-topology-check\.mjs$/);
+  assert.ok(!plan.g1.args.includes('--fix'), 'without fix it only checks');
+  assert.deepEqual(plan.g2.args.slice(-5), ['--fix', '--branch', 'claude/x-route-b', '--retry-hours', '0']);
+  assert.match(plan.g3.reason, /plain branch name/);
+  assert.match(plan.g4.reason, /fix needs branch/);
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -124,6 +133,57 @@ test('a pass runs each queued id once, refuses the rest, and reports without sec
   assert.doesNotMatch(report, /\x1b|\[K|\[1G/);
   assert.match(report, /pulling 100%/);
   assert.equal(report.match(/^verifying$/gm)?.length, 1, 'repeated lines are kept once');
+});
+
+test('the standing brain check fixes the deck by itself and reports only a change', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-brain-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs', 'brain-topology-check.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  // A stand-in for apply-alpha-update.mjs that brings in the fixed deck.
+  writeFileSync(join(work, 'scripts', 'apply-alpha-update.mjs'), [
+    "import { writeFileSync } from 'node:fs';",
+    "import { join } from 'node:path';",
+    "const a = process.argv.slice(2); const root = a[a.indexOf('--alpha-root') + 1];",
+    "console.log('applying ' + a[a.indexOf('--branch') + 1]);",
+    "writeFileSync(join(root, 'frontend', 'src', 'components', 'BrainNeuralModel.jsx'), 'topologyEdges(state.anatomy, regions) topologyCheck(state.anatomy, regions)');",
+    "writeFileSync(join(root, 'frontend', 'dist', 'assets', 'i.js'), '\"alpha-brain-synapses\" \"Region links\"');",
+  ].join('\n'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'actions.json'), JSON.stringify({ actions: [], autofix: { brainTopology: { branch: 'claude/x-route-b' } } }));
+  git(work, 'add', 'actions.json');
+  git(work, 'commit', '-qm', 'queue');
+  git(work, 'push', '-q', 'origin', 'control/laptop41');
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+
+  const sw = join(dir, 'software');
+  mkdirSync(join(sw, 'frontend', 'src', 'components'), { recursive: true });
+  mkdirSync(join(sw, 'frontend', 'dist', 'assets'), { recursive: true });
+  writeFileSync(join(sw, 'frontend', 'package.json'), '{}');
+  writeFileSync(join(sw, 'frontend', 'src', 'components', 'BrainNeuralModel.jsx'), '<line x1="50" y1="47" />');
+  writeFileSync(join(sw, 'frontend', 'dist', 'assets', 'i.js'), '"alpha-brain-synapses" {x1:"50",y1:"47"}');
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: '' };
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /brain topology: 0 \(fixed\)/);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /auto-brain-topology-\S+ {2}brain-topology \(standing\) {2}-> {2}0 \(fixed\)/);
+  assert.match(report, /applying claude\/x-route-b/);
+  assert.match(report, /AFTER FIX: the deck is fixed/);
+  // Fixed is a new state once (deck ok), then nothing to say.
+  assert.match(pwsh(args, env).stdout, /brain topology: 0 \(deck ok\)/);
+  assert.match(pwsh(args, env).stdout, /nothing new to run/);
 });
 
 test('it does nothing on the wrong machine', { skip }, () => {
