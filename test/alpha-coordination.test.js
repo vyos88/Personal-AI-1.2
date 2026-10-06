@@ -6,9 +6,13 @@ import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 
 import {
+  ACK_STAGES,
   ALLOWED_ACTIONS,
   buildArgs,
+  configuredActions,
+  requireOffered,
   run,
+  validateAck,
   validateAction,
   validateActor,
   validatePaths,
@@ -112,6 +116,59 @@ test('only allowlisted actions are accepted', () => {
   assert.throws(() => validateAction(undefined), /unsupported action/);
 });
 
+test('ALPHA_COORDINATION_ACTIONS narrows the actions, and unset means all of them', () => {
+  assert.deepEqual(configuredActions(undefined), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(''), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(' Post , Ack,Status,Post '), ['Post', 'Ack', 'Status']);
+  // A typo must not leave a standby taking claims, or taking nothing quietly.
+  assert.throws(() => configuredActions('Post,claim'), /"claim", which is not one of/);
+  assert.throws(() => configuredActions('Post,Delete'), /"Delete"/);
+  assert.throws(() => configuredActions(' , '), /names no action/);
+});
+
+test('an action this agent was configured not to take is refused with the reason', () => {
+  const offered = configuredActions('Post,Ack,Status');
+  assert.equal(requireOffered('Post', offered), 'Post');
+  assert.throws(
+    () => requireOffered('Claim', offered),
+    (error) =>
+      error.code === 'action_not_offered' &&
+      /takes only Post, Ack, Status/.test(error.message) &&
+      /Claim waits for the main coordination agent/.test(error.message),
+  );
+  // Every allowed action passes when nothing narrows the list.
+  for (const action of ALLOWED_ACTIONS) assert.equal(requireOffered(action, configuredActions('')), action);
+});
+
+test('a narrowed agent refuses Claim before running anything, and still posts', async () => {
+  const { root, stub, argvLog } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Ack,Status' },
+    async () => {
+      await assert.rejects(
+        () => run({ action: 'Claim', actor: 'claude', paths: ['a.txt'] }),
+        /takes only Post, Ack, Status/,
+      );
+      await assert.rejects(() => readFile(argvLog), { code: 'ENOENT' });
+      const result = await run({ action: 'Post', actor: 'claude', message: 'standby note' });
+      assert.equal(result.exitCode, 0);
+    },
+  );
+});
+
+test('available() reports a bad ALPHA_COORDINATION_ACTIONS instead of offering the type', async () => {
+  const { available } = await import('../src/agent/handlers/alpha-coordination.js');
+  const { root, stub } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Relase' },
+    async () => {
+      const verdict = available();
+      assert.equal(verdict.ok, false);
+      assert.match(verdict.reason, /"Relase"/);
+    },
+  );
+});
+
 test('actor names are constrained to something legible', () => {
   assert.equal(validateActor('claude-cowork'), 'claude-cowork');
   assert.equal(validateActor('claude.remote_1'), 'claude.remote_1');
@@ -163,6 +220,41 @@ test('argv places each value in its own slot, never a command string', () => {
   ]);
 });
 
+const HANDOFF_ID = '0123456789abcdef0123456789abcdef';
+
+test('Ack needs the event id it answers, and only a stage the script knows', () => {
+  assert.deepEqual(validateAck('Ack', HANDOFF_ID, undefined), { eventId: HANDOFF_ID, stage: null });
+  for (const stage of ACK_STAGES) {
+    assert.deepEqual(validateAck('Ack', HANDOFF_ID, stage), { eventId: HANDOFF_ID, stage });
+  }
+  assert.throws(() => validateAck('Ack', undefined, undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID.toUpperCase(), undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', `${HANDOFF_ID}; rm -rf /`, undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID, 'done'), /unsupported stage "done"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID, 'Accepted'), /unsupported stage/); // case matters
+});
+
+test('eventId and stage are refused on every action but Ack, not dropped', () => {
+  assert.deepEqual(validateAck('Post', undefined, undefined), { eventId: null, stage: null });
+  assert.throws(() => validateAck('Post', HANDOFF_ID, undefined), /only accepted with the Ack action/);
+  assert.throws(() => validateAck('Status', undefined, 'tested'), /only accepted with the Ack action/);
+});
+
+test('Ack argv names the event, and passes -Stage only when one was given', () => {
+  const base = { script: 'C:\\alpha\\scripts\\alpha_coordination_tunnel.ps1', action: 'Ack', actor: 'claude', paths: [] };
+  const staged = buildArgs({ ...base, message: 'accepted: claiming files', eventId: HANDOFF_ID, stage: 'accepted' });
+  assert.deepEqual(staged.slice(staged.indexOf('-Action')), [
+    '-Action', 'Ack', '-Actor', 'claude', '-Message', 'accepted: claiming files',
+    '-EventId', HANDOFF_ID, '-Stage', 'accepted',
+  ]);
+  // A plain Ack names no stage. (A script from before Alpha PR #59 has no
+  // -Stage either; it ignores it rather than refusing, which was checked
+  // against that script, not assumed here.)
+  const plain = buildArgs({ ...base, eventId: HANDOFF_ID });
+  assert.deepEqual(plain.slice(plain.indexOf('-Action')), ['-Action', 'Ack', '-Actor', 'claude', '-EventId', HANDOFF_ID]);
+  assert.equal(plain.includes('-Stage'), false);
+});
+
 test('a path containing a comma is refused rather than silently split', () => {
   assert.throws(() => validatePaths(['software/a,b.py'], '/srv/alpha'), /must not contain a comma/);
 });
@@ -211,6 +303,46 @@ test('a real invocation passes exactly the expected argv', async () => {
     '-Paths',
     'software/backend/main.py',
   ]);
+});
+
+test('a real Ack invocation passes exactly the expected argv', async () => {
+  const { root, stub, argvLog, argvPrefix } = await fixture();
+
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({
+      action: 'Ack',
+      actor: 'claude',
+      eventId: HANDOFF_ID,
+      stage: 'tested',
+      message: 'tested: node --test test/alpha-coordination.test.js; all passed',
+    }),
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.eventId, HANDOFF_ID);
+  assert.equal(result.stage, 'tested');
+  const argv = JSON.parse(await readFile(argvLog, 'utf8'));
+  assert.deepEqual(argv, [
+    ...argvPrefix,
+    '-Action',
+    'Ack',
+    '-Actor',
+    'claude',
+    '-Message',
+    'tested: node --test test/alpha-coordination.test.js; all passed',
+    '-EventId',
+    HANDOFF_ID,
+    '-Stage',
+    'tested',
+  ]);
+});
+
+test('an Ack with no event id never reaches the script', async () => {
+  const { root, stub, argvLog } = await fixture();
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    await assert.rejects(() => run({ action: 'Ack', actor: 'claude', stage: 'received' }), /Ack requires "eventId"/);
+  });
+  await assert.rejects(() => readFile(argvLog, 'utf8'), { code: 'ENOENT' });
 });
 
 test('a non-zero exit is reported as data, not thrown', async () => {

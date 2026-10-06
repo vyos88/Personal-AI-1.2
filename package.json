@@ -23,6 +23,7 @@
     "standby": "node scripts/standby-alpha.mjs",
     "jobs": "node scripts/run-jobs.mjs",
     "manager": "node scripts/alpha-manager.mjs",
+    "fleet-agents": "node scripts/fleet-agents.mjs",
     "music-bridge": "node scripts/music-bridge.mjs"
   },
   "dependencies": {},

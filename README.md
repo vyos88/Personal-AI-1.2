@@ -222,6 +222,9 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_RENDER_ROOT` | agent | — | Directory holding the Blender generator script. Required by `alpha-render`. |
 | `ALPHA_MUSIC_ROOT` | agent | — | Directory holding the music generator (`scripts/generate_music.py`, which ships in this repo, so this checkout works). Required by `alpha-music`. Install the model's dependencies there with `pip install -r scripts/requirements-music.txt`. |
 | `ALPHA_MUSIC_BRIDGE_TOKEN` | music bridge | — | Tunnel key (`tasks:read,tasks:write`, plus `agents:read` for `/music/fleet`) that `scripts/music-bridge.mjs` uses to queue `alpha.music` for Alpha's Generate button and to read its recipe history (`/music/recipes`, from the receipt ledger). Also `ALPHA_MUSIC_AGENT` (the machine that generates), `ALPHA_MUSIC_LEASE_MS` (default 600000), `ALPHA_MUSIC_BRIDGE_PORT` (default 8790, loopback). Route Alpha's `/music/*` to it. For playback, the generating machine also enables `alpha-music-audio`, and the bridge caches fetched tracks in `ALPHA_MUSIC_BRIDGE_CACHE` (default: the OS temp dir). |
+| `ALPHA_IMAGE_BACKEND` | agent | `a1111` | Local generator `alpha-image` drives: `a1111` (AUTOMATIC1111/Forge at `ALPHA_IMAGE_URL`, default `http://127.0.0.1:7860/sdapi/v1/txt2img`) or `comfyui` (at `ALPHA_COMFYUI_URL`, default `http://127.0.0.1:8188`, with checkpoint `ALPHA_COMFYUI_CHECKPOINT`, default `v1-5-pruned-emaonly.safetensors`). Enable with `ALPHA_EXTRA_HANDLERS=alpha-image,alpha-image-file` on each machine that renders. |
+| `ALPHA_IMAGE_OUTPUT` | agent | OS temp dir `/alpha-tunnel-images` | Where `alpha-image` keeps its PNGs and `alpha-image-file` serves them from. Also `ALPHA_IMAGE_TIMEOUT_MS` (default 600000) per image. |
+| `ALPHA_IMAGE_BRIDGE_TOKEN` | image bridge | `ALPHA_MUSIC_BRIDGE_TOKEN`, then `ALPHA_REPORT_TOKEN` | Tunnel key (`tasks:read,tasks:write,agents:read`) that `scripts/image-bridge.mjs` uses to answer Alpha's AUTOMATIC1111 calls (`/sdapi/v1/txt2img`, `/sdapi/v1/sd-models`) with `alpha.image` tasks, each on the least busy machine. Also `ALPHA_IMAGE_AGENT` (default `auto`, or a comma list such as `worker1,host`), `ALPHA_IMAGE_LEASE_MS` (default 600000), `ALPHA_IMAGE_BRIDGE_PORT` (default 7861), `ALPHA_IMAGE_BRIDGE_BIND` (default 127.0.0.1). Point Alpha's `IMAGE_GEN_URL` at it. |
 | `ALPHA_RENDER_SCRIPT` | agent | `scripts/generate.py` | Generator script, relative to the root. |
 | `ALPHA_BLENDER` | agent | `blender` | Blender executable. |
 | `ALPHA_RENDER_OUTPUT` | agent | `output` | Where images are written, relative to the root. |
@@ -1096,6 +1099,7 @@ Configure the host agent:
 | `ALPHA_COORDINATION_SCRIPT` | Script path relative to root. Defaults to `scripts/alpha_coordination_tunnel.ps1`. |
 | `ALPHA_POWERSHELL` | Interpreter. Defaults to `powershell.exe`. |
 | `ALPHA_COORDINATION_ACTOR` | Default actor when a task does not name one. |
+| `ALPHA_COORDINATION_ACTIONS` | Comma-separated subset of the actions this agent takes; unset means all. A standby keeping the records while Worker1 is away sets `Post,Ack,Status`, so claims wait for Worker1 (Alpha's `WORKER1_FAILOVER_PLAN.md`). A name that is not an action stops the agent offering the type. |
 | `ALPHA_EXTRA_HANDLERS` | Comma-separated opt-in handlers. Set to `alpha-coordination`. |
 
 On the Alpha host, `npm run setup:host -- --email you@example.com --alpha-root
@@ -1116,6 +1120,14 @@ npm run admin -- coord --action Post --actor claude-cowork \
   --paths "software/backend/main.py,memory/knowledge/pack.json"
 ```
 
+A peer answers one of Alpha's handoffs (Alpha PR #59) with `Ack`, naming the
+handoff's event id (from `Status`) and, optionally, how far it has got:
+
+```bash
+npm run admin -- coord --action Ack --actor claude \
+  --event-id <handoff id> --stage accepted --message "accepted: claiming files"
+```
+
 Or as a plain task, which is what `coord` builds:
 
 ```bash
@@ -1134,11 +1146,13 @@ live inside `ALPHA_REPO_ROOT`, the action must be on an allowlist, actor names
 are constrained, and paths must be repo-relative with no `..` traversal, no
 drive letters and no commas (the argv joins on commas).
 
-**Verified against the real script.** All five actions and the argv shape were
+**Verified against the real script.** The first five actions and the argv shape were
 confirmed on the Alpha host: `Init` and `Post` from observed usage, and
 `Status`, `Claim` and `Release` by running a claim cycle through this handler
 and reading the held path back from `Status`. The comma-joined `-Paths` form
-binds as intended.
+binds as intended. `Ack` (`-EventId`, `-Stage`) was verified under PowerShell 7
+against Alpha PR #59's script and against the one before it, which ignores
+`-Stage`; not yet on the host (`docs/HANDOFF_2026-10-05e_claude-ack.md`).
 
 The tests pin the exact argv, so if the script's contract ever changes, adjust
 `buildArgs` and the expectation moves with it.
@@ -1284,11 +1298,16 @@ the tunnel and reads it back.
 reserve's floor and cap, host URLs that are not URLs, the configuration it
 writes, and that the store and a capability list appear only when asked for.
 
-`test/alpha-coordination.test.js` (16) — action allowlisting, actor and path
+`test/alpha-coordination.test.js` (26) — action allowlisting and its per-agent narrowing, actor and path
 validation (traversal, drive letters, commas), argv construction asserted
 against a stub interpreter that records exactly what it was handed (including a
 message full of shell metacharacters), and the opt-in mechanism refusing
 handler names that could escape the handlers directory.
+
+`test/coordination-events.test.js` (12) — merging a standby's copy of Alpha's
+coordination log back into Worker1's (`scripts/merge-coordination-events.mjs`):
+only missing ids are appended, oldest first, a second run adds nothing, and a
+bad incoming line refuses the merge with the master untouched.
 
 ## Layout
 

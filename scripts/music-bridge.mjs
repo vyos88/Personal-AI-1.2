@@ -18,7 +18,9 @@
  *                                  tasks:read also covers /music/recipes (the receipt ledger).
  *                                  agents:read is only for /music/fleet; leave it out and that
  *                                  one route answers 502 bridge_key_rejected, the rest still work.
- *   ALPHA_MUSIC_AGENT              machine that generates (targetAgent). Unset lets placement pick
+ *   ALPHA_MUSIC_AGENT              machine that generates (targetAgent). "auto", or a comma list,
+ *                                  spreads tracks over every machine offering alpha.music (the
+ *                                  least busy one gets each track; needs agents:read). Unset lets placement pick
  *   ALPHA_MUSIC_LEASE_MS           lease per track (default 600000; generation outlives 60s)
  *   ALPHA_MUSIC_BRIDGE_BIND        default 127.0.0.1
  *   ALPHA_MUSIC_BRIDGE_PORT        default 8790

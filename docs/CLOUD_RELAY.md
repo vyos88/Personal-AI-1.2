@@ -9,10 +9,17 @@ hold the latest report:
 |---|---|---|---|
 | host -> cloud | `status/laptop41` (`reports/latest.txt`, `reports/doctor-state.json`) | `scripts/laptop41-doctor.ps1 -Watch`, every 15 min | the cloud routine |
 | cloud -> host | `status/cloud` (`reports/cloud.md`) | the "Alpha fleet relay" routine, every 30 min | `laptop41-doctor.ps1 -Watch`, which posts each new report to Alpha's coordination tunnel as `claude-cloud`, where Alpha and Codex read it |
+| cloud -> host | `status/claude-laptop41` (`reports/handoff.md`) | the cloud session that runs Laptop41 through the autopilot | the same doctor run, posted as `claude-laptop41` |
 
-The doctor posts each cloud report once (it remembers the commit id in
-`doctor-state.json` as `cloudSeen`), redacts tokens first, and retries on the
-next run if the post failed.
+The doctor posts each report once (it remembers the commit ids in
+`doctor-state.json` as `cloudSeen` and `handoffSeen`), redacts tokens first,
+and retries on the next run if the post failed. `relay` in the same file says
+what the last attempt did, so a cloud session can read it on `status/laptop41`.
+
+Alpha's `alpha_coordination_tunnel.ps1` is in `scripts\` beside `software\`.
+Until 2026-10-06 the doctor looked only under `-AlphaRoot` (`software\`), never
+found it, and so posted nothing for two days (`cloudSeen` and `lastPost` stayed
+null). It now looks in `scripts\` beside `-AlphaRoot` first.
 
 ## Turning it on at Laptop41
 

@@ -181,6 +181,68 @@ rather than "it did not work".
 Reflashing does not lose what the board already had: the previous firmware's
 single network is migrated into the new list the first time this one boots.
 
+## Not Alpha's deck firmware
+
+Alpha has its own CrowPanel sketch (`hardware/examples/crowpanel_alpha_*` in that
+repository). It is the same family of board and a completely different thing: it
+holds no credential, polls `/panel/crowpanel/public-state` on Alpha's backend
+(port 8001) every three seconds, and takes bare-word serial commands — `STATUS`,
+`WIFI "ssid" passphrase`, `ALPHA http://address:8001`.
+
+One board runs one of the two. They are told apart on the wire rather than by
+guessing: this firmware answers newline-delimited JSON, so if the board on a port
+is talking but answers none of it, `panel-up` and the handler say *that* instead
+of blaming the cable:
+
+```
+provision  : something on COM3 is talking but not in this protocol — if this
+             board runs Alpha's deck firmware, provision it with its own
+             STATUS/WIFI/ALPHA commands instead. It said: ...
+```
+
+## Pages
+
+One screen cannot hold a fleet, so five rotate every eight seconds. Each page is
+sourced from the endpoint that owns its numbers, and only the page on screen is
+fetched — a wall display must not be why a coordinator is busy.
+
+| Page | From | Shows |
+|---|---|---|
+| `fleet` | `/stats` | agents attached, queued (and how many are waiting on RAM), running, done, failed |
+| `machines` | `/agents` | a row per machine: load, free RAM, tasks in flight, stale and version-drift markers |
+| `work` | `/stats` | tasks in flight, busiest and idlest machine, how many report load at all, which task types are covered |
+| `receipts` | `/receipts/summary` | what the fleet actually produced: receipts, ok/failed, outputs and bytes, top types |
+| `panel` | nothing | this board: network, IP, signal, which coordinator it is reading, missed polls, firmware and uptime |
+
+The `panel` page needs no network, which is the point of it: it is the page that
+still works when nothing else does, and the one that answers "is it the panel or
+the fleet?".
+
+A machine that has missed two heartbeats is drawn red on `machines` rather than
+dropped, and a machine not reporting load shows `load ?` — never `0%`, because
+reading an unknown as idle makes the quietest *reporter* look like the quietest
+*machine*.
+
+Turn a page by hand, or stop the rotation to read one:
+
+```bash
+node scripts/panel-up.mjs --page machines --hold
+node scripts/panel-up.mjs --page next
+node scripts/panel-up.mjs --no-hold
+```
+
+As a queued task to the machine the board is on:
+
+```bash
+node src/admin/run.js task --type alpha.panel --agent alpha-host \
+  --payload '{"action":"Page","page":"receipts","hold":true}'
+```
+
+The `receipts` page needs the panel's key to carry `tasks:read` as well as
+`agents:read` — both read-only. A panel provisioned before that says `key needs
+tasks:read` on that page instead of showing zeroes; re-running `panel-up` mints a
+key with both.
+
 ## What the panel shows
 
 It draws `GET /stats` as the host answers it, and does no arithmetic of its own:

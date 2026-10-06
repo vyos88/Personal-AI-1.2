@@ -13,7 +13,10 @@ import {
   ALLOWED_ACTIONS,
   available,
   buildProvisionCommands,
+  describeSilence,
+  PANEL_PAGES,
   validateNetworks,
+  validatePage,
   buildArgs,
   converseOver,
   devicePath,
@@ -70,7 +73,15 @@ async function fixture() {
 }
 
 test('the allowlist is exactly what is documented, and nothing else runs', () => {
-  assert.deepEqual([...ALLOWED_ACTIONS], ['Ports', 'Status', 'Scan', 'Compile', 'Flash', 'Provision']);
+  assert.deepEqual([...ALLOWED_ACTIONS], [
+    'Ports',
+    'Status',
+    'Scan',
+    'Page',
+    'Compile',
+    'Flash',
+    'Provision',
+  ]);
   for (const action of ALLOWED_ACTIONS) assert.equal(validateAction(action), action);
 
   // Ports is the harmless one, so it is what an empty payload means.
@@ -758,4 +769,75 @@ test('the provisioning conversation is the shape the firmware agrees to', () => 
   // The networks go last, because the reply to that one is the answer.
   const commands = buildProvisionCommands({ networks, host: 'http://h:1' });
   assert.equal(commands.at(-1).cmd, 'wifi');
+});
+
+test('the pages a task may turn to are the ones the firmware has', () => {
+  // Mirrored from PAGE_NAMES in crowpanel.ino. A typo is answerable here, where
+  // it comes back on the task, rather than on a board that silently keeps
+  // showing whatever it was showing.
+  assert.deepEqual([...PANEL_PAGES], ['fleet', 'machines', 'work', 'receipts', 'panel']);
+
+  assert.deepEqual(validatePage({ page: 'machines' }), { page: 'machines', hold: undefined });
+  assert.deepEqual(validatePage({ page: 'next', hold: true }), { page: 'next', hold: true });
+  // Hold where it is, with no page named, is the other half of standing in
+  // front of it reading.
+  assert.deepEqual(validatePage({ hold: false }), { page: null, hold: false });
+
+  assert.throws(() => validatePage({ page: 'agents' }), /must be one of fleet, machines/);
+  assert.throws(() => validatePage({ page: 2 }), /must be one of/);
+  assert.throws(() => validatePage({ hold: 'yes' }), /"hold" must be true or false/);
+  // Neither a page nor a hold is refused rather than quietly doing nothing.
+  assert.throws(() => validatePage({}), /needs "page".*or "hold"/);
+});
+
+test('a port that is talking is not reported as an absent board', () => {
+  // Alpha has its own CrowPanel firmware on the same board family: no
+  // credential, polls /panel/crowpanel/public-state, bare-word STATUS/WIFI/ALPHA
+  // commands. It answers nothing this protocol recognises, and blaming the
+  // cable for that costs an evening.
+  const quiet = describeSilence('COM3', { ready: false, spoke: false });
+  assert.match(quiet, /nothing on COM3 answered/);
+  assert.match(quiet, /held in bootloader/);
+
+  const noisy = describeSilence('COM3', { ready: false, spoke: true, heard: 'ERR unknown command' });
+  assert.match(noisy, /talking but not in this protocol/);
+  assert.match(noisy, /STATUS\/WIFI\/ALPHA/);
+  assert.match(noisy, /It said: ERR unknown command/);
+
+  // And with nothing quotable, it still names the right suspicion.
+  assert.match(describeSilence('/dev/ttyUSB0', { spoke: true }), /not in this protocol/);
+});
+
+test('a board that talks in another protocol is reported as such, not as absent', async () => {
+  // Alpha's deck firmware on the same board: it prints its own lines and
+  // answers none of ours. The conversation must come back saying the port is
+  // busy rather than empty, and must not have sent any credential into it.
+  const board = fakeBoard({
+    silentWrites: Number.MAX_SAFE_INTEGER,
+    noise: 'alpha deck panel ready\nERR unknown command\n',
+    respond: () => null,
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    { readyTimeoutMs: 300, probeIntervalMs: 80, replyTimeoutMs: 300 },
+  );
+
+  assert.equal(outcome.ready, false);
+  assert.equal(outcome.spoke, true);
+  assert.match(outcome.heard, /ERR unknown command/);
+  assert.deepEqual(outcome.replies, []);
+  assert.equal(board.writes.join('').includes('hunter22x'), false);
+
+  // A board that says nothing at all is the other case, and stays so.
+  const silent = fakeBoard({ silentWrites: Number.MAX_SAFE_INTEGER, respond: () => null });
+  const quiet = await converseOver(silent, [], '', {
+    readyTimeoutMs: 200,
+    probeIntervalMs: 60,
+    replyTimeoutMs: 200,
+  });
+  assert.equal(quiet.ready, false);
+  assert.equal(quiet.spoke, false);
 });

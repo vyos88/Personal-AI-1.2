@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { fetchJson, HttpError } from '../common/http.js';
 import { ProtocolError, TERMINAL_STATUSES } from '../common/protocol.js';
 import { validateSettings } from '../agent/handlers/alpha-music.js';
+import { describeAgent, parsePool, pickMachine } from './pick.js';
 
 /**
  * The Music Creator panel's backend: the routes that turn a Generate click
@@ -178,17 +179,26 @@ export function describeReceipt(receipt) {
 
 /**
  * One attached machine as the panel's fleet line sees it, or null for a
- * machine that does not make music. `stale` is passed on only when the
- * coordinator reports it, rather than guessed from idle time here.
+ * machine that does not make music. The rule lives in ./pick.js, shared with
+ * the image bridge.
  */
 export function describeMachine(agent) {
-  if (!Array.isArray(agent?.capabilities) || !agent.capabilities.includes('alpha.music')) return null;
-  return {
-    name: agent.name ?? null,
-    idleMs: Number.isFinite(agent.idleMs) ? agent.idleMs : null,
-    inFlight: Number.isFinite(agent.inFlight) ? agent.inFlight : 0,
-    ...(typeof agent.stale === 'boolean' ? { stale: agent.stale } : {}),
-  };
+  return describeAgent(agent, 'alpha.music');
+}
+
+/**
+ * Which machine makes the next track, when the bridge is given a pool rather
+ * than one machine: `auto` (any machine offering alpha.music) or a comma list.
+ * The pick is pinned on the task, because playback has to know which machine
+ * holds the file. Null when no machine in the pool is attached.
+ */
+export function pickMusicMachine(agents, pool) {
+  return pickMachine(agents, 'alpha.music', pool);
+}
+
+/** "auto" or "a,b" -> a pool; one plain name -> null (that machine, always). */
+export function musicPool(targetAgent) {
+  return parsePool(targetAgent);
 }
 
 export function createMusicBridge({
@@ -214,6 +224,21 @@ export function createMusicBridge({
   if (!hostUrl) throw new Error('the music bridge needs the coordinator URL (ALPHA_HOST_URL)');
   if (!token) throw new Error('the music bridge needs a tunnel key with tasks:read and tasks:write');
   const base = hostUrl.replace(/\/+$/, '');
+  const pool = musicPool(targetAgent);
+  const fixedAgent = pool ? null : (targetAgent || null);
+
+  // The machine for one track. A pool that cannot be read (a key without
+  // agents:read, the coordinator busy) falls back to its first named machine,
+  // or to letting placement choose, rather than refusing the click.
+  async function machineForTrack() {
+    if (!pool) return fixedAgent;
+    try {
+      const { body } = await coordinator('/agents');
+      const pick = pickMusicMachine(body?.agents, pool);
+      if (pick) return pick;
+    } catch { /* fall through */ }
+    return pool === 'auto' ? null : pool[0];
+  }
 
   async function coordinator(path, options = {}) {
     const { status, body } = await fetch(`${base}${path}`, { token, ...options });
@@ -228,13 +253,14 @@ export function createMusicBridge({
     const refund = billing ? billing.reserve(billing.account(req, res)) : () => {};
     let body;
     try {
+      const machine = await machineForTrack();
       ({ body } = await coordinator('/tasks', {
         method: 'POST',
         body: {
           type: 'alpha.music',
           payload: recipe,
           leaseMs,
-          ...(targetAgent ? { targetAgent } : {}),
+          ...(machine ? { targetAgent: machine } : {}),
         },
       }));
     } catch (error) {

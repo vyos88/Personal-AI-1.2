@@ -55,7 +55,8 @@ Tasks
                                                          --agent runs it on that machine and no other
                                                          (the NAME from \`agents\`), e.g. renders on the host
   coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
-                                                         Drive the coordination tunnel
+        [--event-id <id>] [--stage <s>]                  Drive the coordination tunnel
+                                                         (Ack answers a handoff by its event id)
   codex --prompt <text> | --prompt-file <f> [--agent <n>] [--no-wait]
                                                          Ask Codex on that machine and read its answer
                                                          (leases and waits 10 minutes; needs codex.exec there)
@@ -222,6 +223,8 @@ const OPTIONS = {
   actor: { type: 'string' },
   message: { type: 'string' },
   paths: { type: 'string' },
+  'event-id': { type: 'string' },
+  stage: { type: 'string' },
   'lease-ms': { type: 'string' },
   'min-memory-mb': { type: 'string' },
   agent: { type: 'string' },
@@ -369,7 +372,7 @@ export async function main(argv = process.argv.slice(2)) {
           fail('mem --action put requires --value <json>');
         }
       } else if (command === 'coord') {
-        if (!flags.action) fail('coord requires --action (Init, Claim, Post, Release or Status)');
+        if (!flags.action) fail('coord requires --action (Init, Claim, Post, Release, Status or Ack)');
         type = flags.type ?? 'alpha.coordination';
         payload = {
           action: flags.action,
@@ -379,7 +382,12 @@ export async function main(argv = process.argv.slice(2)) {
         if (flags.paths) {
           payload.paths = flags.paths.split(',').map((entry) => entry.trim()).filter(Boolean);
         }
+        if (flags['event-id']) payload.eventId = flags['event-id'];
+        if (flags.stage) payload.stage = flags.stage;
         if (!payload.actor) fail('coord requires --actor (or set ALPHA_COORDINATION_ACTOR)');
+        if (payload.action === 'Ack' && !payload.eventId) {
+          fail('coord --action Ack requires --event-id <the handoff event id from Status>');
+        }
       } else if (command === 'codex') {
         // The other coding agent, asked a question. `--prompt-file` is not a
         // convenience: these prompts are messages between agents, they run to

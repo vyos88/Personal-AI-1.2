@@ -13,6 +13,30 @@ everything else is, because a `100.x` tailnet address does not exist for it.
 
 Same network, LAN address. That is the rule.
 
+## The panel cannot reach Alpha's backend
+
+A different problem from the ones below, and the commonest: Alpha's own deck
+panel reaches the backend on a home-network address only. On the machine running
+Alpha:
+
+```powershell
+node scripts/fix-panel-host.mjs
+```
+
+It adds this machine's `192.168.x` address to `HOST` and `ALPHA_TRUSTED_HOSTS` in
+`app/.env.local` (keeping loopback and the tailnet address), turns
+`ALPHA_PANEL_LAN_READ` on, restarts the backend, and then makes the panel's own
+request — `GET /panel/crowpanel/public-state` from that address. Exit 0 means the
+panel has something to read; anything else names which of the three is wrong.
+`--dry-run` shows the change and writes nothing.
+
+Then point the panel at it, with whichever firmware the board runs:
+
+```
+ALPHA http://192.168.x.y:8001                       (Alpha's deck firmware, over USB serial)
+node scripts/panel-up.mjs --primary http://192.168.x.y:8001   (the tunnel's firmware)
+```
+
 ## The whole thing in one command
 
 On the laptop the board is plugged into:

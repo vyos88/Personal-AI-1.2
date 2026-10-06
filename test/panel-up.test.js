@@ -127,7 +127,7 @@ test('it uses a coordinator that is already up, and mints the panel a narrow key
   });
 
   assert.match(result.stdout, /coordinator: already answering here/);
-  assert.match(result.stdout, /key {8}: minted [0-9a-f]+, scoped to agents:read/);
+  assert.match(result.stdout, /key {8}: minted [0-9a-f]+, scoped to agents:read \+ tasks:read/);
   // It stopped at the board rather than reporting success without one.
   assert.match(result.stdout, /provision {2}: /);
   assert.equal(result.code, 1);
@@ -137,5 +137,7 @@ test('it uses a coordinator that is already up, and mints the panel a narrow key
   const { body } = await fetchJson(`http://127.0.0.1:${port}/keys`, { token: BOOTSTRAP });
   const minted = body.keys.filter((key) => key.scopes.includes('agents:read'));
   assert.equal(minted.length, 1);
-  assert.deepEqual(minted[0].scopes, ['agents:read']);
+  // Both read-only: the fleet pages need agents:read, the receipts page needs
+  // tasks:read, and neither can queue anything.
+  assert.deepEqual(minted[0].scopes, ['agents:read', 'tasks:read']);
 });

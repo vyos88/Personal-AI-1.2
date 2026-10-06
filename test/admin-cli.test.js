@@ -157,7 +157,12 @@ test('an environment token still wins over a saved session', async (t) => {
 });
 
 /** A worker offering codex.exec without needing Codex installed. */
-async function startCodexAgent(t, url, run) {
+function startCodexAgent(t, url, run) {
+  return startAgentOffering(t, url, 'codex.exec', run);
+}
+
+/** A worker offering one task type, run by the function given. */
+async function startAgentOffering(t, url, type, run) {
   // The bootstrap credential has no user of its own, so the key goes to the
   // owner created in startHost().
   const { body: users } = await fetchJson(`${url}/users`, { token: BOOTSTRAP });
@@ -172,7 +177,7 @@ async function startCodexAgent(t, url, run) {
     token: key.token,
     name: 'jacks-laptop',
     pollWaitMs: 500,
-    handlers: new HandlerRegistry([{ type: 'codex.exec', run }]),
+    handlers: new HandlerRegistry([{ type, run }]),
   });
   const running = agent.start();
   t.after(async () => {
@@ -200,6 +205,34 @@ test('codex prints the answer itself, not just an exit code', async (t) => {
   });
   assert.equal(out.code, 0, out.stderr);
   assert.match(out.stdout, /--- answer ---\n {2}\| thinking\.\.\.\n {2}\| bridged/);
+});
+
+test('coord --action Ack carries the event id and stage to the coordination handler', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+  const seen = [];
+  await startAgentOffering(t, host.url, 'alpha.coordination', async (payload) => {
+    seen.push(payload);
+    return { action: payload.action, exitCode: 0, stdout: 'acknowledged', stderr: '' };
+  });
+  const env = { ALPHA_ADMIN_TOKEN: BOOTSTRAP };
+  const id = '0123456789abcdef0123456789abcdef';
+
+  const out = await cli(
+    ['coord', '--action', 'Ack', '--actor', 'claude', '--event-id', id, '--stage', 'accepted', '--message', 'accepted: on it'],
+    { url: host.url, sessionFile: await sessionPath(), env },
+  );
+  assert.equal(out.code, 0, out.stderr);
+  assert.deepEqual(seen, [{ action: 'Ack', actor: 'claude', message: 'accepted: on it', eventId: id, stage: 'accepted' }]);
+
+  const missing = await cli(['coord', '--action', 'Ack', '--actor', 'claude'], {
+    url: host.url,
+    sessionFile: await sessionPath(),
+    env,
+  });
+  assert.notEqual(missing.code, 0);
+  assert.match(missing.stderr + missing.stdout, /requires --event-id/);
+  assert.equal(seen.length, 1, 'an Ack with no event id is never queued');
 });
 
 test('doctor lists every problem at once and exits 1', async (t) => {

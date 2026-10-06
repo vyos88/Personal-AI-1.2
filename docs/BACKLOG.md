@@ -34,8 +34,11 @@ next.
 
 | ID | Item | Done when |
 |---|---|---|
-| H1 | Bring merged Alpha changes into the live install: `node scripts/apply-alpha-update.mjs --alpha-root <Alpha> --apply --restart` | it prints DONE, alpha-ai.uk shows the new fonts and chrome |
-| H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`) | the branch exists on GitHub |
+| H1 | Bring merged Alpha changes into Worker1's live install: `node scripts/apply-alpha-update.mjs --alpha-root <Alpha> --apply --restart`. It now updates `scripts\` (the stewards) as well as `software\`; then restart the stewards (`HANDOFF_2026-10-05d_stewards.md`, steps 1-3) | it prints DONE, alpha-ai.uk shows the new fonts and chrome, and the manager window shows no `local-authentication-unavailable` |
+| H2 | Publish the live Alpha source: `scripts/publish-alpha.mjs` then `publish-alpha-push.ps1 -Push` (to `alpha-from-host`), or `scripts/snapshot-alpha-live.mjs --push`, which publishes only the files `alpha-full` tracks. This unblocks H1: on Worker1, H1 refuses 36 locally edited files (25 in `software\`, 11 in `scripts\`; listed in `HANDOFF_2026-10-05f_worker1-deploy.md`), and a session then has to merge `alpha-full` onto the published branch | the branch exists on GitHub |
+| H7 | Get Alpha#59 (Claude handoffs with receipts) live on Worker1 by itself: `--from d75efee --to ba636f4` with a separate `--ops` (route A in `HANDOFF_2026-10-05f_worker1-deploy.md`, which includes a prompt for a Claude session there). Then restart the `worker1` agent (#104) | a handoff sent from Alpha's chat gets a Claude Ack, and Alpha's "did Claude receive it?" names that Ack |
+| H9 | Find where the failed logins come from: `scripts\check-coordinator-logins.ps1` on Host, `scripts\check-alpha-logins.ps1` on Worker1. If it is the stewards (`127.0.0.1`, `WindowsPowerShell`), stop them, wait 15 minutes, re-save the credential with `set-alpha-local-credential.ps1`, and start them again (`HANDOFF_2026-10-05f_worker1-deploy.md`, "Failed logins") | the source is named in a handoff, and an hour later the check shows no new failures from it |
+| H8 | Give Alpha a local chat model: `ollama pull llama3.2:3b`, and `OLLAMA_MODEL=llama3.2:3b` in the Alpha root's `.env.local` (change that line only; never print the file), then restart the backend | `ollama list` shows the model, and a chat reply's `adapter_status.provider` is `ollama` |
 | H3 | Repair sequence, `HANDOFF_2026-10-02_laptop41-repair.md` | the doctor's report has no NEEDS A PERSON lines |
 | H4 | Owner settings: GitHub billing/Actions, this repo's default branch → `main` | a manual run of `.github/workflows/test.yml` passes |
 | V1 | person | Get the voice fix (vyos88/Alpha#54) onto Worker1's live Alpha. Until H2 merges the live source, copy two files from `alpha-full` by hand: `frontend/src/services/lipSync.js` and the new `frontend/src/services/naturalVoices.js` (and `backend/piper_voice.py` for the calmer soft delivery), then rebuild the frontend (`npm run build`) and restart the backend. First compare the live `lipSync.js` with `alpha-full`'s old copy: if the live one has local edits, merge rather than overwrite | the robotic voice no longer comes back under load; male profiles speak at normal speed |
@@ -100,6 +103,7 @@ write to those.
 | F27 | person | `run.js login` on `main` already never prints the session token (test: admin-cli "the token is never printed"). The token pasted into a chat on 2026-10-05 came from an **old tunnel checkout on gj8**, `C:\Users\jack\alpha-tunnel` (and `C:\Users\jack\alpha-tunnel-main`), which still prints it. Delete both old checkouts on gj8; use `C:\services\alpha-tunnel` only | neither folder exists on gj8 |
 | F28 | person | Rotate agent keys issued before the move, including `laptop-41-v2-agent`, which `worker1` now uses: issue a new key, update `.env.agent`, revoke the old one | `keys` shows no agent key from before 2026-10-05 in use |
 | F29 | code | One coordinator only: the doctor's split-fleet check exists (#90). Add the same check on gj8, through the peer report: Worker1's 8787 must stay closed | the peer report on Host flags a coordinator answering on Worker1 |
+| F31 | person | Keep the coordination notes going when Worker1 is down: check the probe address, then Parts W, H and D of `HANDOFF_2026-10-05g_worker1-down.md` (needs #109 and #110 merged) | the Part D drill passes: with Worker1 off the tailnet a note posts from the Host, and once Worker1 is back that note is in its `events.jsonl` exactly once |
 | F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
 
 ## Server day — S1-S7 (server expected 2026-10-06)
@@ -133,6 +137,19 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | V6 | Deck heroes: with the full-size gradient slab removed (2026-10-04), several decks (Hardware, Knowledge, Network, Admin, Automation, Terminal) show a large dark hero with only a headline. Give it the deck's real content, or size it to the text. | no hero more than half empty at 1440x900 |
 | V7 | The collapsed capability rail floats bottom-left on phones and covers content as you scroll. Its position is deliberate (see the comment in `styles-astral-unification.css`); consider hiding it while scrolling, or docking it in the taskbar. | it never covers text a reader is reading |
 
+## Alpha's stewards — ST1-ST6 (`HANDOFF_2026-10-05d_stewards.md`)
+
+The fleet that "Alpha Governed Agents" starts on Worker1. Scripts are in `vyos88/Alpha`, `alpha-full`, under `BuildArtifacts/installers/Alpha-Full/scripts/`. Check with `test_alpha_agent_manager.ps1`, which also runs `test_alpha_steward_common.ps1`.
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| ST1 | person / code | Merge the Alpha#58 steward changes into Worker1's own `scripts\` copies (11 refuse; see H2). `--skip-scripts` alone does not get H1 through, because 25 `software\` files refuse too | `apply-alpha-update.mjs` reports `already` for every `scripts/` file |
+| ST2 | code | `-NoExit` (`start_visible_alpha_codex_agents.ps1`, `Open-AgentWindow`) keeps a crashed hidden worker's window alive, so the manager never sees it exit and never restarts it. First confirm that every worker's command loops forever (voice, interface style, evolution, the tunnel `Watch`), then drop `-NoExit` for hidden windows | a worker that throws shows `exited` in the manager and is restarted by auto-heal |
+| ST3 | code | `Get-AlphaOwnerTokenViaPython` (manager, deck, API, workspace monitor) runs Python with no timeout; a hung venv hangs the manager's 3s loop | the call returns within 20s whatever Python does, with a test |
+| ST4 | code | The package and voice stewards have no DPAPI fallback, so they stop when the credential cannot be decrypted in their context | both pass `-TokenFallback` like the deck steward |
+| ST5 | code | PID reuse is accepted on the process name alone (any `powershell` with that PID counts as the worker), and `-ForceNew` starts a second fleet beside the first | the registry records each worker's start time and the manager checks it; `-ForceNew` stops the old fleet first |
+| ST6 | code | The manager gives a campaign agent's `/run` 30s (`Invoke-CampaignAgentCycleIfDue`); a real cycle takes longer and is recorded as an error | the timeout matches the agent's cycle budget, or the call is fire-and-forget with the receipt read later |
+
 ## Reports — for Codex (read-only)
 
 | ID | Ask |
@@ -141,6 +158,7 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | C2 | For A2: for `api.missions`, list which shadowed handlers differ from the `main.py` copy that serves, with the differing lines. |
 | C3 | The drive inventory from `status/cloud` (2026-10-03): every backup, archive or old copy over 500 MB under `C:\` (path, size, last modified) and the external drive letter. **Inventory only.** Never list `auth.json`, `.env` or keys. |
 | C4 | Read `frontend/visual-audit/summary.txt` after the next audit run on the host, and rank its problems by how many routes each one affects. |
+| C5 | Read `scripts/alpha_steward_common.ps1` and every script `start_visible_alpha_codex_agents.ps1` starts (Alpha `alpha-full`). Does any of them still reach `/auth/login`, or retry a sign-in in a loop, by a route the contract test's text search misses? |
 
 ## Ongoing — never "done"
 
