@@ -80,7 +80,9 @@ const NEW_FILE_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '__pycache_
   'logs', 'log', 'backups', 'backup', '.pytest_cache', 'coverage', '.tls', 'uploads', 'output', 'outputs', 'models', 'checkpoints', 'tmp', 'temp', 'cache']);
 const NEW_FILE_SKIP_NAME = /(^\.env)|secret|credential|password|token|private|\.key$|\.pem$|\.bak$|\.orig$/i;
 export const NEW_FILE_MAX_BYTES = 512 * 1024;
-export const NEW_FILE_MAX_COUNT = 400;
+// Laptop41 had 1745 new source files on 2026-10-06 (scripts\ alone holds
+// hundreds of agent policies); the credential scan still reads every line.
+export const NEW_FILE_MAX_COUNT = 3000;
 
 /** Source files under `liveRoot` that --include-new may take, as repo-relative paths (software/..., scripts/...). */
 export function newSourceFiles(liveRoot, tracked) {
