@@ -9,14 +9,18 @@
   (HANDOFF_LAPTOP41_2026-09-30.md section 3) was never finished. This does the
   steps that need no person:
 
-    1. installs scripts\requirements-music.txt (MusicGen) into one pinned
-       Python, and checks torch and transformers import;
+    1. installs scripts\requirements-music.txt (MusicGen) into the creators'
+       own venv (C:\AlphaData\creators-venv), never into the Python Alpha's
+       backend uses, puts back any of that Python's pins an earlier version
+       of this script broke, and checks torch and transformers import;
     2. adds alpha-music and alpha-music-audio to ALPHA_EXTRA_HANDLERS in this
        checkout's .env.agent, keeping every other handler, and sets
        ALPHA_MUSIC_ROOT and ALPHA_MUSIC_PYTHON. The file is backed up first.
        It also holds this agent's key: only the music lines are touched, and
        no value from it is ever printed;
-    3. restarts the agent ('alpha-tunnel agent'), so it offers alpha.music;
+    3. restarts the agent (the 'alpha-agent' service, or the 'alpha-tunnel
+       agent' task), so it offers alpha.music; a service's own environment
+       gets the same handlers, since it wins over .env.agent;
     4. with -Bridge (the machine that serves Alpha): runs the music bridge as
        the scheduled task 'alpha-music bridge', at logon, through
        start-music-bridge.ps1.
@@ -30,9 +34,14 @@
 
 param(
   [string]$Repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path,
-  # A full path to python.exe. Default: the one `py -3` or `python` runs.
+  # A full path to the python.exe that runs the generator. Default: the
+  # creators' venv, made from `py -3.12` / `python`.
   [string]$Python,
+  [string]$VenvDir = 'C:\AlphaData\creators-venv',
   [switch]$Bridge,
+  # Machines the bridge gives tracks to, in order of preference on equal load
+  # ("host,worker1": the Host's RTX 3050 first), or "auto".
+  [string]$Machines = 'auto',
   [switch]$DryRun,
   [string]$AgentTask = 'alpha-tunnel agent',
   [string]$BridgeTask = 'alpha-music bridge',
@@ -42,42 +51,44 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+. (Join-Path $PSScriptRoot 'agent-setup.ps1')
 $failed = New-Object System.Collections.ArrayList
 function Fail([string]$t) { [void]$failed.Add($t); Write-Host "PROBLEM: $t" }
 
-# The agent reads .env.agent in the checkout it runs from, which need not be
-# the one this script sits in: ask its scheduled task.
-if (-not $PSBoundParameters.ContainsKey('Repo') -and (Get-Command Get-ScheduledTask -EA SilentlyContinue)) {
-  $t = Get-ScheduledTask -TaskName $AgentTask -EA SilentlyContinue
-  $m = if ($t) { [regex]::Match("$($t.Actions[0].Arguments)", '"?([^"]+?)[\\/]scripts[\\/]keep-agent\.mjs') }
-  if ($m -and $m.Success -and (Test-Path -LiteralPath $m.Groups[1].Value)) {
-    if ($m.Groups[1].Value -ne $Repo) { Write-Host "the agent runs from $($m.Groups[1].Value): configuring that checkout" }
-    $Repo = $m.Groups[1].Value
-  }
+$agent = if ($NoRestart) { @{ kind = $null; repo = $Repo } } else { Find-Agent -Fallback $Repo }
+if (-not $PSBoundParameters.ContainsKey('Repo') -and $agent.repo) {
+  if ($agent.repo -ne $Repo) { Write-Host "the agent runs from $($agent.repo): configuring that checkout" }
+  $Repo = $agent.repo
 }
 
 # ------------------------------------------------------------ 1. Python
-function Resolve-Python {
-  if ($Python) { return $Python }
-  foreach ($try in @(@('py', '-3'), @('python'), @('python3'))) {
-    $cmd = Get-Command $try[0] -EA SilentlyContinue
-    if (-not $cmd) { continue }
-    $exe = (& $cmd.Source @($try | Select-Object -Skip 1) -c 'import sys; print(sys.executable)' 2>$null | Out-String).Trim()
-    # The Microsoft Store alias answers with nothing, or a WindowsApps stub.
-    if ($exe -and (Test-Path -LiteralPath $exe) -and $exe -notmatch '\\WindowsApps\\') { return $exe }
+$py = $Python
+if (-not $py -and -not $SkipInstall) {
+  $base = Find-BasePython
+  if (-not $base) { Fail 'no Python 3.10+ found (py -3, python): install Python 3.12 for this user first' }
+  else {
+    # Version 1 of this script installed into $base, which on Worker1 is also
+    # where Alpha's FastAPI lives, and lifted anyio past its pin.
+    [void](Repair-PipConflicts $base)
+    $py = Get-CreatorsPython $base $VenvDir
+    if (-not $py) { Fail "could not make the creators' venv in $VenvDir" }
   }
-  return $null
 }
-$py = Resolve-Python
-if (-not $py) { Fail 'no Python 3 found (py -3, python): install Python 3.10+ for this user first' }
-else {
+if ($py) {
   Write-Host "python: $py"
   if (-not $SkipInstall) {
+    # An NVIDIA GPU (the Host's RTX 3050) makes MusicGen many times faster,
+    # but plain pip picks the CPU build of torch on Windows.
+    $gpu = [bool](Get-Command nvidia-smi -EA SilentlyContinue) -and ((& nvidia-smi -L 2>$null | Out-String) -match 'GPU')
+    if ($gpu) {
+      Write-Host 'NVIDIA GPU found: installing CUDA torch first'
+      & $py -m pip install --disable-pip-version-check --quiet torch --index-url https://download.pytorch.org/whl/cu124 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
+    }
     Write-Host 'installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...'
     & $py -m pip install --disable-pip-version-check --quiet -r (Join-Path $Repo 'scripts\requirements-music.txt') 2>&1 |
       Select-Object -Last 5 | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) { Fail "pip install failed (exit $LASTEXITCODE)" }
-    $v = (& $py -c 'import torch, transformers; print(torch.__version__, transformers.__version__)' 2>&1 | Out-String).Trim()
+    $v = (& $py -c 'import torch, transformers; print(torch.__version__, transformers.__version__, "cuda" if torch.cuda.is_available() else "cpu")' 2>&1 | Out-String).Trim()
     if ($LASTEXITCODE -eq 0) {
       Write-Host "ok: torch and transformers import ($v)"
       # The first track would otherwise download the model inside its own
@@ -95,61 +106,27 @@ else {
   }
 }
 
-# ------------------------------------------------------------ 2. .env.agent
-$envFile = Join-Path $Repo '.env.agent'
-$lines = New-Object System.Collections.ArrayList
-if (Test-Path -LiteralPath $envFile) {
-  foreach ($l in (Get-Content -LiteralPath $envFile)) { [void]$lines.Add($l) }
-  $bak = "$envFile.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-  Copy-Item -LiteralPath $envFile -Destination $bak -Force
-  Write-Host "backed up .env.agent to $(Split-Path $bak -Leaf)"
-} else {
-  Write-Host 'no .env.agent yet: creating one with the music settings only'
-}
-function Index-Of([string]$name) {
-  for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match "^\s*$([regex]::Escape($name))\s*=") { return $i } }
-  return -1
-}
-function Set-Line([string]$name, [string]$value) {
-  $i = Index-Of $name
-  if ($i -ge 0) { $lines[$i] = "$name=$value" } else { [void]$lines.Add("$name=$value") }
-}
-function Remove-Line([string]$name) { $i = Index-Of $name; if ($i -ge 0) { $lines.RemoveAt($i) } }
-
-$i = Index-Of 'ALPHA_EXTRA_HANDLERS'
-$have = if ($i -ge 0) { ((($lines[$i] -split '=', 2)[1]).Trim().Trim('"', "'") -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ } } else { @() }
-$handlers = @($have)
-foreach ($h in 'alpha-music', 'alpha-music-audio') { if ($handlers -notcontains $h) { $handlers += $h } }
-Set-Line 'ALPHA_EXTRA_HANDLERS' ($handlers -join ',')
-Set-Line 'ALPHA_MUSIC_ROOT' $Repo
-if ($py) { Set-Line 'ALPHA_MUSIC_PYTHON' $py }
-if ($DryRun) { Set-Line 'ALPHA_MUSIC_DRY_RUN' '1' } else { Remove-Line 'ALPHA_MUSIC_DRY_RUN' }
-[IO.File]::WriteAllLines($envFile, [string[]]$lines, (New-Object Text.UTF8Encoding($false)))
+# ------------------------------------------------------------ 2. .env.agent (+ service)
+if (-not (Test-Path -LiteralPath (Join-Path $Repo '.env.agent'))) { Write-Host 'no .env.agent yet: creating one with the music settings only' }
+$settings = @{ ALPHA_MUSIC_ROOT = $Repo }
+if ($py) { $settings.ALPHA_MUSIC_PYTHON = $py }
+if ($DryRun) { $settings.ALPHA_MUSIC_DRY_RUN = '1' }
+$handlers = Set-AgentHandlers -Repo $Repo -Handlers @('alpha-music', 'alpha-music-audio') -Settings $settings -Remove $(if ($DryRun) { @() } else { @('ALPHA_MUSIC_DRY_RUN') }) -Agent $agent
 Write-Host "ok: .env.agent handlers: $($handlers -join ', ')$(if ($DryRun) { ' (dry run: click tracks, no model)' })"
 
 # ------------------------------------------------------------ 3. restart the agent
+if (-not $NoRestart) {
+  if (Restart-Agent $agent) { Write-Host 'the agent now offers alpha.music' } else { Fail 'the agent was not restarted, so it does not offer alpha.music yet' }
+}
+
+# ------------------------------------------------------------ 4. the bridge
 function Repo-Processes([string]$pattern) {
   @(Get-CimInstance Win32_Process -Filter "Name='node.exe'" -EA SilentlyContinue |
     Where-Object { "$($_.CommandLine)" -match $pattern -and "$($_.CommandLine)".IndexOf($Repo, [StringComparison]::OrdinalIgnoreCase) -ge 0 })
 }
-if (-not $NoRestart) {
-  if (-not (Get-ScheduledTask -TaskName $AgentTask -EA SilentlyContinue)) {
-    Fail "no scheduled task '$AgentTask' to restart the agent with (scripts\install-always-on.ps1 installs it)"
-  } else {
-    $old = Repo-Processes 'keep-agent\.mjs|src[\\/]agent[\\/]index\.js'
-    $old | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }
-    Write-Host "stopped $($old.Count) agent process(es)"
-    Start-Sleep -Seconds 2
-    Start-ScheduledTask -TaskName $AgentTask
-    $deadline = (Get-Date).AddSeconds(60)
-    while ((Get-Date) -lt $deadline -and -not (Repo-Processes 'src[\\/]agent[\\/]index\.js')) { Start-Sleep -Seconds 3 }
-    if (Repo-Processes 'src[\\/]agent[\\/]index\.js') { Write-Host "ok: agent restarted by '$AgentTask'; it now offers alpha.music" }
-    else { Fail "the agent did not come back within 60s after starting '$AgentTask'" }
-  }
-}
-
-# ------------------------------------------------------------ 4. the bridge
 if ($Bridge -and -not $NoRestart) {
+  if ($Machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { Fail "machines must be auto or a comma list of agent names, not '$Machines'" }
+  else { [Environment]::SetEnvironmentVariable('ALPHA_MUSIC_AGENT', $Machines, 'User'); Write-Host "music bridge machines: $Machines" }
   $launcher = Join-Path $Repo 'scripts\start-music-bridge.ps1'
   $argLine = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcher`""
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argLine -WorkingDirectory $Repo

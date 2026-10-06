@@ -25,6 +25,8 @@
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
     ollama-pull      ollama pull <"model">
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
+    enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
+    live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
@@ -104,8 +106,48 @@ function Resolve-Action($a) {
       $rest = @()
       if ($a.bridge -eq $true) { $rest += '-Bridge' }
       if ($a.dryRun -eq $true) { $rest += '-DryRun' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
       # The first run downloads torch.
       $spec = Ps1 'enable-music.ps1' $rest; $out.timeoutMin = 60
+    }
+    'enable-image' {
+      $rest = @()
+      if ($a.bridge -eq $true) { $rest += '-Bridge' }
+      if ($a.installComfy -eq $true) { $rest += '-InstallComfy' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
+      if ($a.backend) {
+        if ([string]$a.backend -notin @('a1111', 'comfyui')) { $out.reason = 'backend must be a1111 or comfyui'; return $out }
+        $rest += @('-Backend', [string]$a.backend)
+      }
+      if ($AlphaRoot) { $rest += @('-AlphaRoot', $AlphaRoot) }
+      # ComfyUI, torch and a 4 GB checkpoint on the first run.
+      $spec = Ps1 'enable-image.ps1' $rest; $out.timeoutMin = 120
+    }
+    'live-test' {
+      $rest = @((Join-Path $PSScriptRoot 'live-test-creators.mjs'))
+      if ($null -ne $a.count) {
+        $n = 0
+        if (-not [int]::TryParse([string]$a.count, [ref]$n) -or $n -lt 1 -or $n -gt 6) { $out.reason = 'count must be 1 to 6'; return $out }
+        $rest += @('--count', "$n")
+      }
+      if ($a.only) {
+        if ([string]$a.only -notin @('music', 'image', 'video')) { $out.reason = 'only must be music, image or video'; return $out }
+        $rest += @('--only', [string]$a.only)
+      }
+      # The reel is made the way Alpha makes one: its renderer, with the
+      # Python the backend runs (whatever listens on 8001).
+      # String work, not Join-Path: -Plan runs where that drive may not exist.
+      $rest += @('--video-script', (($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\scripts\alpha_video_creator.py'))
+      $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+      $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+      if ($py) { $rest += @('--video-python', $py) }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'ollama-pull' {
       $model = [string]$a.model

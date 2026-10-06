@@ -37,11 +37,25 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'c3', do: 'ollama-keepalive', keepAlive: '24h; calc' },
     { id: 'd1', do: 'enable-music', bridge: true },
     { id: 'd2', do: 'enable-music', bridge: 'yes; calc', dryRun: true },
+    { id: 'e1', do: 'enable-image', bridge: true, machines: 'host,worker1' },
+    { id: 'e4', do: 'enable-music', machines: 'host;calc' },
+    { id: 'e2', do: 'enable-image', installComfy: true, backend: 'comfyui' },
+    { id: 'e3', do: 'enable-image', backend: 'comfyui; calc' },
+    { id: 'f1', do: 'live-test', count: 2, only: 'image' },
+    { id: 'f2', do: 'live-test', count: 99 },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1']);
+  assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
+  assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
+  assert.match(plan.e4.reason, /machines must be/);
+  assert.deepEqual(plan.e2.args.slice(plan.e2.args.indexOf('-InstallComfy'), plan.e2.args.indexOf('-InstallComfy') + 3), ['-InstallComfy', '-Backend', 'comfyui']);
+  assert.match(plan.e3.reason, /backend must be/);
+  assert.deepEqual(plan.f1.args.slice(plan.f1.args.indexOf('--count'), plan.f1.args.indexOf('--count') + 4), ['--count', '2', '--only', 'image']);
+  assert.match(plan.f1.args[plan.f1.args.indexOf('--video-script') + 1], /scripts[\\/]alpha_video_creator\.py$/);
+  assert.match(plan.f2.reason, /count must be 1 to 6/);
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');

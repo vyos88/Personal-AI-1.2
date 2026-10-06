@@ -233,6 +233,8 @@ test('the Music Creator path is checked link by link', { skip, timeout: 300_000 
   assert.match(out, /PROBLEM: music bridge is not running on 127\.0\.0\.1:8790/);
   assert.match(out, /PROBLEM: the site sends \/music to Alpha's backend, not the music bridge/);
   assert.match(out, /"do":"enable-music","bridge":true/);
+  assert.match(out, /=== 5c\. Image creator ===/);
+  assert.match(out, /PROBLEM: image bridge is not running on 127\.0\.0\.1:7861/);
 });
 
 // Alpha's deck panel polls /panel/crowpanel/public-state with no credential.

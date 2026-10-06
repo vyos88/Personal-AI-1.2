@@ -607,6 +607,19 @@ function Run-Checks {
     else { Problem 'no machine offers alpha.music: a queued track waits forever' }
   }
 
+  # Images the same way: Alpha -> IMAGE_GEN_URL -> the image bridge on 7861 ->
+  # an alpha.image task -> the least busy machine offering it. Worker1's own
+  # generator (7860) stays as Alpha's fallback, so images keep working while
+  # this is down; the work is just not shared.
+  Section '5c. Image creator'
+  if ((Body 'http://127.0.0.1:7861/healthz') -match '"ok"\s*:\s*true') { OK 'image bridge answers on 127.0.0.1:7861' }
+  else { Problem 'image bridge is not running on 127.0.0.1:7861: images are not shared between machines' }
+  if ($hz -and $agentsOut) {
+    $painters = @($agentsOut -split "`r?`n" | Where-Object { $_ -match '(^|[\s,])alpha\.image([\s,]|$)' } | ForEach-Object { ($_.Trim() -split '\s+')[0] })
+    if ($painters.Count) { OK "machines that make images: $($painters -join ', ')" }
+    else { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
+  }
+
   # ------------------------------------------------------------ panel
   Section '6. CrowPanel'
   Push-Location $repo
@@ -800,6 +813,8 @@ $rules = @(
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = 'music bridge is not running';                                                         r = 'Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).' },
   @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
+  @{ m = 'image bridge is not running';                                                         r = 'Share images between machines: queue {"do":"enable-image","bridge":true} on Worker1''s autopilot (keeps 7860 as the fallback).' },
+  @{ m = 'no machine offers alpha.image';                                                       r = 'Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).' },
   @{ m = 'no machine offers alpha.music';                                                       r = 'Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).' },
   @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
   @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
