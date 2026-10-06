@@ -125,16 +125,32 @@ function runPwsh(args, env) {
   });
 }
 
-async function doctorAgainst(handler) {
+// files: paths under the temporary dir to write first, e.g. { 'app/.env.local': '...' }.
+// curlExe: put a curl.exe on PATH, for checks that go through the doctor's Http/Body.
+async function doctorAgainst(handler, { env: extraEnv = {}, files = {}, curlExe = false, stubs = '' } = {}) {
   const server = createServer(handler);
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const port = server.address().port;
   const dir = mkdtempSync(join(tmpdir(), 'doctor-chat-'));
   mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
-  const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
-  const r = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
-    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'),
-    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`, '-ChatModel', 'llama3.2:3b'], env);
+  for (const [path, text] of Object.entries(files)) writeFileSync(join(dir, path), text);
+  const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ALPHA_PANEL_LAN_READ: '', ...extraEnv };
+  if (curlExe) {
+    // The doctor calls curl.exe by name and discards bodies to NUL.
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nfor a; do shift; [ "$a" = NUL ] && a=/dev/null; set -- "$@" "$a"; done\nexec curl "$@"\n');
+    chmodSync(join(bin, 'curl.exe'), 0o755);
+    env.PATH = `${bin}${delimiter}${env.PATH}`;
+  }
+  const script = join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1');
+  const params = ['-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`, '-ChatModel', 'llama3.2:3b'];
+  // stubs: PowerShell defined before the script runs, standing in for
+  // Windows-only cmdlets such as Get-NetTCPConnection.
+  const r = await runPwsh(stubs
+    ? ['-NoProfile', '-Command', `${stubs}\n& '${script}' ${params.map((a) => (a.startsWith('-') ? a : `'${a}'`)).join(' ')}; exit $LASTEXITCODE`]
+    : ['-NoProfile', '-File', script, ...params], env);
   server.close();
   return r;
 }
@@ -217,4 +233,91 @@ test('the Music Creator path is checked link by link', { skip, timeout: 300_000 
   assert.match(out, /PROBLEM: music bridge is not running on 127\.0\.0\.1:8790/);
   assert.match(out, /PROBLEM: the site sends \/music to Alpha's backend, not the music bridge/);
   assert.match(out, /"do":"enable-music","bridge":true/);
+});
+
+// Alpha's deck panel polls /panel/crowpanel/public-state with no credential.
+// The doctor says whether that feed is on, live, or stale and why.
+const deckFeed = (code, body) => (req, res) => {
+  if (req.url === '/panel/crowpanel/public-state') return json(res, code, body);
+  json(res, 404, {});
+};
+
+test("Alpha's deck feed: live is ok", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { stale: false, reason: 'live', heartbeat_age_s: 12 } }),
+    { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /ok: Alpha's deck feed is live \(assistant heartbeat 12s old\)/);
+  assert.doesNotMatch(out, /PROBLEM: Alpha's deck feed/);
+});
+
+test("Alpha's deck feed: stale says why and what clears it", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded',
+    freshness: { stale: true, reason: 'assistant-loop-not-started', advice: 'assistant loop is not running on the host.' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded: assistant-loop-not-started\. assistant loop is not running on the host\./);
+  assert.match(out, /lightweight autonomy is off or interactive-first mode is on/);
+});
+
+// The backend live on Laptop41 on 2026-10-06 predates Alpha#26: its feed has
+// a status but no freshness block.
+test("Alpha's deck feed: an older backend's stale feed points at Alpha#26", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'degraded', alive: false }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26/);
+  assert.match(out, /Alpha#26 \(merged to alpha-full\) keeps it fresh between cycles/);
+});
+
+test("Alpha's deck feed: off in .env.local is named, with the setting and file", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(404, { detail: 'Not Found' }),
+    { files: { 'app/.env.local': 'HOST=127.0.0.1\nALPHA_PANEL_LAN_READ=false\nALPHA_PANEL_LAN_READ=true\n' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is off: ALPHA_PANEL_LAN_READ is 'false' in \S+\.env\.local, so the deck panel has nothing to read/);
+  assert.match(out, /Turn on the deck feed: set ALPHA_PANEL_LAN_READ=true/);
+});
+
+test("Alpha's deck feed: on but 404 means the backend predates the setting", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(404, { detail: 'Not Found' }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed answers 404 though ALPHA_PANEL_LAN_READ=true \(environment \(Process\)\): the backend started before that was set/);
+  assert.match(out, /Restart the backend so it reads its settings again/);
+});
+
+// Laptop41's addresses as Windows reports them: Ethernet on the home network,
+// the WSL switch, and the tailnet. Connections are filtered by state only.
+const netStubs = (listen, connections, own = [['192.168.1.250', 'Ethernet']]) => `
+function Get-NetIPAddress {
+${own.map(([ip, nic]) => `  [pscustomobject]@{ IPAddress = '${ip}'; InterfaceAlias = '${nic}' }`).join('\n')}
+  [pscustomobject]@{ IPAddress = '172.20.0.1'; InterfaceAlias = 'vEthernet (WSL)' }
+  [pscustomobject]@{ IPAddress = '100.69.243.25'; InterfaceAlias = 'Tailscale' }
+}
+function Get-NetTCPConnection {
+  param($LocalPort, $State)
+  $rows = @(
+${listen.map((a) => `    [pscustomobject]@{ LocalAddress = '${a}'; State = 'Listen'; RemoteAddress = '0.0.0.0' }`).join('\n')}
+${connections.map(([remote, state]) => `    [pscustomobject]@{ LocalAddress = '192.168.1.250'; State = '${state}'; RemoteAddress = '${remote}' }`).join('\n')}
+  )
+  if ($State) { $rows | Where-Object { $_.State -eq $State } } else { $rows }
+}`;
+
+// HOST in .env.local named 127.0.0.1 and the tailnet address only: the
+// backend answered at home and on the tailnet, and the panel on WiFi had no
+// way in.
+test("Alpha's deck feed: a backend bound to no home-network address is the problem named", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { reason: 'live', heartbeat_age_s: 3 } }), {
+    env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true,
+    stubs: netStubs(['127.0.0.1', '100.69.243.25'], [['127.0.0.1', 'Established']]),
+  });
+  assert.match(out, /backend listens on: 100\.69\.243\.25, 127\.0\.0\.1/);
+  assert.match(out, /not listening on 192\.168\.1\.250 \(Ethernet\)/);
+  assert.doesNotMatch(out, /172\.20\.0\.1/);
+  assert.match(out, /PROBLEM: the backend listens on no home-network address \(this machine has 192\.168\.1\.250 on Ethernet\): the deck panel cannot reach it/);
+  assert.match(out, /PROBLEM: no device on the home network has called the backend in the last couple of minutes/);
+  assert.match(out, /Add the home-network address section 6 names to HOST in \.env\.local/);
+});
+
+// The WSL switch's address is in the home-network range but is this machine.
+test("Alpha's deck feed: the panel's calls are counted, this machine's own are not", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { reason: 'live', heartbeat_age_s: 3 } }), {
+    env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true,
+    stubs: netStubs(['127.0.0.1'], [['::ffff:192.168.1.97', 'Established'], ['192.168.1.97', 'TimeWait'], ['172.20.0.1', 'TimeWait'], ['100.69.243.25', 'Established']], []),
+  });
+  assert.match(out, /ok: home-network devices that called the backend in the last couple of minutes: 192\.168\.1\.97 \(2 connections\)/);
+  assert.doesNotMatch(out, /PROBLEM: (the backend listens on no|no device on the home network)/);
 });
