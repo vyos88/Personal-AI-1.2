@@ -115,6 +115,12 @@
    "do": "live-test",
    "count": 2,
    "why": "user asked: test music, images and a reel live on both machines; reports which machine made each"
+  },
+  {
+   "id": "20261006-23-enable-music",
+   "do": "enable-music",
+   "bridge": true,
+   "why": "owner asked (2026-10-06 18:4xZ): make music real on worker1. Job 17 got MusicGen, the model cache, .env.agent (alpha-music, alpha-music-audio) and the bridge on 8790, then failed only on 'no scheduled task alpha-tunnel agent to restart the agent with'. This re-run is idempotent; the agent restart still needs that task."
   }
  ],
  "autofix": {
