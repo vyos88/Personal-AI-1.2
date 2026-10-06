@@ -1,23 +1,21 @@
-Claude (cloud) report, 2026-10-06 06:58 UTC
+Claude (cloud) report, 2026-10-06 09:58 UTC
 
-NEW: the cloud relay works. doctor-state.json now has cloudSeen = 6987346 (the 03:58 UTC report). At 04:28 UTC the doctor posted it into Alpha's coordination tunnel as claude-cloud, the first time in about two days, and posted status/claude-laptop41's handoff as claude-laptop41. From now on each new cloud report or handoff is posted once, every 15 min. doctor-state.json records cloudSeen, handoffSeen and relay. V added tools/ to the exclude list on Laptop41, which un-stuck autopilot's checkout (now at c3f5bc6).
-Reply path for Alpha, Codex and Claude · Worker1: anything for the cloud sessions goes in the doctor report or on a status/<name> branch. Cloud sessions read those every hour.
+Relay: working. cloudSeen = 1541910 (the 06:58 report). This report reaches Alpha's tunnel within about 15 min.
 
-NEW: status/laptop41 has not been pushed since 05:11 UTC (105 min). Expected since #123: a green doctor pushes only when the relay note changes; 040cb6a was relayed at 05:11. This report doubles as a check: if the doctor is alive it relays this one and pushes within about 15 min. If status/laptop41 is still silent by 08:00 UTC, the doctor has stopped.
-Worker1 (Laptop41) at 05:11 UTC: 0 open problems: backend /health 200, build current, ComfyUI up on 8188, llama3.2:3b pulled. RAM 7.3 of 15.8 GB free, C: 26.9 GB free. Remaining hardening: store the coordinator admin key, because the doctor is still not signed in to the coordinator. Autopilot's queue is empty.
+Worker1 (Laptop41) report is fresh (doctor 09:41 UTC): 0 open problems, backend /health 200, RAM 4.6 of 15.8 GB free, C: 26.9 GB free.
+NEW, #124 merged: the doctor now checks Alpha's chat on every run, without a login. First result:
+ - the backend is ready, and /chat is mounted and asks for a login (401);
+ - Ollama has llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b and deepseek-r1:1.5b;
+ - llama3.2:3b answered in 6.3 s (4.9 s load, 13.2 tokens/s).
+So chat works up to the model; a full logged-in conversation is still tested only with -ChatUser. If Ollama stops, the model goes missing, or a reply takes over 60 s, the doctor will report it.
+Remaining doctor items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
 
-Merged since 03:58: #122 (the doctor finds Alpha's coordination script beside software\ and relays both cloud branches) and #123 (the doctor pushes status/laptop41 when the relay's outcome changes).
-Opened: #121 (draft, the login check also counts audit_events failures and finds encoded steward windows).
-Open here: drafts #121, #116, #99 and older.
+NEW, route B unblocked: a session queued 11-snapshot-approved on control/laptop41 (09:56 UTC). Its commit says V approved all 25 flagged lines at about 09:50 UTC: README.md:59's AUTH_PASSWORD is a test value and the other 24 are code. When autopilot runs it, the live Alpha's tracked files go to a new alpha-from-host branch. A session then merges alpha-full onto it, which brings Alpha#52 (public-tunnel guard) and #70 (actor labels) live.
 
-Open for Claude · Worker1 (docs/HANDOFF_2026-10-06b_claude-worker1.md):
- 1. Ask V about software/backend/README.md:59, the first credential-looking line the snapshot flagged. Nobody uses --allow without V.
- 2. Route B merge. apply-update refuses 50 diverged files; the merge brings Alpha#52 (public-tunnel guard) and #70 live.
- 3. Port Alpha#70's labels onto the live watcher.
- 4. Fix the fleet flicker: the silent threshold is shorter than the report interval.
- 5. The Host agent has been silent for about 34 hours.
+Open for Claude · Worker1 (docs/HANDOFF_2026-10-06b_claude-worker1.md): route B merge once the snapshot lands; port #70's labels onto the live watcher; fix the fleet flicker (the silent threshold is shorter than the report interval); the Host agent has been silent for about 39 h.
+Open here: drafts #121, #116, #99, #66 and older; #86, #83.
 
-Still needs V: README.md:59; Alpha#47/#24 (subscriber summary; premium-gated music tracks); Alpha#63 or #64; review Alpha#66 and #68; the Host agent; storing the coordinator admin key on Worker1; the H9 failed-login checks; S1-S7 when the server arrives (today).
+Still needs V: Alpha#47/#24 (subscriber summary; premium-gated music tracks); Alpha#63 or #64; review Alpha#66 and #68 (drafts); the Host agent; storing the coordinator admin key on Worker1; the H9 failed-login checks; S1-S7 when the server arrives (today).
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
@@ -28,4 +26,4 @@ Still stands:
 
 Host and phones: no status branch yet.
 
-Alpha, this report now reaches you: post in the tunnel per the owner's rule, and nothing else to run. Codex: C3 and C5, read-only.
+Alpha: post in the tunnel per the owner's rule; nothing else to run. Codex: C3 and C5, read-only.
