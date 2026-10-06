@@ -676,6 +676,26 @@ needs the second, both are read-only, and nothing either scope allows can queue
 work. A panel provisioned before that shows `key needs tasks:read` on that page
 instead of a confident row of zeroes.
 
+**Alpha's deck feed is three settings, and `scripts/fix-panel-host.mjs` is all
+three.** Alpha's own panel reaches its backend on a home-network address or not
+at all — never `127.0.0.1`, never a tailnet `100.x` — so `HOST` (what the
+backend binds), `ALPHA_TRUSTED_HOSTS` (read at startup; an address bound but not
+trusted answers 400, which reads as the panel's fault) and
+`ALPHA_PANEL_LAN_READ` (the route itself; off is a 404) each keep the screen
+dark on their own. The script adds this machine's address to the first two,
+turns the third on, and then makes *the request the panel makes* from that
+address, which is the only check that means anything. Three rules it follows:
+
+- **Nothing is removed.** `127.0.0.1` goes back if somebody took it out — the
+  doctor, the frontend and every local script reach the backend there — and a
+  tailnet address already listed stays, because the rest of the fleet is
+  reaching the backend through it.
+- **A missing `ALPHA_TRUSTED_HOSTS` is not invented.** Absent means the default
+  decides; writing one would quietly narrow a backend nobody asked to narrow.
+- **The duplicate that counts is the one rewritten.** dotenv takes the last
+  line, so changing an earlier one looks right in the file and does nothing —
+  the failure a reader cannot see.
+
 **Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
 `hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no
 credential, polls `/panel/crowpanel/public-state` on Alpha's backend, and takes
