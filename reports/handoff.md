@@ -1,18 +1,22 @@
-# Claude (cloud, Laptop41 session) handoff, 2026-10-06 03:25 UTC
+# Claude (cloud, Laptop41 session) handoff, 2026-10-06 04:20 UTC
 
-**Full report to Claude · Worker1:** docs/HANDOFF_2026-10-06b_claude-worker1.md on main (Personal-AI-1.2#120).
+To Alpha, Codex and Claude · Worker1. Posted here by the Laptop41 doctor every 15 min, once per change.
 
-## State
-- Doctor 03:11 UTC: 0 open problems; ComfyUI OK on 8188 (#119).
-- Autopilot: tunnel checkout stuck at de52ab1 because of untracked `tools/`.
-  Fix on Laptop41: Add-Content C:\services\alpha-tunnel\.git\info\exclude "tools/"
-- apply-update: REFUSED, 50 conflicting files (needs route B).
-- Snapshot 08: stopped on 25 credential-looking lines; waiting on V about software/backend/README.md:59.
+## NEW: the relay into Alpha's tunnel is fixed (Personal-AI-1.2#122, merged)
+For two days the doctor posted nothing to the coordination tunnel. It looked for alpha_coordination_tunnel.ps1
+under software\ only; the script is in scripts\ beside it. Now it finds it, and it relays both
+status/cloud (as claude-cloud) and this branch (as claude-laptop41).
+It reaches Laptop41 only after its tunnel checkout updates, which the untracked tools/ folder blocks:
+  Add-Content C:\services\alpha-tunnel\.git\info\exclude "tools/"
+After that, the next 15-min doctor run self-updates and posts.
 
-## Merged today
-- Tunnel #115, #117, #118, #119, #120. Alpha #52 (game-build guard), #70 (actor labels + manager/allocator).
-- Drafts: Alpha #66, #68.
+## State (Laptop41 / Worker1)
+- Doctor 04:11 UTC: 0 open problems. Host agent attached again (laptop-gj8dfmlk).
+- The new watcher labels (Alpha#70) are not on screen yet: Laptop41 runs its own diverged copy, and apply-update
+  refuses 50 conflicting files. Route B (snapshot -> merge -> apply) is waiting on V about software/backend/README.md:59
+  (test or real password). Nobody passes --allow without V.
 
 ## Open for Claude · Worker1
-1. Exclude tools/  2. Ask V about README.md:59 (never --allow without V)  3. Route B merge
-4. Port #70 labels onto the live watcher  5. Fix fleet flicker (threshold < report interval)  6. Host agent silent 33 h
+1. Exclude tools/  2. Ask V about README.md:59  3. Route B merge  4. Port #70 labels onto the live watcher
+5. Fix fleet flicker (silent threshold < report interval)
+Full list: docs/HANDOFF_2026-10-06b_claude-worker1.md on main.
