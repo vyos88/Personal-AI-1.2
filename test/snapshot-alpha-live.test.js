@@ -124,3 +124,18 @@ test('masking keeps names readable and cuts token-shaped values, quoted or not',
   assert.equal(maskLine("const CHAT_DOCK_MODE_KEY = 'alphaChatDockModeV2';"), "const CHAT_DOCK_MODE_KEY = 'alph…(19)';");
   assert.equal(maskLine('TOKEN=alpha_agent_ab12cd34.Zx9_long-secret-part-here'), 'TOKEN=alph…(46)');
 });
+
+test('a second run works after alpha-full moved on under the first one\'s copied files', async () => {
+  // On Laptop41: a refused run left the live files in the scratch clone, and
+  // alpha-full then gained commits touching those files. `checkout -B` refused
+  // ("would be overwritten") and the snapshot never ran again.
+  const f = fixture();
+  assert.equal(await main(args(f), quiet()), 0);
+  const upstream = join(f.dir, 'alpha');
+  write(upstream, `${BASE}/software/backend/main.py`, 'def login():\n    return "newer"\n');
+  git(upstream, 'commit', '-qam', 'alpha-full moves on');
+  git(upstream, 'push', '-q', f.remote.replace('file://', ''), 'alpha-full');
+  const log = quiet();
+  assert.equal(await main(args(f), log), 0, log.lines.join('\n'));
+  assert.match(log.lines.join('\n'), /READY: 1 file/);
+});

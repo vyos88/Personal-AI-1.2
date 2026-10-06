@@ -202,6 +202,15 @@ function Find-Layout {
       Note "task Alpha runs: $($a.Execute) $($a.Arguments)"
       Note "            in: $($a.WorkingDirectory)"
     }
+    # start-alpha-at-boot.ps1 registers `cmd.exe /c "...\run-alpha.cmd"`, and
+    # the wrapper is what names the folder (`cd /d "<frontend>"`). Read it too,
+    # or every boot-task install reads as "serves some other folder".
+    foreach ($m in [regex]::Matches($taskText, '[A-Za-z]:\\[^"]+?\.(cmd|bat|ps1)')) {
+      if (Test-Path -LiteralPath $m.Value) {
+        $taskText += ' ' + (Get-Content -LiteralPath $m.Value -Raw -EA SilentlyContinue)
+        Note "            wrapper: $($m.Value)"
+      }
+    }
   }
   $fes = @(Find-Files @($AlphaRoot) @('package.json') 4 |
            Where-Object { (Get-Content $_.FullName -Raw -EA SilentlyContinue) -match '"vite"' })
@@ -489,6 +498,17 @@ function Run-Checks {
     if ($imgUrl) { Problem "image backend not running: nothing answers on $imgBase (chat images fail)" }
     else { Note 'no image backend running on 7860 (chat images are off until IMAGE_GEN_URL points at one)' }
   } elseif ($api -eq '404') {
+    # Run without elevation (the scheduled doctor), Windows hides the command
+    # line of a process started elevated, so the bridge check above cannot
+    # match. A python holder that has no sd-models while ComfyUI answers on
+    # 8188 is that same bridge; reporting it as broken was a false alarm.
+    if ($holder -and -not "$($holder.CommandLine)" -and $holder.Name -match '^python') {
+      $comfy = Http 'http://127.0.0.1:8188/system_stats'
+      if ($comfy -like '2*') {
+        OK "port $imgPort is held by $($holder.Name) (its command line is hidden without elevation), and ComfyUI answers on 8188 ($comfy): Alpha's ComfyUI bridge"
+        return
+      }
+    }
     $who = if ($holder) { $holder.Name } else { 'another program' }
     Problem "image port $imgPort is held by $who, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503"
   } else {

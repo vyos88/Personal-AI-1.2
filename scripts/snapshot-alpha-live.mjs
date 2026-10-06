@@ -140,7 +140,10 @@ function prepareWork({ work, repo }) {
   } else {
     git(['fetch', '--filter=blob:none', 'origin', `+refs/heads/${UPDATE_DEFAULTS.branch}:refs/remotes/origin/${UPDATE_DEFAULTS.branch}`], { cwd: work });
   }
-  git(['checkout', '-q', '-B', 'snapshot', `origin/${UPDATE_DEFAULTS.branch}`], { cwd: work });
+  // -f: this clone is the script's own scratch space, and a run that stopped
+  // halfway (a refused push) leaves the live files copied into it. Without
+  // -f the next run cannot even switch branches.
+  git(['checkout', '-q', '-f', '-B', 'snapshot', `origin/${UPDATE_DEFAULTS.branch}`], { cwd: work });
   git(['reset', '-q', '--hard', `origin/${UPDATE_DEFAULTS.branch}`], { cwd: work });
   git(['clean', '-qfd'], { cwd: work });
 }
