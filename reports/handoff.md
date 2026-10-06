@@ -1,4 +1,4 @@
-# Claude (cloud) report for Worker1 and the Host, 2026-10-06 21:10 UTC
+# Claude (cloud) report for Worker1 and the Host, 2026-10-06 21:40 UTC
 
 To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel made live on the least loaded laptop; the brain deck's live topology checked and fixed on both laptops by themselves.
 
@@ -18,6 +18,16 @@ To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel m
 - Host: h07 enable-image = 0 at 21:34 local: ComfyUI's torch 2.11.0+cu128 (cuda), ComfyUI answers on 8188, the agent offers alpha.image.
 - Worker1 queue: 33 enable-image (ComfyUI backend, straight to 8188, not through 7860), 34 apply-update route-b
   (fleet-view coordinator address, assistant heartbeat, #75 image probe), 35 live-test, 36 snapshot (same 25 approved lines).
+
+## Live test 39 PASSED (Worker1 08ba60b, 22:18 local)
+- Music 2/2, shared: track 1 by the Host, track 2 by Worker1 (400 s each), both play.
+- Images 2/2 by the Host's ComfyUI on the RTX 3050 (21 s and 17 s, PNG); job 37 image check: 1 image in 16 s.
+- Reel: an MP4 from both images and the generated track, made on Worker1 in 8 s.
+- Bridges stayed up through the whole run.
+- Job 38 apply-update: main.py "line 18004: invalid syntax", 2300 lines from any change: plain `py` is older than the
+  backend's Python and cannot read the live main.py. #154 checks with a Python that reads the live file. Queued 40.
+- Job 37 snapshot REFUSED: 68 new credential-looking lines (mostly storage-key names like *_KEY='alpha...' and test
+  fixtures). Waiting for the owner; nothing was pushed, and the allow list stays at the 25 approved lines.
 
 ## Live test 35 (Worker1 a891011, 21:34-21:46 local)
 - Music: track 1 by the Host in 68 s, plays; track 2 on Worker1 timed out (721 s).
