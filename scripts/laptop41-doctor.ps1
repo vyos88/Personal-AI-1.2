@@ -38,6 +38,8 @@ param(
   [string]$OpsDir = 'C:\AlphaData\alpha-ops',
   [int]$BackendPort = 8001,
   [int]$FrontendPort = 4173,
+  [int]$MusicBridgePort = 8790,
+  [int]$ImageBridgePort = 7861,
   [int]$CoordinatorPort = 8787,
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$ChatUser = '',
@@ -592,33 +594,61 @@ function Run-Checks {
   # and nothing said so: the site sent /music to the backend (404), no bridge
   # ran, and no machine offered alpha.music.
   Section '5b. Music Creator'
-  $bridgeUp = (Body 'http://127.0.0.1:8790/music/healthz') -match '"ok"\s*:\s*true'
-  if ($bridgeUp) { OK 'music bridge answers on 127.0.0.1:8790' }
-  else { Problem 'music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything' }
+  # Which machines offer a type is in the coordinator's agent list only when
+  # this doctor is signed in. Signed out, $agentsOut is the "Not signed in"
+  # text, and reading that as an empty fleet said "no machine offers
+  # alpha.music" on every run (Worker1, 2026-10-06), whatever the agents
+  # offered. The bridges hold keys of their own, so they are asked instead.
+  $agentListed = $hz -and $agentsOut -and $agentsOut -notmatch '(?i)not signed in|unauthori[sz]ed|forbidden'
+  $bridgeUp = (Body "http://127.0.0.1:$MusicBridgePort/music/healthz") -match '"ok"\s*:\s*true'
+  if ($bridgeUp) { OK "music bridge answers on 127.0.0.1:$MusicBridgePort" }
+  else { Problem "music bridge is not running on 127.0.0.1:${MusicBridgePort}: Generate cannot queue anything" }
   $viaSite = ''
   foreach ($scheme in 'http', 'https') { if (-not $viaSite) { $viaSite = Body "${scheme}://127.0.0.1:$FrontendPort/music/healthz" } }
   if ($viaSite -match '"ok"\s*:\s*true') { OK "the site routes /music to the bridge (port $FrontendPort)" }
   elseif ($viaSite -match 'bridge_down') { Note "the site routes /music to the bridge, which is not answering" }
   elseif ($viaSite -match 'Not Found|"detail"') { Problem "the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404" }
   elseif ($viaSite) { Note "/music/healthz on port $FrontendPort answered something else: $(($viaSite -replace '\s+', ' ').Substring(0, [math]::Min(80, $viaSite.Length)))" }
-  if ($hz -and $agentsOut) {
+  if ($agentListed) {
     $makers = @($agentsOut -split "`r?`n" | Where-Object { $_ -match '(^|[\s,])alpha\.music([\s,]|$)' } | ForEach-Object { ($_.Trim() -split '\s+')[0] })
     if ($makers.Count) { OK "machines that make music: $($makers -join ', ')" }
     else { Problem 'no machine offers alpha.music: a queued track waits forever' }
+  } elseif ($bridgeUp) {
+    $fleetText = Body "http://127.0.0.1:$MusicBridgePort/music/fleet"
+    $fleet = $null
+    try { $fleet = $fleetText | ConvertFrom-Json } catch { }
+    if ($fleet -and ($fleet.PSObject.Properties.Name -contains 'machines')) {
+      $makers = @($fleet.machines | ForEach-Object { $_.name } | Where-Object { $_ })
+      if ($makers.Count) { OK "machines that make music (the music bridge's view): $($makers -join ', ')" }
+      else { Problem 'no machine offers alpha.music: a queued track waits forever' }
+    }
+    elseif ($fleetText -match 'bridge_key_rejected') { Note "which machines make music is not known here: the doctor cannot read the coordinator's agent list, and the music bridge's key cannot list machines (it needs agents:read)" }
+    else { Note "which machines make music is not known here: the doctor cannot read the coordinator's agent list, and the music bridge did not say" }
   }
+  else { Note "which machines make music is not known here: the doctor cannot read the coordinator's agent list, and the music bridge is down" }
 
   # Images the same way: Alpha -> IMAGE_GEN_URL -> the image bridge on 7861 ->
   # an alpha.image task -> the least busy machine offering it. Worker1's own
   # generator (7860) stays as Alpha's fallback, so images keep working while
   # this is down; the work is just not shared.
   Section '5c. Image creator'
-  if ((Body 'http://127.0.0.1:7861/healthz') -match '"ok"\s*:\s*true') { OK 'image bridge answers on 127.0.0.1:7861' }
-  else { Problem 'image bridge is not running on 127.0.0.1:7861: images are not shared between machines' }
-  if ($hz -and $agentsOut) {
+  $imageUp = (Body "http://127.0.0.1:$ImageBridgePort/healthz") -match '"ok"\s*:\s*true'
+  if ($imageUp) { OK "image bridge answers on 127.0.0.1:$ImageBridgePort" }
+  else { Problem "image bridge is not running on 127.0.0.1:${ImageBridgePort}: images are not shared between machines" }
+  if ($agentListed) {
     $painters = @($agentsOut -split "`r?`n" | Where-Object { $_ -match '(^|[\s,])alpha\.image([\s,]|$)' } | ForEach-Object { ($_.Trim() -split '\s+')[0] })
     if ($painters.Count) { OK "machines that make images: $($painters -join ', ')" }
     else { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
+  } elseif ($imageUp) {
+    # sd-models names the machines in its title ("Alpha (host, worker1)"),
+    # answers 503 no_image_machine when none, and plain "Alpha" when its key
+    # cannot list machines.
+    $models = Body "http://127.0.0.1:$ImageBridgePort/sdapi/v1/sd-models"
+    if ($models -match 'no_image_machine') { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
+    elseif ($models -match '"title"\s*:\s*"[^"]*\(([^)"]+)\)"') { OK "machines that make images (the image bridge's view): $($Matches[1])" }
+    else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge's key cannot list machines (it needs agents:read)" }
   }
+  else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge is down" }
 
   # ------------------------------------------------------------ panel
   Section '6. CrowPanel'
