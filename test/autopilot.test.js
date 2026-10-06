@@ -32,11 +32,17 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'b1', do: 'apply-update', branch: 'claude/x-alpha-live', from: '030195d38c9b7faae0c8176de498bc0695b6a017' },
     { id: 'b2', do: 'apply-update', branch: '../x' },
     { id: 'b3', do: 'apply-update', branch: 'ok', from: 'abc123' },
+    { id: 'c1', do: 'ollama-keepalive' },
+    { id: 'c2', do: 'ollama-keepalive', keepAlive: '-1', model: 'llama3.2:3b' },
+    { id: 'c3', do: 'ollama-keepalive', keepAlive: '24h; calc' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2']);
+  assert.match(plan.c1.args.join(' '), /ollama-keepalive\.ps1$/);
+  assert.deepEqual(plan.c2.args.slice(-4), ['-KeepAlive', '-1', '-Model', 'llama3.2:3b']);
+  assert.match(plan.c3.reason, /keepAlive must be/);
   assert.deepEqual(plan.b1.args.slice(-4), ['--branch', 'claude/x-alpha-live', '--from', '030195d38c9b7faae0c8176de498bc0695b6a017']);
   assert.match(plan.b2.reason, /plain branch name/);
   assert.match(plan.b3.reason, /40-character/);

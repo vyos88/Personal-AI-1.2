@@ -297,7 +297,26 @@ function Run-Checks {
         $txt = ("$($gen.response)" -replace '\s+', ' ').Trim()
         if ($txt.Length -gt 60) { $txt = $txt.Substring(0, 60) + '...' }
         OK "chat model '$ChatModel' answered in ${secs}s (load ${load}s, $tps tokens/s): $txt"
-        if ($secs -gt 60) { Problem "chat model '$ChatModel' took ${secs}s for a one-word reply: chat will time out" }
+        # Loading and answering are different problems with different fixes:
+        # on 2026-10-06 a 77.9s reply was 75.6s of loading and a normal 9.4
+        # tokens/s, and "close apps or move chat" sent people the wrong way.
+        $answer = [math]::Round([math]::Max(0, $secs - $load), 1)
+        if ($answer -gt 60) { Problem "chat model '$ChatModel' took ${answer}s to answer once loaded: chat will time out" }
+        elseif ($load -gt 30) { Problem "chat model '$ChatModel' took ${load}s to load: the first chat after an idle spell waits that long" }
+        # How long Ollama keeps it loaded decides how often anyone pays that load.
+        try {
+          $want2 = if ($ChatModel -match ':') { $ChatModel } else { "${ChatModel}:latest" }
+          $ps = @((Invoke-RestMethod -Uri "$($OllamaUrl.TrimEnd('/'))/api/ps" -TimeoutSec 10).models) | Where-Object { $_.name -eq $want2 -or $_.model -eq $want2 } | Select-Object -First 1
+          if ($ps -and $ps.expires_at) {
+            # Ollama writes nanoseconds (trimmed to 7 digits for .NET Framework); PowerShell 7 may hand over a date.
+            $at = $ps.expires_at
+            $when = if ($at -is [datetime]) { [DateTimeOffset]$at } else { [DateTimeOffset]::Parse(([string]$at -replace '(\.\d{7})\d+', '$1'), [Globalization.CultureInfo]::InvariantCulture) }
+            $mins = [math]::Round(($when - [DateTimeOffset]::UtcNow).TotalMinutes)
+            if ($mins -gt 525600) { OK "Ollama keeps '$ChatModel' loaded until it stops" }
+            elseif ($mins -ge 60) { OK "Ollama keeps '$ChatModel' loaded for $([math]::Round($mins / 60)) h after each use" }
+            else { Note "Ollama unloads '$ChatModel' $mins min after each use (OLLAMA_KEEP_ALIVE not set); the next chat then waits for a reload" }
+          }
+        } catch { }
       } catch {
         Problem "chat model '$ChatModel' did not answer: $($_.Exception.Message)"
       }
@@ -660,7 +679,8 @@ $rules = @(
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
   @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
-  @{ m = "chat model '.*' (did not answer|took)";                                               r = 'The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).' },
+  @{ m = "chat model '.*' took .*s to load";                                                    r = 'Keep the chat model loaded: queue {"do":"ollama-keepalive"} for the autopilot (sets OLLAMA_KEEP_ALIVE=24h, restarts Ollama, loads the model). Closing apps does not help a slow load.' },
+  @{ m = "chat model '.*' (did not answer|took .*s to answer)";                                             r = 'The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
   @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
   @{ m = 'no dist|build is older|nothing serves Alpha|older build than dist';                   r = 'Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.' },
