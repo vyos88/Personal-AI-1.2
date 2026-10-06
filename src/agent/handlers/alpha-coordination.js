@@ -27,6 +27,13 @@ import { resolveExecutable } from '../../common/resolve-executable.js';
  *                             scripts/alpha_coordination_tunnel.ps1
  *   ALPHA_POWERSHELL          Interpreter. Defaults to powershell.exe, falling
  *                             back to pwsh.
+ *   ALPHA_COORDINATION_ACTIONS
+ *                             Comma-separated subset of ALLOWED_ACTIONS this
+ *                             agent takes. Unset means all of them. A standby
+ *                             that keeps the records while the main Alpha
+ *                             machine is away sets Post,Ack,Status: claims are
+ *                             state, not a log, and two copies of claims.json
+ *                             cannot be merged without judgment calls.
  */
 
 export const type = 'alpha.coordination';
@@ -72,6 +79,47 @@ export function validateAction(action) {
   if (!ALLOWED_ACTIONS.includes(action)) {
     throw new ProtocolError(
       `unsupported action ${JSON.stringify(action)}; expected one of ${ALLOWED_ACTIONS.join(', ')}`,
+    );
+  }
+  return action;
+}
+
+/**
+ * The actions this agent takes: ALPHA_COORDINATION_ACTIONS, or all of
+ * ALLOWED_ACTIONS when it is unset. A name that is not an allowed action, or a
+ * setting that names none, is a configuration error rather than something to
+ * skip: an agent meant to refuse claims must not quietly start taking them.
+ */
+export function configuredActions(value = process.env.ALPHA_COORDINATION_ACTIONS) {
+  if (value === undefined || value === null || value.trim() === '') return ALLOWED_ACTIONS;
+  const names = [...new Set(value.split(',').map((name) => name.trim()).filter(Boolean))];
+  for (const name of names) {
+    if (!ALLOWED_ACTIONS.includes(name)) {
+      throw new ProtocolError(
+        `ALPHA_COORDINATION_ACTIONS names ${JSON.stringify(name)}, which is not one of ${ALLOWED_ACTIONS.join(', ')}`,
+        { status: 500, code: 'not_configured' },
+      );
+    }
+  }
+  if (names.length === 0) {
+    throw new ProtocolError('ALPHA_COORDINATION_ACTIONS names no action', {
+      status: 500,
+      code: 'not_configured',
+    });
+  }
+  return Object.freeze(names);
+}
+
+/**
+ * Refuses an allowed action this agent was configured not to take. Called
+ * after validateAction, so the message can assume the action is real.
+ */
+export function requireOffered(action, offered = configuredActions()) {
+  if (!offered.includes(action)) {
+    throw new ProtocolError(
+      `this agent takes only ${offered.join(', ')} (ALPHA_COORDINATION_ACTIONS); ` +
+        `${action} waits for the main coordination agent to be back`,
+      { status: 409, code: 'action_not_offered' },
     );
   }
   return action;
@@ -232,7 +280,7 @@ export async function run(payload, { signal, log } = {}) {
   const root = requireRoot();
   const script = requireScript(root);
 
-  const action = validateAction(payload?.action);
+  const action = requireOffered(validateAction(payload?.action));
   const actor = validateActor(payload?.actor ?? process.env.ALPHA_COORDINATION_ACTOR);
   const paths = validatePaths(payload?.paths, root);
   const { eventId, stage } = validateAck(action, payload?.eventId, payload?.stage);
@@ -319,6 +367,7 @@ export function available() {
   try {
     const root = requireRoot();
     requireScript(root);
+    configuredActions();
   } catch (error) {
     return { ok: false, reason: error.message };
   }

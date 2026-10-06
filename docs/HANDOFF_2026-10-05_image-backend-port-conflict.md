@@ -1,55 +1,59 @@
-# Handoff: root cause found for the chat image-generation 502/503s
+# Handoff: the chat image-generation 502/503s — root cause refined, two competing fixes drafted
 
-**Written by:** automated hourly handoff check, 2026-10-05 23:27 UTC
-**Status:** live, current, needs a person on Laptop41 — this is the answer
-to the "Image generation failed: 502: image backend failed: HTTP 503"
-error reported earlier in this session, which this session could not
-diagnose at the time for lack of a visible backend file.
+**Written by:** automated hourly handoff check, last updated 2026-10-06 00:27 UTC
+**Status:** real root cause now confirmed by a code fix (not just this
+doc's earlier guess); two Alpha PRs independently fix it and need the
+owner to pick one and close the other.
 
-## What the doctor found, new this pass
+## Corrected root cause
 
-```
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
-  port 7860 : pid 13900 python.exe
-  PROBLEM: image port 7860 is held by python.exe, not Stable Diffusion's
-  API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
-```
+My first version of this doc guessed the port conflict was a *different
+program* (ACE-Step's Gradio app) squatting on port 7860. That guess was
+wrong in the specifics. The real mechanism, confirmed by
+[vyos88/Alpha#63](https://github.com/vyos88/Alpha/pull/63) and
+[#64](https://github.com/vyos88/Alpha/pull/64) (both draft, both read this
+doc and independently diagnosed the live bug):
 
-Alpha's backend is configured to call Stable Diffusion WebUI's API on port
-7860, but whatever is actually listening there right now (`pid 13900
-python.exe`) isn't it — it answers 404 to `/sdapi/v1/sd-models`, which is
-how the doctor tells the real API apart from something else merely holding
-the port. That something else is likely ACE-Step's Gradio app, which also
-defaults to port 7860 — the doctor's own recommendation names that as the
-probable conflict.
+**Alpha's own ComfyUI bridge** (`scripts\alpha_comfyui_bridge*.py`, only on
+Laptop41/Worker1, not in any branch of this repo) correctly listens on
+port 7860 — nothing else is squatting on it. But the bridge forwards every
+render to **ComfyUI itself on port 8188, which was not running**. Alpha's
+readiness probe treated *any* HTTP answer on 7860 as "backend ready," so it
+queued the render, the bridge returned 503 because ComfyUI wasn't there to
+do the work, and chat reported "Image generation failed: 502: image
+backend failed: HTTP 503" — a true failure, but a misleading message, with
+no indication that starting ComfyUI would fix it.
 
-**This is exactly the bug from earlier today's chat transcript**
-("Image generation failed: 502: image backend failed: HTTP 503") — not a
-code bug in Alpha's image-generation path, but two local programs fighting
-over one port.
+## Two independent fixes exist — the owner needs to pick one
 
-## The fix (from the doctor's own ranked recommendations)
+Two different Claude sessions drafted essentially the same fix, minutes
+apart, same base commit, same single file (`software/backend/main.py`):
 
-> Start Stable Diffusion WebUI with `--api --port 7861` and set
-> `IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img` where the backend
-> reads it, then restart the backend.
+- **[Alpha#63](https://github.com/vyos88/Alpha/pull/63)** — "Image chat:
+  don't promise a render the ComfyUI bridge cannot make." Probe checks
+  ComfyUI's `/system_stats`; adds an `unavailable_because` field; 11 new
+  tests (all fail on base); full suite 2221/22/2 (2 pre-existing failures
+  unrelated to this, missing speech-recognition tools); manually run in a
+  real app instance against stand-ins on 7860/8188.
+- **[Alpha#64](https://github.com/vyos88/Alpha/pull/64)** — "Stop
+  promising chat images the ComfyUI bridge cannot render." Same idea, also
+  adds a fallback to the next ready backend (then OpenAI if allowed) when
+  one fails; 16 new tests; full suite 2230/20, clean `ruff`.
 
-This needs a person at Laptop41 — nothing here can restart a process on
-that machine.
+Both are real, well-tested fixes for the same bug, on the same base, in
+the same file — merging both would conflict. **Neither has been tested
+against the real bridge or a real ComfyUI** (both PRs say so themselves);
+the probe logic is inferred from the doctor's reports of what the bridge
+answers, not from a live run against it. This is a judgment call for a
+person, not something to merge unattended: pick one (#64 has the added
+fallback-to-other-backend behavior #63 doesn't), close the other, and
+still start ComfyUI on Laptop41 (`run_cpu.bat`/`run_nvidia_gpu.bat`, or
+`python main.py --listen 127.0.0.1 --port 8188`) — the code fix only makes
+the error message honest, it doesn't make ComfyUI run.
 
-## Also resolved since the last pass (no action needed)
+## Still true from the original version of this doc
 
-The "live main.py still has the dictionary bug" item is gone from the
-summary; the report now shows `ok: chat fix (dictionary 500) is in the
-live main.py`. One fewer standing problem.
-
-## Other new activity this pass (drafts, not yet actionable)
-
-Five new draft PRs on `Personal-AI-1.2`, all part of the same Worker1
-failover effort as `Alpha#60` (already flagged in
-`HANDOFF_2026-10-05_monetization-prs.md`): **#109** (let a coordination
-agent take only some actions), **#110** (merge a standby's coordination
-log back into Worker1's), **#111** (the matching handoff doc, F31),
-**#112** (remove superseded handoff docs), **#113** (fix the device
-inventory script path on Windows). All draft; nothing to merge yet.
+- The "dictionary bug" item resolved itself (confirmed in an earlier pass).
+- The image-port problem itself is still open on Laptop41's live telemetry
+  (9 runs as of this update) — nothing changes there until ComfyUI is
+  actually started.
