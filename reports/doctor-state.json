@@ -1,14 +1,10 @@
 {
     "cloudSeen":  "3890f66b5446fd5892fe90552d67462966991f2d",
-    "lastRun":  "2026-10-07T00:41:28",
+    "lastRun":  "2026-10-07T00:56:29",
     "handoffSeen":  "55215c3f932c78f3ad616bf9fac7c7cac0630385",
     "open":  {
-                 "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
-                                                                                                                                                                              "since":  "2026-10-07T00:41:28",
-                                                                                                                                                                              "runs":  1,
-                                                                                                                                                                              "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
-                                                                                                                                                                          }
+
              },
-    "lastPost":  "2026-10-07T00:41:28",
+    "lastPost":  "2026-10-07T00:56:29",
     "relay":  "relayed status/cloud 3890f66"
 }
