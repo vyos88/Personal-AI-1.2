@@ -1,45 +1,52 @@
 {
- "actions": [
-  {
-   "id": "20261006-h01-enable-music",
-   "do": "enable-music",
-   "why": "Music Creator on Host too: MusicGen + alpha-music on this agent; Worker1's bridge sends tracks here when Host is the less busy machine (Personal-AI-1.2#130)"
-  },
-  {
-   "id": "20261006-h02-enable-music",
-   "do": "enable-music",
-   "why": "music on the RTX 3050: own venv with CUDA torch (#132)"
-  },
-  {
-   "id": "20261006-h03-enable-image",
-   "do": "enable-image",
-   "installComfy": true,
-   "backend": "comfyui",
-   "why": "images on the RTX 3050 (GPU 0): ComfyUI + SD 1.5 with CUDA torch, alpha-image handlers (#132)"
-  },
-  {
-   "id": "20261006-h04-enable-music",
-   "do": "enable-music",
-   "why": "retry h02 with #137: torch check quoting fixed; confirms CUDA torch for the RTX 3050"
-  },
-  {
-   "id": "20261006-h05-enable-image",
-   "do": "enable-image",
-   "installComfy": true,
-   "backend": "comfyui",
-   "why": "retry h03 with #137: ComfyUI via start-comfyui.ps1 with a log (C:\\AlphaData\\comfyui.log), 7 min wait, log tail on failure; clone/checkpoint already done"
-  },
-  {
-   "id": "20261006-h06-brain-topology",
-   "do": "brain-topology",
-   "fix": true,
-   "branch": "claude/friendly-wright-jw4ep6-route-b",
-   "why": "owner asked: the same brain-deck fix on this laptop. route-b (dff4d98) carries the fix on the LIVE tree; Alpha#68 is built on alpha-full and would be refused for want of an applied record. If this machine serves no Alpha install, the check says so and writes nothing."
+  "actions": [
+    {
+      "id": "20261006-h01-enable-music",
+      "do": "enable-music",
+      "why": "Music Creator on Host too: MusicGen + alpha-music on this agent; Worker1's bridge sends tracks here when Host is the less busy machine (Personal-AI-1.2#130)"
+    },
+    {
+      "id": "20261006-h02-enable-music",
+      "do": "enable-music",
+      "why": "music on the RTX 3050: own venv with CUDA torch (#132)"
+    },
+    {
+      "id": "20261006-h03-enable-image",
+      "do": "enable-image",
+      "installComfy": true,
+      "backend": "comfyui",
+      "why": "images on the RTX 3050 (GPU 0): ComfyUI + SD 1.5 with CUDA torch, alpha-image handlers (#132)"
+    },
+    {
+      "id": "20261006-h04-enable-music",
+      "do": "enable-music",
+      "why": "retry h02 with #137: torch check quoting fixed; confirms CUDA torch for the RTX 3050"
+    },
+    {
+      "id": "20261006-h05-enable-image",
+      "do": "enable-image",
+      "installComfy": true,
+      "backend": "comfyui",
+      "why": "retry h03 with #137: ComfyUI via start-comfyui.ps1 with a log (C:\\AlphaData\\comfyui.log), 7 min wait, log tail on failure; clone/checkpoint already done"
+    },
+    {
+      "id": "20261006-h06-brain-topology",
+      "do": "brain-topology",
+      "fix": true,
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "owner asked: the same brain-deck fix on this laptop. route-b (dff4d98) carries the fix on the LIVE tree; Alpha#68 is built on alpha-full and would be refused for want of an applied record. If this machine serves no Alpha install, the check says so and writes nothing."
+    },
+    {
+      "id": "20261006-h07-enable-image",
+      "do": "enable-image",
+      "installComfy": true,
+      "backend": "comfyui",
+      "why": "h05: ComfyUI crashed on start: comfy_kitchen needs torch 2.7+ ('infer_schema ... stride has unsupported type list[int]' on 2.6.0+cu124). #147 upgrades to torch>=2.7 from the cu128 index (RTX 3050, GPU 0); the clone and checkpoint are already there."
+    }
+  ],
+  "autofix": {
+    "brainTopology": {
+      "branch": "claude/friendly-wright-jw4ep6-route-b"
+    }
   }
- ],
- "autofix": {
-  "brainTopology": {
-   "branch": "claude/friendly-wright-jw4ep6-route-b"
-  }
- }
 }
