@@ -1,8 +1,18 @@
-﻿# laptop41 autopilot 20261006-221345
+﻿# laptop41 autopilot 20261006-222845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 8809f6a is current
+
+## 20261006-40-music-host-check  live-test  ->  1   (2026-10-06T22:29:04, 722s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+PROBLEM: track 1 on host: timed out while leased (721s)
+music: 0/1 worked; by machine: none
+(node:5792) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
 
 ## 20261006-37-image-gpu-check  live-test  ->  0   (2026-10-06T22:14:03, 17s)
 ```
@@ -300,14 +310,5 @@ ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at
 ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
 restarted task 'Alpha Backend' so it reads the new image route
 done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261006-27-live-test  live-test  ->  timeout after 45 min   (2026-10-06T20:14:26, 2700s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-PROBLEM: track 1 on worker1: timed out (1503s)
-(node:15788) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
 ```
 
