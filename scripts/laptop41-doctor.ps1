@@ -69,15 +69,18 @@ New-Item -ItemType Directory -Force -Path $reportDir, $tmpDir | Out-Null
 $report = Join-Path $reportDir "laptop41-doctor-$stamp.txt"
 $lines = New-Object System.Collections.ArrayList
 $problems = New-Object System.Collections.ArrayList
+# Every OK and PROBLEM line with its section, for fleet-status.json.
+$checks = New-Object System.Collections.ArrayList
+$script:section = ''
 
 function Out1($t, $color = '') {
   [void]$lines.Add("$t")
   if ($color) { Write-Host $t -ForegroundColor $color } else { Write-Host $t }
 }
-function Section($t) { Out1 ''; Out1 "=== $t ===" 'Cyan' }
-function OK($t)      { Out1 "  ok: $t" 'Green' }
+function Section($t) { $script:section = $t; Out1 ''; Out1 "=== $t ===" 'Cyan' }
+function OK($t)      { [void]$checks.Add([ordered]@{ section = $script:section; ok = $true; text = "$t" }); Out1 "  ok: $t" 'Green' }
 function Note($t)    { Out1 "  $t" }
-function Problem($t) { [void]$problems.Add($t); Out1 "  PROBLEM: $t" 'Red' }
+function Problem($t) { [void]$problems.Add($t); [void]$checks.Add([ordered]@{ section = $script:section; ok = $false; text = "$t" }); Out1 "  PROBLEM: $t" 'Red' }
 function Indent($text) { foreach ($l in ("$text" -split "`r?`n")) { if ($l.Trim()) { Note "  $l" } } }
 # Native stderr through 2>&1 arrives as ErrorRecords that PowerShell 5.1 prints
 # with a whole "NativeCommandError" block each; keep only the text.
@@ -464,6 +467,20 @@ function Run-Checks {
     Note 'not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.'
   }
 
+  # ------------------------------------------------------------ voice
+  # Alpha speaks with Piper on this machine (backend\voice_models\*.onnx,
+  # not in git). Without the models every browser falls back to its own system
+  # voice, which is why the voice can sound fine in one browser and robotic in
+  # another (2026-10-06: better on Laptop41 than in the Host's desktop app).
+  Section '2b. Voice'
+  if ($script:mainPy) {
+    $models = @(Get-ChildItem -LiteralPath (Join-Path (Split-Path $script:mainPy -Parent) 'voice_models') -Filter '*.onnx' -EA SilentlyContinue | ForEach-Object { $_.BaseName })
+    if ($models) { OK "Piper voice models: $($models -join ', ')" }
+    else { Problem "Alpha has no Piper voice models (backend\voice_models\*.onnx): every browser speaks with its own system voice" }
+  } else {
+    Note 'no backend main.py found, so the voice models were not checked'
+  }
+
   # ------------------------------------------------------------ stale?
   Section '3. Is Alpha stale, and at which layer?'
   $script:frontendStale = $false
@@ -816,6 +833,7 @@ if ($Fix) {
     }
     if ($did) {
       $problems.Clear()
+      $checks.Clear()
       Section 'AFTER FIX - checking everything again'
       Run-Checks
     } else { Note 'nothing was changed' }
@@ -878,6 +896,7 @@ $rules = @(
   @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },
+  @{ m = 'no Piper voice models';                                                               r = "Give Alpha its own voice: install piper-tts==1.6.0 (and onnxruntime-directml) into the backend's Python, put en_GB-cori-high, en_US-lessac-high, en_US-ryan-high and en_US-lessac-medium (.onnx and .onnx.json, rhasspy/piper-voices) in backend\voice_models, restart the backend. Every device then hears the same voice." },
   @{ m = 'deck feed is off';                                                                    r = 'Turn on the deck feed: set ALPHA_PANEL_LAN_READ=true in the .env.local section 6 names, then restart the backend (queue {"do":"restart-backend"} for the autopilot). The route serves status only, and only to home-network and loopback callers.' },
   @{ m = 'deck feed answers 404 though|is not a trusted host';                                 r = 'Restart the backend so it reads its settings again and trusts the addresses this machine has now: queue {"do":"restart-backend"} for the autopilot.' },
   @{ m = 'listens on no home-network address';                                                  r = 'Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.' },
@@ -940,6 +959,34 @@ Copy-Item $report (Join-Path $reportDir 'latest.txt') -Force
 # Keep a day of 15-minute reports, not a year of them.
 Get-ChildItem $reportDir -Filter 'laptop41-doctor-*.txt' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 100 | Remove-Item -Force -EA SilentlyContinue
 Write-Host "`nreport: $report"
+
+# The same pass, machine-readable, for Alpha's hubs and the CrowPanel (BACKLOG
+# R9): every check with its section, each open problem with how long it has
+# been open and the recommendation that clears it, and a one-line summary.
+$fleetPath = Join-Path $reportDir 'fleet-status.json'
+$fleetOpen = @(foreach ($o in ($open.Values | Sort-Object { -$_.runs })) {
+  # Not $fix: PowerShell names ignore case, and $Fix is this script's switch.
+  $clears = $null
+  foreach ($rule in $rules) { if ($o.text -match $rule.m) { $clears = $rule.r; break } }
+  [ordered]@{ text = (Redact $o.text); since = $o.since; runs = $o.runs; needsPerson = ($o.runs -ge $EscalateAfterRuns); fix = $clears }
+})
+$needPerson = @($fleetOpen | Where-Object { $_.needsPerson }).Count
+$fleetSummary = if ($fleetOpen.Count -eq 0) { 'Worker1 OK' } else { "Worker1: $($fleetOpen.Count) open, $needPerson need a person" }
+$fleet = [ordered]@{
+  schema = 'alpha.fleet-status.v1'
+  machine = "$env:COMPUTERNAME"
+  role = 'worker1'
+  source = 'laptop41-doctor'
+  at = (Get-Date).ToString('o')
+  everyMinutes = $EveryMinutes
+  ok = ($fleetOpen.Count -eq 0)
+  summary = $fleetSummary
+  checkout = "$(git -C $repo rev-parse --short HEAD 2>$null)"
+  checks = @($checks | ForEach-Object { [ordered]@{ section = $_.section; ok = $_.ok; text = (Redact $_.text) } })
+  open = $fleetOpen
+  fixedSinceLastRun = @($resolved | ForEach-Object { Redact $_ })
+}
+[IO.File]::WriteAllText($fleetPath, ($fleet | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding($false)))
 
 # Alpha's coordination script lives in scripts\ beside software\, and the
 # schedule passes software\ as -AlphaRoot. Looking only under -AlphaRoot never
@@ -1027,6 +1074,27 @@ if ($Watch) {
   $handoffSeen = Relay-Branch 'status/claude-laptop41' 'reports/handoff.md' 'claude-laptop41' $handoffSeen
 }
 
+# Every machine's fleet-status.json in one folder on this machine, where
+# Alpha's /fleet/status and the CrowPanel read them (BACKLOG R10, R11): this
+# doctor's own, and each autopilot's from its status branch. Fetching is for
+# scheduled runs, like the relay.
+$fleetDir = Join-Path $reportDir 'fleet'
+New-Item -ItemType Directory -Force -Path $fleetDir | Out-Null
+Copy-Item $fleetPath (Join-Path $fleetDir 'laptop41.json') -Force
+if ($Watch) {
+  foreach ($b in 'status/host-autopilot', 'status/laptop41-autopilot') {
+    git -C $repo fetch -q origin $b 2>&1 | Plain | Out-Null
+    if ($LASTEXITCODE -ne 0) { continue }
+    $json = (git -C $repo show 'FETCH_HEAD:reports/fleet-status.json' 2>$null) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $json) {
+      [IO.File]::WriteAllText((Join-Path $fleetDir (($b -replace '^status/', '') + '.json')), $json, (New-Object Text.UTF8Encoding($false)))
+    }
+  }
+  # A branch that does not exist yet is not a failed check; without this its
+  # git exit code (128) became the doctor's own.
+  $global:LASTEXITCODE = 0
+}
+
 $state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; handoffSeen = $handoffSeen; relay = $(if ($relayNote) { $relayNote } elseif ($prev) { $prev.relay } else { $null }); open = $open }
 $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 
@@ -1047,6 +1115,7 @@ if ($Push -or ($Watch -and ($due -or $relayChanged))) {
     New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
     Copy-Item $report (Join-Path $wt 'reports\latest.txt') -Force
     Copy-Item $statePath (Join-Path $wt 'reports\doctor-state.json') -Force
+    Copy-Item $fleetPath (Join-Path $wt 'reports\fleet-status.json') -Force
     git -C $wt add reports 2>&1 | Plain | Out-Null
     git -C $wt -c user.name=laptop41-doctor -c user.email=doctor@laptop41.invalid commit -q -m "laptop41 doctor ${stamp}: $($open.Count) open" 2>&1 | Plain | Out-Null
     git -C $wt push origin "HEAD:refs/heads/$branch" 2>&1 | Plain | ForEach-Object { Write-Host "  $_" }

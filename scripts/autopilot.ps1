@@ -504,6 +504,23 @@ git -C $repo worktree add --detach $wt $base 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Host 'could not create a worktree; report kept in state.json' -ForegroundColor Yellow; exit 1 }
 New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
 Set-Content -LiteralPath (Join-Path $wt 'reports\autopilot.md') -Value ($body -join "`n") -Encoding UTF8
+# The same, machine-readable, for Alpha's hubs and the CrowPanel (BACKLOG R9):
+# which jobs ran here and how they ended. A job "fails" when its result does
+# not start with 0; refusals and timeouts count as failed.
+$jobs = @($history | ForEach-Object { [ordered]@{ id = $_.id; do = $_.do; result = "$($_.result)"; at = $_.at; seconds = $_.seconds } })
+$failedNow = @($ran | Where-Object { "$($_.result)" -notmatch '^0' })
+$fleet = [ordered]@{
+  schema = 'alpha.fleet-status.v1'
+  machine = "$env:COMPUTERNAME"
+  role = $Channel
+  source = 'autopilot'
+  at = (Get-Date).ToString('o')
+  ok = ($failedNow.Count -eq 0)
+  summary = $(if ($failedNow.Count) { "${Channel}: $($failedNow.Count) of $($ran.Count) jobs failed" } elseif ($ran.Count) { "${Channel}: $($ran.Count) jobs ran" } else { "${Channel}: checkout cannot update" })
+  checkout = (Redact $checkoutNote)
+  jobs = $jobs
+}
+[IO.File]::WriteAllText((Join-Path $wt 'reports\fleet-status.json'), ($fleet | ConvertTo-Json -Depth 5), (New-Object Text.UTF8Encoding($false)))
 git -C $wt add reports 2>&1 | Out-Null
 $summary = $(if ($ran.Count) { ($ran | ForEach-Object { "$($_.id)=$($_.result)" }) -join ' ' } else { 'checkout cannot update' })
 git -C $wt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel).invalid" commit -q -m "$Channel autopilot ${stamp}: $summary" 2>&1 | Out-Null

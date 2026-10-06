@@ -106,6 +106,71 @@ write to those.
 | F31 | person | Keep the coordination notes going when Worker1 is down: check the probe address, then Parts W, H and D of `HANDOFF_2026-10-05g_worker1-down.md` (needs #109 and #110 merged) | the Part D drill passes: with Worker1 off the tailnet a note posts from the Host, and once Worker1 is back that note is in its `events.jsonl` exactly once |
 | F30 | person | Automatic failover between Host and Worker1 for the coordinator: store sync over Taildrop, a standby on Worker1, both agents given two addresses, then the drill. All steps in `HANDOFF_2026-10-05c_failover.md` | the Part C drill passes: Host's coordinator stopped, both agents on Worker1's standby within 3 minutes, and both back on the Host within 3 minutes of its return |
 
+## Every agent reports, the other takes over, both update themselves — R1-R8 (owner's ask, 2026-10-06)
+
+The owner's goal: every agent and worker on either laptop reports its work
+through the tunnel. Then the other laptop or agent can see it stop and take
+over, and each machine updates itself. The table below shows where that stood
+on 2026-10-06 at about 18:00 UTC. It comes from status/laptop41,
+status/laptop41-autopilot, status/host-autopilot, status/claude-laptop41 and
+status/cloud; nothing here was measured on the machines directly.
+
+| Runs on | What | Reports through | Taken over when it stops | Updates itself |
+|---|---|---|---|---|
+| Host | coordinator (8787) | Worker1's doctor, section 5 (healthz only) | no (F30, F31) | yes (autopilot pulls `main`) |
+| Host | agent `host` | coordinator heartbeat, visible only when signed in (R2) | music and images move to Worker1 (#130, #132) | yes (autopilot) |
+| Host | autopilot | `status/host-autopilot` | n/a | yes |
+| Host | anything else | nothing: the Host has no doctor (R1) | n/a | n/a |
+| Worker1 | agent `worker1` | coordinator heartbeat (R2) | music and images move to Host | yes (autopilot) |
+| Worker1 | Alpha backend and site | doctor: `status/laptop41`, and a post in the tunnel | no standby (Alpha#60 plan) | no: route B (R7) |
+| Worker1 | Alpha Agent Manager and its stewards | Alpha's own agent manager only (R5) | no | no (ST1) |
+| Worker1 | doctor, self-heal, autopilot | `status/laptop41`, `status/laptop41-autopilot` | n/a | yes (tunnel checkout) |
+| Worker1 | music bridge 8790, image bridge 7861 | doctor sections 5b and 8 | send work to the less busy machine | through `enable-music` / `enable-image` |
+| cloud | relay and handoffs | `status/cloud`, `status/claude-laptop41`; the doctor posts them into the tunnel | n/a | n/a |
+| none | Codex, phones | nothing | n/a | n/a |
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| R1 | code | **A doctor for the Host.** Run it from the Host autopilot every 15 min. It pushes `status/host` with the coordinator, the `host` agent's handlers, the bridges, Ollama, RAM and disk, the way `laptop41-doctor.ps1` does for Worker1. It must not assume an Alpha install, because the Host has none. | `status/host` holds a report under 30 min old |
+| R2 | person | Store the coordinator admin key on both machines (`ALPHA_ADMIN_TOKEN`, user scope). Without it no report can show an agent's last heartbeat, so nobody sees one stop. | Worker1's doctor, section 5, lists the agents with their last-seen times |
+| R3 | code | **A stopped agent is restarted by the other machine.** The signed-in doctor flags any agent whose heartbeat is over 5 min old and posts it to the coordination tunnel. Add a new autopilot action, `restart-agent`, that the other machine's autopilot can queue for it. Test it with a stand-in coordinator. | stopping `worker1` on purpose brings it back within 20 min, with no person involved |
+| R4 | code | The Network Hub shows 0 of 16 peers with a heartbeat. The Worker1 cloud session has named this as its next job (`status/claude-laptop41`, 18:05 UTC): take it only after checking it is still free. | the hub shows each live peer with a fresh heartbeat |
+| R5 | person, then code | **Alpha's stewards.** First the owner restarts the Agent Manager and the stewards: #121 found 1,789 failed sign-ins from 127.0.0.1, the stewards' stale saved password. Then ST1-ST6. Then the Agent Manager posts one line per cycle to the coordination tunnel (who ran, who failed), so the Host can see Worker1's stewards. | `check-alpha-logins.ps1` reports 0 failures in the last 15 min, and the tunnel has a steward line for each cycle |
+| R6 | person | Taking over when Worker1 is down: decide F30 and F31, then the drafts #109, #110 and #111. | the failover drill in `HANDOFF_2026-10-05g_worker1-down.md` passes |
+| R7 | person, then code | **Alpha updates itself.** Route B first (the owner's answer on `software\backend\README.md:59`, then the snapshot and the merge). Then an autopilot setting, like `autofix.brainTopology`, runs `apply-update` whenever `alpha-full` moves and reports the result. | a merge to `alpha-full` reaches Worker1 with no person involved |
+| R8 | person, then code | **The voice is better on Laptop41 than on the Host (gj8).** The Host runs no Alpha backend, so its browser speaks through Worker1's Alpha. Alpha speaks with Piper there: `piper-tts==1.6.0` plus the model files in `backend\voice_models\*.onnx`, which are not in git. A worse voice on the Host means its browser is not getting that voice and falls back to its system voice. That happens when `/voice/provider-status` or `/voice/synthesize` fails or times out on the address the Host uses, when the browser holds a stale API address, or when it runs an older bundle (see V1 and Alpha#54). Find which of these it is: the address in the Host's browser bar, the voice provider Alpha's chat reports there, and how long `/voice/synthesize` takes from the Host. Fix that one cause. Add an `enable-voice` autopilot action only if the Host ever runs its own Alpha. | on the Host, Alpha's chat reports the Piper voice, and both laptops sound the same |
+
+### The fleet status report, live in Alpha and on the CrowPanel — R9-R11
+
+The owner wants the status table above shown live in Alpha's tunnel hub
+(`frontend/src/components/CoordinationTunnelPanel.jsx`) or agent hub
+(`frontend/src/pages/AdminAgentsPanel.jsx`), and on the CrowPanel. These are
+the nine improvements the owner asked for. R9-R11 build them in order.
+
+1. **One report for both laptops**, not five branches (`status/laptop41`,
+   `-autopilot`, `host-autopilot`, `claude-laptop41`, `cloud`).
+2. **Machine-readable next to the text**: `fleet-status.json`, so hubs and the
+   panel render it, not people.
+3. **Every line has an age** ("seen 3 min ago"), and shows as stale after two
+   missed report intervals.
+4. **Agents per machine**: name, handlers and last heartbeat. This needs R2.
+5. **Who takes over, worked out live**: for each capability (chat, music,
+   images, coordination, the site), which machine can serve it now.
+6. **Update state per machine**: tunnel checkout against `main`, and Alpha's
+   live copy against `alpha-full` (behind by N, and what blocks it).
+7. **"Needs a person" kept apart from "the autopilot will fix it"**, with the
+   id of the queued job that fixes it.
+8. **No noise**: lines that flicker (RAM, COM ports, run counters) are
+   summarised. Only changes are posted to the tunnel.
+9. **A one-line summary for small screens**: "Fleet OK · 2 open · Worker1 ✓
+   Host ✓", for the CrowPanel, phones and the hub's header.
+
+| ID | Who | Item | Done when |
+|---|---|---|---|
+| R9 | code (tunnel) | The doctor, and both autopilots, write `reports/fleet-status.json` beside their text report and push it on their status branch. Schema: machine, at, checks `[{id, ok, text, since}]`, open problems with their fixing job id, agents (when signed in), checkout and Alpha versions, and the one-line summary (improvements 1-3, 6-9). Tested like the doctor's other checks. | both laptops' status branches hold a fresh `fleet-status.json` |
+| R10 | code (Alpha) | `GET /fleet/status` (owner only) merges this machine's own `fleet-status.json` with the other machine's. It reads that one over the tailnet through the tunnel: the `sysinfo` handler, or a new read-only `fleet.status` handler. The hub polls it every 30 s and shows one row per component, with its age, ✓ or ✗, what is open, and who takes over (improvements 3-5). | the tunnel hub shows both laptops live, and a stopped agent turns red within one interval |
+| R11 | code (Alpha + firmware) | `/panel/crowpanel/public-state` gains a `fleet` block: the one-line summary, plus at most three short lines. The deck firmware draws it in a band. This extends F26 ("Host ✓ Worker1 ✓"). It carries status only: no names of people, no addresses, no keys. | the CrowPanel shows the fleet line, and it changes when a machine stops reporting |
+
 ## Server day — S1-S7 (server expected 2026-10-06)
 
 Steps in `HANDOFF_2026-10-06_server-day.md`. The owner's goal: Alpha's chat,
