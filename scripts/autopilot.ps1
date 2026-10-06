@@ -30,6 +30,7 @@
     live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
+    panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -187,6 +188,10 @@ function Resolve-Action($a) {
       }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
+    # Points the CrowPanel deck plugged into this machine at this machine's
+    # own home-network address. Takes nothing from the action: the URL is
+    # worked out on the machine, and a Wi-Fi passphrase never travels here.
+    'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
