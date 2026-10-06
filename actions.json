@@ -70,6 +70,12 @@
       "keepAlive": "24h",
       "model": "llama3.2:3b",
       "why": "cold reload took 75.6s at 16:26 UTC; keep the chat model loaded (Personal-AI-1.2#129)"
+    },
+    {
+      "id": "20261006-16-watcher-machine-names",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "watcher shows machine names for the observed checkout, tailnet peers and claim owners (vyos88/Alpha#73, 47f0c5c)"
     }
   ]
 }
