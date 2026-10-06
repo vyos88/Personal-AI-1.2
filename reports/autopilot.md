@@ -1,8 +1,38 @@
-﻿# laptop41 autopilot 20261006-105845
+﻿# laptop41 autopilot 20261006-111845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 980338d is current
+checkout 986e13d is current
+
+## 20261006-12-apply-live-watcher  apply-update  ->  1   (2026-10-06T11:18:48, 26s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: 030195d..bdd4244 of claude/frie...(30)
+  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
+  applies  A frontend/src/liveCoordinationLabels.js
+  applies  A frontend/src/liveCoordinationLabels.test.js
+  applies  M scripts/alpha_agent_manager.ps1
+  applies  M scripts/test_alpha_agent_manager.ps1
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 5 file(s)
+  ok: 2 PowerShell file(s) parse
+  installing frontend packages (npm ci) and building...
+  npm ci failed:
+npm error [Error: EPERM: operation not permitted, unlink 'C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\@rolldown\binding-win32-x64-msvc\rolldown-binding.win32-x64-msvc.node'] {
+npm error   errno: -4048,
+npm error   code: 'EPERM',
+npm error   syscall: 'unlink',
+npm error   path: 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\node_modules\\@rolldown\\binding-win32-x64-msvc\\rolldown-binding.win32-x64-msvc.node'
+npm error }
+npm error
+npm error The operation was rejected by your operating system.
+npm error It's possible that the file was already in use (by a text editor or antivirus), or that you lack permissions to access it.
+npm error
+npm error If you believe this might be a permissions issue, please double-check the permissions of the file and its containing directories, or try running the command again as root/Administrator.
+npm error A complete log of this run can be found in: C:\Users\Vyo\AppData\Local\npm-cache\_logs\2026...(32).log -- putting everything back
+  restored 1 file(s), removed 2 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+  restored 2 file(s), removed 0 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts
+```
 
 ## 20261006-11-snapshot-approved  snapshot  ->  0   (2026-10-06T10:58:48, 35s)
 ```
