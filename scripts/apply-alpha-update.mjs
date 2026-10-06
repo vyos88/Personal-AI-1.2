@@ -136,7 +136,10 @@ export function resolveCommit(cache, ref) {
 /** The changes under subdir between two commits, as a patch and a file list. */
 export function buildPatch({ cache, from, to, subdir }) {
   const rel = `--relative=${subdir}`;
-  const patch = git(['diff', '--no-color', '--no-ext-diff', rel, from, to, '--', subdir], { cwd: cache }).stdout;
+  // --no-renames, as for the file list: a rename is a delete and an add, so
+  // a renamed file this machine never had is a delete already done plus a new
+  // file, not a rename of a missing file (Worker1, jobs 29 and 32).
+  const patch = git(['diff', '--no-color', '--no-ext-diff', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout;
   const files = git(['diff', '--name-status', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout
     .split('\n').filter(Boolean).map((line) => {
       const [status, path] = line.split('\t');
@@ -519,6 +522,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
         cpSync(join(area.root, path), join(backupDir, 'files', area.name, path));
       }
     }
+    mkdirSync(backupDir, { recursive: true }); // an update that only adds files copies nothing into it
     writeFileSync(join(backupDir, 'manifest.json'), JSON.stringify({ softwareRoot, from, to, frontendTouched, areas: manifestAreas }, null, 2));
     log(`\n  backup: ${backupDir}`);
 
