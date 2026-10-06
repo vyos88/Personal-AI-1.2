@@ -63,6 +63,13 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
+    },
+    {
+      "id": "20261006-15-ollama-keepalive",
+      "do": "ollama-keepalive",
+      "keepAlive": "24h",
+      "model": "llama3.2:3b",
+      "why": "cold reload took 75.6s at 16:26 UTC; keep the chat model loaded (Personal-AI-1.2#129)"
     }
   ]
 }
