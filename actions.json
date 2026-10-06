@@ -253,6 +253,12 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "why": "job 38 refused on 'main.py line 18004: invalid syntax', 2300 lines from any change: plain py is older than the Python the backend runs and cannot read the live main.py. #154 checks with a Python that reads the live file as it was. Brings the fleet-view coordinator address, the assistant heartbeat (Alpha#26) and #75's image readiness probe; restarts backend and site."
+    },
+    {
+      "id": "20261006-41-apply-route-b",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "job 40 failed like 38 (main.py line 18004 invalid syntax) with a Python that reads the live file, so the merge itself breaks it. #157 reports which change the line is in and how far git moved it on this machine's longer main.py (line numbers only). Rolls back on its own as before."
     }
   ],
   "autofix": {
