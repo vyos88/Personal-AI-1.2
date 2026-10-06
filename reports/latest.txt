@@ -1,4 +1,4 @@
-laptop41-doctor 20261006-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-174103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,8 +20,7 @@ laptop41-doctor 20261006-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 77.9s (load 75.6s, 9.4 tokens/s): OK
-  PROBLEM: chat model 'llama3.2:3b' took 77.9s for a one-word reply: chat will time out
+  ok: chat model 'llama3.2:3b' answered in 9.3s (load 7.3s, 11.7 tokens/s): OK
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
@@ -44,9 +43,9 @@ laptop41-doctor 20261006-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T16:21:39.633Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T16:23:39.586Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T16:25:39.603Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T16:35:39.908Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T16:37:39.961Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T16:39:39.933Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -72,14 +71,14 @@ laptop41-doctor 20261006-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 7. Memory, disk, heaviest processes ===
   ok: 4.3 of 15.8 GB RAM free
   ok: C: 26.8 GB free
-  llama-server                  2,442 MB  pid 2364
-  node                            729 MB  pid 4636
-  Memory Compression              612 MB  pid 3840
-  claude                          568 MB  pid 4148
+  llama-server                  2,442 MB  pid 17824
+  node                            733 MB  pid 4636
+  Memory Compression              599 MB  pid 3840
+  claude                          571 MB  pid 4148
   explorer                        353 MB  pid 10108
-  MsMpEng                         333 MB  pid 6040
+  MsMpEng                         336 MB  pid 6040
   msedge                          241 MB  pid 16264
-  msedge                          225 MB  pid 12440
+  msedge                          213 MB  pid 12440
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -87,15 +86,15 @@ laptop41-doctor 20261006-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: port 7860 is held by python.exe (its command line is hidden without elevation), and ComfyUI answers on 8188 (200): Alpha's ComfyUI bridge
 
 === SUMMARY ===
-  this pass took 108s
-  - chat model 'llama3.2:3b' took 77.9s for a one-word reply: chat will time out  (open 1 run(s), since 2026-10-06T17:27:50)
+  this pass took 37s
+  ok: no problems found
+  + fixed since last run: chat model 'llama3.2:3b' took 77.9s for a one-word reply: chat will time out
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  3. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  4. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  5. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  6. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  7. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
