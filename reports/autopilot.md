@@ -1,8 +1,20 @@
-﻿# laptop41 autopilot 20261006-235345
+﻿# laptop41 autopilot 20261007-003344
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 6854981 is current
+checkout c3c690f is current
+
+## auto-bridges-20261007-003344  bridges (standing)  ->  0 (restarted)   (2026-10-07T00:33:59, 0s)
+```
+'alpha-music bridge' task was Ready; last run 10/06/2026 21:50:53, last result 0xC000013A
+  log: music bridge on http://127.0.0.1:8790/music/ -> http://100.93.104.24:8787
+  log: subscriptions off: every click generates
+  log: 2026-10-06T21:11:59 the bridge exited (-1); restarting in 10s
+  log: 2026-10-06T21:12:09 starting the music bridge (machines: host,worker1)
+  log: 2026-10-06T21:33:59 starting the music bridge (machines: host,worker1)
+  log: 2026-10-06T21:51:01 starting the music bridge (machines: host,worker1)
+'alpha-music bridge' was not listening on 8790: restarted, it answers now
+```
 
 ## 20261006-42-skill-music  live-test  ->  1   (2026-10-06T23:54:01, 724s)
 ```
@@ -351,17 +363,5 @@ Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
   not taken: scripts/apply_pending_owner_password.py (named like a secret)
   not taken: scripts/enter-owner-password-private.ps1 (named like a secret)
 STOP: 1745 new source files is more than 400; something other than source code is in these folders. First ones: scripts/Configure-Alpha-Dedicated-Worker.ps1, scripts/Deploy-Alpha-Dedicated-WorkerRemote.ps1, scripts/Install-Alpha-Fleet-Transport.ps1, scripts/Restart-Alpha-Dedicated-Worker.ps1, scripts/Start-AlphaAnatomyOvernight.ps1, scripts/alpha-yocto.ps1, scripts/alpha_agent_accuracy_policy.ps1, scripts/alpha_agent_adoption_policy.ps1, scripts/alpha_agent_code_freshness.ps1, scripts/alpha_agent_officer.ps1
-```
-
-## 20261006-29-fleet-coordinator  apply-update  ->  2   (2026-10-06T21:09:31, 6s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..8216243 of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  conflict M backend/tests/test_image_backend_probe.py  -- error: backend/tests/test_image_backend_probe.py: No such file or directory
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
-  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
 ```
 
