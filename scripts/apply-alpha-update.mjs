@@ -312,6 +312,29 @@ export function nearestHunk(patch, path, line, applyLog = '') {
   return `${dist(near)} line(s) from ${label(near)}`;
 }
 
+/** The branch's own copy of a file, BOM-stripped and LF-normalised, or null. */
+export function branchText({ cache, to, subdir, path }) {
+  const r = git(['show', `${to}:${subdir}/${path}`], { cwd: cache, allowFail: true });
+  return r.status === 0 ? r.stdout.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n') : null;
+}
+
+/**
+ * Whether a merged file says exactly what the branch says.
+ *
+ * The write-back restores this machine's BOM and line endings, so the bytes
+ * differ on a CRLF host while the code is identical: compare the text, not the
+ * file. A match means the merge added nothing the branch does not already
+ * hold, so a parser's complaint about it is a complaint about the branch's own
+ * copy, or about the Python reading it -- never about a hunk that landed
+ * badly. Worker1 jobs 38, 40 and 41 reported the same "line 18004: invalid
+ * syntax", 2300 lines from any change, three times; what the report could not
+ * say was whose file was broken, which is the only thing that decides what to
+ * do about it.
+ */
+export function sameAsBranch(mergedText, branch) {
+  return branch != null && mergedText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n') === branch;
+}
+
 function findPowerShell() {
   for (const name of platform() === 'win32' ? ['powershell', 'pwsh'] : ['pwsh']) {
     const r = spawnSync(name, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { encoding: 'utf8' });
@@ -616,6 +639,22 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
         mkdirSync(dirname(kept), { recursive: true });
         cpSync(file, kept);
         log(`  the merged file is kept at ${kept}`);
+        // Whose file is broken. A merge into a copy that still matches `from`
+        // can only produce what the branch holds, so there the answer is the
+        // branch or the Python; a copy that has moved on is the other answer,
+        // and the two send whoever reads this report to different places.
+        if (rel) {
+          const sub = area.name === 'scripts' ? DEFAULTS.scriptsSubdir : DEFAULTS.subdir;
+          if (sameAsBranch(readFileSync(file, 'utf8'), branchText({ cache, to, subdir: sub, path: rel }))) {
+            const other = usable.find((py) => py !== python && pythonParses(py, file).ok);
+            log(`  this is exactly what ${branch} holds for ${rel}: the merge added nothing the branch does not already say.`);
+            log(other
+              ? `  ${other.join(' ')} on this machine does read it, so this is a Python mismatch rather than a bad merge (--python takes one command).`
+              : `  no Python on this machine reads it, so the branch's own ${rel} is broken: fix it on ${branch}.`);
+          } else {
+            log(`  this machine's ${rel} is no longer the one ${from.slice(0, 7)} holds, so the hunks applied into a file ${branch} does not have: re-take the branch from this machine's current files.`);
+          }
+        }
         return undo(`${file} does not parse: ${res.detail}${where ? ` (${where})` : ''}`);
       }
       log(`  ok: ${pyFiles.length} Python file(s) parse`);

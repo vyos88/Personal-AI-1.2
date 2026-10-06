@@ -5,7 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot, nearestHunk, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
+import {
+  main, findSoftwareRoot, nearestHunk, needsPackageInstall, sameAsBranch,
+} from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -443,4 +445,55 @@ test('a restart stops whatever holds each port before running the task again', a
   const off = [];
   restartWindows((l) => off.push(l), { spawn: () => { throw new Error('must not run'); }, isWindows: false });
   assert.match(off[0], /only does something on the Windows host/);
+});
+
+
+// Worker1 reported the same "line 18004: invalid syntax" for route-b's
+// main.py in jobs 38, 40 and 41, 2300 lines from any change. Three sessions
+// improved where the report says the break is; none could say whose file was
+// broken, which is the only thing that decides what to do about it.
+test('a merge is compared with the branch\'s own copy, whatever endings this machine keeps', () => {
+  const branch = 'import os\n\ndef f():\n    return 1\n';
+  assert.equal(sameAsBranch(branch, branch), true);
+  assert.equal(sameAsBranch('﻿import os\r\n\r\ndef f():\r\n    return 1\r\n', branch), true,
+    'a CRLF host with a BOM holds the same code');
+  assert.equal(sameAsBranch(branch.replace('return 1', 'return 2'), branch), false);
+  assert.equal(sameAsBranch(branch, null), false, 'a cache that cannot show the file proves nothing');
+});
+
+/** A Python that refuses any file holding `return "new"`, and is otherwise PY. */
+function pythonRefusing(dir, marker) {
+  const stub = join(dir, 'picky-python');
+  writeFileSync(stub, `#!/bin/sh\nfor a; do last=$a; done\nif [ -f "$last" ] && grep -q '${marker}' "$last"; then echo "line 4: invalid syntax" >&2; exit 1; fi\nexec ${PY} "$@"\n`, { mode: 0o755 });
+  return stub;
+}
+
+const pickyArgs = (f, stub) => [
+  '--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', f.base, '--ops', f.ops,
+  '--skip-build', '--python', stub, '--apply',
+];
+
+test('a merge that is exactly what the branch holds is reported as the branch\'s, not as a bad hunk', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  // No local drift: the merge can only reproduce what alpha-full holds.
+  write(f.live, 'backend/main.py', BASE_MAIN);
+  const log = quiet();
+  assert.equal(await main(pickyArgs(f, pythonRefusing(f.dir, 'return "new"')), log), 1);
+  const out = log.lines.join('\n');
+  assert.match(out, /main\.py does not parse: line 4/);
+  assert.match(out, /this is exactly what alpha-full holds for backend\/main\.py/);
+  assert.match(out, /does read it, so this is a Python mismatch rather than a bad merge/);
+  assert.doesNotMatch(out, /is no longer the one/);
+  assert.doesNotMatch(out, /return "new"/, 'still never the line\'s text');
+  assert.equal(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), BASE_MAIN, 'and it is still put back');
+});
+
+test('a merge into a copy that has moved on says so, and where to re-take the branch', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();  // its live main.py carries a local edit alpha-full never had
+  const log = quiet();
+  assert.equal(await main(pickyArgs(f, pythonRefusing(f.dir, 'return "new"')), log), 1);
+  const out = log.lines.join('\n');
+  assert.match(out, new RegExp(`this machine's backend/main\\.py is no longer the one ${f.base.slice(0, 7)} holds`));
+  assert.match(out, /re-take the branch from this machine's current files/);
+  assert.doesNotMatch(out, /exactly what alpha-full holds/);
 });
