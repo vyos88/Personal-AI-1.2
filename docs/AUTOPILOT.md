@@ -46,8 +46,27 @@ reported.
 | `ollama-pull` | `ollama pull <model>` (name:tag only) |
 | `ollama-keepalive` | `ollama-keepalive.ps1`: sets `OLLAMA_KEEP_ALIVE` (default `24h`, or `"keepAlive"`), restarts Ollama, loads the chat model (`"model"`), and fails unless Ollama keeps it at least an hour |
 | `enable-music` | `enable-music.ps1`: installs MusicGen (`requirements-music.txt`), adds `alpha-music,alpha-music-audio` to the agent's `.env.agent` (backed up; nothing in it printed), restarts `alpha-tunnel agent`. `"bridge": true` on the machine that serves Alpha also runs the music bridge at logon (`start-music-bridge.ps1`: key from `ALPHA_REPORT_TOKEN`, `ALPHA_MUSIC_AGENT=auto` spreads tracks over every music machine). `"dryRun": true` makes click tracks, no model |
+| `enable-image` | `enable-image.ps1`: adds `alpha-image,alpha-image-file` to the agent's `.env.agent` (backed up; nothing printed) with this machine's generator (`"backend"`: `a1111` = Worker1's 7860, `comfyui` = 8188), restarts the agent. `"installComfy": true` installs ComfyUI + SD 1.5 (CUDA torch if an NVIDIA GPU, else CPU) as the logon task `ComfyUI`. `"bridge": true` runs the image bridge on 7861 and points Alpha's `IMAGE_GEN_URL` at it, keeping the direct generator in `IMAGE_GEN_URLS` as the fallback |
+| `live-test` | `live-test-creators.mjs` on the machine that serves Alpha: real tracks and images through both bridges, one line per job (machine, seconds, size); fails unless every job worked; says whether work was shared (`"count"` 1-6, `"only"`: `music`/`image`) |
+| `brain-topology` | `brain-topology-check.mjs`: the brain deck's links, from the backend's anatomy map through the deck's source to the build the site serves; with `"fix": true` and `"branch"`, brings in the fixed deck from that Alpha branch (`apply-alpha-update.mjs`, backups and rollback) |
 | `install-agent-task` | `install-always-on.ps1` with no arguments: registers the `alpha-tunnel agent` logon task, which is the task `enable-music` restarts the agent with. Installs the agent keeper only -- never Alpha, the standby or a Cloudflare tunnel. |
 | `start-task` | `Start-ScheduledTask` for `Alpha`, `Alpha Backend`, `Alpha Self-Heal` or `Alpha Doctor` |
+
+## Standing checks
+
+Some checks run on every pass, with no id, and report only when their result
+changes. They are turned on in the same `actions.json`:
+
+```json
+{ "actions": [ ... ], "autofix": { "brainTopology": { "branch": "claude/friendly-wright-jw4ep6-route-b" } } }
+```
+
+- `brainTopology`: when this machine serves the old brain deck (a ring and
+  lines from an empty point, not the links `/neurobrain/anatomy-map` sends),
+  the autopilot brings in the fixed deck from that branch and checks again.
+  It tries once per version of the deck's source, so a fix that does not take
+  is reported, not repeated every five minutes. A stale build alone is left to
+  the doctor (section 5d says which). A machine with no Alpha skips it.
 
 ## Trust
 

@@ -25,10 +25,20 @@
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
     ollama-pull      ollama pull <"model">
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
+    enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
+    live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
+    brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
+
+  Standing check, every pass, no id needed: when actions.json carries
+  {"autofix": {"brainTopology": {"branch": "<alpha branch>"}}}, the brain
+  deck's links are checked on each pass and, when this machine serves the old
+  deck, the fixed one is brought in from that branch (apply-alpha-update.mjs,
+  with its backups and rollback). It reports only when the result changes, and
+  tries a fix once per version of the deck's source.
 
   It refuses to run on any machine but -ExpectHost, so a copy on the wrong
   laptop does nothing.
@@ -104,8 +114,48 @@ function Resolve-Action($a) {
       $rest = @()
       if ($a.bridge -eq $true) { $rest += '-Bridge' }
       if ($a.dryRun -eq $true) { $rest += '-DryRun' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
       # The first run downloads torch.
       $spec = Ps1 'enable-music.ps1' $rest; $out.timeoutMin = 60
+    }
+    'enable-image' {
+      $rest = @()
+      if ($a.bridge -eq $true) { $rest += '-Bridge' }
+      if ($a.installComfy -eq $true) { $rest += '-InstallComfy' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
+      if ($a.backend) {
+        if ([string]$a.backend -notin @('a1111', 'comfyui')) { $out.reason = 'backend must be a1111 or comfyui'; return $out }
+        $rest += @('-Backend', [string]$a.backend)
+      }
+      if ($AlphaRoot) { $rest += @('-AlphaRoot', $AlphaRoot) }
+      # ComfyUI, torch and a 4 GB checkpoint on the first run.
+      $spec = Ps1 'enable-image.ps1' $rest; $out.timeoutMin = 120
+    }
+    'live-test' {
+      $rest = @((Join-Path $PSScriptRoot 'live-test-creators.mjs'))
+      if ($null -ne $a.count) {
+        $n = 0
+        if (-not [int]::TryParse([string]$a.count, [ref]$n) -or $n -lt 1 -or $n -gt 6) { $out.reason = 'count must be 1 to 6'; return $out }
+        $rest += @('--count', "$n")
+      }
+      if ($a.only) {
+        if ([string]$a.only -notin @('music', 'image', 'video')) { $out.reason = 'only must be music, image or video'; return $out }
+        $rest += @('--only', [string]$a.only)
+      }
+      # The reel is made the way Alpha makes one: its renderer, with the
+      # Python the backend runs (whatever listens on 8001).
+      # String work, not Join-Path: -Plan runs where that drive may not exist.
+      $rest += @('--video-script', (($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\scripts\alpha_video_creator.py'))
+      $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+      $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+      if ($py) { $rest += @('--video-python', $py) }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'ollama-pull' {
       $model = [string]$a.model
@@ -130,6 +180,14 @@ function Resolve-Action($a) {
       # payload: with no -AlphaRoot it installs the agent keeper only, never
       # Alpha, the standby or a Cloudflare tunnel.
       $spec = Ps1 'install-always-on.ps1' @(); $out.timeoutMin = 5
+    }
+    'brain-topology' {
+      $rest = @((Join-Path $PSScriptRoot 'brain-topology-check.mjs'), '--alpha-root', $AlphaRoot, '--ops', $OpsDir)
+      if ($a.fix -eq $true) {
+        if (-not $a.branch -or [string]$a.branch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or [string]$a.branch -match '\.\.') { $out.reason = 'fix needs branch, a plain branch name'; return $out }
+        $rest += @('--fix', '--branch', [string]$a.branch, '--retry-hours', '0')
+      }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'start-task' {
       $t = [string]$a.task
@@ -227,13 +285,14 @@ if ($updateExit -ne 0) {
 # Nothing queued is not a reason to stop here: a checkout that cannot update
 # is still reported below.
 $queued = @()
+$control = $null
 git -C $repo fetch -q origin "control/$Channel" 2>&1 | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)" }
 else {
   $raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
   if (-not $raw.Trim()) { Write-Host 'nothing queued' }
   else {
-    try { $queued = @(@((ConvertFrom-Json $raw).actions) | Where-Object { $_ }) } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+    try { $control = ConvertFrom-Json $raw; $queued = @(@($control.actions) | Where-Object { $_ }) } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
   }
 }
 
@@ -301,11 +360,33 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
 }
 
+# 3b. Standing checks: run every pass, report only a change.
+$brainKey = if ($state -and $state.brainKey) { [string]$state.brainKey } else { '' }
+$brainBranch = $null
+if ($control -and $control.autofix -and $control.autofix.brainTopology -and $control.autofix.brainTopology.branch) { $brainBranch = [string]$control.autofix.brainTopology.branch }
+if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
+  if ($brainBranch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or $brainBranch -match '\.\.') { Write-Host 'autofix.brainTopology.branch is not a plain branch name: skipped' }
+  else {
+    $started = Get-Date
+    $text = (& node (Join-Path $PSScriptRoot 'brain-topology-check.mjs') --alpha-root $AlphaRoot --ops $OpsDir --fix --branch $brainBranch 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    # What the deck's state is, without the run-to-run detail (times, paths).
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(OK|PROBLEM|AFTER FIX)' }) -join ' | ')
+    if ($key -ne $brainKey) {
+      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 40) -join "`n"
+      $result = switch ($code) { 0 { '0 (deck ok)' } 2 { '0 (fixed)' } default { "$code (open)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-brain-topology-$stamp"; do = 'brain-topology (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "brain topology: $result"
+    }
+    $brainKey = $key
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $history | Select-Object -First 20)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
