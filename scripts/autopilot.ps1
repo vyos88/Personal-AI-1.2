@@ -22,7 +22,7 @@
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
-    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
+    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
     enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
@@ -102,6 +102,7 @@ function Resolve-Action($a) {
     }
     'snapshot' {
       $rest = @((Join-Path $PSScriptRoot 'snapshot-alpha-live.mjs'), '--alpha-root', $AlphaRoot, '--push')
+      if ($a.includeNew -eq $true) { $rest += '--include-new' }
       if ($a.allow) {
         $items = ([string]$a.allow).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
         $bad = @($items | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
