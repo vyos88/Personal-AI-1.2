@@ -1,29 +1,29 @@
 {
-    "cloudSeen":  "b137553009e81d430aac109f30a326438428b330",
-    "lastRun":  "2026-10-06T19:56:29",
-    "handoffSeen":  "1b043139fc327ce6a27407397ae666022753e49b",
+    "cloudSeen":  "8e4da23d0f2e9d50e2ac41962b4ae7ab05a488a9",
+    "lastRun":  "2026-10-06T20:11:31",
+    "handoffSeen":  "e435f00edded7bfc911bb6c402819fbb23eb4125",
     "open":  {
                  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
                                                                                                                                                                               "since":  "2026-10-06T19:56:29",
-                                                                                                                                                                              "runs":  1,
+                                                                                                                                                                              "runs":  2,
                                                                                                                                                                               "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
                                                                                                                                                                           },
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-06T19:56:29",
-                                                                                                                                            "runs":  1,
+                                                                                                                                            "runs":  2,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-06T19:56:29",
-                                                                                                                                                         "runs":  1,
+                                                                                                                                                         "runs":  2,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      },
                  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a #":  {
                                                                                                                 "since":  "2026-10-06T19:56:29",
-                                                                                                                "runs":  1,
+                                                                                                                "runs":  2,
                                                                                                                 "text":  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a 404"
                                                                                                             }
              },
     "lastPost":  "2026-10-06T19:56:29",
-    "relay":  "relayed status/claude-laptop41 1b04313"
+    "relay":  "relayed status/claude-laptop41 e435f00"
 }
