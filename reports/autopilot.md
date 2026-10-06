@@ -1,8 +1,20 @@
-﻿# host autopilot 20261006-210409
+﻿# host autopilot 20261006-213409
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 0e2d11d is current
+checkout a3b0fd1 is current
+
+## 20261006-h07-enable-image  enable-image  ->  0   (2026-10-06T21:34:14, 380s)
+```
+NVIDIA GPU found: installing CUDA torch
+ComfyUI's torch: 2.11.0+cu128 cuda
+ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon; log C:\AlphaData\comfyui.log)
+image backend: comfyui
+ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the agent through task 'alpha-tunnel agent'
+the agent now offers alpha.image
+done: this machine renders images for Alpha through the tunnel
+```
 
 ## 20261006-h04-enable-music  enable-music  ->  0   (2026-10-06T21:04:14, 36s)
 ```
