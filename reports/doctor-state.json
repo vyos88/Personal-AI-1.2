@@ -1,29 +1,14 @@
 {
     "cloudSeen":  "3890f66b5446fd5892fe90552d67462966991f2d",
-    "lastRun":  "2026-10-07T00:40:24",
+    "lastRun":  "2026-10-07T00:41:28",
     "handoffSeen":  "55215c3f932c78f3ad616bf9fac7c7cac0630385",
     "open":  {
-                 "backend /ready does not answer (HTTP #)":  {
-                                                                 "since":  "2026-10-07T00:40:24",
-                                                                 "runs":  1,
-                                                                 "text":  "backend /ready does not answer (HTTP 0)"
-                                                             },
-                 "backend /health answered #":  {
-                                                    "since":  "2026-10-07T00:40:24",
-                                                    "runs":  1,
-                                                    "text":  "backend /health answered 000"
-                                                },
-                 "Alpha\u0027s deck feed answered #":  {
-                                                           "since":  "2026-10-07T00:40:24",
-                                                           "runs":  1,
-                                                           "text":  "Alpha\u0027s deck feed answered 000"
-                                                       },
-                 "/chat without a login answers HTTP #, expected # (route missing or failing)":  {
-                                                                                                     "since":  "2026-10-07T00:40:24",
-                                                                                                     "runs":  1,
-                                                                                                     "text":  "/chat without a login answers HTTP 0, expected 401 (route missing or failing)"
-                                                                                                 }
+                 "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
+                                                                                                                                                                              "since":  "2026-10-07T00:41:28",
+                                                                                                                                                                              "runs":  1,
+                                                                                                                                                                              "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
+                                                                                                                                                                          }
              },
-    "lastPost":  "2026-10-07T00:40:24",
+    "lastPost":  "2026-10-07T00:41:28",
     "relay":  "relayed status/cloud 3890f66"
 }
