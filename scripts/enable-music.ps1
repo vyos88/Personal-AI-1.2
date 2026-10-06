@@ -88,9 +88,12 @@ if ($py) {
     & $py -m pip install --disable-pip-version-check --quiet -r (Join-Path $Repo 'scripts\requirements-music.txt') 2>&1 |
       Select-Object -Last 5 | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) { Fail "pip install failed (exit $LASTEXITCODE)" }
-    $v = (& $py -c 'import torch, transformers; print(torch.__version__, transformers.__version__, "cuda" if torch.cuda.is_available() else "cpu")' 2>&1 | Out-String).Trim()
+    # No double quotes inside: Windows PowerShell 5.1 drops them on the way to
+    # python, and "cuda" arrived as the name cuda (Host job h02, 2026-10-06).
+    $v = (& $py -c 'import torch, transformers; print(torch.__version__, transformers.__version__, (''cuda'' if torch.cuda.is_available() else ''cpu''))' 2>&1 | Out-String).Trim()
     if ($LASTEXITCODE -eq 0) {
       Write-Host "ok: torch and transformers import ($v)"
+      if ($gpu -and $v -notmatch 'cuda\s*$') { Write-Host 'note: an NVIDIA GPU is here but this torch cannot use it (requirements-music.txt may have replaced the CUDA build); tracks are made on the CPU' }
       # The first track would otherwise download the model inside its own
       # 10-minute limit, on a CPU that already needs most of it.
       if (-not $DryRun) {
