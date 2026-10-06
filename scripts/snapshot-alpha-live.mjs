@@ -112,8 +112,8 @@ export function newSourceFiles(liveRoot, tracked) {
   return { found: found.sort(), skipped };
 }
 
-function git(args, { cwd, allowFail = false } = {}) {
-  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
+function git(args, { cwd, allowFail = false, input } = {}) {
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
   if (r.error) throw new Error(`git not found: ${r.error.message}`);
   if (r.status !== 0 && !allowFail) throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${(r.stderr || r.stdout).trim()}`);
   return r;
@@ -228,7 +228,14 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   log(`  ${tracked.length} file(s) tracked under software\\ and scripts\\; ${changed} differ here; ${missing.length} not on this machine (left as they are)`);
   let added = 0;
   if (opts.includeNew) {
-    const { found, skipped } = newSourceFiles(liveRoot, tracked);
+    const { found: candidates, skipped } = newSourceFiles(liveRoot, tracked);
+    // Alpha's own .gitignore wins: `git add -N` refuses an ignored path and
+    // stopped the whole snapshot (Laptop41, job 36: a game's builds folder).
+    const ignored = new Set(git(['check-ignore', '--no-index', '--stdin'], {
+      cwd: work, allowFail: true, input: candidates.map((rel) => `${BASE}/${rel}`).join('\n'),
+    }).stdout.split('\n').filter(Boolean).map((p) => p.slice(BASE.length + 1)));
+    const found = candidates.filter((rel) => !ignored.has(rel));
+    if (ignored.size) skipped.unshift(`${ignored.size} file(s) Alpha's .gitignore ignores`);
     for (const s of skipped.slice(0, 20)) log(`  not taken: ${s}`);
     if (found.length > NEW_FILE_MAX_COUNT) {
       log(`STOP: ${found.length} new source files is more than ${NEW_FILE_MAX_COUNT}; something other than source code is in these folders. First ones: ${found.slice(0, 10).join(', ')}`);
