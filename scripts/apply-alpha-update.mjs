@@ -236,16 +236,58 @@ export function needsPackageInstall(fe, touchedPaths) {
   return !existsSync(join(fe, 'node_modules')) || touchedPaths.some((p) => PACKAGE_FILES.has(p));
 }
 
+// An npm ci that failed half way (that same EPERM) leaves node_modules
+// partly deleted: the build then cannot even find vite (Worker1, job
+// 20261006-13). `npm ls` says whether the installed tree is whole.
+function packagesIntact(fe) {
+  return npm(['ls', '--depth=0', '--silent'], fe).ok;
+}
+
+// The frontend Alpha serves runs from node_modules (vite preview), so a
+// reinstall must stop it first and start it again after. Only node processes
+// running from this frontend's node_modules are stopped.
+function stopFrontend(fe, log) {
+  if (platform() !== 'win32') return false;
+  const dir = join(fe, 'node_modules').replace(/'/g, "''");
+  const ps = findPowerShell();
+  if (!ps) { log('  note: no PowerShell to stop the running frontend; npm ci may be refused'); return false; }
+  const script = `$d='${dir}'; $n=0; Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($d, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $n++ }; Start-Sleep -Seconds 2; Write-Output $n`;
+  const r = spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' });
+  const n = Number(String(r.stdout || '').trim().split(/\s+/).pop()) || 0;
+  log(`  stopped ${n} frontend process(es) so packages can be reinstalled`);
+  return true;
+}
+
+function startFrontend(log) {
+  if (platform() !== 'win32') return;
+  // Its wrapper may still count as running after its node was stopped.
+  spawnSync('schtasks', ['/End', '/TN', 'Alpha'], { encoding: 'utf8' });
+  const r = spawnSync('schtasks', ['/Run', '/TN', 'Alpha'], { encoding: 'utf8' });
+  log(r.status === 0 ? "  started task 'Alpha' (frontend) again" : `  could not start task 'Alpha': ${(r.stderr || r.stdout).trim()}; the self-heal task restarts it`);
+}
+
+/**
+ * Installs packages when they changed, are missing or are damaged, then
+ * builds. Returns {ok, why, stopped}: `stopped` says the running frontend
+ * was stopped and must be started again by the caller.
+ */
 function installAndBuild(fe, touchedPaths, log) {
-  if (needsPackageInstall(fe, touchedPaths)) {
+  let mode = needsPackageInstall(fe, touchedPaths) ? 'ci' : 'none';
+  if (mode === 'none' && !packagesIntact(fe)) {
+    log('  installed frontend packages are incomplete (an earlier install was cut short): reinstalling');
+    mode = 'ci';
+  }
+  let stopped = false;
+  if (mode === 'ci') {
+    stopped = stopFrontend(fe, log);
     log('  installing frontend packages (npm ci) and building...');
     const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-    if (!ci.ok) return { ok: false, why: `npm ci failed:\n${ci.tail}` };
+    if (!ci.ok) return { ok: false, why: `npm ci failed:\n${ci.tail}`, stopped };
   } else {
     log('  packages unchanged and installed: building (no npm ci)...');
   }
   const build = npm(['run', 'build'], fe);
-  return build.ok ? { ok: true } : { ok: false, why: `the frontend build failed:\n${build.tail}` };
+  return build.ok ? { ok: true, stopped } : { ok: false, why: `the frontend build failed:\n${build.tail}`, stopped };
 }
 
 /** Puts every file in a backup back, and removes the ones the apply added. */
@@ -287,6 +329,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
       const touched = (manifest.areas?.[0] ? [...manifest.areas[0].changed, ...manifest.areas[0].added] : []);
       const built = installAndBuild(fe, touched, log);
       log(built.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${built.why}`);
+      if (built.stopped && !opts.restart) startFrontend(log);
     }
     if (opts.restart) restartWindows(log);
     return EXIT_OK;
@@ -439,8 +482,15 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     if (frontendTouched && !opts.skipBuild) {
       const fe = join(softwareRoot, 'frontend');
       const built = installAndBuild(fe, areas[0].todo.map((r) => r.path), log);
-      if (!built.ok) return undo(built.why);
+      if (!built.ok) {
+        const code = undo(built.why);
+        // Packages are whole again even if the build failed; whatever was
+        // stopped to reinstall them must not stay down.
+        if (built.stopped) startFrontend(log);
+        return code;
+      }
       log('  ok: frontend built');
+      if (built.stopped && !opts.restart) startFrontend(log);
     }
 
     writeState(statePath, to, scriptsTo);

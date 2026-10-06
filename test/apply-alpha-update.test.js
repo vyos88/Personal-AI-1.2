@@ -287,5 +287,25 @@ test('an update that changes no package builds without npm ci, which a running f
     process.env.PATH = path;
   }
   const lines = readFileSync(calls, 'utf8').trim().split('\n');
-  assert.deepEqual(lines, ['run build']);
+  assert.deepEqual(lines, ['ls --depth=0 --silent', 'run build']);
+});
+
+test('packages left half-deleted by an earlier cut-short install are reinstalled before the build', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  mkdirSync(join(f.live, 'frontend', 'node_modules'));
+  const bin = join(f.dir, 'bin');
+  mkdirSync(bin);
+  const calls = join(f.dir, 'npm-calls.txt');
+  // `npm ls` fails: vite and friends are gone (Worker1, job 20261006-13).
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh\necho "$@" >> "${calls}"\n[ "$1" = ls ] && exit 1\nexit 0\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    const out = quiet();
+    assert.equal(await main(args(f, '--apply').filter((x) => x !== '--skip-build'), out), 0, out.lines.join('\n'));
+    assert.match(out.lines.join('\n'), /incomplete .*reinstalling/);
+  } finally {
+    process.env.PATH = path;
+  }
+  assert.deepEqual(readFileSync(calls, 'utf8').trim().split('\n'), ['ls --depth=0 --silent', 'ci --no-audit --no-fund', 'run build']);
 });
