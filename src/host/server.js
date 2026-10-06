@@ -27,6 +27,9 @@ const log = createLogger('host:server');
 
 const MAX_BODY_BYTES = 1_000_000;
 
+/** Handed to every agent at registration; see the register route. */
+export const HOST_FEATURES = Object.freeze(['poll-types']);
+
 // `registry` is destructured before `queue` on purpose: the default queue is
 // built with the registry as its admission controller, which is what makes
 // memory-aware placement work without the caller having to wire it up.
@@ -472,6 +475,10 @@ async function handle(req, res, ctx) {
         version: ALPHA_VERSION,
         heartbeatIntervalMs: ctx.heartbeatIntervalMs ?? 20_000,
         maxPollWaitMs: MAX_POLL_WAIT_MS,
+        // What this coordinator understands beyond the protocol version, so a
+        // newer agent only uses it where it exists. `poll-types`: a poll may
+        // carry `types=a,b` to ask for some of its capabilities only.
+        features: HOST_FEATURES,
       });
     }
 
@@ -548,9 +555,14 @@ async function handle(req, res, ctx) {
         // poll would park for a connection that no longer exists.
         if (req.destroyed || res.destroyed || req.socket?.destroyed) controller.abort();
 
+        // `types` narrows the poll to some of what the agent registered, never
+        // past it: the agent's express lane asks only for the light work it
+        // runs beside a long task (see the agent's #expressLoop).
+        const types = url.searchParams.get('types');
+        const wanted = types === null ? null : new Set(types.split(',').map((type) => type.trim()));
         const task = await ctx.queue.lease({
           agentId,
-          capabilities: agent.capabilities,
+          capabilities: wanted ? agent.capabilities.filter((type) => wanted.has(type)) : agent.capabilities,
           waitMs,
           signal: controller.signal,
         });
