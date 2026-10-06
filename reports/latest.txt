@@ -1,8 +1,8 @@
-laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-195602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 13920 python.exe: 
+  port 8001 : pid 2300 python.exe: 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
               in: 
@@ -20,8 +20,7 @@ laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 118.8s (load 109.4s, 3.1 tokens/s): OK.
-  PROBLEM: chat model 'llama3.2:3b' took 109.4s to load: the first chat after an idle spell waits that long
+  ok: chat model 'llama3.2:3b' answered in 3.2s (load 0s, 8 tokens/s): OK.
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,14 +39,14 @@ laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 4. Public alpha-ai.uk and the boot tasks ===
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-06 19:15 result 0x00041301 (still running)
-  task Alpha Backend    Running  last run 2026-10-06 19:15 result 0x00000001
-  ok: self-heal is running (its log was written 3 min ago); task Alpha Self-Heal is not visible to this account
+  task Alpha Backend    Running  last run 2026-10-06 19:45 result 0x00041301 (still running)
+  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T18:37:40.412Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T18:39:43.534Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T18:41:44.930Z","probes":{"backend":{"ok":false,"status":0,"reason":"timeout"},"frontend":{"ok":false,"status":0,"reason":"timeout"},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T18:51:39.713Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T18:53:39.342Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T18:55:39.255Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -63,11 +62,17 @@ laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 5b. Music Creator ===
   ok: music bridge answers on 127.0.0.1:8790
-  PROBLEM: no machine offers alpha.music: a queued track waits forever
+  PROBLEM: the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404
+  ok: machines that make music (the music bridge's view): host, worker1
 
 === 5c. Image creator ===
   ok: image bridge answers on 127.0.0.1:7861
-  PROBLEM: no machine offers alpha.image: the image bridge has nowhere to send work
+  ok: machines that make images (the image bridge's view): host, worker1
+
+=== 5d. Brain topology (neurological deck) ===
+  ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+  ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
+  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-LmE7_bjQ.js)
 
 === 6. CrowPanel ===
     COM4
@@ -80,19 +85,22 @@ laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   device: USB-SERIAL CH340 (COM4)
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed answered 000
-  nothing listens on port 8001 (section 1)
+  PROBLEM: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
+  backend listens on: ::1, 100.69.243.25, 127.0.0.1
+  not listening on 192.168.2.151 (Wi-Fi)
+  PROBLEM: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
+  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.9 of 15.8 GB RAM free
+  ok: 4.2 of 15.8 GB RAM free
   ok: C: 21 GB free
-  llama-server                  2,442 MB  pid 4080
-  claude                          657 MB  pid 4148
-  MsMpEng                         433 MB  pid 6040
-  explorer                        418 MB  pid 10108
-  node                            362 MB  pid 17172
-  msedge                          330 MB  pid 17544
-  Memory Compression              295 MB  pid 3840
+  llama-server                  2,008 MB  pid 4080
+  claude                          651 MB  pid 4148
+  Memory Compression              609 MB  pid 3840
+  MsMpEng                         446 MB  pid 6040
+  explorer                        377 MB  pid 10108
+  python                          288 MB  pid 2300
+  msedge                          265 MB  pid 16216
   msedge                          261 MB  pid 15096
 
 === 8. Image generation ===
@@ -101,21 +109,21 @@ laptop41-doctor 20261006-194104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 310s
-  - NEEDS A PERSON - no machine offers alpha.music: a queued track waits forever  (open 7 run(s), since 2026-10-06T18:11:37)
-  - NEEDS A PERSON - no machine offers alpha.image: the image bridge has nowhere to send work  (open 4 run(s), since 2026-10-06T18:56:53)
-  - Alpha's deck feed answered 000  (open 1 run(s), since 2026-10-06T19:46:09)
-  - chat model 'llama3.2:3b' took 109.4s to load: the first chat after an idle spell waits that long  (open 1 run(s), since 2026-10-06T19:46:09)
-  + fixed since last run: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
-  + fixed since last run: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
-  + fixed since last run: the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404
-  + fixed since last run: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
+  this pass took 29s
+  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 1 run(s), since 2026-10-06T19:56:29)
+  - the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404  (open 1 run(s), since 2026-10-06T19:56:29)
+  - Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles  (open 1 run(s), since 2026-10-06T19:56:29)
+  - the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it  (open 1 run(s), since 2026-10-06T19:56:29)
+  + fixed since last run: Alpha's deck feed answered 000
+  + fixed since last run: chat model 'llama3.2:3b' took 109.4s to load: the first chat after an idle spell waits that long
+  + fixed since last run: no machine offers alpha.image: the image bridge has nowhere to send work
+  + fixed since last run: no machine offers alpha.music: a queued track waits forever
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 7 runs NEEDS A PERSON] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
-  2. [open 4 runs NEEDS A PERSON] Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).
-  3. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
-  4. [new] Keep the chat model loaded: queue {"do":"ollama-keepalive"} for the autopilot (sets OLLAMA_KEEP_ALIVE=24h, restarts Ollama, loads the model). Closing apps does not help a slow load.
+  1. [new] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  2. [new] Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy).
+  3. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
+  4. [new] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
   5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   6. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   7. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
