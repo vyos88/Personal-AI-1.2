@@ -1,8 +1,72 @@
-﻿# laptop41 autopilot 20261006-040346
+﻿# laptop41 autopilot 20261006-052844
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout de52ab1 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? tools/
+checkout c3f5bc6 is current
+
+## 20261006-09-doctor  doctor  ->  0   (2026-10-06T05:28:47, 31s)
+```
+    ID                     TYPE                FOR      STATUS     TRIES  DECLINED  CREATED            
+    ---------------------  ------------------  -------  ---------  -----  --------  -------------------
+    task_su403yu4pjjspbqn  alpha.coordination  -        succeeded  1      0         2026-10-06 03:40:39
+    task_5sf00y1uyv1yelg7  alpha.coordination  -        succeeded  1      0         2026-10-06 03:38:50
+    task_0724xo8xyj2zlhnz  alpha.coordination  -        succeeded  1      0         2026-10-06 02:37:39
+    task_wg5py6fp2y20lgul  alpha.coordination  -        succeeded  1      0         2026-10-06 02:35:50
+    task_6yw1tdsjnmb8nlbt  alpha.coordination  -        succeeded  1      0         2026-10-06 01:34:38
+    task_pahe6hm9x145uxuk  alpha.coordination  -        succeeded  1      0         2026-10-06 01:32:49
+    task_3pxokbqooace94uf  alpha.coordination  -        succeeded  1      0         2026-10-06 01:15:53
+    task_o21pp0u187qq4xtn  alpha.coordination  -        succeeded  1      0         2026-10-06 01:14:36
+    task_xz9xl651i2vk8fzz  alpha.coordination  -        succeeded  1      0         2026-10-06 01:13:53
+    task_akdxb2pe2khc56ow  alpha.coordination  -        succeeded  1      0         2026-10-06 00:56:44
+    task_dhialg2zimd5yhh8  sysinfo             worker1  succeeded  1      0         2026-10-06 00:56:43
+    task_90jmd8xuihw9e4zf  alpha.coordination  -        succeeded  1      0         2026-10-06 00:31:38
+    task_5ey6gjm60gm4ifea  alpha.coordination  -        succeeded  1      0         2026-10-06 00:29:46
+    task_91ntpsdac5r0v04m  alpha.coordination  -        succeeded  1      0         2026-10-06 00:19:46
+    task_jkip6jtzjltnlor4  alpha.coordination  -        succeeded  1      0         2026-10-06 00:06:45
+    task_f27byd0r9sr8bzz7  alpha.coordination  -        succeeded  1      0         2026-10-05 23:28:39
+    task_nw0f3le5velg9qef  alpha.coordination  -        succeeded  1      0         2026-10-05 23:26:45
+    task_3pjp54uzy9b6cc83  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:34
+    task_jzuitne6akqwot6w  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:10
+    task_3bxruobtssilsh7z  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:01
+=== 6. CrowPanel ===
+    COM4
+    COM20
+    COM50
+  device: USB-SERIAL CH340 (COM20)
+  device: USB-SERIAL CH340 (COM50)
+  device: USB-SERIAL CH340 (COM4)
+  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
+=== 7. Memory, disk, heaviest processes ===
+  ok: 7.4 of 15.8 GB RAM free
+  ok: C: 26.9 GB free
+  Memory Compression              638 MB  pid 3840
+  claude                          552 MB  pid 4148
+  explorer                        332 MB  pid 10108
+  MsMpEng                         323 MB  pid 6040
+  msedge                          230 MB  pid 12440
+  msedge                          217 MB  pid 16976
+  msedge                          216 MB  pid 16264
+  claude                          212 MB  pid 17380
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
+  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
+  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
+=== SUMMARY ===
+  this pass took 25s
+  ok: no problems found
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  3. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  4. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  5. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  6. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  7. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+  To https://github.com/vyos88/Personal-AI-1.2
+     f0ab6c7..d653a65  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
 
 ## 20261006-08-snapshot  snapshot  ->  2   (2026-10-06T03:33:48, 18s)
 ```
