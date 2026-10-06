@@ -3,6 +3,7 @@
     {"id": "20261006-01-repair", "do": "repair-host"},
     {"id": "20261006-02-lyrics-model", "do": "ollama-pull", "model": "llama3.2:3b"},
     {"id": "20261006-03-doctor", "do": "doctor"},
-    {"id": "20261006-04-snapshot", "do": "snapshot"}
+    {"id": "20261006-04-snapshot", "do": "snapshot"},
+    {"id": "20261006-05-apply-update", "do": "apply-update"}
   ]
 }
