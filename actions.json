@@ -259,6 +259,32 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "why": "job 40 failed like 38 (main.py line 18004 invalid syntax) with a Python that reads the live file, so the merge itself breaks it. #157 reports which change the line is in and how far git moved it on this machine's longer main.py (line numbers only). Rolls back on its own as before."
+    },
+    {
+      "id": "20261006-42-skill-music",
+      "do": "live-test",
+      "count": 2,
+      "only": "music",
+      "why": "owner asked: test every skill one by one. Music on both machines, with #155 (whole WAV: length, peak, playlist) and #156 on the Host (h08 restarts its agent so MusicGen gets the RTX 3050's VRAM)"
+    },
+    {
+      "id": "20261006-43-skill-image",
+      "do": "live-test",
+      "count": 2,
+      "only": "image",
+      "why": "owner asked: test every skill one by one. Images on both machines (Host ComfyUI on the RTX 3050)"
+    },
+    {
+      "id": "20261006-44-skill-video",
+      "do": "live-test",
+      "count": 1,
+      "only": "video",
+      "why": "owner asked: test every skill one by one. The reel needs a track and images, so this runs all three end to end"
+    },
+    {
+      "id": "20261006-45-skill-doctor",
+      "do": "doctor",
+      "why": "owner asked: test every skill one by one. Chat (Ollama), backend, site, bridges, CrowPanel, disk"
     }
   ],
   "autofix": {
