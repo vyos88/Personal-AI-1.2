@@ -576,8 +576,35 @@ function Run-Checks {
   } else {
     Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
   }
+  $agentsOut = ''
   if ($hz) {
-    foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') { Note "--- $cmd"; Indent (Admin $cmd) }
+    foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') {
+      $out1 = Admin $cmd
+      if ($cmd -eq 'agents') { $agentsOut = "$out1" }
+      Note "--- $cmd"; Indent $out1
+    }
+  }
+
+  # ------------------------------------------------------------ music
+  # Generate on the Music Creator runs: page -> /music/* on the site -> the
+  # music bridge on 127.0.0.1:8790 -> an alpha.music task -> a machine whose
+  # agent offers alpha.music. On 2026-10-06 three of those links were missing
+  # and nothing said so: the site sent /music to the backend (404), no bridge
+  # ran, and no machine offered alpha.music.
+  Section '5b. Music Creator'
+  $bridgeUp = (Body 'http://127.0.0.1:8790/music/healthz') -match '"ok"\s*:\s*true'
+  if ($bridgeUp) { OK 'music bridge answers on 127.0.0.1:8790' }
+  else { Problem 'music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything' }
+  $viaSite = ''
+  foreach ($scheme in 'http', 'https') { if (-not $viaSite) { $viaSite = Body "${scheme}://127.0.0.1:$FrontendPort/music/healthz" } }
+  if ($viaSite -match '"ok"\s*:\s*true') { OK "the site routes /music to the bridge (port $FrontendPort)" }
+  elseif ($viaSite -match 'bridge_down') { Note "the site routes /music to the bridge, which is not answering" }
+  elseif ($viaSite -match 'Not Found|"detail"') { Problem "the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404" }
+  elseif ($viaSite) { Note "/music/healthz on port $FrontendPort answered something else: $(($viaSite -replace '\s+', ' ').Substring(0, [math]::Min(80, $viaSite.Length)))" }
+  if ($hz -and $agentsOut) {
+    $makers = @($agentsOut -split "`r?`n" | Where-Object { $_ -match '(^|[\s,])alpha\.music([\s,]|$)' } | ForEach-Object { ($_.Trim() -split '\s+')[0] })
+    if ($makers.Count) { OK "machines that make music: $($makers -join ', ')" }
+    else { Problem 'no machine offers alpha.music: a queued track waits forever' }
   }
 
   # ------------------------------------------------------------ panel
@@ -771,6 +798,9 @@ $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
   @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
+  @{ m = 'music bridge is not running';                                                         r = 'Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).' },
+  @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
+  @{ m = 'no machine offers alpha.music';                                                       r = 'Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).' },
   @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
   @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
   @{ m = "chat model '.*' took .*s to load";                                                    r = 'Keep the chat model loaded: queue {"do":"ollama-keepalive"} for the autopilot (sets OLLAMA_KEEP_ALIVE=24h, restarts Ollama, loads the model). Closing apps does not help a slow load.' },

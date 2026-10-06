@@ -191,6 +191,31 @@ export function describeMachine(agent) {
   };
 }
 
+/**
+ * Which machine makes the next track, when the bridge is given a pool rather
+ * than one machine: `auto` (any machine offering alpha.music) or a comma list.
+ * The least busy attached, non-stale machine wins; ties go to the one idle
+ * longest. The pick is pinned on the task, because playback has to know which
+ * machine holds the file. Null when no machine in the pool is attached.
+ */
+export function pickMusicMachine(agents, pool) {
+  const allowed = pool === 'auto' ? null : new Set(pool);
+  const ready = (Array.isArray(agents) ? agents : [])
+    .map(describeMachine)
+    .filter((m) => m && m.name && m.stale !== true && (!allowed || allowed.has(m.name)));
+  ready.sort((a, b) => a.inFlight - b.inFlight || (b.idleMs ?? 0) - (a.idleMs ?? 0));
+  return ready[0]?.name ?? null;
+}
+
+/** "auto" or "a,b" -> a pool; one plain name -> null (that machine, always). */
+export function musicPool(targetAgent) {
+  const raw = String(targetAgent ?? '').trim();
+  if (raw.toLowerCase() === 'auto') return 'auto';
+  if (!raw.includes(',')) return null;
+  const names = raw.split(',').map((n) => n.trim()).filter(Boolean);
+  return names.length ? names : null;
+}
+
 export function createMusicBridge({
   hostUrl,
   token,
@@ -214,6 +239,21 @@ export function createMusicBridge({
   if (!hostUrl) throw new Error('the music bridge needs the coordinator URL (ALPHA_HOST_URL)');
   if (!token) throw new Error('the music bridge needs a tunnel key with tasks:read and tasks:write');
   const base = hostUrl.replace(/\/+$/, '');
+  const pool = musicPool(targetAgent);
+  const fixedAgent = pool ? null : (targetAgent || null);
+
+  // The machine for one track. A pool that cannot be read (a key without
+  // agents:read, the coordinator busy) falls back to its first named machine,
+  // or to letting placement choose, rather than refusing the click.
+  async function machineForTrack() {
+    if (!pool) return fixedAgent;
+    try {
+      const { body } = await coordinator('/agents');
+      const pick = pickMusicMachine(body?.agents, pool);
+      if (pick) return pick;
+    } catch { /* fall through */ }
+    return pool === 'auto' ? null : pool[0];
+  }
 
   async function coordinator(path, options = {}) {
     const { status, body } = await fetch(`${base}${path}`, { token, ...options });
@@ -228,13 +268,14 @@ export function createMusicBridge({
     const refund = billing ? billing.reserve(billing.account(req, res)) : () => {};
     let body;
     try {
+      const machine = await machineForTrack();
       ({ body } = await coordinator('/tasks', {
         method: 'POST',
         body: {
           type: 'alpha.music',
           payload: recipe,
           leaseMs,
-          ...(targetAgent ? { targetAgent } : {}),
+          ...(machine ? { targetAgent: machine } : {}),
         },
       }));
     } catch (error) {
