@@ -247,6 +247,12 @@
       "count": 1,
       "only": "music",
       "why": "owner asked (cloud relay session): make one music track; the music bridge should give it to the Host (laptop-gj8dfmlk) first. Check the track is real audio (job 35's Host track was only 511 bytes) and whether MusicGen used the RTX 3050."
+    },
+    {
+      "id": "20261006-40-apply-route-b",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "job 38 refused on 'main.py line 18004: invalid syntax', 2300 lines from any change: plain py is older than the Python the backend runs and cannot read the live main.py. #154 checks with a Python that reads the live file as it was. Brings the fleet-view coordinator address, the assistant heartbeat (Alpha#26) and #75's image readiness probe; restarts backend and site."
     }
   ],
   "autofix": {
