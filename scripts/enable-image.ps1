@@ -31,6 +31,8 @@ param(
   [ValidateSet('', 'a1111', 'comfyui')] [string]$Backend = '',
   [switch]$InstallComfy,
   [string]$ComfyDir = 'C:\services\ComfyUI',
+  [string]$ComfyLog = 'C:\AlphaData\comfyui.log',
+  [int]$ComfyWaitSeconds = 420,
   [string]$Checkpoint = 'v1-5-pruned-emaonly.safetensors',
   [string]$CheckpointUrl = 'https://huggingface.co/stable-diffusion-v1-5/stable-diffusion-v1-5/resolve/main/v1-5-pruned-emaonly.safetensors',
   [string]$Python,
@@ -80,6 +82,11 @@ if ($InstallComfy -and -not $SkipInstall -and -not (Answers 'http://127.0.0.1:81
     & $venvPy @torchArgs 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
     & $venvPy -m pip install --disable-pip-version-check --quiet -r (Join-Path $ComfyDir 'requirements.txt') 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) { Fail "ComfyUI requirements did not install (exit $LASTEXITCODE)" }
+    # No double quotes inside: Windows PowerShell 5.1 drops them on the way to
+    # python, and "cuda" arrived as the name cuda (job h02, 2026-10-06).
+    $tv = (& $venvPy -c 'import torch; print(torch.__version__, (''cuda'' if torch.cuda.is_available() else ''cpu''))' 2>&1 | Out-String).Trim()
+    Write-Host "ComfyUI's torch: $(($tv -split "`n" | Select-Object -Last 1))"
+    if ($gpu -and $tv -notmatch 'cuda\s*$') { Write-Host 'note: an NVIDIA GPU is here but this torch cannot use it; ComfyUI runs on the CPU' }
 
     $ckpt = Join-Path $ComfyDir "models\checkpoints\$Checkpoint"
     if (-not (Test-Path -LiteralPath $ckpt) -or (Get-Item -LiteralPath $ckpt).Length -lt 1GB) {
@@ -88,17 +95,29 @@ if ($InstallComfy -and -not $SkipInstall -and -not (Answers 'http://127.0.0.1:81
       if (-not (Test-Path -LiteralPath $ckpt) -or (Get-Item -LiteralPath $ckpt).Length -lt 1GB) { Fail "the checkpoint did not download to $ckpt" }
     }
 
-    $argLine = "`"$(Join-Path $ComfyDir 'main.py')`" --listen 127.0.0.1 --port 8188" + $(if ($gpu) { '' } else { ' --cpu' })
-    $action = New-ScheduledTaskAction -Execute $venvPy -Argument $argLine -WorkingDirectory $ComfyDir
+    # Through start-comfyui.ps1, so what ComfyUI prints lands in a log.
+    $launcher = Join-Path $Repo 'scripts\start-comfyui.ps1'
+    $argLine = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$launcher`" -ComfyDir `"$ComfyDir`" -Log `"$ComfyLog`"" + $(if ($gpu) { '' } else { ' -Cpu' })
+    $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argLine -WorkingDirectory $ComfyDir
     $trigger = New-ScheduledTaskTrigger -AtLogOn -User "$env:USERDOMAIN\$env:USERNAME"
     $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
     $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero)
+    # A ComfyUI from an earlier attempt that never answered is stopped first.
+    Stop-ScheduledTask -TaskName 'ComfyUI' -EA SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "Name='python.exe'" -EA SilentlyContinue |
+      Where-Object { "$($_.CommandLine)".IndexOf((Join-Path $ComfyDir 'main.py'), [StringComparison]::OrdinalIgnoreCase) -ge 0 } |
+      ForEach-Object { Stop-Process -Id $_.ProcessId -Force -EA SilentlyContinue }
     Register-ScheduledTask -TaskName 'ComfyUI' -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
     Start-ScheduledTask -TaskName 'ComfyUI'
-    $deadline = (Get-Date).AddSeconds(180)
+    # Its first start on a GPU builds caches and can take minutes.
+    $deadline = (Get-Date).AddSeconds($ComfyWaitSeconds)
     while ((Get-Date) -lt $deadline -and -not (Answers 'http://127.0.0.1:8188/system_stats')) { Start-Sleep -Seconds 5 }
-    if (Answers 'http://127.0.0.1:8188/system_stats') { Write-Host 'ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon)' }
-    else { Fail 'ComfyUI did not answer on 127.0.0.1:8188 within 3 minutes after starting the task' }
+    if (Answers 'http://127.0.0.1:8188/system_stats') { Write-Host "ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon; log $ComfyLog)" }
+    else {
+      Fail "ComfyUI did not answer on 127.0.0.1:8188 within $ComfyWaitSeconds s after starting the task; the end of $ComfyLog follows"
+      if (Test-Path -LiteralPath $ComfyLog) { Get-Content -LiteralPath $ComfyLog -Tail 25 | ForEach-Object { Write-Host "  | $_" } }
+      else { Write-Host "  (no log at ${ComfyLog}: the task did not start start-comfyui.ps1)" }
+    }
   }
 }
 
