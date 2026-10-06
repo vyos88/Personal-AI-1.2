@@ -1,24 +1,24 @@
 {
     "cloudSeen":  "9f0753d421f148b7a6e4521a8f5413ecaaea49ad",
-    "lastRun":  "2026-10-06T18:11:37",
-    "handoffSeen":  "c9e1e3a0dbe4bc3ab5bbe5d5c6f1b74695f99797",
+    "lastRun":  "2026-10-06T18:27:32",
+    "handoffSeen":  "fdef792a6abc46ce29849eb08b8a3a890276c8bd",
     "open":  {
-                 "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
-                                                                                                  "since":  "2026-10-06T18:11:37",
-                                                                                                  "runs":  1,
-                                                                                                  "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
-                                                                                              },
                  "no machine offers alpha.music: a queued track waits forever":  {
                                                                                      "since":  "2026-10-06T18:11:37",
-                                                                                     "runs":  1,
+                                                                                     "runs":  2,
                                                                                      "text":  "no machine offers alpha.music: a queued track waits forever"
                                                                                  },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
+                                                                                                                "since":  "2026-10-06T18:27:32",
+                                                                                                                "runs":  1,
+                                                                                                                "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
+                                                                                                            },
                  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a #":  {
                                                                                                                 "since":  "2026-10-06T18:11:37",
-                                                                                                                "runs":  1,
+                                                                                                                "runs":  2,
                                                                                                                 "text":  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a 404"
                                                                                                             }
              },
-    "lastPost":  "2026-10-06T18:11:37",
-    "relay":  "relayed status/cloud 9f0753d"
+    "lastPost":  "2026-10-06T18:27:32",
+    "relay":  "relayed status/claude-laptop41 fdef792"
 }
