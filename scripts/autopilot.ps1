@@ -21,6 +21,7 @@
     doctor           laptop41-doctor.ps1 -Watch -Push
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
+    restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
     ollama-pull      ollama pull <"model">
@@ -84,6 +85,7 @@ function Resolve-Action($a) {
     'doctor'          { $spec = Ps1 'laptop41-doctor.ps1' @('-Watch', '-Push', '-AlphaRoot', $AlphaRoot); $out.timeoutMin = 12 }
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
+    'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
@@ -302,6 +304,30 @@ foreach ($a in $queued) {
     $code = 'refused'; $text = $p.reason
   } elseif ($p.internal -eq 'start-task') {
     try { Start-ScheduledTask -TaskName $p.args[0] -EA Stop; $code = 0; $text = "started '$($p.args[0])'" } catch { $code = 1; $text = $_.Exception.Message }
+  } elseif ($p.internal -eq 'restart-site') {
+    # Stop-ScheduledTask ends the task's cmd.exe and can leave the preview
+    # server on the port: then the task cannot start a new one, and the old
+    # one keeps serving its old vite.config (Worker1, 2026-10-06: /music 404).
+    $port = 4173
+    $lines = New-Object System.Collections.ArrayList
+    Stop-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue
+    $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+    if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+    Start-Sleep -Seconds 3
+    if (Get-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue) { Start-ScheduledTask -TaskName 'Alpha'; [void]$lines.Add("started task 'Alpha'") }
+    else { [void]$lines.Add("no task 'Alpha' to start the site with") }
+    $deadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+    $now = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    $up = [bool]$now.Count
+    [void]$lines.Add($(if ($up) { "site listening on $port (pid $($now -join ', '))" } else { "site NOT listening on $port after 180s" }))
+    if ($up) {
+      $music = ''
+      foreach ($scheme in 'https', 'http') { if (-not $music) { $music = (& curl.exe -s -k --max-time 10 "${scheme}://127.0.0.1:$port/music/healthz" 2>$null | Out-String).Trim() } }
+      [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
+    }
+    $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'

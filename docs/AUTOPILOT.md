@@ -41,6 +41,7 @@ reported.
 | `doctor` | `laptop41-doctor.ps1 -Watch -Push` |
 | `repair-host` | `repair-alpha-host.ps1`, with its own rollback |
 | `restart-backend` | Stops whatever listens on the backend port, then starts it again: the `Alpha Backend` task if it exists, otherwise `scripts\start-local.ps1`. |
+| `restart-site` | Stops whatever holds the site's port (4173) with its process tree and starts task `Alpha` again, then asks `/music/healthz` through the site. `Stop-ScheduledTask` alone left the old preview server serving its old `vite.config.js` |
 | `apply-update` | `apply-alpha-update.mjs --apply --restart`; add `"skipScripts": true` to leave `scripts\` alone |
 | `snapshot` | `snapshot-alpha-live.mjs --push`; `"allow": "file:line,..."` must list only lines a person has reviewed |
 | `ollama-pull` | `ollama pull <model>` (name:tag only) |

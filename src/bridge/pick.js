@@ -24,13 +24,14 @@ export function describeAgent(agent, capability) {
 /**
  * The least busy attached, non-stale machine offering `capability` within
  * `pool` (`'auto'` for any, or a list of names); ties go to the one idle
- * longest. Null when nobody in the pool is attached.
+ * longest. Names in `exclude` (a Set) are passed over: a machine that just
+ * failed the same work. Null when nobody in the pool is attached.
  */
-export function pickMachine(agents, capability, pool) {
+export function pickMachine(agents, capability, pool, exclude = null) {
   const allowed = pool === 'auto' ? null : new Set(pool);
   const ready = (Array.isArray(agents) ? agents : [])
     .map((agent) => describeAgent(agent, capability))
-    .filter((m) => m && m.name && m.stale !== true && (!allowed || allowed.has(m.name)));
+    .filter((m) => m && m.name && m.stale !== true && (!allowed || allowed.has(m.name)) && !exclude?.has(m.name));
   // Least work in hand first. A named pool lists machines in order of
   // preference, so equal load goes to the earlier one: the Host's RTX 3050
   // before Worker1's CPU ("host,worker1"). `auto` has no order, so the

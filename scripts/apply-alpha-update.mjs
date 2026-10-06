@@ -363,13 +363,31 @@ export function rollback(backupDir, log = console.log) {
   return manifest;
 }
 
-function restartWindows(log) {
-  if (platform() !== 'win32') { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
-  for (const task of ['Alpha Backend', 'Alpha']) {
-    const q = spawnSync('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
+// Each task and the port its server listens on. `schtasks /End` ends the
+// task's cmd.exe and leaves the server it started holding the port, so the
+// task's next run cannot bind and the OLD server keeps serving: on Worker1,
+// 2026-10-06, the rebuilt pages showed (they are read from disk) but
+// vite.config.js's new /music routes did not (the preview server reads its
+// config once, at start). Whatever listens on the port goes too.
+export const RESTART_TASKS = [
+  { task: 'Alpha Backend', port: 8001 },
+  { task: 'Alpha', port: 4173 },
+];
+
+export function restartWindows(log, { spawn = spawnSync, isWindows = platform() === 'win32', tasks = RESTART_TASKS } = {}) {
+  if (!isWindows) { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
+  for (const { task, port } of tasks) {
+    const q = spawn('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
     if (q.status !== 0) { log(`  no scheduled task '${task}': restart it by hand`); continue; }
-    spawnSync('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
-    const r = spawnSync('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
+    spawn('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
+    const held = spawn('powershell.exe', ['-NoProfile', '-Command',
+      `@(Get-NetTCPConnection -LocalPort ${port} -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess) -join ' '`], { encoding: 'utf8' });
+    const pids = String(held.stdout || '').trim().split(/\s+/).filter((pid) => /^\d+$/.test(pid) && pid !== '0' && pid !== '4');
+    for (const pid of new Set(pids)) {
+      const k = spawn('taskkill.exe', ['/T', '/F', '/PID', pid], { encoding: 'utf8' });
+      log(k.status === 0 ? `  stopped pid ${pid}, which held port ${port}` : `  could not stop pid ${pid} on port ${port}`);
+    }
+    const r = spawn('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
     log(r.status === 0 ? `  restarted task '${task}'` : `  could not start '${task}': ${(r.stderr || r.stdout).trim()}`);
   }
   log('  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.');

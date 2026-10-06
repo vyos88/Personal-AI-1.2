@@ -99,7 +99,13 @@ async function testMusic() {
     }, timeoutMs);
     const secs = ((Date.now() - job.t0) / 1000).toFixed(0);
     if (!done || done.status !== 'succeeded') {
-      say(`PROBLEM: track ${job.i + 1} on ${job.machine || '?'}: ${done ? `${done.status}: ${done.error?.message || done.error || ''}` : 'timed out'} (${secs}s)`);
+      // Where it got stuck: "queued" means the machine never picked it up
+      // (its agent was down or restarting), "running" that it was too slow.
+      let last = '';
+      if (!done) {
+        try { last = (await json(`${musicUrl}/music/tasks/${job.id}`)).body?.status || ''; } catch { /* the reason stays "timed out" */ }
+      }
+      say(`PROBLEM: track ${job.i + 1} on ${job.machine || '?'}: ${done ? `${done.status}: ${done.error?.message || done.error || ''}` : `timed out${last ? ` while ${last}` : ''}`} (${secs}s)`);
       results.push({ kind: 'music', ok: false, machine: job.machine });
       continue;
     }
