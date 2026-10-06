@@ -369,3 +369,26 @@ test('packages left half-deleted by an earlier cut-short install are reinstalled
   }
   assert.deepEqual(readFileSync(calls, 'utf8').trim().split('\n'), ['ls --depth=0 --silent', 'ci --no-audit --no-fund', 'run build']);
 });
+
+// Worker1, 2026-10-06: `schtasks /End` left the old preview server on 4173,
+// so the new vite.config's /music routes never took effect.
+test('a restart stops whatever holds each port before running the task again', async () => {
+  const { restartWindows } = await import('../scripts/apply-alpha-update.mjs');
+  const calls = [];
+  const spawn = (cmd, args) => {
+    calls.push([cmd, ...args].join(' '));
+    if (cmd === 'powershell.exe') return { status: 0, stdout: args.at(-1).includes('4173') ? '1532 1532\r\n' : '2300\r\n' };
+    return { status: 0, stdout: '' };
+  };
+  const lines = [];
+  restartWindows((l) => lines.push(l), { spawn, isWindows: true });
+  const order = calls.map((c) => c.replace(/powershell\.exe .*LocalPort (\d+).*/, 'ports $1'));
+  assert.deepEqual(order, [
+    'schtasks /Query /TN Alpha Backend', 'schtasks /End /TN Alpha Backend', 'ports 8001', 'taskkill.exe /T /F /PID 2300', 'schtasks /Run /TN Alpha Backend',
+    'schtasks /Query /TN Alpha', 'schtasks /End /TN Alpha', 'ports 4173', 'taskkill.exe /T /F /PID 1532', 'schtasks /Run /TN Alpha',
+  ]);
+  assert.ok(lines.includes('  stopped pid 1532, which held port 4173'));
+  const off = [];
+  restartWindows((l) => off.push(l), { spawn: () => { throw new Error('must not run'); }, isWindows: false });
+  assert.match(off[0], /only does something on the Windows host/);
+});

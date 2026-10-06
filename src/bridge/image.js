@@ -116,6 +116,11 @@ export function createImageBridge({
   // image from a reference) and /sdapi/v1/progress on the same base URL;
   // neither goes through the fleet, so they are passed straight to it.
   directUrl = null,
+  // A machine whose render just failed (on 2026-10-06 the Host's ComfyUI was
+  // not running yet) is passed over for this long, so the next image goes
+  // to one that works instead of failing the same way.
+  failCooldownMs = 10 * 60_000,
+  now = Date.now,
 }) {
   if (!hostUrl) throw new Error('the image bridge needs the coordinator URL (ALPHA_HOST_URL)');
   if (!token) throw new Error('the image bridge needs a tunnel key with tasks:read and tasks:write');
@@ -154,17 +159,35 @@ export function createImageBridge({
    * on. Unreadable, it falls back the way music does: a named pool's first
    * machine, or (auto) letting placement choose and asking who took it after.
    */
-  async function machineForImage() {
+  const failedAt = new Map();
+  function coolingDown() {
+    const names = new Set();
+    for (const [name, at] of failedAt) {
+      if (now() - at < failCooldownMs) names.add(name);
+      else failedAt.delete(name);
+    }
+    return names;
+  }
+
+  async function machineForImage(tried = new Set()) {
     let list;
     try {
       list = await agents();
     } catch {
       list = null;
     }
-    if (list === null) return fixedAgent ?? (pool === 'auto' ? null : pool[0]);
-    const pick = fixedAgent
-      ? (imageMachines(list).length ? fixedAgent : null)
-      : pickMachine(list, 'alpha.image', pool);
+    if (list === null) {
+      const fallback = fixedAgent ?? (pool === 'auto' ? null : pool.find((name) => !tried.has(name)) ?? null);
+      if (tried.size && !fallback) throw new ProtocolError('no other machine to try', { status: 503, code: 'no_image_machine' });
+      return fallback;
+    }
+    let pick;
+    if (fixedAgent) pick = imageMachines(list).length && !tried.has(fixedAgent) ? fixedAgent : null;
+    else {
+      // Machines that failed recently are a last resort, never a first choice.
+      pick = pickMachine(list, 'alpha.image', pool, new Set([...tried, ...coolingDown()]))
+        ?? pickMachine(list, 'alpha.image', pool, tried);
+    }
     if (!pick) {
       throw new ProtocolError('no attached machine offers alpha.image right now', { status: 503, code: 'no_image_machine' });
     }
@@ -231,19 +254,25 @@ export function createImageBridge({
     return Buffer.concat(parts);
   }
 
-  async function renderOne(settings, deadline) {
-    const machine = await machineForImage();
+  async function renderOne(settings, deadline, tried = new Set()) {
+    const machine = await machineForImage(tried);
     const { body: queued } = await coordinator('/tasks', {
       method: 'POST',
       body: { type: 'alpha.image', payload: settings, leaseMs, ...(machine ? { targetAgent: machine } : {}) },
     });
-    const task = await waitFor(
-      queued.id,
-      deadline,
-      `${machine ?? 'the image machine'} could not render the image`,
-      () => `the image was not ready within ${Math.round(timeoutMs / 1000)}s` +
-        (queued.agentAvailable === false ? '; no attached machine offers alpha.image' : ''),
-    );
+    let task;
+    try {
+      task = await waitFor(
+        queued.id,
+        deadline,
+        `${machine ?? 'the image machine'} could not render the image`,
+        () => `the image was not ready within ${Math.round(timeoutMs / 1000)}s` +
+          (queued.agentAvailable === false ? '; no attached machine offers alpha.image' : ''),
+      );
+    } catch (error) {
+      if (error instanceof ProtocolError && error.code === 'image_failed' && machine) error.machine = machine;
+      throw error;
+    }
     const output = (Array.isArray(task.result?.outputs) ? task.result.outputs : [])
       .find((o) => typeof o?.name === 'string' && IMAGE_NAME_PATTERN.test(o.name));
     if (!output) throw new ProtocolError('the image task reported no PNG', { status: 502, code: 'no_image' });
@@ -258,6 +287,26 @@ export function createImageBridge({
     return { task, holder, png, recipe: task.result.recipe ?? settings };
   }
 
+  /** One image; a machine that fails it is set aside and the next one tries. */
+  async function renderWithRetry(settings, deadline) {
+    const tried = new Set();
+    for (;;) {
+      try {
+        return await renderOne(settings, deadline, tried);
+      } catch (error) {
+        const failed = error instanceof ProtocolError && error.code === 'image_failed' ? error.machine : null;
+        if (!failed || fixedAgent || Date.now() >= deadline) throw error;
+        failedAt.set(failed, now());
+        tried.add(failed);
+        try {
+          await machineForImage(tried);
+        } catch {
+          throw error; // nobody else to ask: the first failure is the answer
+        }
+      }
+    }
+  }
+
   async function txt2img(req, res) {
     const { settings, batchSize } = validateTxt2img(await readBody(req));
     const deadline = Date.now() + timeoutMs;
@@ -265,7 +314,7 @@ export function createImageBridge({
     for (let i = 0; i < batchSize; i++) {
       // A fixed seed walks forward per image, as A1111 does with a batch.
       const seed = settings.seed === -1 ? -1 : (settings.seed + i) % 4_294_967_296;
-      rendered.push(await renderOne({ ...settings, seed }, deadline));
+      rendered.push(await renderWithRetry({ ...settings, seed }, deadline));
     }
     const [first] = rendered;
     return send(res, 200, {
