@@ -24,6 +24,7 @@
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
     ollama-pull      ollama pull <"model">
+    enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
@@ -99,6 +100,13 @@ function Resolve-Action($a) {
       }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 30
     }
+    'enable-music' {
+      $rest = @()
+      if ($a.bridge -eq $true) { $rest += '-Bridge' }
+      if ($a.dryRun -eq $true) { $rest += '-DryRun' }
+      # The first run downloads torch.
+      $spec = Ps1 'enable-music.ps1' $rest; $out.timeoutMin = 60
+    }
     'ollama-pull' {
       $model = [string]$a.model
       if ($model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
@@ -167,7 +175,9 @@ if ($Uninstall) {
 if ($Install) {
   $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
   if (-not $admin) { Write-Host 'Run this from an Administrator PowerShell (repairs need it).' -ForegroundColor Red; exit 1 }
-  if (-not (Test-Path -LiteralPath $AlphaRoot)) { Write-Host "No Alpha at ${AlphaRoot}: pass -AlphaRoot <software folder>." -ForegroundColor Red; exit 1 }
+  # A machine without Alpha (the Host runs the coordinator and an agent) still
+  # gets the actions that need none: enable-music, ollama-*.
+  if (-not (Test-Path -LiteralPath $AlphaRoot)) { Write-Host "No Alpha at ${AlphaRoot}: actions that need Alpha (doctor, apply-update, snapshot, restart-backend) will fail here; the rest work." -ForegroundColor Yellow }
   $argLine = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -AlphaRoot `"$AlphaRoot`" -OpsDir `"$OpsDir`" -ExpectHost `"$ExpectHost`" -Channel `"$Channel`""
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argLine -WorkingDirectory $repo
   $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes)
