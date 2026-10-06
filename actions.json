@@ -129,6 +129,25 @@
    "fix": true,
    "branch": "claude/friendly-wright-jw4ep6-route-b",
    "why": "owner asked: make the Neurological Architecture deck live and correct. The live deck rings its regions and draws spokes from a fixed point (50,47) where no region sits, while /neurobrain/anatomy-map sends 9 regions and 11 real links. route-b (dff4d98) carries the fix ported onto the LIVE tree; Alpha#68 is built on alpha-full and would need --from and be refused. Job 20 applies route-b first, so this should find the deck OK and just confirm it."
+  },
+  {
+   "id": "20261006-25-restart-site",
+   "do": "restart-site",
+   "why": "live test 22: the old preview server kept port 4173 after job 20, so the new /music routes never loaded (#139). Stop it properly and start the site again."
+  },
+  {
+   "id": "20261006-26-enable-image",
+   "do": "enable-image",
+   "bridge": true,
+   "backend": "a1111",
+   "machines": "host,worker1",
+   "why": "restart the image bridge with #139: an image a machine fails is retried on the other one"
+  },
+  {
+   "id": "20261006-27-live-test",
+   "do": "live-test",
+   "count": 2,
+   "why": "user asked for music, images and a reel tested live on both machines; retry after #139 and the site restart"
   }
  ],
  "autofix": {
