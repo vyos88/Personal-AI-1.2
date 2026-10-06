@@ -17,6 +17,11 @@
  * failed build, or a Python file that no longer parses, puts everything back
  * on the spot. Line endings (CRLF) and a UTF-8 BOM are kept per file.
  *
+ * One kind of file comes whole rather than as a change: one the branch holds,
+ * this machine has never had, and a script this update writes imports. Without
+ * it the build fails (missingImports below says how a branch comes to hold
+ * one). Each is listed with the file that imports it.
+ *
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir>            report: changes nothing
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir> --apply    apply, rebuild
  *   node scripts/apply-alpha-update.mjs --alpha-root <dir> --apply --restart
@@ -32,6 +37,12 @@
  * because runs before 2026-10-05 updated software\ only. If the live scripts
  * have drifted and refuse, --skip-scripts updates software\ alone.
  *
+ * --branch <name> follows another branch than alpha-full, with its own record
+ * of what was applied (<ops>/applied-<name>.json), so alpha-full's record is
+ * never moved by it. The first run on such a branch needs --from: the commit
+ * this machine matches (for a branch built on alpha-from-host-*, that
+ * snapshot's commit).
+ *
  * Other options: --from <commit>  --to <branch|commit>  --repo <url>
  *   --ops <dir> (default C:\AlphaData\alpha-ops)  --python <exe>  --skip-build
  *   --skip-scripts
@@ -45,7 +56,7 @@ import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, posix, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = {
@@ -79,6 +90,7 @@ export function parseArgs(argv) {
     else if (a === '--alpha-root') opts.alphaRoot = next();
     else if (a === '--from') opts.from = next();
     else if (a === '--to') opts.to = next();
+    else if (a === '--branch') opts.branch = next();
     else if (a === '--repo') opts.repo = next();
     else if (a === '--ops') opts.ops = next();
     else if (a === '--python') opts.python = next();
@@ -131,6 +143,59 @@ export function buildPatch({ cache, from, to, subdir }) {
       return { status: status[0], path };
     });
   return { patch, files };
+}
+
+// `from '…'`, `import '…'`, `import('…')`, `require('…')` naming a relative
+// path. Comments are not stripped: an import named only in a comment brings,
+// at worst, a file the branch already holds.
+const RELATIVE_IMPORT = /(?:\bfrom\s*|\bimport\s*\(?\s*|\brequire\s*\(\s*)(['"])(\.{1,2}\/[^'"\n]+)\1/g;
+const SCRIPT_FILE = /\.(?:[cm]?js|jsx|tsx?)$/;
+const IMPORT_SUFFIXES = ['', '.js', '.jsx', '.mjs', '.ts', '.tsx', '/index.js', '/index.jsx'];
+
+export function relativeImports(text) {
+  return [...text.matchAll(RELATIVE_IMPORT)].map((m) => m[2]);
+}
+
+/**
+ * Files this update's scripts import that this machine has never had.
+ *
+ * A host branch is built from an alpha-from-host-* snapshot, which records
+ * the host's copy of every file alpha-full tracks and leaves the ones the host
+ * lacks as alpha-full has them. So the branch can hold a file the host never
+ * got, no diff ever carries it, and the first change that imports it fails the
+ * build: Worker1, 2026-10-06, vite.config.js importing ./musicBridge.js. Such a
+ * file is brought whole from the target commit, but only when the branch
+ * holds it, the host lacks it, and something this update writes imports it.
+ */
+export function missingImports({ cache, to, subdir, root, files }) {
+  const tracked = new Set(git(['ls-tree', '-r', '--name-only', to, '--', subdir], { cwd: cache }).stdout
+    .split('\n').filter(Boolean).map((p) => p.slice(subdir.length + 1)));
+  const seen = new Set(files.map((f) => f.path));
+  const queue = files.filter((f) => f.status !== 'D' && SCRIPT_FILE.test(f.path)).map((f) => f.path);
+  const found = [];
+  while (queue.length && found.length < 50) {
+    const path = queue.shift();
+    const shown = git(['show', `${to}:${subdir}/${path}`], { cwd: cache, allowFail: true });
+    if (shown.status !== 0) continue;
+    for (const spec of relativeImports(shown.stdout)) {
+      const base = posix.normalize(posix.join(posix.dirname(path), spec));
+      if (base.startsWith('..')) continue;
+      const hit = IMPORT_SUFFIXES.map((s) => base + s).find((p) => tracked.has(p));
+      if (!hit || seen.has(hit)) continue;
+      seen.add(hit);
+      if (existsSync(join(root, hit))) continue;
+      found.push({ status: 'A', path: hit, note: `imported by ${path}; never on this machine` });
+      if (SCRIPT_FILE.test(hit)) queue.push(hit);
+    }
+  }
+  return found;
+}
+
+/** Those files as a patch that creates them. */
+export function newFilesPatch({ cache, to, subdir, paths }) {
+  const empty = git(['hash-object', '-t', 'tree', '--stdin'], { cwd: cache, input: '' }).stdout.trim();
+  return git(['diff', '--no-color', '--no-ext-diff', `--relative=${subdir}`, empty, to, '--',
+    ...paths.map((p) => `${subdir}/${p}`)], { cwd: cache }).stdout;
 }
 
 function readLive(file) {
@@ -219,6 +284,70 @@ function npm(args, cwd) {
   return { ok: r.status === 0, tail: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join('\n') };
 }
 
+// npm ci deletes node_modules before installing. On a host where Alpha's
+// frontend is running, Windows refuses to delete a native module it has loaded
+// (EPERM on rolldown-binding.win32-x64-msvc.node, Worker1, 2026-10-06), so an
+// update that changed no package failed and was rolled back. Reinstall only
+// when the packages changed or are missing; otherwise just build.
+const PACKAGE_FILES = new Set(['frontend/package.json', 'frontend/package-lock.json']);
+export function needsPackageInstall(fe, touchedPaths) {
+  return !existsSync(join(fe, 'node_modules')) || touchedPaths.some((p) => PACKAGE_FILES.has(p));
+}
+
+// An npm ci that failed half way (that same EPERM) leaves node_modules
+// partly deleted: the build then cannot even find vite (Worker1, job
+// 20261006-13). `npm ls` says whether the installed tree is whole.
+function packagesIntact(fe) {
+  return npm(['ls', '--depth=0', '--silent'], fe).ok;
+}
+
+// The frontend Alpha serves runs from node_modules (vite preview), so a
+// reinstall must stop it first and start it again after. Only node processes
+// running from this frontend's node_modules are stopped.
+function stopFrontend(fe, log) {
+  if (platform() !== 'win32') return false;
+  const dir = join(fe, 'node_modules').replace(/'/g, "''");
+  const ps = findPowerShell();
+  if (!ps) { log('  note: no PowerShell to stop the running frontend; npm ci may be refused'); return false; }
+  const script = `$d='${dir}'; $n=0; Get-CimInstance Win32_Process -Filter "Name='node.exe'" | Where-Object { $_.CommandLine -and $_.CommandLine.IndexOf($d, [StringComparison]::OrdinalIgnoreCase) -ge 0 } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue; $n++ }; Start-Sleep -Seconds 2; Write-Output $n`;
+  const r = spawnSync(ps, ['-NoProfile', '-NonInteractive', '-Command', script], { encoding: 'utf8' });
+  const n = Number(String(r.stdout || '').trim().split(/\s+/).pop()) || 0;
+  log(`  stopped ${n} frontend process(es) so packages can be reinstalled`);
+  return true;
+}
+
+function startFrontend(log) {
+  if (platform() !== 'win32') return;
+  // Its wrapper may still count as running after its node was stopped.
+  spawnSync('schtasks', ['/End', '/TN', 'Alpha'], { encoding: 'utf8' });
+  const r = spawnSync('schtasks', ['/Run', '/TN', 'Alpha'], { encoding: 'utf8' });
+  log(r.status === 0 ? "  started task 'Alpha' (frontend) again" : `  could not start task 'Alpha': ${(r.stderr || r.stdout).trim()}; the self-heal task restarts it`);
+}
+
+/**
+ * Installs packages when they changed, are missing or are damaged, then
+ * builds. Returns {ok, why, stopped}: `stopped` says the running frontend
+ * was stopped and must be started again by the caller.
+ */
+function installAndBuild(fe, touchedPaths, log) {
+  let mode = needsPackageInstall(fe, touchedPaths) ? 'ci' : 'none';
+  if (mode === 'none' && !packagesIntact(fe)) {
+    log('  installed frontend packages are incomplete (an earlier install was cut short): reinstalling');
+    mode = 'ci';
+  }
+  let stopped = false;
+  if (mode === 'ci') {
+    stopped = stopFrontend(fe, log);
+    log('  installing frontend packages (npm ci) and building...');
+    const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
+    if (!ci.ok) return { ok: false, why: `npm ci failed:\n${ci.tail}`, stopped };
+  } else {
+    log('  packages unchanged and installed: building (no npm ci)...');
+  }
+  const build = npm(['run', 'build'], fe);
+  return build.ok ? { ok: true, stopped } : { ok: false, why: `the frontend build failed:\n${build.tail}`, stopped };
+}
+
 /** Puts every file in a backup back, and removes the ones the apply added. */
 export function rollback(backupDir, log = console.log) {
   const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8'));
@@ -234,13 +363,31 @@ export function rollback(backupDir, log = console.log) {
   return manifest;
 }
 
-function restartWindows(log) {
-  if (platform() !== 'win32') { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
-  for (const task of ['Alpha Backend', 'Alpha']) {
-    const q = spawnSync('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
+// Each task and the port its server listens on. `schtasks /End` ends the
+// task's cmd.exe and leaves the server it started holding the port, so the
+// task's next run cannot bind and the OLD server keeps serving: on Worker1,
+// 2026-10-06, the rebuilt pages showed (they are read from disk) but
+// vite.config.js's new /music routes did not (the preview server reads its
+// config once, at start). Whatever listens on the port goes too.
+export const RESTART_TASKS = [
+  { task: 'Alpha Backend', port: 8001 },
+  { task: 'Alpha', port: 4173 },
+];
+
+export function restartWindows(log, { spawn = spawnSync, isWindows = platform() === 'win32', tasks = RESTART_TASKS } = {}) {
+  if (!isWindows) { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
+  for (const { task, port } of tasks) {
+    const q = spawn('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
     if (q.status !== 0) { log(`  no scheduled task '${task}': restart it by hand`); continue; }
-    spawnSync('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
-    const r = spawnSync('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
+    spawn('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
+    const held = spawn('powershell.exe', ['-NoProfile', '-Command',
+      `@(Get-NetTCPConnection -LocalPort ${port} -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess) -join ' '`], { encoding: 'utf8' });
+    const pids = String(held.stdout || '').trim().split(/\s+/).filter((pid) => /^\d+$/.test(pid) && pid !== '0' && pid !== '4');
+    for (const pid of new Set(pids)) {
+      const k = spawn('taskkill.exe', ['/T', '/F', '/PID', pid], { encoding: 'utf8' });
+      log(k.status === 0 ? `  stopped pid ${pid}, which held port ${port}` : `  could not stop pid ${pid} on port ${port}`);
+    }
+    const r = spawn('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
     log(r.status === 0 ? `  restarted task '${task}'` : `  could not start '${task}': ${(r.stderr || r.stdout).trim()}`);
   }
   log('  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.');
@@ -255,9 +402,10 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     if (!opts.skipBuild && manifest.frontendTouched) {
       const fe = join(manifest.softwareRoot, 'frontend');
       log('  rebuilding the frontend from the restored files');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      const build = ci.ok ? npm(['run', 'build'], fe) : ci;
-      log(build.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${build.tail}`);
+      const touched = (manifest.areas?.[0] ? [...manifest.areas[0].changed, ...manifest.areas[0].added] : []);
+      const built = installAndBuild(fe, touched, log);
+      log(built.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${built.why}`);
+      if (built.stopped && !opts.restart) startFrontend(log);
     }
     if (opts.restart) restartWindows(log);
     return EXIT_OK;
@@ -272,10 +420,21 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   log(`Alpha: ${softwareRoot}`);
 
   const ops = resolve(opts.ops ?? DEFAULTS.ops);
-  const statePath = join(ops, 'alpha-full-applied.json');
+  const branch = opts.branch ?? DEFAULTS.branch;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/.test(branch) || branch.includes('..')) {
+    log(`STOP: ${branch} is not a branch name`);
+    return EXIT_ERROR;
+  }
+  // Each branch keeps its own record. A side branch (a host's live code plus
+  // fixes) must never move alpha-full's: the next alpha-full update would then
+  // start from the side branch and undo everything only this host has.
+  const statePath = join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
   const recorded = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
+  if (branch !== DEFAULTS.branch && !opts.from && !recorded) {
+    log(`STOP: the first update from ${branch} needs --from <the commit this machine matches>; alpha-full's starting point would undo what only this machine has.`);
+    return EXIT_ERROR;
+  }
   const cache = join(ops, 'alpha-full-cache.git');
-  const branch = DEFAULTS.branch;
   try {
     fetchBranch({ cache, repo: opts.repo ?? DEFAULTS.repo, branch });
   } catch (e) {
@@ -296,18 +455,25 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   } else if (!existsSync(scriptsRoot)) {
     log(`  scripts: no ${scriptsRoot} here, skipped`);
   } else {
-    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? DEFAULTS.from);
+    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? (branch === DEFAULTS.branch ? DEFAULTS.from : recorded?.to));
     if (!scriptsFrom) { log('STOP: cannot resolve the commit scripts were last updated from'); return EXIT_ERROR; }
     areas.push({ name: 'scripts', root: scriptsRoot, from: scriptsFrom, ...buildPatch({ cache, from: scriptsFrom, to, subdir: DEFAULTS.scriptsSubdir }) });
     scriptsTo = to;
   }
+  for (const area of areas) {
+    const subdir = area.name === 'software' ? DEFAULTS.subdir : DEFAULTS.scriptsSubdir;
+    const extra = missingImports({ cache, to, subdir, root: area.root, files: area.files });
+    if (!extra.length) continue;
+    area.patch += newFilesPatch({ cache, to, subdir, paths: extra.map((f) => f.path) });
+    area.files.push(...extra);
+  }
   const live = areas.filter((area) => area.files.length);
-  if (!live.length) { log('ok: nothing new on alpha-full since the last apply'); writeState(statePath, to, scriptsTo); return EXIT_OK; }
+  if (!live.length) { log(`ok: nothing new on ${branch} since the last apply`); writeState(statePath, to, scriptsTo); return EXIT_OK; }
 
   for (const area of live) Object.assign(area, plan({ root: area.root, patch: area.patch, files: area.files }));
   try {
     for (const area of live) {
-      for (const r of area.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${area.name === 'software' ? '' : `${area.name}/`}${r.path}${r.why ? `  -- ${r.why}` : ''}`);
+      for (const r of area.rows) log(`  ${r.state.padEnd(8)} ${r.status} ${area.name === 'software' ? '' : `${area.name}/`}${r.path}${r.why ? `  -- ${r.why}` : ''}${r.note ? `  (${r.note})` : ''}`);
     }
     const conflicts = live.flatMap((area) => area.rows.filter((r) => r.state === 'conflict').map(() => area.name));
     for (const area of live) area.todo = area.rows.filter((r) => r.state === 'applies');
@@ -398,12 +564,16 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
 
     if (frontendTouched && !opts.skipBuild) {
       const fe = join(softwareRoot, 'frontend');
-      log('  installing frontend packages (npm ci) and building...');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      if (!ci.ok) return undo(`npm ci failed:\n${ci.tail}`);
-      const build = npm(['run', 'build'], fe);
-      if (!build.ok) return undo(`the frontend build failed:\n${build.tail}`);
+      const built = installAndBuild(fe, areas[0].todo.map((r) => r.path), log);
+      if (!built.ok) {
+        const code = undo(built.why);
+        // Packages are whole again even if the build failed; whatever was
+        // stopped to reinstall them must not stay down.
+        if (built.stopped) startFrontend(log);
+        return code;
+      }
       log('  ok: frontend built');
+      if (built.stopped && !opts.restart) startFrontend(log);
     }
 
     writeState(statePath, to, scriptsTo);

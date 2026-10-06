@@ -16,7 +16,7 @@ import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import * as music from '../src/agent/handlers/alpha-music.js';
 import * as musicAudio from '../src/agent/handlers/alpha-music-audio.js';
-import { createMusicBridge, describeTask } from '../src/bridge/music.js';
+import { createMusicBridge, describeTask, musicPool, pickMusicMachine } from '../src/bridge/music.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
 const REPO = join(import.meta.dirname, '..');
@@ -397,4 +397,48 @@ test('click to WAV to playback: bridge, coordinator, agent and the real generato
   assert.ok(Buffer.from(await ranged.arrayBuffer()).equals(original.subarray(100, 200)));
   assert.equal(host.queue.list({}).filter((task) => task.type === 'alpha.music.audio').length, 2, 'a replay re-fetched over the tunnel');
   assert.deepEqual(await readdir(cacheDir), [`${queued.taskId}-rollers_174bpm_f-minor_seed7_20s.wav`], 'the full cache kept the new track and evicted the old one');
+});
+
+// Both laptops make music: each track goes to the least busy one, and is
+// pinned there, because playback fetches the file from the machine that made it.
+test('a pool spreads tracks over the music machines and pins each one', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url, { targetAgent: 'auto' });
+  const worker = host.registry.register({ name: 'worker1', capabilities: ['alpha.music', 'alpha.music.audio'], remoteAddress: '100.64.0.9' });
+  host.registry.register({ name: 'host', capabilities: ['alpha.music', 'alpha.music.audio'], remoteAddress: '100.64.0.10' });
+  host.registry.register({ name: 'render-box', capabilities: ['alpha.render'], remoteAddress: '100.64.0.11' });
+  host.registry.admit(worker.id, { type: 'alpha.music', minMemoryMB: 0 });
+
+  const first = await post(bridge, SETTINGS);
+  assert.equal(first.status, 202);
+  assert.equal(host.queue.get(first.body.taskId).targetAgent, 'host', 'worker1 is busy, so host gets it');
+  assert.equal(first.body.targetAgent, 'host');
+});
+
+test('a named pool is kept to, and a pool with nobody attached still queues', async (t) => {
+  const host = await startHost(t);
+  host.registry.register({ name: 'stranger', capabilities: ['alpha.music'], remoteAddress: '100.64.0.12' });
+  const named = await startBridge(t, host.url, { targetAgent: 'worker1, host' });
+  const r = await post(named, SETTINGS);
+  assert.equal(r.status, 202);
+  assert.equal(host.queue.get(r.body.taskId).targetAgent, 'worker1', 'nobody named is attached: the first name, never a stranger');
+});
+
+test('choosing a music machine', () => {
+  assert.equal(musicPool('auto'), 'auto');
+  assert.equal(musicPool('AUTO'), 'auto');
+  assert.deepEqual(musicPool('worker1, host'), ['worker1', 'host']);
+  assert.equal(musicPool('worker1'), null);
+  assert.equal(musicPool(null), null);
+  const agents = [
+    { name: 'a', capabilities: ['alpha.music'], inFlight: 1, idleMs: 9 },
+    { name: 'b', capabilities: ['alpha.music'], inFlight: 0, idleMs: 1 },
+    { name: 'c', capabilities: ['alpha.music'], inFlight: 0, idleMs: 5 },
+    { name: 'd', capabilities: ['alpha.music'], inFlight: 0, idleMs: 99, stale: true },
+    { name: 'e', capabilities: ['echo'], inFlight: 0, idleMs: 99 },
+  ];
+  assert.equal(pickMusicMachine(agents, 'auto'), 'c', 'least busy, then idle longest; never stale or non-music');
+  assert.equal(pickMusicMachine(agents, ['a', 'b']), 'b');
+  assert.equal(pickMusicMachine(agents, ['e']), null);
+  assert.equal(pickMusicMachine(undefined, 'auto'), null);
 });

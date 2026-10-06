@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot } from '../scripts/apply-alpha-update.mjs';
+import { main, findSoftwareRoot, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -220,4 +220,175 @@ test('a PowerShell script that no longer parses is put back', { skip: (!PY || !H
   assert.match(log.lines.join('\n'), /steward_common\.ps1 does not parse/);
   assert.equal(existsSync(join(scripts, 'steward_common.ps1')), false);
   assert.match(readFileSync(join(scripts, 'steward.ps1'), 'utf8'), /every 30s/);
+});
+
+test('--branch follows a side branch with its own record and never moves alpha-full\'s', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  assert.equal(await main(args(f, '--apply'), quiet()), 0);
+  const fullState = readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8');
+  const fullTo = JSON.parse(fullState).to;
+
+  // A host branch: what this machine runs, plus one fix on top.
+  const repo = f.repo.replace('file://', '');
+  git(repo, 'checkout', '-q', '-b', 'alpha-live');
+  write(repo, `${SUB}/frontend/src/a.css`, '.a{color:green}\n.b{color:purple}\n');
+  git(repo, 'commit', '-qam', 'fix on the host branch');
+  git(repo, 'checkout', '-q', 'alpha-full');
+  const base = ['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--ops', f.ops, '--skip-build', '--python', PY, '--skip-scripts'];
+
+  const noFrom = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--apply'], noFrom), 1);
+  assert.match(noFrom.lines.join('\n'), /needs --from/);
+
+  const out = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--from', fullTo, '--apply'], out), 0, out.lines.join('\n'));
+  assert.equal(readFileSync(join(f.live, 'frontend/src/a.css'), 'utf8'), '.a{color:green}\n.b{color:purple}\n');
+  assert.equal(readFileSync(join(f.ops, 'alpha-full-applied.json'), 'utf8'), fullState, 'alpha-full\'s record is untouched');
+  const side = JSON.parse(readFileSync(join(f.ops, 'applied-alpha-live.json'), 'utf8'));
+  assert.notEqual(side.to, fullTo);
+
+  // The next run on the side branch starts from its own record: nothing new.
+  const again = quiet();
+  assert.equal(await main([...base, '--branch', 'alpha-live', '--apply'], again), 0);
+  assert.match(again.lines.join('\n'), /nothing new/);
+});
+
+test('a file a changed script imports, which this machine never had, is brought whole', async () => {
+  // Worker1, 2026-10-06: the host branch held frontend/musicBridge.js (from
+  // alpha-full; the host never had it), the update changed vite.config.js to
+  // import it, and the build failed on "Could not resolve './musicBridge.js'".
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-update-imports-'));
+  const repo = join(dir, 'alpha');
+  mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'alpha-full');
+  git(repo, 'config', 'user.email', 't@t');
+  git(repo, 'config', 'user.name', 't');
+  const CONFIG = "import { defineConfig } from 'vite'\nexport default defineConfig({})\n";
+  write(repo, `${SUB}/backend/main.py`, BASE_MAIN);
+  write(repo, `${SUB}/frontend/package.json`, '{"name":"x"}\n');
+  write(repo, `${SUB}/frontend/vite.config.js`, CONFIG);
+  write(repo, `${SUB}/frontend/musicBridge.js`, "import { PORT } from './bridgeDefaults.js'\nexport const target = PORT\n");
+  write(repo, `${SUB}/frontend/bridgeDefaults.js`, 'export const PORT = 8790\n');
+  write(repo, `${SUB}/frontend/src/here.js`, 'export const here = 1\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'base');
+  const base = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/vite.config.js`, [
+    "import { defineConfig } from 'vite'",
+    "import { target } from './musicBridge.js'",
+    "import { here } from './src/here'",
+    "// import { gone } from './nowhere.js'",
+    'export default defineConfig({ target, here })',
+    '',
+  ].join('\n'));
+  git(repo, 'commit', '-qam', 'route /music to the bridge');
+
+  const live = join(dir, 'live', 'software');
+  write(live, 'backend/main.py', BASE_MAIN);
+  write(live, 'frontend/package.json', '{"name":"x"}\n');
+  write(live, 'frontend/vite.config.js', CONFIG);
+  write(live, 'frontend/src/here.js', 'export const here = 1 // edited here\n');
+  const ops = join(dir, 'ops');
+  const opts = ['--alpha-root', join(live, '..'), '--repo', `file://${repo}`, '--from', base, '--ops', ops, '--skip-build'];
+
+  const report = quiet();
+  assert.equal(await main(opts, report), 0);
+  const text = report.lines.join('\n');
+  assert.match(text, /applies +A frontend\/musicBridge\.js +\(imported by frontend\/vite\.config\.js; never on this machine\)/);
+  assert.match(text, /applies +A frontend\/bridgeDefaults\.js +\(imported by frontend\/musicBridge\.js; never on this machine\)/);
+  assert.doesNotMatch(text, /src\/here\.js/, 'a file this machine has is left as it is');
+  assert.doesNotMatch(text, /nowhere/, 'a file the branch does not hold cannot be brought');
+  assert.match(text, /READY: 3 file\(s\) would change/);
+  assert.equal(existsSync(join(live, 'frontend/musicBridge.js')), false, 'a report writes nothing');
+
+  assert.equal(await main([...opts, '--apply'], quiet()), 0);
+  assert.equal(readFileSync(join(live, 'frontend/musicBridge.js'), 'utf8'), "import { PORT } from './bridgeDefaults.js'\nexport const target = PORT\n");
+  assert.equal(readFileSync(join(live, 'frontend/bridgeDefaults.js'), 'utf8'), 'export const PORT = 8790\n');
+  assert.equal(readFileSync(join(live, 'frontend/src/here.js'), 'utf8'), 'export const here = 1 // edited here\n');
+
+  const backup = join(ops, 'backups', readdirSync(join(ops, 'backups'))[0]);
+  assert.equal(await main(['--rollback', backup, '--skip-build'], quiet()), 0);
+  assert.equal(existsSync(join(live, 'frontend/musicBridge.js')), false, 'rolled back with the change that needed it');
+  assert.equal(existsSync(join(live, 'frontend/bridgeDefaults.js')), false);
+  assert.equal(readFileSync(join(live, 'frontend/vite.config.js'), 'utf8'), CONFIG);
+});
+
+test('a branch name that is not one is refused', async () => {
+  const f = fixture();
+  const out = quiet();
+  assert.equal(await main(args(f, '--branch', '../../etc'), out), 1);
+  assert.match(out.lines.join('\n'), /not a branch name/);
+});
+
+test('packages are reinstalled only when they changed or are missing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-npm-'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), true, 'no node_modules: install');
+  mkdirSync(join(dir, 'node_modules'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), false);
+  assert.equal(needsPackageInstall(dir, ['frontend/package.json']), true);
+  assert.equal(needsPackageInstall(dir, ['frontend/package-lock.json']), true);
+});
+
+test('an update that changes no package builds without npm ci, which a running frontend would block', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  mkdirSync(join(f.live, 'frontend', 'node_modules'));
+  const bin = join(f.dir, 'bin');
+  mkdirSync(bin);
+  const calls = join(f.dir, 'npm-calls.txt');
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh\necho "$@" >> "${calls}"\nexit 0\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    const a = args(f, '--apply').filter((x) => x !== '--skip-build');
+    const out = quiet();
+    assert.equal(await main(a, out), 0, out.lines.join('\n'));
+    assert.match(out.lines.join('\n'), /packages unchanged and installed: building \(no npm ci\)/);
+  } finally {
+    process.env.PATH = path;
+  }
+  const lines = readFileSync(calls, 'utf8').trim().split('\n');
+  assert.deepEqual(lines, ['ls --depth=0 --silent', 'run build']);
+});
+
+test('packages left half-deleted by an earlier cut-short install are reinstalled before the build', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  mkdirSync(join(f.live, 'frontend', 'node_modules'));
+  const bin = join(f.dir, 'bin');
+  mkdirSync(bin);
+  const calls = join(f.dir, 'npm-calls.txt');
+  // `npm ls` fails: vite and friends are gone (Worker1, job 20261006-13).
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh\necho "$@" >> "${calls}"\n[ "$1" = ls ] && exit 1\nexit 0\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    const out = quiet();
+    assert.equal(await main(args(f, '--apply').filter((x) => x !== '--skip-build'), out), 0, out.lines.join('\n'));
+    assert.match(out.lines.join('\n'), /incomplete .*reinstalling/);
+  } finally {
+    process.env.PATH = path;
+  }
+  assert.deepEqual(readFileSync(calls, 'utf8').trim().split('\n'), ['ls --depth=0 --silent', 'ci --no-audit --no-fund', 'run build']);
+});
+
+// Worker1, 2026-10-06: `schtasks /End` left the old preview server on 4173,
+// so the new vite.config's /music routes never took effect.
+test('a restart stops whatever holds each port before running the task again', async () => {
+  const { restartWindows } = await import('../scripts/apply-alpha-update.mjs');
+  const calls = [];
+  const spawn = (cmd, args) => {
+    calls.push([cmd, ...args].join(' '));
+    if (cmd === 'powershell.exe') return { status: 0, stdout: args.at(-1).includes('4173') ? '1532 1532\r\n' : '2300\r\n' };
+    return { status: 0, stdout: '' };
+  };
+  const lines = [];
+  restartWindows((l) => lines.push(l), { spawn, isWindows: true });
+  const order = calls.map((c) => c.replace(/powershell\.exe .*LocalPort (\d+).*/, 'ports $1'));
+  assert.deepEqual(order, [
+    'schtasks /Query /TN Alpha Backend', 'schtasks /End /TN Alpha Backend', 'ports 8001', 'taskkill.exe /T /F /PID 2300', 'schtasks /Run /TN Alpha Backend',
+    'schtasks /Query /TN Alpha', 'schtasks /End /TN Alpha', 'ports 4173', 'taskkill.exe /T /F /PID 1532', 'schtasks /Run /TN Alpha',
+  ]);
+  assert.ok(lines.includes('  stopped pid 1532, which held port 4173'));
+  const off = [];
+  restartWindows((l) => off.push(l), { spawn: () => { throw new Error('must not run'); }, isWindows: false });
+  assert.match(off[0], /only does something on the Windows host/);
 });

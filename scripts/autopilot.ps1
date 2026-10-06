@@ -21,12 +21,25 @@
     doctor           laptop41-doctor.ps1 -Watch -Push
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
+    restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
-    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
+    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
+    enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
+    enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
+    live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
+    ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
+    brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
+
+  Standing check, every pass, no id needed: when actions.json carries
+  {"autofix": {"brainTopology": {"branch": "<alpha branch>"}}}, the brain
+  deck's links are checked on each pass and, when this machine serves the old
+  deck, the fixed one is brought in from that branch (apply-alpha-update.mjs,
+  with its backups and rollback). It reports only when the result changes, and
+  tries a fix once per version of the deck's source.
 
   It refuses to run on any machine but -ExpectHost, so a copy on the wrong
   laptop does nothing.
@@ -46,6 +59,8 @@ param(
   [string]$ExpectHost = 'DESKTOP-41HPLCN',
   [string]$Channel = 'laptop41',
   [int]$EveryMinutes = 5,
+  # How long one pass may take; the task's own time limit, read below, wins.
+  [int]$PassMinutes = 100,
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
@@ -72,13 +87,26 @@ function Resolve-Action($a) {
     'doctor'          { $spec = Ps1 'laptop41-doctor.ps1' @('-Watch', '-Push', '-AlphaRoot', $AlphaRoot); $out.timeoutMin = 12 }
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
+    'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
+      # A host branch (this machine's live code plus fixes, alpha-from-host-*
+      # based) keeps its own applied record; its first run names the commit
+      # this machine matches.
+      if ($a.branch) {
+        if ([string]$a.branch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or [string]$a.branch -match '\.\.') { $out.reason = 'branch must be a plain branch name'; return $out }
+        $rest += @('--branch', [string]$a.branch)
+      }
+      if ($a.from) {
+        if ([string]$a.from -notmatch '^[0-9a-f]{40}$') { $out.reason = 'from must be a full 40-character commit id'; return $out }
+        $rest += @('--from', [string]$a.from)
+      }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'snapshot' {
       $rest = @((Join-Path $PSScriptRoot 'snapshot-alpha-live.mjs'), '--alpha-root', $AlphaRoot, '--push')
+      if ($a.includeNew -eq $true) { $rest += '--include-new' }
       if ($a.allow) {
         $items = ([string]$a.allow).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
         $bad = @($items | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
@@ -87,10 +115,77 @@ function Resolve-Action($a) {
       }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 30
     }
+    'enable-music' {
+      $rest = @()
+      if ($a.bridge -eq $true) { $rest += '-Bridge' }
+      if ($a.dryRun -eq $true) { $rest += '-DryRun' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
+      # The first run downloads torch.
+      $spec = Ps1 'enable-music.ps1' $rest; $out.timeoutMin = 60
+    }
+    'enable-image' {
+      $rest = @()
+      if ($a.bridge -eq $true) { $rest += '-Bridge' }
+      if ($a.installComfy -eq $true) { $rest += '-InstallComfy' }
+      if ($a.machines) {
+        if ([string]$a.machines -notmatch '^(auto|[A-Za-z0-9][A-Za-z0-9._-]{0,63}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63})*)$') { $out.reason = 'machines must be auto or a comma list of agent names'; return $out }
+        $rest += @('-Machines', [string]$a.machines)
+      }
+      if ($a.backend) {
+        if ([string]$a.backend -notin @('a1111', 'comfyui')) { $out.reason = 'backend must be a1111 or comfyui'; return $out }
+        $rest += @('-Backend', [string]$a.backend)
+      }
+      if ($AlphaRoot) { $rest += @('-AlphaRoot', $AlphaRoot) }
+      # ComfyUI, torch and a 4 GB checkpoint on the first run.
+      $spec = Ps1 'enable-image.ps1' $rest; $out.timeoutMin = 120
+    }
+    'live-test' {
+      $rest = @((Join-Path $PSScriptRoot 'live-test-creators.mjs'))
+      if ($null -ne $a.count) {
+        $n = 0
+        if (-not [int]::TryParse([string]$a.count, [ref]$n) -or $n -lt 1 -or $n -gt 6) { $out.reason = 'count must be 1 to 6'; return $out }
+        $rest += @('--count', "$n")
+      }
+      if ($a.only) {
+        if ([string]$a.only -notin @('music', 'image', 'video')) { $out.reason = 'only must be music, image or video'; return $out }
+        $rest += @('--only', [string]$a.only)
+      }
+      # The reel is made the way Alpha makes one: its renderer, with the
+      # Python the backend runs (whatever listens on 8001).
+      # String work, not Join-Path: -Plan runs where that drive may not exist.
+      $rest += @('--video-script', (($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\scripts\alpha_video_creator.py'))
+      $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+      $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+      if ($py) { $rest += @('--video-python', $py) }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
+    }
     'ollama-pull' {
       $model = [string]$a.model
       if ($model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
       $spec = @{ exe = 'ollama'; args = @('pull', $model) }; $out.timeoutMin = 60
+    }
+    'ollama-keepalive' {
+      $rest = @()
+      if ($a.keepAlive) {
+        if ([string]$a.keepAlive -notmatch '^(-1|[1-9][0-9]{0,4}[smh]?)$') { $out.reason = 'keepAlive must be -1 or a duration like 30m or 24h'; return $out }
+        $rest += @('-KeepAlive', [string]$a.keepAlive)
+      }
+      if ($a.model) {
+        if ([string]$a.model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
+        $rest += @('-Model', [string]$a.model)
+      }
+      $spec = Ps1 'ollama-keepalive.ps1' $rest; $out.timeoutMin = 10
+    }
+    'brain-topology' {
+      $rest = @((Join-Path $PSScriptRoot 'brain-topology-check.mjs'), '--alpha-root', $AlphaRoot, '--ops', $OpsDir)
+      if ($a.fix -eq $true) {
+        if (-not $a.branch -or [string]$a.branch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or [string]$a.branch -match '\.\.') { $out.reason = 'fix needs branch, a plain branch name'; return $out }
+        $rest += @('--fix', '--branch', [string]$a.branch, '--retry-hours', '0')
+      }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'start-task' {
       $t = [string]$a.task
@@ -106,6 +201,10 @@ function Resolve-Action($a) {
 
 # Cut anything that looks like a credential before a line leaves the machine.
 function Redact([string]$t) {
+  # Progress bars (ollama, npm) redraw with escape codes and carriage returns:
+  # keep only what the line finally said.
+  $t = $t -replace '\x1b\[[0-9;?]*[A-Za-z]', ''
+  if ($t.Contains("`r")) { $t = ($t -split "`r" | Where-Object { $_.Trim() } | Select-Object -Last 1) }
   $t = $t -replace 'alpha_key_[A-Za-z0-9_\-]+', 'alpha_key_...'
   $t = $t -replace '(?i)((password|passwd|token|secret|api[_-]?key|authorization)["'']?\s*[:=]\s*["'']?)[^\s"'',;]+', '$1...'
   $t = $t -replace '(?i)(bearer\s+)[A-Za-z0-9._\-]+', '$1...'
@@ -139,13 +238,15 @@ if ($Uninstall) {
 if ($Install) {
   $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
   if (-not $admin) { Write-Host 'Run this from an Administrator PowerShell (repairs need it).' -ForegroundColor Red; exit 1 }
-  if (-not (Test-Path -LiteralPath $AlphaRoot)) { Write-Host "No Alpha at ${AlphaRoot}: pass -AlphaRoot <software folder>." -ForegroundColor Red; exit 1 }
+  # A machine without Alpha (the Host runs the coordinator and an agent) still
+  # gets the actions that need none: enable-music, ollama-*.
+  if (-not (Test-Path -LiteralPath $AlphaRoot)) { Write-Host "No Alpha at ${AlphaRoot}: actions that need Alpha (doctor, apply-update, snapshot, restart-backend) will fail here; the rest work." -ForegroundColor Yellow }
   $argLine = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -AlphaRoot `"$AlphaRoot`" -OpsDir `"$OpsDir`" -ExpectHost `"$ExpectHost`" -Channel `"$Channel`""
   $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $argLine -WorkingDirectory $repo
   $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes)
   $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
-                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 6)
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
   Start-ScheduledTask -TaskName $taskName
   Write-Host "installed '$taskName': every $EveryMinutes minutes, runs what control/$Channel queues, reports to status/$Channel-autopilot." -ForegroundColor Green
@@ -162,23 +263,100 @@ if (Test-Path -LiteralPath $statePath) { try { $state = Get-Content -LiteralPath
 $done = [ordered]@{}
 if ($state -and $state.done) { foreach ($p in $state.done.PSObject.Properties) { $done[$p.Name] = $p.Value } }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$passStart = Get-Date
+# Entries that ran in a pass that never got to report (the task's time limit
+# stopped it): they are reported by this one.
+$pending = @()
+if ($state -and $state.pending) { $pending = @($state.pending) }
+
+# Task Scheduler stops a pass at the task's time limit, and on 2026-10-06
+# Worker1's queue (music, the route update, images, a live test) needed more
+# than the 2 hours it was installed with. A pass that is stopped loses nothing
+# now (progress is saved after every action), but it should not be stopped:
+# raise the limit to 6 hours once, and plan this pass inside whatever it is.
+if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
+  try {
+    $self = Get-ScheduledTask -TaskName $taskName -EA Stop
+    $limit = [string]$self.Settings.ExecutionTimeLimit
+    $span = if ($limit -and $limit -ne 'PT0S') { [Xml.XmlConvert]::ToTimeSpan($limit) } else { [TimeSpan]::FromHours(10) }
+    if ($span.TotalHours -lt 6) {
+      $self.Settings.ExecutionTimeLimit = 'PT6H'
+      Set-ScheduledTask -InputObject $self -EA Stop | Out-Null
+      Write-Host "raised '$taskName' time limit from $limit to 6 hours"
+      # This pass still runs under the old limit.
+    }
+    $PassMinutes = [math]::Max(20, [int]$span.TotalMinutes - 10)
+  } catch { }
+}
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
 $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
-if ($LASTEXITCODE -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+$updateExit = $LASTEXITCODE
+if ($updateExit -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+# A checkout that cannot update is silent otherwise, and every fix sent through
+# this repository then stops reaching the machine. Say why, in every report.
+$head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()
+$checkoutNote = "checkout $head is current"
+if ($updateExit -ne 0) {
+  $why = ($update -split "`r?`n" | Where-Object { $_ -match 'reason|refus|uncommitted|diverg|fail|error' } | Select-Object -First 3) -join ' / '
+  $paths = @(git -C $repo status --porcelain 2>$null | Select-Object -First 15)
+  $checkoutNote = "checkout $head did NOT update (self-update exit $updateExit): $why" +
+    $(if ($paths.Count) { "; local changes: " + ($paths -join ', ') } else { '' })
+}
 
 # 2. What is queued.
+# Nothing queued is not a reason to stop here: a checkout that cannot update
+# is still reported below.
+$queued = @()
+$control = $null
 git -C $repo fetch -q origin "control/$Channel" 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)"; exit 0 }
-$raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
-if (-not $raw.Trim()) { Write-Host 'nothing queued'; exit 0 }
-try { $queued = @((ConvertFrom-Json $raw).actions) | Where-Object { $_ } } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)" }
+else {
+  $raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
+  if (-not $raw.Trim()) { Write-Host 'nothing queued' }
+  else {
+    try { $control = ConvertFrom-Json $raw; $queued = @(@($control.actions) | Where-Object { $_ }) } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+  }
+}
+
+# 2b. The bridges come back by themselves. Both are logon tasks on this
+# machine; on 2026-10-06 the music (8790) and image (7861) bridges were found
+# down together, and Alpha's IMAGE_GEN_URL points through 7861, so chat images
+# failed until someone noticed. A registered bridge task with nothing on its
+# port is started again here, before any queued action (a live test needs them).
+$ran = New-Object System.Collections.ArrayList
+$bridgeLines = New-Object System.Collections.ArrayList
+if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
+  foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790 }, @{ task = 'alpha-image bridge'; port = 7861 })) {
+    if (-not (Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue)) { continue }
+    if (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue) { continue }
+    # A launcher loop that is still running but whose node died cannot be
+    # told apart from outside: end the task's instance, then start it fresh.
+    Stop-ScheduledTask -TaskName $b.task -EA SilentlyContinue
+    Start-ScheduledTask -TaskName $b.task -EA SilentlyContinue
+    $deadline = (Get-Date).AddSeconds(45)
+    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 3 }
+    $up = [bool](Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)
+    [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): restarted, " + $(if ($up) { 'it answers now' } else { "still nothing on $($b.port) after 45s (its log is in %TEMP%)" }))
+  }
+}
+if ($bridgeLines.Count) {
+  [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if (($bridgeLines -join ' ') -match 'still nothing') { '1 (still down)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
+  $bridgeLines | ForEach-Object { Write-Host $_ }
+}
 
 # 3. Run what has not run.
-$ran = New-Object System.Collections.ArrayList
+$queuedRan = 0
 foreach ($a in $queued) {
   $p = Resolve-Action $a
   if (-not $p.id -or $done.Contains($p.id)) { continue }
+  # One long action may run past the plan, but none starts that would not fit:
+  # it waits for the next pass, and so does everything queued after it.
+  $elapsed = ((Get-Date) - $passStart).TotalMinutes
+  if ($queuedRan -and $p.ok -and ($elapsed + [int]$p.timeoutMin) -gt $PassMinutes) {
+    Write-Host ("{0} {1}: deferred to the next pass ({2:N0} of {3} minutes used, it may take {4})" -f $p.id, $p.do, $elapsed, $PassMinutes, $p.timeoutMin)
+    break
+  }
   $started = Get-Date
   $log = Join-Path $dir "$stamp-$($p.id).log"
   $code = $null
@@ -187,6 +365,30 @@ foreach ($a in $queued) {
     $code = 'refused'; $text = $p.reason
   } elseif ($p.internal -eq 'start-task') {
     try { Start-ScheduledTask -TaskName $p.args[0] -EA Stop; $code = 0; $text = "started '$($p.args[0])'" } catch { $code = 1; $text = $_.Exception.Message }
+  } elseif ($p.internal -eq 'restart-site') {
+    # Stop-ScheduledTask ends the task's cmd.exe and can leave the preview
+    # server on the port: then the task cannot start a new one, and the old
+    # one keeps serving its old vite.config (Worker1, 2026-10-06: /music 404).
+    $port = 4173
+    $lines = New-Object System.Collections.ArrayList
+    Stop-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue
+    $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+    if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+    Start-Sleep -Seconds 3
+    if (Get-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue) { Start-ScheduledTask -TaskName 'Alpha'; [void]$lines.Add("started task 'Alpha'") }
+    else { [void]$lines.Add("no task 'Alpha' to start the site with") }
+    $deadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+    $now = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    $up = [bool]$now.Count
+    [void]$lines.Add($(if ($up) { "site listening on $port (pid $($now -join ', '))" } else { "site NOT listening on $port after 180s" }))
+    if ($up) {
+      $music = ''
+      foreach ($scheme in 'https', 'http') { if (-not $music) { $music = (& curl.exe -s -k --max-time 10 "${scheme}://127.0.0.1:$port/music/healthz" 2>$null | Out-String).Trim() } }
+      [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
+    }
+    $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
@@ -217,28 +419,65 @@ foreach ($a in $queued) {
       $quoted = $p.args | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }
       $proc = Start-Process -FilePath $p.exe -ArgumentList $quoted -WorkingDirectory $repo -NoNewWindow -PassThru `
                 -RedirectStandardOutput $log -RedirectStandardError $errLog
+      # Without a handle taken now, .NET drops the exit code once the process
+      # ends, and ExitCode reads back empty: the first report showed "->" with
+      # no result for every action.
+      $null = $proc.Handle
       if ($proc.WaitForExit([int]$p.timeoutMin * 60000)) { $code = $proc.ExitCode }
       else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $code = "timeout after $($p.timeoutMin) min" }
     } catch { $code = 'could not start'; Set-Content -LiteralPath $errLog -Value $_.Exception.Message }
-    $text = ((Get-Content -LiteralPath $log -EA SilentlyContinue) + (Get-Content -LiteralPath $errLog -EA SilentlyContinue)) -join "`n"
+    # -Raw: line by line, Get-Content also splits at a bare carriage return,
+    # and a progress bar's redraws would come back as separate lines.
+    $text = (@(Get-Content -LiteralPath $log -Raw -EA SilentlyContinue) + @(Get-Content -LiteralPath $errLog -Raw -EA SilentlyContinue) | Where-Object { $_ }) -join "`n"
   }
   if ($p.internal -or -not $p.ok) { Set-Content -LiteralPath $log -Value $text }
-  $tail = (($text -split "`r?`n") | Where-Object { $_.Trim() } | Select-Object -Last 60 | ForEach-Object { Redact $_ }) -join "`n"
+  $prev = $null
+  $tail = (($text -split "`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } |
+           Where-Object { $same = ($_ -eq $prev); $prev = $_; -not $same } | Select-Object -Last 60) -join "`n"
   $entry = [ordered]@{ id = $p.id; do = $p.do; result = "$code"; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail }
   $done[$p.id] = [ordered]@{ result = "$code"; at = $entry.at }
   [void]$ran.Add($entry)
+  $queuedRan++
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
+  # Saved now, not at the end: a pass stopped by the task's time limit would
+  # otherwise run every action of it again on the next pass.
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+}
+
+# 3b. Standing checks: run every pass, report only a change.
+$brainKey = if ($state -and $state.brainKey) { [string]$state.brainKey } else { '' }
+$brainBranch = $null
+if ($control -and $control.autofix -and $control.autofix.brainTopology -and $control.autofix.brainTopology.branch) { $brainBranch = [string]$control.autofix.brainTopology.branch }
+if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
+  if ($brainBranch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or $brainBranch -match '\.\.') { Write-Host 'autofix.brainTopology.branch is not a plain branch name: skipped' }
+  else {
+    $started = Get-Date
+    $text = (& node (Join-Path $PSScriptRoot 'brain-topology-check.mjs') --alpha-root $AlphaRoot --ops $OpsDir --fix --branch $brainBranch 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    # What the deck's state is, without the run-to-run detail (times, paths).
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(OK|PROBLEM|AFTER FIX)' }) -join ' | ')
+    if ($key -ne $brainKey) {
+      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 40) -join "`n"
+      $result = switch ($code) { 0 { '0 (deck ok)' } 2 { '0 (fixed)' } default { "$code (open)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-brain-topology-$stamp"; do = 'brain-topology (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "brain topology: $result"
+    }
+    $brainKey = $key
+  }
 }
 
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
-$history = @(@($ran) + $history | Select-Object -First 20)
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s') } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
-if (-not $ran.Count) { Write-Host 'nothing new to run'; exit 0 }
+$history = @(@($ran) + $pending + $history | Select-Object -First 20)
+$ran = @(@($ran) + $pending)
+$noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
 $branch = "status/$Channel-autopilot"
-$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '')
+$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '', (Redact $checkoutNote), '')
 foreach ($h in $history) {
   $body += "## $($h.id)  $($h.do)  ->  $($h.result)   ($($h.at), $($h.seconds)s)"
   $body += '```'; $body += $h.tail; $body += '```'; $body += ''
@@ -253,7 +492,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'could not create a worktree; report kept 
 New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
 Set-Content -LiteralPath (Join-Path $wt 'reports\autopilot.md') -Value ($body -join "`n") -Encoding UTF8
 git -C $wt add reports 2>&1 | Out-Null
-$summary = ($ran | ForEach-Object { "$($_.id)=$($_.result)" }) -join ' '
+$summary = $(if ($ran.Count) { ($ran | ForEach-Object { "$($_.id)=$($_.result)" }) -join ' ' } else { 'checkout cannot update' })
 git -C $wt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel).invalid" commit -q -m "$Channel autopilot ${stamp}: $summary" 2>&1 | Out-Null
 git -C $wt push -q origin "HEAD:refs/heads/$branch" 2>&1 | Out-Null
 $pushed = ($LASTEXITCODE -eq 0)
