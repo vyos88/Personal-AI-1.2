@@ -1,10 +1,14 @@
 {
     "cloudSeen":  "937dcb034dad85e65960e71c652cb951728b9e02",
-    "lastRun":  "2026-10-06T16:11:41",
+    "lastRun":  "2026-10-06T17:27:50",
     "handoffSeen":  "8e2580fabd5e69f06b3897a4f1c1187f9dbdf94c",
     "open":  {
-
+                 "chat model \u0027llama#.#:#b\u0027 took #.#s for a one-word reply: chat will time out":  {
+                                                                                                               "since":  "2026-10-06T17:27:50",
+                                                                                                               "runs":  1,
+                                                                                                               "text":  "chat model \u0027llama3.2:3b\u0027 took 77.9s for a one-word reply: chat will time out"
+                                                                                                           }
              },
-    "lastPost":  "2026-10-06T10:41:26",
+    "lastPost":  "2026-10-06T17:27:50",
     "relay":  "relayed status/cloud 937dcb0"
 }
