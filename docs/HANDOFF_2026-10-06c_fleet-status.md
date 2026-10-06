@@ -23,14 +23,17 @@ Never print or commit secrets: passwords, keys, `.env` contents, WiFi keys.
 
 **What the doctor saw at 18:11 UTC:** the backend listens only on `::1`, `100.69.243.25` and `127.0.0.1`. This machine's Wi-Fi address is `192.168.2.151`. Nothing on the home network has called the backend.
 
-1. Find where the address list comes from. Show only matching lines, never the rest of either file:
-   - `Select-String C:\ProgramData\AlphaBoot\run-alpha.cmd -Pattern 'HOST|--host'`
-   - the `HOST=` line of `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local`
-2. Back that file up. Set `HOST` to keep `127.0.0.1`, `::1` and `100.69.243.25`, drop any old `192.168.1.x` entry, and add `192.168.2.151`. Change no other line.
-3. Restart only the 'Alpha Backend' task.
-4. Confirm both of these:
-   - `Get-NetTCPConnection -LocalPort 8001 -State Listen` lists `192.168.2.151`;
-   - `curl.exe -s -o NUL -w "%{http_code}" http://192.168.2.151:8001/health` answers 200. A 400 means the address is not a trusted host: restart once more.
+Still true at 21:56 UTC: the doctor's section 6 has the same three lines, open for 13 runs.
+
+`scripts/fix-panel-host.mjs` (merged to `main` with #144 at 20:23 UTC) now does steps 1-4 below in one command. It adds the home address to `HOST` and `ALPHA_TRUSTED_HOSTS` and turns on `ALPHA_PANEL_LAN_READ`, keeping every address already listed. It backs the file up, restarts 'Alpha Backend', then requests the deck feed from `192.168.2.151`, the same request the panel makes.
+
+1. Find the file that holds `HOST`. Show only the matching lines, never the rest of the file:
+   - `Select-String C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\.env.local, C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\.env.local, C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local -Pattern '^(HOST|ALPHA_TRUSTED_HOSTS|ALPHA_PANEL_LAN_READ)=' -ErrorAction SilentlyContinue`
+   - `Select-String C:\ProgramData\AlphaBoot\run-alpha.cmd -Pattern 'HOST|--host'`. If the wrapper passes `--host` itself, the env file is not what decides: say so and stop here.
+2. Preview the change. Its default (`C:\AlphaData\Alpha\app\.env.local`) is not where Worker1's Alpha lives, so pass the file from step 1:
+   `node C:\services\alpha-tunnel\scripts\fix-panel-host.mjs --env <that file> --address 192.168.2.151 --dry-run`
+3. If the diff only adds `192.168.2.151` and turns the feed on, run the same command again without `--dry-run`.
+4. **It succeeded when** it exits 0 and says the feed answers on `192.168.2.151`. A 400, a 404 or a refused connection each get their own reason in its output: report which one you saw.
 5. Find the panel on COM4, COM7 or COM24. Open the port, wait about 20 s for it to boot, then send `STATUS`. It reports `wifi_ssid`, `wifi_set` and `alpha_base`, with no secrets.
 6. If its network or its backend address is old, re-provision it:
    - send `WIFI "<ssid>" <password>`; ask the owner for the password, and never echo it;
