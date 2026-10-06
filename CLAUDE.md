@@ -649,6 +649,43 @@ by another program?" rather than as no board at all. On POSIX `/dev/serial/by-id
 supplies the label (`usb-1a86_...` is the CH340 this panel is behind) while the
 port opened is the node it resolves to.
 
+**The panel has pages, and each one is fetched only while it is on screen.**
+Five — `fleet`, `machines`, `work`, `receipts`, `panel` — rotating every
+`PAGE_INTERVAL_MS`, each sourced from the endpoint that owns its numbers
+(`/stats`, `/agents`, `/stats`, `/receipts/summary`, and nothing). Four rules
+hold it up:
+
+- **Only the visible page's endpoint is fetched.** `/stats` is polled for the
+  header regardless; `/agents` and `/receipts/summary` are read when their page
+  comes round. A wall display must not be the reason a coordinator is busy.
+- **`/agents` is parsed through a `DeserializationOption::Filter`.** The row
+  carries every field the host knows; an ESP32 parsing all of it for four
+  numbers is how a panel runs out of heap on the day a fourth laptop joins.
+- **The `panel` page needs no network**, which is the whole point of it: it is
+  what answers "is it the panel or the fleet?" when nothing is answering, and
+  it is where the board starts before a coordinator has ever replied.
+- **`Page` is an action, and the page list is mirrored from the firmware**
+  (`PANEL_PAGES` against `PAGE_NAMES`). A payload naming a page the board does
+  not have is refused on the task rather than swallowed by a board that keeps
+  showing what it was showing. `hold` stops the rotation, because somebody
+  standing in front of the machines page should not have it slide away
+  mid-sentence.
+
+The panel's key carries `agents:read` **and `tasks:read`** — the receipts page
+needs the second, both are read-only, and nothing either scope allows can queue
+work. A panel provisioned before that shows `key needs tasks:read` on that page
+instead of a confident row of zeroes.
+
+**Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
+`hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no
+credential, polls `/panel/crowpanel/public-state` on Alpha's backend, and takes
+bare-word `STATUS` / `WIFI` / `ALPHA` commands. Same board family, so it is the
+mistake that actually happens. `converseOver` records whether anything
+*non-JSON* arrived, and `describeSilence()` turns that into the difference
+between "nothing on COM3 answered" (bootloader, wrong port, no board) and
+"something on COM3 is talking but not in this protocol" with what it said. A
+timeout that blames the cable for the other firmware costs an evening.
+
 The panel reads `GET /stats` and draws it, so it reads the host's own key names
 — `queue.byStatus.leased` is what it calls *running* — and a test pins those
 names against a real host. A key the sketch invents is not an error in
