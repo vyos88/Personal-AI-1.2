@@ -32,6 +32,12 @@
  * because runs before 2026-10-05 updated software\ only. If the live scripts
  * have drifted and refuse, --skip-scripts updates software\ alone.
  *
+ * --branch <name> follows another branch than alpha-full, with its own record
+ * of what was applied (<ops>/applied-<name>.json), so alpha-full's record is
+ * never moved by it. The first run on such a branch needs --from: the commit
+ * this machine matches (for a branch built on alpha-from-host-*, that
+ * snapshot's commit).
+ *
  * Other options: --from <commit>  --to <branch|commit>  --repo <url>
  *   --ops <dir> (default C:\AlphaData\alpha-ops)  --python <exe>  --skip-build
  *   --skip-scripts
@@ -79,6 +85,7 @@ export function parseArgs(argv) {
     else if (a === '--alpha-root') opts.alphaRoot = next();
     else if (a === '--from') opts.from = next();
     else if (a === '--to') opts.to = next();
+    else if (a === '--branch') opts.branch = next();
     else if (a === '--repo') opts.repo = next();
     else if (a === '--ops') opts.ops = next();
     else if (a === '--python') opts.python = next();
@@ -272,10 +279,21 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   log(`Alpha: ${softwareRoot}`);
 
   const ops = resolve(opts.ops ?? DEFAULTS.ops);
-  const statePath = join(ops, 'alpha-full-applied.json');
+  const branch = opts.branch ?? DEFAULTS.branch;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$/.test(branch) || branch.includes('..')) {
+    log(`STOP: ${branch} is not a branch name`);
+    return EXIT_ERROR;
+  }
+  // Each branch keeps its own record. A side branch (a host's live code plus
+  // fixes) must never move alpha-full's: the next alpha-full update would then
+  // start from the side branch and undo everything only this host has.
+  const statePath = join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
   const recorded = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
+  if (branch !== DEFAULTS.branch && !opts.from && !recorded) {
+    log(`STOP: the first update from ${branch} needs --from <the commit this machine matches>; alpha-full's starting point would undo what only this machine has.`);
+    return EXIT_ERROR;
+  }
   const cache = join(ops, 'alpha-full-cache.git');
-  const branch = DEFAULTS.branch;
   try {
     fetchBranch({ cache, repo: opts.repo ?? DEFAULTS.repo, branch });
   } catch (e) {
@@ -296,13 +314,13 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   } else if (!existsSync(scriptsRoot)) {
     log(`  scripts: no ${scriptsRoot} here, skipped`);
   } else {
-    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? DEFAULTS.from);
+    const scriptsFrom = resolveCommit(cache, opts.from ?? recorded?.scripts_to ?? (branch === DEFAULTS.branch ? DEFAULTS.from : recorded?.to));
     if (!scriptsFrom) { log('STOP: cannot resolve the commit scripts were last updated from'); return EXIT_ERROR; }
     areas.push({ name: 'scripts', root: scriptsRoot, from: scriptsFrom, ...buildPatch({ cache, from: scriptsFrom, to, subdir: DEFAULTS.scriptsSubdir }) });
     scriptsTo = to;
   }
   const live = areas.filter((area) => area.files.length);
-  if (!live.length) { log('ok: nothing new on alpha-full since the last apply'); writeState(statePath, to, scriptsTo); return EXIT_OK; }
+  if (!live.length) { log(`ok: nothing new on ${branch} since the last apply`); writeState(statePath, to, scriptsTo); return EXIT_OK; }
 
   for (const area of live) Object.assign(area, plan({ root: area.root, patch: area.patch, files: area.files }));
   try {
