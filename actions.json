@@ -51,6 +51,12 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
+    },
+    {
+      "id": "20261006-13-apply-live-watcher",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "from": "030195d38c9b7faae0c8176de498bc0695b6a017"
     }
   ]
 }
