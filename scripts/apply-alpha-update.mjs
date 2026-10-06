@@ -248,20 +248,34 @@ export function plan({ root, patch, files }) {
   return { stage, tree, patchFile, rows, meta };
 }
 
-function findPython(given) {
-  if (given) return given;
-  for (const name of platform() === 'win32' ? ['py', 'python'] : ['python3', 'python']) {
-    const r = spawnSync(name, ['--version'], { encoding: 'utf8' });
-    if (r.status === 0) return name;
+/**
+ * Every Python worth trying, as [command, ...leading args]: the one named
+ * with --python, Alpha's own backend venv, then the newest the launcher has.
+ * Worker1's backend runs a newer Python than plain `py` picked, and its live
+ * main.py uses syntax that older one cannot read (job 38: "line 18004:
+ * invalid syntax", 2300 lines from any change), so one interpreter is not
+ * enough to judge a merge.
+ */
+export function pythonCandidates(given, softwareRoot) {
+  const list = [];
+  if (given) list.push([given]);
+  const win = platform() === 'win32';
+  for (const venv of ['venv', '.venv']) {
+    const exe = join(softwareRoot ?? '', 'backend', venv, win ? 'Scripts' : 'bin', win ? 'python.exe' : 'python');
+    if (softwareRoot && existsSync(exe)) list.push([exe]);
   }
-  return null;
+  if (win) list.push(['py', '-3.14'], ['py', '-3.13'], ['py', '-3.12'], ['py'], ['python']);
+  else list.push(['python3'], ['python']);
+  return list;
 }
 
 function pythonParses(python, file) {
   // The line number, never the line's text: the report is pushed to the tunnel.
+  const [cmd, ...pre] = Array.isArray(python) ? python : [python];
   const code = 'import ast,sys\ntry: ast.parse(open(sys.argv[1], encoding="utf-8-sig").read())\nexcept SyntaxError as e: sys.exit("line %s: %s" % (e.lineno, e.msg))';
-  const r = spawnSync(python, ['-c', code, file], { encoding: 'utf8' });
-  return { ok: r.status === 0, detail: (r.stderr || '').trim().split('\n').pop(), line: Number(/^line (\d+):/.exec((r.stderr || '').trim().split('\n').pop())?.[1]) || null };
+  const r = spawnSync(cmd, [...pre, '-c', code, file], { encoding: 'utf8' });
+  const last = `${r.stderr || ''}`.trim().split('\n').pop();
+  return { ok: r.status === 0, detail: last, line: Number(/^line (\d+):/.exec(last)?.[1]) || null };
 }
 
 /**
@@ -565,13 +579,22 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     const written = live.flatMap((area) => area.todo.filter((r) => r.status !== 'D').map((r) => join(area.root, r.path)));
     const pyFiles = written.filter((f) => f.endsWith('.py'));
     if (pyFiles.length) {
-      const python = findPython(opts.python);
-      if (!python) return undo('no Python found to check the backend files (pass --python)');
+      const candidates = pythonCandidates(opts.python, softwareRoot);
+      const usable = candidates.filter(([cmd, ...pre]) => spawnSync(cmd, [...pre, '--version'], { encoding: 'utf8' }).status === 0);
+      if (!usable.length) return undo('no Python found to check the backend files (pass --python)');
       for (const file of pyFiles) {
-        const res = pythonParses(python, file);
-        if (res.ok) continue;
         const area = live.find((a) => file.startsWith(join(a.root, '')));
         const rel = area ? relative(area.root, file).split(sep).join('/') : null;
+        // Judge a changed file with a Python that reads it as it was before
+        // the merge; a new file with the first one that runs.
+        const before = area && rel ? join(backupDir, 'files', area.name, ...rel.split('/')) : null;
+        let python = usable[0];
+        if (before && existsSync(before)) {
+          python = usable.find((py) => pythonParses(py, before).ok);
+          if (!python) { log(`  note: no Python here reads ${file} as it was before this update either; not checked`); continue; }
+        }
+        const res = pythonParses(python, file);
+        if (res.ok) continue;
         const where = rel ? nearestHunk(area.patch, rel, res.line) : null;
         // Kept for whoever fixes it on this machine; rollback puts the live copy back.
         const kept = join(backupDir, 'failed', area?.name ?? '', rel ?? basename(file));
