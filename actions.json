@@ -1,0 +1,9 @@
+{
+  "actions": [
+    {
+      "id": "20261006-h01-enable-music",
+      "do": "enable-music",
+      "why": "Music Creator on Host too: MusicGen + alpha-music on this agent; Worker1's bridge sends tracks here when Host is the less busy machine (Personal-AI-1.2#130)"
+    }
+  ]
+}
