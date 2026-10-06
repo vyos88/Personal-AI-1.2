@@ -4,6 +4,9 @@ import { TaskQueue } from './queue.js';
 import { AgentRegistry } from './registry.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
+import { MessageStore, normalizeRecipient } from './messages.js';
+import { DASHBOARD_HTML } from './dashboard.js';
+import { cloudflareReport } from './cloudflare.js';
 import { ReceiptStore } from './receipts.js';
 import { TaskJournal, defaultJournalPath } from './journal.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
@@ -33,6 +36,7 @@ const MAX_BODY_BYTES = 1_000_000;
 export function createHost({
   auth,
   token,
+  messages,
   registry = new AgentRegistry(),
   // The ledger of finished work. Built before the queue below, because the
   // default queue is wired to write to it as tasks finish.
@@ -79,6 +83,9 @@ export function createHost({
     throw new Error('createHost requires either an AuthService (`auth`) or a bootstrap `token`');
   }
 
+  // Personal messages persist alongside credentials; a first note is seeded
+  // for "jack" once so a fresh host already has something to show.
+  const messageStore = messages ?? new MessageStore({ path: null });
   // Every store has to be readable before the first request is served. A
   // receipt ledger or task journal that cannot be read does not stop the host
   // — see ReceiptStore.load and TaskJournal.load — so this only ever rejects
@@ -87,13 +94,18 @@ export function createHost({
   // The queue is restored only after the ledger has loaded: a task that was
   // leased with no attempts left fails during the restore, and its receipt
   // written into a ledger that has not loaded yet would be overwritten by it.
+  // The message store loads last, alongside the "jack" seed.
   const ready = Promise.all([
     auth ? Promise.resolve(authService) : authService.load(),
     receipts.loaded ? Promise.resolve(receipts) : receipts.load(),
   ])
     .then(() => journal.load())
     .then((tasks) => queue.restore?.(tasks))
-    .then(() => authService);
+    .then(async () => {
+      await messageStore.load();
+      await messageStore.seedWelcome('jack');
+      return authService;
+    });
 
   /**
    * Every listener shares one queue, registry and auth service — they are the
@@ -103,7 +115,14 @@ export function createHost({
     const created = http.createServer((req, res) => {
       ready
         .then(() =>
-          handle(req, res, { auth: authService, queue, registry, receipts, heartbeatIntervalMs }),
+          handle(req, res, {
+            auth: authService,
+            queue,
+            registry,
+            receipts,
+            messages: messageStore,
+            heartbeatIntervalMs,
+          }),
         )
         .catch((error) => {
           log.error('unhandled request error', { message: error.message, url: req.url });
@@ -206,10 +225,36 @@ export function createHost({
     registry,
     receipts,
     journal,
+    messages: messageStore,
     auth: authService,
     ready,
     close,
   };
+}
+
+/** The set of names a principal reads as "their own inbox". */
+function selfRecipients(principal, ctx) {
+  const names = new Set();
+  const add = (value) => {
+    const name = normalizeRecipient(value);
+    if (name) names.add(name);
+  };
+  add(principal.label);
+  if (principal.userId) {
+    add(principal.userId);
+    const user = ctx.auth.getUser(principal.userId);
+    if (user) add(user.name);
+  }
+  return names;
+}
+
+/** A human name for a principal, used as the `from` line on a note it writes. */
+function principalName(principal, ctx) {
+  if (principal.userId) {
+    const user = ctx.auth.getUser(principal.userId);
+    if (user?.name) return user.name;
+  }
+  return principal.label ?? null;
 }
 
 async function handle(req, res, ctx) {
@@ -219,6 +264,23 @@ async function handle(req, res, ctx) {
 
   try {
     // ---------------------------------------------------------- public routes
+    // The dashboard shell is static HTML with no secrets in it; every data
+    // call it makes is a normal authenticated request, so serving the page
+    // itself unauthenticated is safe and lets the login form live on it.
+    if (method === 'GET' && (url.pathname === '/dashboard' || url.pathname === '/')) {
+      if (res.writableEnded) return;
+      const body = Buffer.from(DASHBOARD_HTML);
+      res.writeHead(200, {
+        'content-type': 'text/html; charset=utf-8',
+        'content-length': body.length,
+        'cache-control': 'no-store',
+        // No inline-script injection surface here: the page is a fixed string.
+        'x-content-type-options': 'nosniff',
+      });
+      res.end(body);
+      return;
+    }
+
     if (method === 'GET' && url.pathname === '/healthz') {
       // `version` is what setup-agent compares against so a laptop on an older
       // checkout is told before it attaches, not after a task behaves oddly.
@@ -376,6 +438,54 @@ async function handle(req, res, ctx) {
           // exactly once, the same as an invite or key token.
           ...(temporaryPassword ? { temporaryPassword } : {}),
         });
+      }
+    }
+
+    // --------------------------------------------------------------- messages
+    // Personal notes, one inbox per named recipient. A person always reads
+    // their own inbox (no scope needed); reading anyone else's needs
+    // users:read, and writing a note needs users:write — which is how Alpha
+    // posts to a person by their name.
+    if (segments[0] === 'messages') {
+      const self = selfRecipients(principal, ctx);
+
+      if (method === 'GET' && segments.length === 1) {
+        const mine = ctx.messages.data.messages
+          .filter((message) => self.has(message.to))
+          .sort((a, b) => b.createdAt - a.createdAt);
+        return sendJson(res, 200, {
+          recipient: [...self][0] ?? null,
+          unread: mine.filter((message) => !message.read).length,
+          messages: mine,
+        });
+      }
+
+      if (method === 'POST' && segments.length === 1) {
+        require(SCOPES.USERS_WRITE);
+        const body = await readJson(req);
+        const message = await ctx.messages.add({
+          to: body?.to,
+          from: body?.from ?? principalName(principal, ctx) ?? 'alpha',
+          subject: body?.subject,
+          body: body?.body,
+        });
+        return sendJson(res, 201, { message });
+      }
+
+      if (method === 'GET' && segments.length === 2) {
+        const recipient = normalizeRecipient(segments[1]);
+        if (!self.has(recipient)) require(SCOPES.USERS_READ);
+        return sendJson(res, 200, { recipient, messages: ctx.messages.listFor(recipient) });
+      }
+
+      if (method === 'POST' && segments.length === 3 && segments[2] === 'read') {
+        // markRead only touches a message addressed to the given recipient, so
+        // walking the caller's own names cannot flip anyone else's flag.
+        for (const recipient of self) {
+          const message = await ctx.messages.markRead(segments[1], recipient);
+          if (message) return sendJson(res, 200, { message });
+        }
+        return sendJson(res, 404, { error: 'unknown_message' });
       }
     }
 
@@ -708,6 +818,13 @@ async function handle(req, res, ctx) {
         },
         load: loadSummary(ctx.registry.list()),
       });
+    }
+
+    if (method === 'GET' && url.pathname === '/cloudflare/report') {
+      // Grouped with the read-only operational views; the host does not own the
+      // Cloudflare side, it only surfaces a report file if one is configured.
+      require(SCOPES.AGENTS_READ);
+      return sendJson(res, 200, await cloudflareReport());
     }
 
     return sendJson(res, 404, { error: 'not_found' });

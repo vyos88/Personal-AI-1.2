@@ -1,6 +1,7 @@
 import { createHost } from './server.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
+import { MessageStore } from './messages.js';
 import { loadEnv } from '../common/env.js';
 import { createLogger } from '../common/log.js';
 
@@ -55,7 +56,11 @@ if (auth.userCount() === 0 && !bootstrapToken) {
   process.exit(1);
 }
 
-const { servers, listen, close } = createHost({ auth });
+// Personal messages persist next to the auth store by default; override with
+// ALPHA_MESSAGE_STORE. createHost loads it as part of its ready sequence.
+const messages = new MessageStore({ path: process.env.ALPHA_MESSAGE_STORE ?? './data/messages.json' });
+
+const { servers, listen, close } = createHost({ auth, messages });
 
 // How long to keep retrying an address that does not exist on this machine yet.
 // At boot the coordinator usually starts before Tailscale has assigned its
