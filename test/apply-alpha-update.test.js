@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
+import { main, findSoftwareRoot, nearestHunk, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -133,7 +133,10 @@ test('an update that leaves Python unparseable is put back on the spot', { skip:
   const before = readFileSync(join(f.live, 'backend/main.py'), 'utf8');
   const log = quiet();
   assert.equal(await main(args(f, '--apply'), log), 1);
-  assert.match(log.lines.join('\n'), /does not parse/);
+  assert.match(log.lines.join('\n'), /main\.py does not parse: line 4: .*\(inside the change at lines \d+-\d+\)/);
+  assert.doesNotMatch(log.lines.join('\n'), /return "new"/, 'the report names the line, never its text');
+  const kept = /the merged file is kept at (.+)$/m.exec(log.lines.join('\n'))?.[1];
+  assert.ok(kept && readFileSync(kept, 'utf8').includes('return "new"('), 'the broken merge is kept for whoever fixes it');
   assert.equal(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), before);
   assert.equal(existsSync(join(f.live, 'frontend/src/fonts.css')), false, 'the added file is removed again');
   assert.equal(existsSync(join(f.ops, 'alpha-full-applied.json')), false, 'nothing recorded as applied');
@@ -330,6 +333,15 @@ test('a renamed file this machine never had is a delete already done plus a new 
   assert.equal(code, 0, log.lines.join('\n'));
   assert.match(log.lines.join('\n'), /already +D backend\/tests\/test_probe\.py/);
   assert.match(readFileSync(join(f.live, 'backend/tests/test_probe_live.py'), 'utf8'), /assert 2/);
+});
+
+test('a broken line is placed among the changes made to its file', () => {
+  const patch = ['diff --git a/backend/x.py b/backend/x.py', '@@ -10,3 +10,5 @@ def a():', ' x', 'diff --git a/backend/main.py b/backend/main.py',
+    '@@ -1,4 +1,4 @@', ' a', '@@ -40,6 +42,8 @@ def b():', ' b'].join('\n');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 45), 'inside the change at lines 42-49');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 30), '12 line(s) from the change at lines 42-49');
+  assert.equal(nearestHunk(patch, 'backend/main.py', 6), '2 line(s) from the change at lines 1-4');
+  assert.equal(nearestHunk(patch, 'backend/other.py', 6), null);
 });
 
 test('a branch name that is not one is refused', async () => {

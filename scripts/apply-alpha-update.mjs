@@ -56,7 +56,7 @@ import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
-import { dirname, join, posix, resolve } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = {
@@ -258,9 +258,30 @@ function findPython(given) {
 }
 
 function pythonParses(python, file) {
-  const code = 'import ast,sys; ast.parse(open(sys.argv[1], encoding="utf-8-sig").read())';
+  // The line number, never the line's text: the report is pushed to the tunnel.
+  const code = 'import ast,sys\ntry: ast.parse(open(sys.argv[1], encoding="utf-8-sig").read())\nexcept SyntaxError as e: sys.exit("line %s: %s" % (e.lineno, e.msg))';
   const r = spawnSync(python, ['-c', code, file], { encoding: 'utf8' });
-  return { ok: r.status === 0, detail: (r.stderr || '').trim().split('\n').pop() };
+  return { ok: r.status === 0, detail: (r.stderr || '').trim().split('\n').pop(), line: Number(/^line (\d+):/.exec((r.stderr || '').trim().split('\n').pop())?.[1]) || null };
+}
+
+/**
+ * Where a broken line sits among the changes the patch made to one file:
+ * inside a hunk, or how far from the nearest one. A file that applied cleanly
+ * but no longer parses means a hunk landed beside code that changed here.
+ */
+export function nearestHunk(patch, path, line) {
+  const hunks = [];
+  let inFile = false;
+  for (const l of patch.split('\n')) {
+    if (l.startsWith('diff --git ')) inFile = l === `diff --git a/${path} b/${path}`;
+    const m = inFile && /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(l);
+    if (m) hunks.push({ start: Number(m[1]), end: Number(m[1]) + Number(m[2] ?? 1) - 1 });
+  }
+  if (!hunks.length || !line) return null;
+  const inside = hunks.find((h) => line >= h.start && line <= h.end);
+  if (inside) return `inside the change at lines ${inside.start}-${inside.end}`;
+  const near = hunks.reduce((a, h) => (Math.min(Math.abs(line - h.start), Math.abs(line - h.end)) < Math.min(Math.abs(line - a.start), Math.abs(line - a.end)) ? h : a));
+  return `${Math.min(Math.abs(line - near.start), Math.abs(line - near.end))} line(s) from the change at lines ${near.start}-${near.end}`;
 }
 
 function findPowerShell() {
@@ -548,7 +569,16 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
       if (!python) return undo('no Python found to check the backend files (pass --python)');
       for (const file of pyFiles) {
         const res = pythonParses(python, file);
-        if (!res.ok) return undo(`${file} does not parse: ${res.detail}`);
+        if (res.ok) continue;
+        const area = live.find((a) => file.startsWith(join(a.root, '')));
+        const rel = area ? relative(area.root, file).split(sep).join('/') : null;
+        const where = rel ? nearestHunk(area.patch, rel, res.line) : null;
+        // Kept for whoever fixes it on this machine; rollback puts the live copy back.
+        const kept = join(backupDir, 'failed', area?.name ?? '', rel ?? basename(file));
+        mkdirSync(dirname(kept), { recursive: true });
+        cpSync(file, kept);
+        log(`  the merged file is kept at ${kept}`);
+        return undo(`${file} does not parse: ${res.detail}${where ? ` (${where})` : ''}`);
       }
       log(`  ok: ${pyFiles.length} Python file(s) parse`);
     }
