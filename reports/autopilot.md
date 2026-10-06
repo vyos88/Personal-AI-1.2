@@ -1,6 +1,70 @@
-﻿# laptop41 autopilot 20261006-031346
+﻿# laptop41 autopilot 20261006-033346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+
+## 20261006-08-snapshot  snapshot  ->  2   (2026-10-06T03:33:48, 18s)
+```
+   BuildArtifacts/installers/Alpha-Full/scripts/capture_alpha_hubs.mjs         |   60 +-
+   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_deck.mjs        |    2 +-
+   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_outfits.mjs     |    2 +-
+   BuildArtifacts/installers/Alpha-Full/scripts/capture_brain_deck.mjs         |    4 +-
+   BuildArtifacts/installers/Alpha-Full/scripts/capture_hardware_deck.mjs      |    2 +-
+   ...
+   528 files changed, 63210 insertions(+), 15213 deletions(-)
+POSSIBLE CREDENTIALS in lines this machine added (long values cut to 4 characters):
+  software/backend/README.md:59  credential-looking environment variable
+      AUTH_PASSWORD=... AUTH_SECRET_KEY=dev-â€¦(38) PYTHONPATH=software/backend .venv/Scripts/python -m pytest software/backend/tests -q
+  software/backend/config.py:464  credential-looking environment variable
+      AUTH_CREDENTIAL_KEY_PATH = _runtime_path_setting(
+  software/backend/main.py:23607  alpha-tunnel token
+      alpha_host_provisioning.fleet_compute_plan has always been able to answer
+  software/backend/run_server.py:24  credential-looking environment variable
+      _ENV_KEY_PATTERN = re.compile(r"^[A-â€¦(24)")
+  software/backend/tests/test_autonomy_runs.py:304  credential-looking assignment
+      idempotency_key="histâ€¦(18)",
+  software/backend/tests/test_codex_provider_executor.py:37  credential-looking assignment
+      target.write_text('API_KEY="..."\n', encoding="utf-8")  # sensitive-data-gate: allow - the detector under test must reject this value, so it has to look r
+  software/backend/tests/test_google_integration.py:26  credential-looking assignment
+      integration.access_token = "..."  # sensitive-data-gate: allow - fake Google token fixture, never a live credential
+  software/backend/tests/test_knowledge_store.py:65  credential-looking assignment
+      key = "convâ€¦(25)"
+  software/backend/tests/test_knowledge_store.py:95  credential-looking assignment
+      "SELECT id FROM layer_2_project WHERE key = 'convâ€¦(24)'"
+  software/backend/tests/test_spotify_integration.py:84  credential-looking assignment
+      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
+  software/backend/tests/test_spotify_integration.py:191  credential-looking assignment
+      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
+  software/backend/tests/test_spotify_integration.py:212  credential-looking assignment
+      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
+  software/frontend/src/app/shell/AppShell.tsx:14  credential-looking assignment
+      const NAV_RECENTS_KEY = 'alphâ€¦(27)';
+  software/frontend/src/app/shell/AppShell.tsx:15  credential-looking assignment
+      const FULLSCREEN_INTENT_KEY = 'alphâ€¦(32)';
+  software/frontend/src/components/AlphaDockedChat.jsx:30  credential-looking assignment
+      const CHAT_COMPOSER_DRAFT_KEY = 'alphâ€¦(24)'
+  software/frontend/src/components/BrainNeuralModel.jsx:60  credential-looking assignment
+      const BRAIN_VISUAL_SNAPSHOT_KEY='alphâ€¦(30)'
+  software/frontend/src/components/SupervisedCodexExecutor.jsx:11  credential-looking assignment
+      const JOB_STORAGE_KEY = 'alphâ€¦(26)'
+  software/frontend/src/pages/DiagnosticsHubPanel.jsx:216  credential-looking assignment
+      {key: 'resoâ€¦(20)', label: 'Devices', connected: devicesKnownStable && telemetryDevices > 0},
+  software/frontend/src/pages/DiagnosticsHubPanel.jsx:217  credential-looking assignment
+      {key: 'resoâ€¦(20)', label: 'CPU', connected: hasCpu && cpuUsage <= 80},
+  software/frontend/src/pages/DiagnosticsHubPanel.jsx:218  credential-looking assignment
+      {key: 'resoâ€¦(20)', label: 'Memory', connected: hasMem && memUsage <= 80},
+  software/frontend/src/pages/MemoryHubPanel.jsx:378  credential-looking assignment
+      {key: 'recoâ€¦(19)', label: 'Artiâ€¦(9)', count: Number(summary?.reconstruction?.count || 0), angle: 206, tier: .4},
+  software/frontend/src/tabs/Chat.jsx:41  credential-looking assignment
+      const CHAT_COMPOSER_DRAFT_KEY = 'alphâ€¦(24)'
+  software/frontend/src/tabs/Hubs.jsx:111  credential-looking assignment
+      const CHAT_SPATIAL_SELECTION_KEY = 'alphâ€¦(27)'
+  software/frontend/src/tabs/Hubs.jsx:112  credential-looking assignment
+      const CHAT_SPATIAL_RETURN_KEY = 'alphâ€¦(24)'
+  software/frontend/src/tabs/Hubs.jsx:113  credential-looking assignment
+      const CHAT_SPATIAL_VIEW_KEY = 'alphâ€¦(22)'
+REFUSED: nothing was pushed. If a line holds a real secret, move it to .env.local and rotate it.
+  If a reviewer has cleared every line above, add:  --allow software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113
+```
 
 ## 20261006-06-snapshot-retry  snapshot  ->     (2026-10-06T03:13:49, 2s)
 ```
