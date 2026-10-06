@@ -1,44 +1,39 @@
 {
     "cloudSeen":  "b137553009e81d430aac109f30a326438428b330",
-    "lastRun":  "2026-10-06T19:12:10",
-    "handoffSeen":  "dfb5089276932397af4f6b226a33a5aa66b2b0d5",
+    "lastRun":  "2026-10-06T19:27:41",
+    "handoffSeen":  "1b043139fc327ce6a27407397ae666022753e49b",
     "open":  {
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-06T18:56:53",
-                                                                                                                                            "runs":  2,
+                                                                                                                                            "runs":  3,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
                                                                                                                                                                               "since":  "2026-10-06T18:56:53",
-                                                                                                                                                                              "runs":  2,
+                                                                                                                                                                              "runs":  3,
                                                                                                                                                                               "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
                                                                                                                                                                           },
-                 "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
-                                                                                                          "since":  "2026-10-06T18:56:53",
-                                                                                                          "runs":  2,
-                                                                                                          "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
-                                                                                                      },
                  "no machine offers alpha.image: the image bridge has nowhere to send work":  {
                                                                                                   "since":  "2026-10-06T18:56:53",
-                                                                                                  "runs":  2,
+                                                                                                  "runs":  3,
                                                                                                   "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
                                                                                               },
                  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a #":  {
                                                                                                                 "since":  "2026-10-06T18:11:37",
-                                                                                                                "runs":  5,
+                                                                                                                "runs":  6,
                                                                                                                 "text":  "the site sends /music to Alpha\u0027s backend, not the music bridge: Generate gets a 404"
                                                                                                             },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-06T18:56:53",
-                                                                                                                                                         "runs":  2,
+                                                                                                                                                         "runs":  3,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      },
                  "no machine offers alpha.music: a queued track waits forever":  {
                                                                                      "since":  "2026-10-06T18:11:37",
-                                                                                     "runs":  5,
+                                                                                     "runs":  6,
                                                                                      "text":  "no machine offers alpha.music: a queued track waits forever"
                                                                                  }
              },
-    "lastPost":  "2026-10-06T18:56:53",
-    "relay":  "relayed status/claude-laptop41 dfb5089"
+    "lastPost":  "2026-10-06T19:27:41",
+    "relay":  "relayed status/claude-laptop41 1b04313"
 }
