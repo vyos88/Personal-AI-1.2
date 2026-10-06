@@ -37,11 +37,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'c3', do: 'ollama-keepalive', keepAlive: '24h; calc' },
     { id: 'd1', do: 'enable-music', bridge: true },
     { id: 'd2', do: 'enable-music', bridge: 'yes; calc', dryRun: true },
+    { id: 'e1', do: 'install-agent-task' },
+    { id: 'e2', do: 'install-agent-task', alphaRoot: 'C:\\A', cloudflareTunnel: 'x; calc' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2']);
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -57,6 +59,11 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.ok(plan.a9.args.includes('--skip-scripts'));
   assert.match(plan.a6.reason, /not on the menu/);
   assert.match(plan.a8.reason, /task must be one of/);
+  // The agent task is what enable-music restarts the agent with, and nothing
+  // from the payload reaches install-always-on.ps1 -- so e2's extra keys are
+  // dropped rather than passed on.
+  assert.match(plan.e1.args.at(-1), /install-always-on\.ps1$/);
+  assert.deepEqual(plan.e2.args, plan.e1.args);
 });
 
 test('a pass runs each queued id once, refuses the rest, and reports without secrets', { skip }, () => {
