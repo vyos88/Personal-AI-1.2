@@ -88,6 +88,27 @@
       "do": "apply-update",
       "branch": "claude/friendly-wright-jw4ep6-route-b",
       "why": "route the Music Creator Generate button to the music bridge instead of the backend (Alpha#73 af139ec); job 16 ran before it was pushed"
+    },
+    {
+      "id": "20261006-19-enable-music",
+      "do": "enable-music",
+      "bridge": true,
+      "machines": "host,worker1",
+      "why": "retry #132: own venv, put back the anyio pin job 17 broke, restart the alpha-agent service; bridge prefers Host GPU on equal load"
+    },
+    {
+      "id": "20261006-20-music-route",
+      "do": "apply-update",
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "why": "music route again, vite.config now self-contained (Alpha#73 207cafb; job 18 failed: musicBridge.js is not live)"
+    },
+    {
+      "id": "20261006-21-enable-image",
+      "do": "enable-image",
+      "bridge": true,
+      "backend": "a1111",
+      "machines": "host,worker1",
+      "why": "images shared with Host by load (#132): handlers on 7860, image bridge 7861, IMAGE_GEN_URL via bridge with 7860 fallback"
     }
   ]
 }
