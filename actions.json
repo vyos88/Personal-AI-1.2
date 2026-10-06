@@ -240,6 +240,13 @@
       "do": "live-test",
       "count": 2,
       "why": "live test 35: track 2 on worker1 timed out and the image bridge was down when images ran (both bridges died during the test). #151 makes the standing bridge restart say why a bridge was down. Host ComfyUI is up since h07."
+    },
+    {
+      "id": "20261006-40-music-host-check",
+      "do": "live-test",
+      "count": 1,
+      "only": "music",
+      "why": "owner asked (cloud relay session): make one music track; the music bridge should give it to the Host (laptop-gj8dfmlk) first. Check the track is real audio (job 35's Host track was only 511 bytes) and whether MusicGen used the RTX 3050."
     }
   ],
   "autofix": {
