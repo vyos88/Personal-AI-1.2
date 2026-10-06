@@ -1,8 +1,38 @@
-﻿# laptop41 autopilot 20261006-195345
+﻿# laptop41 autopilot 20261006-201346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout e14dfa4 is current
+checkout 6bcb982 is current
+
+## 20261006-25-restart-site  restart-site  ->  0   (2026-10-06T20:13:52, 12s)
+```
+stopped pid 1532 (and its children) on 4173
+started task 'Alpha'
+site listening on 4173 (pid 6028)
+/music/healthz through the site: the music bridge answers
+```
+
+## 20261006-26-enable-image  enable-image  ->  0   (2026-10-06T20:14:04, 21s)
+```
+image backend: a1111
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the alpha-agent service
+the agent now offers alpha.image
+image bridge machines: host,worker1
+ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
+ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
+restarted task 'Alpha Backend' so it reads the new image route
+done: this machine renders images for Alpha through the tunnel
+```
+
+## 20261006-27-live-test  live-test  ->  timeout after 45 min   (2026-10-06T20:14:26, 2700s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+PROBLEM: track 1 on worker1: timed out (1503s)
+(node:15788) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
 
 ## 20261006-23-enable-music  enable-music  ->  0   (2026-10-06T19:53:55, 97s)
 ```
@@ -426,154 +456,6 @@ pushed to status/laptop41 - tell Claude 'doctor pushed'
 report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
   To https://github.com/vyos88/Personal-AI-1.2
      f0ab6c7..d653a65  HEAD -> status/laptop41
-pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## 20261006-08-snapshot  snapshot  ->  2   (2026-10-06T03:33:48, 18s)
-```
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_alpha_hubs.mjs         |   60 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_deck.mjs        |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_outfits.mjs     |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_brain_deck.mjs         |    4 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_hardware_deck.mjs      |    2 +-
-   ...
-   528 files changed, 63210 insertions(+), 15213 deletions(-)
-POSSIBLE CREDENTIALS in lines this machine added (long values cut to 4 characters):
-  software/backend/README.md:59  credential-looking environment variable
-      AUTH_PASSWORD=... AUTH_SECRET_KEY=dev-â€¦(38) PYTHONPATH=software/backend .venv/Scripts/python -m pytest software/backend/tests -q
-  software/backend/config.py:464  credential-looking environment variable
-      AUTH_CREDENTIAL_KEY_PATH = _runtime_path_setting(
-  software/backend/main.py:23607  alpha-tunnel token
-      alpha_host_provisioning.fleet_compute_plan has always been able to answer
-  software/backend/run_server.py:24  credential-looking environment variable
-      _ENV_KEY_PATTERN = re.compile(r"^[A-â€¦(24)")
-  software/backend/tests/test_autonomy_runs.py:304  credential-looking assignment
-      idempotency_key="histâ€¦(18)",
-  software/backend/tests/test_codex_provider_executor.py:37  credential-looking assignment
-      target.write_text('API_KEY="..."\n', encoding="utf-8")  # sensitive-data-gate: allow - the detector under test must reject this value, so it has to look r
-  software/backend/tests/test_google_integration.py:26  credential-looking assignment
-      integration.access_token = "..."  # sensitive-data-gate: allow - fake Google token fixture, never a live credential
-  software/backend/tests/test_knowledge_store.py:65  credential-looking assignment
-      key = "convâ€¦(25)"
-  software/backend/tests/test_knowledge_store.py:95  credential-looking assignment
-      "SELECT id FROM layer_2_project WHERE key = 'convâ€¦(24)'"
-  software/backend/tests/test_spotify_integration.py:84  credential-looking assignment
-      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
-  software/backend/tests/test_spotify_integration.py:191  credential-looking assignment
-      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
-  software/backend/tests/test_spotify_integration.py:212  credential-looking assignment
-      integration.access_token = "..."  # sensitive-data-gate: allow - fake Spotify token fixture, never a live credential
-  software/frontend/src/app/shell/AppShell.tsx:14  credential-looking assignment
-      const NAV_RECENTS_KEY = 'alphâ€¦(27)';
-  software/frontend/src/app/shell/AppShell.tsx:15  credential-looking assignment
-      const FULLSCREEN_INTENT_KEY = 'alphâ€¦(32)';
-  software/frontend/src/components/AlphaDockedChat.jsx:30  credential-looking assignment
-      const CHAT_COMPOSER_DRAFT_KEY = 'alphâ€¦(24)'
-  software/frontend/src/components/BrainNeuralModel.jsx:60  credential-looking assignment
-      const BRAIN_VISUAL_SNAPSHOT_KEY='alphâ€¦(30)'
-  software/frontend/src/components/SupervisedCodexExecutor.jsx:11  credential-looking assignment
-      const JOB_STORAGE_KEY = 'alphâ€¦(26)'
-  software/frontend/src/pages/DiagnosticsHubPanel.jsx:216  credential-looking assignment
-      {key: 'resoâ€¦(20)', label: 'Devices', connected: devicesKnownStable && telemetryDevices > 0},
-  software/frontend/src/pages/DiagnosticsHubPanel.jsx:217  credential-looking assignment
-      {key: 'resoâ€¦(20)', label: 'CPU', connected: hasCpu && cpuUsage <= 80},
-  software/frontend/src/pages/DiagnosticsHubPanel.jsx:218  credential-looking assignment
-      {key: 'resoâ€¦(20)', label: 'Memory', connected: hasMem && memUsage <= 80},
-  software/frontend/src/pages/MemoryHubPanel.jsx:378  credential-looking assignment
-      {key: 'recoâ€¦(19)', label: 'Artiâ€¦(9)', count: Number(summary?.reconstruction?.count || 0), angle: 206, tier: .4},
-  software/frontend/src/tabs/Chat.jsx:41  credential-looking assignment
-      const CHAT_COMPOSER_DRAFT_KEY = 'alphâ€¦(24)'
-  software/frontend/src/tabs/Hubs.jsx:111  credential-looking assignment
-      const CHAT_SPATIAL_SELECTION_KEY = 'alphâ€¦(27)'
-  software/frontend/src/tabs/Hubs.jsx:112  credential-looking assignment
-      const CHAT_SPATIAL_RETURN_KEY = 'alphâ€¦(24)'
-  software/frontend/src/tabs/Hubs.jsx:113  credential-looking assignment
-      const CHAT_SPATIAL_VIEW_KEY = 'alphâ€¦(22)'
-REFUSED: nothing was pushed. If a line holds a real secret, move it to .env.local and rotate it.
-  If a reviewer has cleared every line above, add:  --allow software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113
-```
-
-## 20261006-06-snapshot-retry  snapshot  ->     (2026-10-06T03:13:49, 2s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
-STOP: could not fetch alpha-full: git checkout -q -B failed: error: Your local changes to the following files would be overwritten by checkout:
-	BuildArtifacts/installers/Alpha-Full/scripts/alpha_coordination_tunnel.ps1
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/__init__.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/auth.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/crowpanel.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/monetization.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/main.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/multibrain_router.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_crowpanel_api.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_multibrain_router.py
-	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/AdminSecurityPanel.jsx
-	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/SubscriptionPlansPanel.jsx
-Please commit your changes or stash them before you switch branches.
-Aborting
-  Alpha is a private repository: this machine needs git credentials for github.com.
-```
-
-## 20261006-07-doctor  doctor  ->     (2026-10-06T03:13:51, 34s)
-```
-  task Alpha Backend    Running  last run 2026-10-06 03:00 result 0x00041301 (still running)
-  task Alpha Self-Heal  Ready    last run 2026-10-06 03:13 result 0x00000000 (success)
-  cloudflared service: Stopped
-  cloudflared processes on this machine: 1
-  last self-heal entries:
-    {"at":"2026-10-06T02:09:39.490Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-    {"at":"2026-10-06T02:11:39.452Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-    {"at":"2026-10-06T02:13:39.510Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-=== 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
-  ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
-  the coordinator runs on another machine; none should listen here
-  --- agents
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
-  --- stats
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
-  --- keys
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
-  --- tasks
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
-=== 6. CrowPanel ===
-    COM4
-    COM20
-    COM50
-  device: USB-SERIAL CH340 (COM20)
-  device: USB-SERIAL CH340 (COM50)
-  device: USB-SERIAL CH340 (COM4)
-  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
-=== 7. Memory, disk, heaviest processes ===
-  ok: 5.7 of 15.8 GB RAM free
-  ok: C: 27 GB free
-  claude                          719 MB  pid 4148
-  Memory Compression              719 MB  pid 3840
-  node                            718 MB  pid 4100
-  MsMpEng                         446 MB  pid 6040
-  explorer                        335 MB  pid 10108
-  msedge                          257 MB  pid 19212
-  claude                          231 MB  pid 7320
-  msedge                          219 MB  pid 17100
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
-  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
-  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
-=== SUMMARY ===
-  this pass took 27s
-  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 101 run(s), since 2026-10-05T02:56:26)
-  + fixed since last run: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
-=== RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 101 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
-report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
-no alpha_coordination_tunnel.ps1 under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software - not posted
-  To https://github.com/vyos88/Personal-AI-1.2
-     85a2c62..440f9f9  HEAD -> status/laptop41
 pushed to status/laptop41 - tell Claude 'doctor pushed'
 ```
 
