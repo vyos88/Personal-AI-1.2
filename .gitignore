@@ -10,3 +10,21 @@ data/
 *.auth.json
 auth.json
 auth.json.tmp
+
+# alpha.music output when ALPHA_MUSIC_ROOT is this checkout. A dirty tree makes
+# self-update and alpha.update refuse to pull, so generated audio must not count.
+/output/
+__pycache__/
+
+# Output the PowerShell scripts write beside themselves. usb-inventory.ps1 runs
+# on every device.inventory task, and self-update/alpha.update treat any
+# untracked file as a dirty tree -- so without these one inventory, or one run
+# of a fix script, silently stops that machine updating.
+/scripts/usb-inventory.json
+/scripts/usb-inventory.txt
+/scripts/*-log.txt
+/scripts/fix-3d-oneline.txt
+/scripts/webgl-check.html
+
+# The music bridge's subscription accounts (src/bridge/billing.js): who has paid.
+/billing/

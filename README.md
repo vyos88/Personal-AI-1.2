@@ -150,6 +150,15 @@ Two rules keep grants from drifting upward:
 | Restore it | `npm run admin -- enable-user <userId>` |
 | Change what someone can do | `npm run admin -- set-scopes <userId> --scopes viewer` |
 | Withdraw an unredeemed invite | `npm run admin -- revoke-invite <inviteId>` |
+| Recover an account with no working password | `npm run admin -- reset-password <userId>` |
+
+`reset-password` is the admin-side counterpart to `/me/password`: it needs
+`users:write`, not the old password, so it is the way in when that is lost —
+without it, the only route back was the bootstrap token. Every existing
+session for that user ends with it (the same as a self-service password
+change); their other API keys are untouched. Leave off `--new-password` and
+it generates one and prints it once — it is never stored or logged in
+plaintext, so write it down before doing anything else.
 
 For another **device of your own**, issue a second key rather than creating a
 second account — no extra password to manage, and it revokes independently:
@@ -192,6 +201,7 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_HOST_PORT` | host | `8787` | Listen port. |
 | `ALPHA_HOST_BIND` | host | `127.0.0.1` | Comma-separated listen addresses. |
 | `ALPHA_AUTH_STORE` | host | `./data/auth.json` | Where users/keys/invites persist. |
+| `ALPHA_TASK_JOURNAL` | host | `tasks.json` beside `ALPHA_AUTH_STORE` | Where the task queue is kept across restarts. `off` keeps nothing. |
 | `ALPHA_BOOTSTRAP_TOKEN` | host | — | Break-glass admin credential. Remove after setup. |
 | `ALPHA_INVITE_BASE_URL` | host | request `Host` | Base for the printed redeem link. |
 | `ALPHA_BIND_WAIT_MS` | host | `300000` | How long to wait for a bind address that is not up yet (Tailscale at boot). |
@@ -208,6 +218,8 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_MEMSTORE_LIMIT_MB` | agent | ¼ of RAM, max `1024` | Budget for data the host parks here. Unused budget is withheld from what this machine offers. |
 | `ALPHA_MEMSTORE_MAX_VALUE_MB` | agent | half the budget | Largest single stored value. |
 | `ALPHA_RENDER_ROOT` | agent | — | Directory holding the Blender generator script. Required by `alpha-render`. |
+| `ALPHA_MUSIC_ROOT` | agent | — | Directory holding the music generator (`scripts/generate_music.py`, which ships in this repo, so this checkout works). Required by `alpha-music`. Install the model's dependencies there with `pip install -r scripts/requirements-music.txt`. |
+| `ALPHA_MUSIC_BRIDGE_TOKEN` | music bridge | — | Tunnel key (`tasks:read,tasks:write`) that `scripts/music-bridge.mjs` uses to queue `alpha.music` for Alpha's Generate button. Also `ALPHA_MUSIC_AGENT` (the machine that generates), `ALPHA_MUSIC_LEASE_MS` (default 600000), `ALPHA_MUSIC_BRIDGE_PORT` (default 8790, loopback). Route Alpha's `/music/*` to it. For playback, the generating machine also enables `alpha-music-audio`, and the bridge caches fetched tracks in `ALPHA_MUSIC_BRIDGE_CACHE` (default: the OS temp dir). |
 | `ALPHA_RENDER_SCRIPT` | agent | `scripts/generate.py` | Generator script, relative to the root. |
 | `ALPHA_BLENDER` | agent | `blender` | Blender executable. |
 | `ALPHA_RENDER_OUTPUT` | agent | `output` | Where images are written, relative to the root. |
@@ -218,7 +230,14 @@ out of the store — there are tests asserting exactly that.
 | `ALPHA_PANEL_FQBN` | agent | — | Board id, e.g. `esp32:esp32:esp32`. Required to compile or flash. |
 | `ALPHA_PANEL_PORT` | agent | — | Default serial port for the panel, e.g. `COM3`. |
 | `ALPHA_ARDUINO_CLI` | agent | `arduino-cli` | arduino-cli executable. |
-| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. |
+| `ALPHA_CODEX_ROOT` | agent | — | Directory Codex works in. Required by `codex-exec`. |
+| `ALPHA_CODEX` | agent | `codex` | Codex executable. On Windows, the native binary — not the npm `.cmd`. |
+| `ALPHA_CODEX_SANDBOX` | agent | `read-only` | Sandbox mode passed to Codex. Empty passes no flag. |
+| `ALPHA_CODEX_MODEL` | agent | Codex's default | Model Codex should use. |
+| `ALPHA_CODEX_SKIP_GIT_CHECK` | agent | — | Set to `1` when the root is not a git checkout. |
+| `ALPHA_CODEX_TIMEOUT_MS` | agent | `600000` | Ceiling on one Codex call; raise the task's lease with it. |
+| `ALPHA_ADMIN_TOKEN` | CLI | — | Credential the CLI uses. Wins over the session `alpha-admin login` saves. |
+| `ALPHA_ADMIN_SESSION_FILE` | CLI | `~/.alpha-admin/session.json` | Where `login` saves its session; `logout` ends it on the host and deletes it. |
 | `ALPHA_LOG_LEVEL` | both | `info` | `debug` \| `info` \| `warn` \| `error`. |
 | `ALPHA_LOG_FORMAT` | both | human | Set to `json` for one JSON object per line. |
 
@@ -252,6 +271,7 @@ needs `Authorization: Bearer <token>` and the scope listed.
 | `GET` | `/users`, `/users/:id` | `users:read` |
 | `POST` | `/users/:id/status` | `users:write` |
 | `POST` | `/users/:id/scopes` | `users:write` |
+| `POST` | `/users/:id/password/reset` | `users:write` |
 | `POST` | `/keys` | `keys:write` (plus `users:write` for someone else) |
 | `GET` | `/keys` | own keys; `users:read` for everyone's |
 | `DELETE` | `/keys/:id` | own keys; `users:write` for someone else's |
@@ -296,8 +316,29 @@ picks it up, up to `maxAttempts` (default 3). Results from an agent that no
 longer holds the lease are rejected with `409`, so a slow straggler can't
 overwrite the answer from the agent that actually owns the work.
 
-The task queue is in memory and clears on restart. Accounts and credentials are
-not — they persist to `ALPHA_AUTH_STORE`.
+The task queue survives a coordinator restart. It is copied to
+`ALPHA_TASK_JOURNAL` (default `tasks.json` beside the auth store) whenever it changes, and
+read back before the restarted host answers anything:
+
+| Before the restart | After it |
+|---|---|
+| `queued` | `queued`, as it was |
+| `leased` | `queued`, with the attempt it was on counted; `failed` (`coordinator_restarted`) if that was its last |
+| finished | kept for the usual retention (24 h, newest 1 000), then dropped |
+
+A late result from the agent that held a lease across the restart is refused
+(`410`, its registration is gone), and the agent registers again and carries on.
+What is written down: queued and leased tasks whole; finished results up to
+8 KB, and above that only the recipe, outputs and stats — an
+`alpha.music.audio` slice never reaches disk. A task whose payload carries a
+password, token or secret (a CrowPanel Provision) is never written, so it does
+not survive a restart. `ALPHA_TASK_JOURNAL=off` turns it off; a host whose auth
+store is in memory never keeps one. Accounts and credentials persist separately,
+to `ALPHA_AUTH_STORE`.
+
+An agent that stops hearing back from its heartbeats says so: one warning after
+three in a row go unanswered (`lost the coordinator: heartbeats are not being
+answered`), and an info line when they are answered again.
 
 ## Lending the host RAM
 
@@ -563,6 +604,10 @@ npm run jobs -- --type alpha.render --agent alpha-host --count 6 \
   --species fern,beetle --seed 0 --lease-ms 900000 --timeout 1800 --save recipes.json
 ```
 
+*Illustrative output — the shape of the answer, not a recorded run. For real
+numbers from this fleet, see `alpha-manager report` and `alpha-manager
+inventory` below.*
+
 ```
 Queueing 6 × alpha.render (fern, beetle, seeds 0–5) for "alpha-host"
 
@@ -598,6 +643,141 @@ made it, and what it left there. Never the image itself.
 `--lease-ms` and a generous `--timeout` are not optional for real renders: the
 default lease is 60 seconds and a render outlives it, at which point the host
 reclaims a task that is running perfectly well.
+
+### Rendering on a schedule, and what it produced
+
+`run-jobs` is the right shape for a person at a keyboard. A loop that renders
+unattended needs three things it does not have, which is what `alpha-manager`
+adds:
+
+```bash
+npm run manager -- render --species fern,beetle --count 4 \
+  --agent alpha-host --max-per-window 40
+```
+
+```
+Approved 4 render(s) (12/40 used in the last 24h) for "alpha-host"
+  fern/7
+  beetle/3
+  fern/8
+  beetle/4
+
+Queued 4. Not waiting — read them with: alpha-manager report
+```
+
+**It continues rather than repeating.** Seeds carry on from the highest already
+recorded for that species, so every pass is new creatures. A loop built on
+`run-jobs --seed 0` re-renders seeds 0–5 forever — recipes are reproducible,
+which is exactly why a fixed start is wrong for a loop.
+
+**It approves before it queues.** `--allow` bounds *what* may be rendered;
+`--max-per-window` bounds *how much* per `--window` (default 24h). A pass that
+would overrun the quota is refused whole and exits 3, rather than queueing
+part of it — "I rendered some of what you asked" is a worse answer for an
+unattended job. `--dry-run` prints the batch and queues nothing.
+
+**It never waits.** A render outlives any sensible scheduled pass, so the
+manager queues with a lease that covers the work and exits. Read the result
+later:
+
+```bash
+npm run manager -- report --since 24h
+```
+
+```
+Alpha fleet — what has actually been produced in the last 24h
+
+  Tasks finished   38
+    succeeded      36
+    failed         2
+
+  Images produced  36  (6.21 GB on disk)
+
+  By species
+    fern           19
+    beetle         17
+
+  By machine
+    alpha-host     38
+
+  2 failed. See: alpha-admin tasks, or /receipts?status=failed
+```
+
+### Where the images go
+
+Finished images are filed under their species —
+`output/fern/fern_7.png` — rather than dropped in one flat directory. One
+directory holding every species and every seed since the beginning answers no
+question anyone asks. `ALPHA_RENDER_FILE_BY=species-day` adds a date level,
+and `flat` restores the old behaviour.
+
+### The receipt ledger
+
+The task queue keeps finished tasks for a day, so `/tasks` forgets what ran
+long before anyone asks how many renders there were last month. Finished tasks
+are also appended to a ledger at `ALPHA_RECEIPT_STORE` (default `./data/receipts.json`), which is what
+`report` reads and what lets seeds continue.
+
+| Endpoint | Scope | What it answers |
+|---|---|---|
+| `GET /tasks` | `tasks:read` | What the coordinator is doing **now** |
+| `GET /receipts` | `tasks:read` | What this fleet has **done**, across restarts |
+| `GET /receipts/summary` | `tasks:read` | The same, counted by species, machine and status |
+
+A receipt keeps the recipe and what landed, and drops the render's stdout and
+stderr — 16 KB of Blender chatter per render is megabytes a day in a file
+meant to be read. Only a host with a **persistent auth store** keeps a ledger;
+an ephemeral host gets an in-memory one, so tests never write to the real file.
+
+### Counting renders that predate the ledger
+
+The ledger records from the moment it started keeping one — which is none of
+the renders made before it existed. Those left exactly one durable trace: the
+file itself, on the machine that made it. `alpha.render.inventory` reads that
+trace, so the back catalogue is countable:
+
+```bash
+npm run manager -- inventory --agent alpha-host
+```
+
+```
+Renders on disk — alpha-host  (output/)
+
+  Images           412  (68.3 GB on disk)
+  Most recent      2026-09-15T22:41:07.000Z
+  Rendering now    1  (not counted above)
+
+  By species
+    fern             186  31.2 GB
+    beetle           147  24.8 GB
+    (unfiled)         79  12.3 GB
+
+  "(unfiled)" is everything rendered before images were filed by species.
+
+  Note: the host ledger records 38 image(s), the disk holds 412. Anything
+  rendered before the ledger existed is only on disk.
+```
+
+Enable it beside the renderer:
+
+```bash
+ALPHA_EXTRA_HANDLERS=alpha-render,alpha-render-inventory
+```
+
+Two records, answering different questions. The **ledger** is what the host
+was told and covers every machine; the **inventory** is what is really on one
+machine's disk. The inventory is ground truth for images, so the two
+disagreeing is worth knowing about — which is why the command says so rather
+than letting the numbers quietly differ.
+
+It is read-only, takes no path from its payload (only an optional `species`
+filter), and skips the `.render-*` staging directory of a render in flight —
+a half-written image is not output, though the count of them is reported.
+
+Its `available()` is deliberately **weaker** than `alpha.render`'s: it wants
+the output directory and says nothing about Blender. A machine whose Blender
+broke still holds every render it ever made, and that is exactly the machine
+somebody needs an inventory from.
 
 ### Sending work to one machine
 
@@ -805,6 +985,60 @@ and `ALPHA_BLENDER` resolves — by PATH lookup, since that is how the render
 itself finds it, and with `PATHEXT` on Windows. It runs nothing: whether Blender
 *works* is not knowable without rendering, and a render still reports that
 honestly.
+
+## Talking to another coding agent
+
+Codex runs on one laptop, Alpha on another, and until now the only way to get a
+question from one to the other was a person carrying it. `codex.exec` makes it a
+task: the prompt goes into the queue, the agent on the machine that has Codex
+runs it non-interactively, and the answer comes back as the task result. No open
+port on that laptop, and nobody sitting at it.
+
+Opt in on the machine that has Codex, and tell it where to work:
+
+```bash
+ALPHA_EXTRA_HANDLERS=codex-exec
+ALPHA_CODEX_ROOT=C:\path\to\the\checkout
+```
+
+Then, from the host or anywhere with the CLI:
+
+```bash
+npm run admin -- codex --agent jacks-laptop \
+  --prompt "Read src/host/queue.js and tell me what happens to a task whose lease expires twice"
+```
+
+```json
+{
+  "output": "A task whose lease expires is requeued by the sweeper ...",
+  "truncated": false,
+  "exitCode": 0,
+  "durationMs": 48213,
+  "sandbox": "read-only",
+  "model": null
+}
+```
+
+`codex` leases ten minutes, because Codex thinks for longer than the 60s default
+and a reclaimed task is requeued forever. Long messages are better sent as a
+file than fought through a shell:
+
+```bash
+npm run admin -- codex --agent jacks-laptop --prompt-file ./question.md --no-wait
+npm run admin -- tasks          # read the answer when it lands
+```
+
+**The payload carries a prompt and nothing else.** Not a model, not a directory,
+not a sandbox mode, not a flag — those belong to whoever owns that laptop, and a
+task naming one is refused rather than ignored. The sandbox defaults to
+`read-only`: a task queued against `codex.exec` is a request to an AI agent with
+filesystem access on that machine, so widening it is a decision made on the
+machine, in the open. `available()` refuses a machine where Codex is not
+installed, or whose root is not a checkout, so a laptop set up from a copy of
+someone else's `.env.agent` never advertises a capability it cannot keep.
+
+docs/CODEX_BRIDGE.md has the full round trip, including the Windows `.cmd`
+corner and what a two-way conversation looks like.
 
 ## Adding a handler
 

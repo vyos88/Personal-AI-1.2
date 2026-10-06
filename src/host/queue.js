@@ -3,6 +3,10 @@ import {
   TERMINAL_STATUSES,
   newId,
   MAX_POLL_WAIT_MS,
+  FINISHED_TASK_RETENTION_MS,
+  MAX_FINISHED_TASKS,
+  DEFAULT_LEASE_MS,
+  DEFAULT_MAX_ATTEMPTS,
 } from '../common/protocol.js';
 import { createLogger } from '../common/log.js';
 
@@ -23,7 +27,9 @@ const OPEN_ADMISSION = {
 };
 
 /**
- * In-memory task queue with capability-matched long-poll leasing.
+ * In-memory task queue with capability-matched long-poll leasing. The Map is
+ * the queue; a host that wants it to survive a restart copies it out through
+ * `onChange`/`snapshot()` and hands it back with `restore()` — see journal.js.
  *
  * Work is pulled, never pushed: the agent dials out and holds a request open
  * until a task it can run appears. That is what lets the laptop sit behind NAT
@@ -42,14 +48,68 @@ const OPEN_ADMISSION = {
  */
 export class TaskQueue {
   #tasks = new Map();
+  // Terminal task ids in the order they finished, so the oldest can be dropped
+  // without sorting the whole Map. A task finishes exactly once.
+  #finishedOrder = [];
   #pending = [];
   #waiters = new Set();
   #sweeper = null;
 
-  constructor({ sweepIntervalMs = 5_000, now = () => Date.now(), admission = OPEN_ADMISSION } = {}) {
+  constructor({
+    sweepIntervalMs = 5_000,
+    now = () => Date.now(),
+    admission = OPEN_ADMISSION,
+    // Called once with each task that reaches a terminal status, so a host can
+    // write it down before the Map forgets it. The queue stays in memory on
+    // purpose; this is the seam that lets the *record* outlive it.
+    onTerminal = null,
+    // Called, with nothing, whenever a task is added, moves or is forgotten,
+    // so a host can write the queue down — see TaskJournal. Never awaited:
+    // the queue answers from memory and the copy catches up.
+    onChange = null,
+    // Finished tasks are forgotten after this long, or oldest-first once there
+    // are more than `maxFinished` of them. Only terminal tasks are ever
+    // dropped: queued and leased work is the queue's whole job.
+    finishedRetentionMs = FINISHED_TASK_RETENTION_MS,
+    maxFinished = MAX_FINISHED_TASKS,
+  } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
+    this.finishedRetentionMs = finishedRetentionMs;
+    this.maxFinished = maxFinished;
     this.now = now;
     this.admission = admission;
+    this.onTerminal = onTerminal;
+    this.onChange = onChange;
+  }
+
+  /** Same contract as `#finished`: a journal that throws never breaks a task. */
+  #changed() {
+    if (!this.onChange) return;
+    try {
+      this.onChange();
+    } catch (error) {
+      log.warn('could not record queue change', { message: error.message });
+    }
+  }
+
+  /**
+   * Announces a finished task, and never lets the announcement break it.
+   *
+   * A ledger write that throws — a full disk, a read-only mount — must not
+   * turn a task that genuinely succeeded into a 500 for the agent reporting
+   * it, which would cost the lease and re-run work that was already done. The
+   * record is the expendable half of this pair.
+   */
+  #finished(task) {
+    this.#finishedOrder.push(task.id);
+    this.#forgetFinished();
+    if (!this.onTerminal) return task;
+    try {
+      this.onTerminal(task);
+    } catch (error) {
+      log.warn('could not record finished task', { taskId: task.id, message: error.message });
+    }
+    return task;
   }
 
   start() {
@@ -115,6 +175,7 @@ export class TaskQueue {
     }
 
     log.info('task enqueued', { taskId: task.id, type: task.type, dispatched: Boolean(waiter) });
+    this.#changed();
     return task;
   }
 
@@ -123,6 +184,11 @@ export class TaskQueue {
    * once `waitMs` elapses with nothing matching.
    */
   lease({ agentId, capabilities, waitMs, signal }) {
+    // A poll whose connection is already gone gets nothing: an abort that has
+    // happened never fires its event again, so it would otherwise be handed a
+    // queued task it can never receive, or parked where the next enqueue could
+    // dispatch into it. Either way the task sits out a whole lease.
+    if (signal?.aborted) return Promise.resolve(null);
     const wanted = new Set(capabilities);
 
     // Ranking deliberately does not apply here. This branch is an agent asking
@@ -136,6 +202,7 @@ export class TaskQueue {
     if (index !== -1) {
       const [task] = this.#pending.splice(index, 1);
       this.#assign(task, agentId);
+      this.#changed();
       return Promise.resolve(task);
     }
 
@@ -171,6 +238,8 @@ export class TaskQueue {
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
     log.info('task succeeded', { taskId, agentId, attempts: task.attempts });
+    this.#finished(task);
+    this.#changed();
     return task;
   }
 
@@ -185,10 +254,12 @@ export class TaskQueue {
       task.finishedAt = this.now();
       task.leaseExpiresAt = null;
       log.warn('task failed permanently', { taskId, agentId, attempts: task.attempts });
+      this.#finished(task);
     } else {
       task.error = normalized;
       this.#requeue(task, 'agent reported failure');
     }
+    this.#changed();
     return task;
   }
 
@@ -218,6 +289,31 @@ export class TaskQueue {
     // rather than leaving it looking like it was never picked up.
     task.error = normalizeError(reason);
     this.#requeue(task, `agent declined: ${task.error.message}`);
+    this.#changed();
+    return task;
+  }
+
+  /**
+   * The task was leased to a long poll whose connection closed before the
+   * reply could be written, so the agent never received it and nothing ran.
+   *
+   * This used to go through `fail()`, which charged the attempt `#assign`
+   * took: a task with `maxAttempts: 1` was failed permanently without ever
+   * having been seen by a machine, and any other task lost a retry to a
+   * dropped socket. Like a decline, the attempt is handed back and the task
+   * requeued as if it had never been placed. Unlike a decline it is not
+   * counted in `declines` — no agent refused it — and it leaves `error` as it
+   * was, because this placement produced no outcome to record.
+   *
+   * It cannot spin: the poll that took the task is finished, and a requeue
+   * only ever dispatches to a poll that is still parked.
+   */
+  undelivered(taskId, agentId) {
+    const task = this.#requireLeasedBy(taskId, agentId);
+    this.admission.release(agentId, task);
+    task.attempts = Math.max(0, task.attempts - 1);
+    this.#requeue(task, 'lease never reached the agent');
+    this.#changed();
     return task;
   }
 
@@ -234,15 +330,39 @@ export class TaskQueue {
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
     log.info('task cancelled', { taskId });
+    this.#finished(task);
+    this.#changed();
     return task;
+  }
+
+  /**
+   * Drops finished tasks past their retention, then the oldest past the cap.
+   * The receipt ledger has already been handed each one by `#finished`, so
+   * what goes here is the live copy of a record that is kept elsewhere.
+   */
+  #forgetFinished() {
+    const cutoff = this.now() - this.finishedRetentionMs;
+    let drop = 0;
+    while (drop < this.#finishedOrder.length) {
+      const task = this.#tasks.get(this.#finishedOrder[drop]);
+      const expired = !task || (task.finishedAt ?? 0) <= cutoff;
+      const overCap = this.#finishedOrder.length - drop > this.maxFinished;
+      if (!expired && !overCap) break;
+      this.#tasks.delete(this.#finishedOrder[drop]);
+      drop += 1;
+    }
+    if (drop > 0) this.#finishedOrder.splice(0, drop);
+    return drop;
   }
 
   /** Reclaims tasks whose holder never reported back. */
   sweep() {
     const now = this.now();
+    let changed = this.#forgetFinished() > 0;
     for (const task of this.#tasks.values()) {
       if (task.status !== TaskStatus.LEASED) continue;
       if (task.leaseExpiresAt === null || task.leaseExpiresAt > now) continue;
+      changed = true;
 
       // Whatever the agent promised this task is no longer promised: it is
       // either dead or about to be handed to somebody else.
@@ -254,10 +374,92 @@ export class TaskQueue {
         task.finishedAt = now;
         task.leaseExpiresAt = null;
         log.warn('task abandoned', { taskId: task.id, agentId: task.agentId });
+        this.#finished(task);
       } else {
         this.#requeue(task, 'lease expired');
       }
     }
+    if (changed) this.#changed();
+  }
+
+  /** Every task the queue holds, in creation order, for a journal to copy. */
+  snapshot() {
+    return [...this.#tasks.values()];
+  }
+
+  /**
+   * Takes back what a journal wrote down before the coordinator restarted.
+   *
+   * Queued tasks are queued again. A leased task is requeued *with its attempt
+   * spent*, exactly as if its lease had expired: the agent that held it is not
+   * in the new process's registry, so whatever it reports comes back 410 (its
+   * id is unknown) or 409 (the task is no longer leased to it), and the work
+   * goes to whoever leases it next. Requeueing rather than waiting out the old
+   * lease is deliberate — nothing could ever complete that lease. One that has
+   * no attempts left fails, as the sweeper would fail it.
+   *
+   * Finished tasks come back as the record a waiter is still polling for, and
+   * fall out on the same retention as if the host had never stopped. They are
+   * not handed to `onTerminal` again: their receipt was written when they
+   * finished.
+   */
+  restore(records) {
+    const counts = { queued: 0, requeued: 0, failed: 0, finished: 0 };
+    const sorted = [...records].sort((a, b) => (a.createdAt ?? 0) - (b.createdAt ?? 0));
+    const finished = [];
+
+    for (const record of sorted) {
+      if (this.#tasks.has(record.id)) continue;
+      const task = {
+        payload: {},
+        leaseMs: DEFAULT_LEASE_MS,
+        maxAttempts: DEFAULT_MAX_ATTEMPTS,
+        minMemoryMB: 0,
+        targetAgent: null,
+        attempts: 0,
+        declines: 0,
+        agentId: null,
+        result: null,
+        error: null,
+        createdAt: this.now(),
+        leasedAt: null,
+        leaseExpiresAt: null,
+        finishedAt: null,
+        ...record,
+      };
+      this.#tasks.set(task.id, task);
+
+      if (TERMINAL_STATUSES.has(task.status)) {
+        finished.push(task);
+        counts.finished += 1;
+      } else if (task.status === TaskStatus.LEASED && task.attempts >= task.maxAttempts) {
+        task.status = TaskStatus.FAILED;
+        task.error = {
+          message: 'the coordinator restarted while this was leased and no attempts remain',
+          code: 'coordinator_restarted',
+        };
+        task.finishedAt = this.now();
+        task.leaseExpiresAt = null;
+        this.#finished(task);
+        counts.failed += 1;
+      } else if (task.status === TaskStatus.LEASED) {
+        this.#requeue(task, 'coordinator restarted while it was leased');
+        counts.requeued += 1;
+      } else {
+        task.status = TaskStatus.QUEUED;
+        this.#pending.push(task);
+        counts.queued += 1;
+      }
+    }
+
+    finished.sort((a, b) => (a.finishedAt ?? 0) - (b.finishedAt ?? 0));
+    this.#finishedOrder.unshift(...finished.map((task) => task.id));
+    this.#forgetFinished();
+    if (sorted.length) {
+      log.info('queue restored', counts);
+      this.#changed();
+    }
+    return counts;
   }
 
   get(taskId) {

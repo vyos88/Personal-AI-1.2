@@ -18,6 +18,9 @@ The coordination script lives in the Alpha working copy, so **the agent must run
 on the Alpha machine**. The coordinator can live anywhere both sides can reach.
 Start with both on the Alpha host — it is the fewest moving parts, and you can
 move the coordinator later without touching the agent.
+`docs/COORDINATOR_MIGRATION.md` is that move, done deliberately: retiring the
+coordinator here and standing it up on another machine without voiding the
+fleet's keys.
 
 ```
         ALPHA HOST (Windows, DESKTOP-41HPLCN)
@@ -430,6 +433,12 @@ is holding. A `-` in `CPU` means the agent has not reported load or its report
 went stale — the host reads that as **unknown, not idle**, so a silent machine
 never wins work by saying nothing.
 
+A `!` after `IDLE` (`52s !`) means the host has not heard from that machine in
+over two heartbeats (45s), and the table names it underneath. The row stays —
+and the host may still place work on it — until the stale sweep drops it at
+90s, so treat a marked row as a machine to go and look at, not as attached.
+`--json` carries the same thing as `stale` and `lastSeenAt` on each row.
+
 Two things that look like faults and are not:
 
 - **A busy machine sitting at `RUN 0`.** It is over its ceiling and standing
@@ -554,12 +563,13 @@ node src/admin/run.js agents      # the agent should be listed again
 Then reboot the machine once and run `node src/admin/run.js agents` after it
 comes up. That is the only check that actually proves the boot path.
 
-### What still does not survive a restart
+### What survives a restart, and what to protect
 
-The **task queue is in memory**. A coordinator restart drops queued and
-in-flight tasks — accounts, keys and invites persist, but pending work does
-not. For the coordination tunnel this is usually fine, because tasks are short
-and you re-issue them; it matters if you ever queue long-running work.
+The **task queue survives a coordinator restart**: it is kept in
+`data\tasks.json` (`ALPHA_TASK_JOURNAL`). Queued tasks stay queued; a task
+that was running is queued again with that attempt counted, because the agent
+running it has to register with the new process. A task carrying a credential
+(a CrowPanel Provision) is never written to disk and does not survive.
 
 Two things to protect:
 
@@ -568,6 +578,40 @@ Two things to protect:
   because silently starting empty would un-revoke every revoked credential.
 - **`ALPHA_AGENT_KEY`**, wherever it lives — `.env.agent` or the service
   configuration. Anyone who can read it can attach an agent.
+
+### Alpha's own frontend, and alpha-ai.uk
+
+The tunnel's services above are not Alpha. Alpha's production frontend
+(`vite preview` on `127.0.0.1:4173`, behind cloudflared for `alpha-ai.uk`) is
+started by a scheduled task named `Alpha`, and a task can say **Running** while
+nothing listens: an interactive-only logon stops it at logout, the laptop
+battery conditions stop it off mains, the 72-hour default time limit kills it,
+and a `cmd start` or `npm` wrapper leaves the task's state describing the
+wrapper rather than the server. Cloudflare then answers 502.
+
+```powershell
+# Report only: the task's exact program, arguments, directory, what it
+# spawned, its logs, the listeners, cloudflared's ingress, memory pressure,
+# and a local + public check. Changes nothing.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1
+
+# Elevated: back the task up, re-register it to run at boot whether or not
+# anyone is logged on (S4U, no stored password), on battery, no time limit.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Repair
+
+# Put the original task back exactly.
+powershell -ExecutionPolicy Bypass -File scripts\fix-frontend.ps1 -Rollback C:\AlphaData\Backups\task-Alpha-<stamp>.xml
+```
+
+On a host set up by `repair-alpha-host.ps1` (see `MASTER_HOST_REPAIR.md`),
+that script and its self-heal own the `Alpha` task, and `-Repair` here refuses
+to run. Use the report only.
+
+After `-Repair`, the task runs `C:\AlphaData\ops\alpha-frontend-run.ps1`, which runs node
+against `vite.js` directly and restarts it with backoff; its output is in
+`C:\AlphaData\logs\frontend*.log`. It never edits cloudflared, DNS, WAF or
+Access. If the public site still 502s with 4173 answering locally, the report's
+cloudflared section names the ingress port the tunnel is actually using.
 
 ## The verified contract
 

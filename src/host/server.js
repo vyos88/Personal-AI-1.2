@@ -7,6 +7,8 @@ import { AuthStore } from './auth/store.js';
 import { MessageStore, normalizeRecipient } from './messages.js';
 import { DASHBOARD_HTML } from './dashboard.js';
 import { cloudflareReport } from './cloudflare.js';
+import { ReceiptStore } from './receipts.js';
+import { TaskJournal, defaultJournalPath } from './journal.js';
 import { SCOPES, ALL_SCOPES, SCOPE_PRESETS, hasScope } from './auth/scopes.js';
 import { bearerFrom } from '../common/auth.js';
 import { createLogger } from '../common/log.js';
@@ -20,6 +22,7 @@ import {
   memoryReportFromQuery,
   validateLoadReport,
   loadReportFromQuery,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
 
@@ -35,11 +38,41 @@ export function createHost({
   token,
   messages,
   registry = new AgentRegistry(),
-  queue = new TaskQueue({ admission: registry }),
+  // The ledger of finished work. Built before the queue below, because the
+  // default queue is wired to write to it as tasks finish.
+  //
+  // Whether it persists follows whether the *credentials* do. A host whose
+  // auth store is in memory cannot outlive its process, so a durable ledger
+  // for it is meaningless — and worse than meaningless, because every such
+  // host writes into the one real file: defaulting this to the live path
+  // regardless put several kilobytes of fabricated receipts into
+  // ./data/receipts.json on every `npm test` run — both via `token`, which
+  // builds an ephemeral service, and via an `auth` whose store is in memory.
+  // Pass `receipts` explicitly to override.
+  receipts = new ReceiptStore(auth?.store?.persistent ? {} : { path: null }),
+  // The queue itself, written down so a restart is not a reset. Persists on
+  // the same rule as the ledger above, and for the same reason: a test host
+  // must never write its fabricated tasks into the real ./data/tasks.json,
+  // where the next real coordinator would pick them up and run them. Kept
+  // beside the auth store unless ALPHA_TASK_JOURNAL says otherwise.
+  journal = new TaskJournal({
+    path: auth?.store?.persistent ? defaultJournalPath(auth.store.path) : null,
+  }),
+  queue = new TaskQueue({
+    admission: registry,
+    // The queue forgets; this is what remembers. Resolving the agent's *name*
+    // here rather than in the store is deliberate: the registration is still
+    // live at this instant, and a minute later the id is unresolvable.
+    onTerminal: (task) =>
+      receipts.record(task, { agentName: registry.get?.(task.agentId)?.name ?? null }),
+    // `queue` is this parameter's own binding; it is assigned long before the
+    // first change can fire.
+    onChange: () => journal.schedule(() => queue.snapshot()),
+  }),
   // How often an agent is told to check in. A seam for tests, which cannot
   // otherwise reach what a heartbeat does — twenty seconds is longer than a
   // test should take.
-  heartbeatIntervalMs = 20_000,
+  heartbeatIntervalMs = HEARTBEAT_INTERVAL_MS,
 } = {}) {
   // `token` is the convenience path: it builds an ephemeral auth service whose
   // only credential is that bootstrap token. Real deployments pass `auth` so
@@ -50,15 +83,29 @@ export function createHost({
     throw new Error('createHost requires either an AuthService (`auth`) or a bootstrap `token`');
   }
 
-  // Personal messages persist alongside credentials. A first note is seeded
-  // for "jack" once, so a fresh host already has something to show, and future
-  // notes are written per user under their own name.
+  // Personal messages persist alongside credentials; a first note is seeded
+  // for "jack" once so a fresh host already has something to show.
   const messageStore = messages ?? new MessageStore({ path: null });
-  const ready = (auth ? Promise.resolve(authService) : authService.load()).then(async () => {
-    await messageStore.load();
-    await messageStore.seedWelcome('jack');
-    return authService;
-  });
+  // Every store has to be readable before the first request is served. A
+  // receipt ledger or task journal that cannot be read does not stop the host
+  // — see ReceiptStore.load and TaskJournal.load — so this only ever rejects
+  // on the auth store.
+  //
+  // The queue is restored only after the ledger has loaded: a task that was
+  // leased with no attempts left fails during the restore, and its receipt
+  // written into a ledger that has not loaded yet would be overwritten by it.
+  // The message store loads last, alongside the "jack" seed.
+  const ready = Promise.all([
+    auth ? Promise.resolve(authService) : authService.load(),
+    receipts.loaded ? Promise.resolve(receipts) : receipts.load(),
+  ])
+    .then(() => journal.load())
+    .then((tasks) => queue.restore?.(tasks))
+    .then(async () => {
+      await messageStore.load();
+      await messageStore.seedWelcome('jack');
+      return authService;
+    });
 
   /**
    * Every listener shares one queue, registry and auth service — they are the
@@ -72,6 +119,7 @@ export function createHost({
             auth: authService,
             queue,
             registry,
+            receipts,
             messages: messageStore,
             heartbeatIntervalMs,
           }),
@@ -164,9 +212,24 @@ export function createHost({
     } finally {
       clearTimeout(forced);
     }
+    // The last results reported before the listeners shut are only in memory
+    // until this lands; exiting first would lose them to the restart.
+    await journal.flush();
   }
 
-  return { server, servers, listen, queue, registry, auth: authService, messages: messageStore, ready, close };
+  return {
+    server,
+    servers,
+    listen,
+    queue,
+    registry,
+    receipts,
+    journal,
+    messages: messageStore,
+    auth: authService,
+    ready,
+    close,
+  };
 }
 
 /** The set of names a principal reads as "their own inbox". */
@@ -355,6 +418,25 @@ async function handle(req, res, ctx) {
         const body = await readJson(req);
         return sendJson(res, 200, {
           user: await ctx.auth.setUserScopes(userId, body?.scopes, principal),
+        });
+      }
+
+      // Recovery for a user who cannot supply their current password — the
+      // admin-side counterpart to /me/password. Authorization is this scope,
+      // not the old secret.
+      if (method === 'POST' && segments[2] === 'password' && segments[3] === 'reset' && segments.length === 4) {
+        require(SCOPES.USERS_WRITE);
+        const body = await readJson(req);
+        const { user, temporaryPassword } = await ctx.auth.adminResetPassword({
+          userId,
+          newPassword: body?.newPassword,
+          by: principal,
+        });
+        return sendJson(res, 200, {
+          user,
+          // Present only when the caller did not supply their own — shown
+          // exactly once, the same as an invite or key token.
+          ...(temporaryPassword ? { temporaryPassword } : {}),
         });
       }
     }
@@ -558,6 +640,10 @@ async function handle(req, res, ctx) {
         const controller = new AbortController();
         const onClose = () => controller.abort();
         res.on('close', onClose);
+        // 'close' fires once. An agent that hung up while this request was
+        // still being authenticated has already had it, and without this the
+        // poll would park for a connection that no longer exists.
+        if (req.destroyed || res.destroyed || req.socket?.destroyed) controller.abort();
 
         const task = await ctx.queue.lease({
           agentId,
@@ -568,8 +654,9 @@ async function handle(req, res, ctx) {
 
         res.off('close', onClose);
         if (res.writableEnded || controller.signal.aborted) {
-          // Agent hung up while parked. Release the task it never received.
-          if (task) ctx.queue.fail(task.id, agentId, { message: 'agent disconnected while leasing', code: 'disconnected' });
+          // Agent hung up while parked. Hand back the task it never received,
+          // without charging the attempt: nothing ran, so this is not a failure.
+          if (task) ctx.queue.undelivered(task.id, agentId);
           // Complete the response even though nobody is reading it: returning
           // here without ending leaves the request open and server.close()
           // waits on it forever.
@@ -679,6 +766,38 @@ async function handle(req, res, ctx) {
       }
     }
 
+    /**
+     * The ledger of finished work, which outlives the queue that ran it.
+     *
+     * `/tasks` answers "what is the coordinator doing"; it is the live Map and
+     * it is empty after a restart. This answers "what has this fleet actually
+     * done", which is the question a person asks the morning after.
+     */
+    if (method === 'GET' && url.pathname === '/receipts') {
+      require(SCOPES.TASKS_READ);
+      const limit = Number.parseInt(url.searchParams.get('limit') ?? '100', 10);
+      const sinceRaw = Number.parseInt(url.searchParams.get('since') ?? '', 10);
+      return sendJson(res, 200, {
+        receipts: ctx.receipts.list({
+          type: url.searchParams.get('type') ?? null,
+          status: url.searchParams.get('status') ?? null,
+          since: Number.isFinite(sinceRaw) ? sinceRaw : null,
+          limit: Number.isFinite(limit) ? Math.min(Math.max(limit, 1), 1000) : 100,
+        }),
+        stored: ctx.receipts.size,
+      });
+    }
+
+    if (method === 'GET' && url.pathname === '/receipts/summary') {
+      require(SCOPES.TASKS_READ);
+      const sinceRaw = Number.parseInt(url.searchParams.get('since') ?? '', 10);
+      return sendJson(
+        res,
+        200,
+        ctx.receipts.summary({ since: Number.isFinite(sinceRaw) ? sinceRaw : null }),
+      );
+    }
+
     if (method === 'GET' && url.pathname === '/agents') {
       require(SCOPES.AGENTS_READ);
       // The host's own version rides along so a reader can tell at a glance
@@ -711,6 +830,7 @@ async function handle(req, res, ctx) {
     return sendJson(res, 404, { error: 'not_found' });
   } catch (error) {
     if (error instanceof ProtocolError) {
+      if (error.closeConnection && !res.headersSent) res.setHeader('connection', 'close');
       return sendJson(res, error.status, { error: error.code, message: error.message });
     }
     if (typeof error.status === 'number') {
@@ -726,23 +846,66 @@ function inviteUrl(req, token) {
   return `${base.replace(/\/+$/, '')}/invites/redeem#${encodeURIComponent(token)}`;
 }
 
+/**
+ * The refusal for an over-cap body. It used to destroy the request on the
+ * spot, which the client saw as a connection reset rather than a 413 it could
+ * read. Instead the rest of the body is left unread (a paused stream stops the
+ * socket once its buffer fills, so nothing more is held) and the reply goes
+ * out with `Connection: close`, after which Node ends the socket itself — so
+ * the unread remainder is never parsed as the next request. A client still
+ * streaming megabytes at that point may see the close as a reset anyway; one
+ * that waits for an answer gets the 413.
+ */
+function tooLarge() {
+  const error = new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' });
+  error.closeConnection = true;
+  return error;
+}
+
 function readJson(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
 
-    req.on('data', (chunk) => {
+    // A declared length already over the cap is refused before a byte of it
+    // is buffered, rather than after a megabyte has been.
+    const declared = Number.parseInt(req.headers['content-length'] ?? '', 10);
+    if (Number.isFinite(declared) && declared > MAX_BODY_BYTES) {
+      reject(tooLarge());
+      return;
+    }
+
+    const onData = (chunk) => {
       size += chunk.length;
       // Stop reading a body that is already too large instead of buffering it.
       if (size > MAX_BODY_BYTES) {
-        reject(new ProtocolError('request body too large', { status: 413, code: 'payload_too_large' }));
-        req.destroy();
+        req.off('data', onData);
+        req.pause();
+        chunks.length = 0;
+        reject(tooLarge());
         return;
       }
       chunks.push(chunk);
-    });
+    };
+    req.on('data', onData);
 
-    req.on('error', reject);
+    // A client hanging up mid-body is the client's problem, not the host's:
+    // answered as a 400 rather than surfacing as an unhandled 500 in the log.
+    req.on('error', (error) =>
+      reject(
+        new ProtocolError(`request body could not be read: ${error.message}`, {
+          code: 'incomplete_body',
+        }),
+      ),
+    );
+    // And if a hang-up ever arrives without an 'error', settle anyway so the
+    // handler finishes and lets go of what it buffered. A no-op once 'end' or
+    // 'error' has settled the promise.
+    req.on('close', () => {
+      if (!req.complete) {
+        reject(new ProtocolError('request body was cut off', { status: 400, code: 'incomplete_body' }));
+      }
+    });
 
     req.on('end', () => {
       const raw = Buffer.concat(chunks).toString('utf8');

@@ -1,5 +1,5 @@
 <#
-  usb-inventory.ps1 — enumerate what is physically attached to this laptop.
+  usb-inventory.ps1 - enumerate what is physically attached to this laptop.
 
       powershell -ExecutionPolicy Bypass -File .\usb-inventory.ps1
 
@@ -11,12 +11,12 @@
 
   The JSON is the point. Alpha's KnownDeviceProfilesPanel / DeviceManagerPanel
   work from device identity (VID/PID/serial), so a hand-typed list is not good
-  enough — that is what this produces.
+  enough - that is what this produces.
 
   Every section goes to the console *and* into the .txt through Emit. It used to
   be Write-Host only, so the readable half of "writes two files" was a lie: the
   path was printed at the end but nothing was ever written to it, and the report
-  died with the console window. Anything worth showing is worth keeping —
+  died with the console window. Anything worth showing is worth keeping -
   a COM port number read off the screen at 2am is the thing you need again at 9.
 #>
 
@@ -39,7 +39,7 @@ function Emit($text, $color) {
 function Section($t) { Emit "`n=== $t ===" 'Cyan' }
 
 # Format-Table renders lazily, so it has to be forced through Out-String before
-# it can be either printed or stored — otherwise the pipeline formats against
+# it can be either printed or stored - otherwise the pipeline formats against
 # the console and the file gets object noise.
 function EmitTable($rows, $props) {
   ($rows | Format-Table $props -AutoSize | Out-String).TrimEnd() | ForEach-Object { Emit $_ }
@@ -56,7 +56,7 @@ function Get-Ids($instanceId) {
   [pscustomobject]@{ vid = $vid; pid = $pid; serial = $serial }
 }
 
-Emit ("usb-inventory — {0} — {1}" -f $env:COMPUTERNAME, (Get-Date).ToString('u'))
+Emit ("usb-inventory - {0} - {1}" -f $env:COMPUTERNAME, (Get-Date).ToString('u'))
 
 Section "USB devices"
 $usb = Get-PnpDevice -PresentOnly |
@@ -77,7 +77,7 @@ $usb = Get-PnpDevice -PresentOnly |
 EmitTable $usb @('name', 'class', 'status', 'vid', 'pid')
 Emit ("  {0} USB device(s)" -f @($usb).Count)
 
-# Anything not "OK" is attached but not working — a missing driver, or a device
+# Anything not "OK" is attached but not working - a missing driver, or a device
 # that needs a power cycle. Worth seeing separately rather than buried above.
 $bad = @($usb | Where-Object { $_.status -ne 'OK' })
 if ($bad) {
@@ -115,5 +115,5 @@ Emit "  $txt"
 Emit ""
 
 # Last, so the .txt contains every section above it. Written even if a section
-# above found nothing — an empty report is still the answer to "what is plugged in".
+# above found nothing - an empty report is still the answer to "what is plugged in".
 $report.ToString() | Set-Content $txt -Encoding UTF8

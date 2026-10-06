@@ -1,5 +1,5 @@
 <#
-  fix-host.ps1 — repair the alpha-tunnel services and diagnose Starlink.
+  fix-host.ps1 - repair the alpha-tunnel services and diagnose Starlink.
 
   Run as Administrator, on the Alpha host:
       powershell -ExecutionPolicy Bypass -File .\fix-host.ps1
@@ -28,7 +28,7 @@ function Section($t) { Write-Host "`n=== $t ===" -ForegroundColor Cyan }
 $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) {
-  Write-Host "NOT running as Administrator — service repair will fail." -ForegroundColor Red
+  Write-Host "NOT running as Administrator - service repair will fail." -ForegroundColor Red
   Write-Host "Re-run from an elevated PowerShell.`n" -ForegroundColor Red
 }
 
@@ -42,13 +42,13 @@ if (-not $svcs) {
 
   $nssm = (Get-Command nssm -EA SilentlyContinue).Source
   if (-not $nssm) {
-    Write-Host "nssm not on PATH — cannot apply restart settings." -ForegroundColor Yellow
+    Write-Host "nssm not on PATH - cannot apply restart settings." -ForegroundColor Yellow
     Write-Host "Find it with: Get-ChildItem C:\ -Recurse -Filter nssm.exe -EA SilentlyContinue | Select -First 1" -ForegroundColor Yellow
   } else {
     Section "Services: applying resilience settings"
     foreach ($s in $svcs.Name) {
       # Come back from any unexpected exit, and do not give up on a fast
-      # crash-loop — a coordinator that dies at boot waiting for Tailscale
+      # crash-loop - a coordinator that dies at boot waiting for Tailscale
       # looks exactly like a service that "won't start".
       & $nssm set $s AppExit Default Restart   | Out-Null
       & $nssm set $s AppRestartDelay 5000      | Out-Null
@@ -146,7 +146,7 @@ if (-not $dish) {
 elseif (-not $net) {
   Write-Host "Dish answers, but there is no internet." -ForegroundColor Yellow
   Write-Host "That is Starlink service, not this machine: obstruction, an outage,"
-  Write-Host "still booting, or thermal shutdown. Open http://192.168.100.1 —"
+  Write-Host "still booting, or thermal shutdown. Open http://192.168.100.1 -"
   Write-Host "the status page names which one."
   Start-Process http://192.168.100.1 -EA SilentlyContinue
   Write-Host "`nWhere it stops:"
@@ -171,7 +171,7 @@ elseif (-not $dns) {
 }
 else {
   Write-Host "Starlink is fine from this machine: dish answers, internet routes, DNS resolves." -ForegroundColor Green
-  Write-Host "Whatever is failing is above the network — the app or the tunnel, not Starlink."
+  Write-Host "Whatever is failing is above the network - the app or the tunnel, not Starlink."
 }
 
 if ($tsIfaces.Count -and $wanIfaces.Count) {
@@ -180,7 +180,7 @@ if ($tsIfaces.Count -and $wanIfaces.Count) {
   ($tsIfaces + $wanIfaces) | Format-Table IPAddress, InterfaceAlias | Out-String | Write-Host
   Write-Host "Starlink hands out CGNAT addresses from 100.64.0.0/10 and Tailscale uses"
   Write-Host "the same range. That can break tunnel traffic while looking like a"
-  Write-Host "Starlink fault. Not auto-fixed — it needs a decision about which side"
+  Write-Host "Starlink fault. Not auto-fixed - it needs a decision about which side"
   Write-Host "moves. Send me this block."
 }
 
@@ -189,7 +189,7 @@ try {
   $h = Invoke-WebRequest http://127.0.0.1:8787/healthz -TimeoutSec 5 -UseBasicParsing
   Write-Host ("  /healthz -> {0} {1}" -f $h.StatusCode, $h.Content)
 } catch {
-  Write-Host "  /healthz did not answer — the coordinator is not listening on 127.0.0.1:8787" -ForegroundColor Yellow
+  Write-Host "  /healthz did not answer - the coordinator is not listening on 127.0.0.1:8787" -ForegroundColor Yellow
 }
 
 Write-Host "`nFull log written to: $log`n"
