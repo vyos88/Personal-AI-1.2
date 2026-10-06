@@ -202,6 +202,15 @@ function Find-Layout {
       Note "task Alpha runs: $($a.Execute) $($a.Arguments)"
       Note "            in: $($a.WorkingDirectory)"
     }
+    # start-alpha-at-boot.ps1 registers `cmd.exe /c "...\run-alpha.cmd"`, and
+    # the wrapper is what names the folder (`cd /d "<frontend>"`). Read it too,
+    # or every boot-task install reads as "serves some other folder".
+    foreach ($m in [regex]::Matches($taskText, '[A-Za-z]:\\[^"]+?\.(cmd|bat|ps1)')) {
+      if (Test-Path -LiteralPath $m.Value) {
+        $taskText += ' ' + (Get-Content -LiteralPath $m.Value -Raw -EA SilentlyContinue)
+        Note "            wrapper: $($m.Value)"
+      }
+    }
   }
   $fes = @(Find-Files @($AlphaRoot) @('package.json') 4 |
            Where-Object { (Get-Content $_.FullName -Raw -EA SilentlyContinue) -match '"vite"' })

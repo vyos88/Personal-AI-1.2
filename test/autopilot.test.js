@@ -68,7 +68,7 @@ test('a pass runs each queued id once, refuses the rest, and reports without sec
   // A stand-in ollama that prints things that must not leave the machine.
   const bin = join(dir, 'bin');
   mkdirSync(bin);
-  writeFileSync(join(bin, 'ollama'), '#!/bin/sh\necho "pulling $2"\necho "token=abcd1234efgh5678ijkl9012mnop"\necho "Authorization: Bearer sk1234567890abcdefghijklmn"\necho "alpha_key_live_secret_value"\n');
+  writeFileSync(join(bin, 'ollama'), '#!/bin/sh\necho "pulling $2"\necho "token=abcd1234efgh5678ijkl9012mnop"\necho "Authorization: Bearer sk1234567890abcdefghijklmn"\necho "alpha_key_live_secret_value"\nprintf "pulling 10%%\\r\\033[1Gpulling 50%%\\r\\033[Kpulling 100%%\\n"\nprintf "verifying\\nverifying\\nverifying\\nsuccess\\n"\n');
   chmodSync(join(bin, 'ollama'), 0o755);
   const env = { PATH: `${bin}${delimiter}${process.env.PATH}`, COMPUTERNAME: '' };
   const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', join(dir, 'sw')];
@@ -84,6 +84,14 @@ test('a pass runs each queued id once, refuses the rest, and reports without sec
   assert.match(report, /pulling llama3\.2:3b/);
   assert.match(report, /not on the menu: 'rm'/);
   assert.doesNotMatch(report, /abcd1234efgh|sk1234567890|live_secret/);
+  // The exit code reaches the report, and a progress bar collapses to its last state.
+  assert.match(report, /p1 {2}ollama-pull {2}-> {2}0 /);
+  // (PowerShell on Linux already splits redirected output at a carriage
+  // return, so only Windows hands the bar's redraws over as one line; what is
+  // checkable everywhere is that the escape codes are gone.)
+  assert.doesNotMatch(report, /\x1b|\[K|\[1G/);
+  assert.match(report, /pulling 100%/);
+  assert.equal(report.match(/^verifying$/gm)?.length, 1, 'repeated lines are kept once');
 });
 
 test('it does nothing on the wrong machine', { skip }, () => {
