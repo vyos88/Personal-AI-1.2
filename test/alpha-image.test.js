@@ -168,8 +168,9 @@ test('comfyui: posts a text-to-image workflow, polls history, fetches the PNG fr
   });
 
   const result = await image.run({ prompt: 'a lighthouse', negative_prompt: 'blurry', seed: 42, sampler_name: 'DPM++ 2M Karras', cfg_scale: 6.5 });
-  const workflow = comfy.seen[0].body.prompt;
-  assert.equal(typeof comfy.seen[0].body.client_id, 'string');
+  const posted = comfy.seen.find((x) => x.url === '/prompt');
+  const workflow = posted.body.prompt;
+  assert.equal(typeof posted.body.client_id, 'string');
   const byType = Object.fromEntries(Object.values(workflow).map((node) => [node.class_type, node.inputs]));
   assert.equal(byType.CheckpointLoaderSimple.ckpt_name, 'sdxl.safetensors');
   assert.equal(byType.KSampler.seed, 42);
@@ -265,4 +266,33 @@ test('alpha.image.file takes a name it wrote, never a path', async (t) => {
   await assert.rejects(imageFile.run({ name: 'img-1-2-abcdef.png', offset: -1 }), /offset/);
   await assert.rejects(imageFile.run({ name: 'img-1-2-abcdef.png', path: '/' }), /unknown key/);
   assert.deepEqual(imageFile.available(), { ok: true });
+});
+
+// Worker1, 2026-10-06: a ComfyUI set up by hand may hold another checkpoint
+// than the default; asking it which it has keeps images working there.
+test('comfyui: a checkpoint ComfyUI does not have is swapped for one it has', async (t) => {
+  assert.equal(image.chooseCheckpoint('a.safetensors', ['b.ckpt', 'a.safetensors']), 'a.safetensors');
+  assert.equal(image.chooseCheckpoint('a.safetensors', ['dreamshaper.safetensors', 'v1-5-pruned.ckpt']), 'v1-5-pruned.ckpt');
+  assert.equal(image.chooseCheckpoint('a.safetensors', ['only.safetensors']), 'only.safetensors');
+  assert.equal(image.chooseCheckpoint('a.safetensors', []), 'a.safetensors');
+  assert.equal(image.chooseCheckpoint('a.safetensors', undefined), 'a.safetensors');
+
+  const dir = await outputDir(t);
+  const comfy = await standIn(t, (req) => {
+    const url = new URL(req.url, 'http://x');
+    if (url.pathname === '/object_info/CheckpointLoaderSimple') {
+      return { json: { CheckpointLoaderSimple: { input: { required: { ckpt_name: [['realistic-sd15.safetensors'], {}] } } } } };
+    }
+    if (req.method === 'POST' && url.pathname === '/prompt') return { json: { prompt_id: 'p-9', node_errors: {} } };
+    if (url.pathname === '/history/p-9') {
+      return { json: { 'p-9': { status: { status_str: 'success', completed: true }, outputs: { 9: { images: [{ filename: 'x.png', subfolder: '', type: 'output' }] } } } } };
+    }
+    if (url.pathname === '/view') return { raw: PNG };
+    return { status: 404, json: {} };
+  });
+  withEnv(t, { ALPHA_IMAGE_BACKEND: 'comfyui', ALPHA_COMFYUI_URL: comfy.url, ALPHA_IMAGE_OUTPUT: dir });
+  await image.run({ prompt: 'a lighthouse' });
+  const workflow = comfy.seen.find((x) => x.url === '/prompt').body.prompt;
+  const loader = Object.values(workflow).find((n) => n.class_type === 'CheckpointLoaderSimple');
+  assert.equal(loader.inputs.ckpt_name, 'realistic-sd15.safetensors');
 });

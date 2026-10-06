@@ -77,8 +77,12 @@ if ($InstallComfy -and -not $SkipInstall -and -not (Answers 'http://127.0.0.1:81
     if (-not (Test-Path -LiteralPath $venvPy)) { & $Python -m venv (Join-Path $ComfyDir 'venv') }
     $gpu = [bool](Get-Command nvidia-smi -EA SilentlyContinue) -and ((& nvidia-smi -L 2>$null | Out-String) -match 'GPU')
     Write-Host $(if ($gpu) { 'NVIDIA GPU found: installing CUDA torch' } else { 'no NVIDIA GPU: installing CPU torch (an image takes minutes, not seconds)' })
-    $torchArgs = @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', 'torch', 'torchvision', 'torchaudio')
-    if ($gpu) { $torchArgs += @('--index-url', 'https://download.pytorch.org/whl/cu124') }
+    # ComfyUI's comfy_kitchen needs torch 2.7 or newer: on 2.6 (the newest
+    # cu124 build) it fails at import with "infer_schema(func): Parameter
+    # stride has unsupported type list[int]" (Host, job h05, 2026-10-06).
+    # cu128 carries 2.7+, and --upgrade replaces an older torch already there.
+    $torchArgs = @('-m', 'pip', 'install', '--disable-pip-version-check', '--quiet', '--upgrade', 'torch>=2.7', 'torchvision', 'torchaudio')
+    if ($gpu) { $torchArgs += @('--index-url', 'https://download.pytorch.org/whl/cu128') }
     & $venvPy @torchArgs 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
     & $venvPy -m pip install --disable-pip-version-check --quiet -r (Join-Path $ComfyDir 'requirements.txt') 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
     if ($LASTEXITCODE -ne 0) { Fail "ComfyUI requirements did not install (exit $LASTEXITCODE)" }

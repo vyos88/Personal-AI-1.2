@@ -313,6 +313,25 @@ test('a file a changed script imports, which this machine never had, is brought 
   assert.equal(readFileSync(join(live, 'frontend/vite.config.js'), 'utf8'), CONFIG);
 });
 
+test('a renamed file this machine never had is a delete already done plus a new file', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  const repo = f.repo.slice('file://'.length);
+  const body = ['def test_probe():', '    assert True', '', '', 'def test_more():', '    assert 1', ''].join('\n');
+  write(repo, `${SUB}/backend/tests/test_probe.py`, body);
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'a test file the live copy never got');
+  const from = git(repo, 'rev-parse', 'HEAD').trim();
+  git(repo, 'mv', `${SUB}/backend/tests/test_probe.py`, `${SUB}/backend/tests/test_probe_live.py`);
+  write(repo, `${SUB}/backend/tests/test_probe_live.py`, body.replace('assert 1', 'assert 2'));
+  git(repo, 'commit', '-qam', 'rename it');
+  const log = quiet();
+  const code = await main(['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', from, '--ops', f.ops,
+    '--skip-build', '--python', PY, '--apply'], log);
+  assert.equal(code, 0, log.lines.join('\n'));
+  assert.match(log.lines.join('\n'), /already +D backend\/tests\/test_probe\.py/);
+  assert.match(readFileSync(join(f.live, 'backend/tests/test_probe_live.py'), 'utf8'), /assert 2/);
+});
+
 test('a branch name that is not one is refused', async () => {
   const f = fixture();
   const out = quiet();

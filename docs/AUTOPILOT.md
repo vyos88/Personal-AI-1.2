@@ -63,6 +63,11 @@ queued after it, waits for the next pass, five minutes later.
 
 ## Standing checks
 
+- Bridges, every pass and before any queued action: when the scheduled task
+  `alpha-music bridge` (port 8790) or `alpha-image bridge` (port 7861) is
+  registered but nothing listens on its port, the task is ended and started
+  again, and the report says whether it answers now.
+
 Some checks run on every pass, with no id, and report only when their result
 changes. They are turned on in the same `actions.json`:
 

@@ -288,3 +288,19 @@ test('a checkout that cannot update says why in the report', { skip }, () => {
   pwsh(args, env);
   assert.equal(git(remote, 'rev-parse', 'status/laptop41-autopilot'), before);
 });
+
+// 2026-10-06: Worker1's music and image bridges were found down together,
+// with chat images routed through the image bridge. The autopilot starts a
+// registered bridge task whose port is empty, before any queued action runs.
+// (Get-ScheduledTask and Get-NetTCPConnection are Windows-only, so this checks
+// the code's shape; the full passes above show it stays out of the way.)
+test('down bridges are restarted before queued actions, and do not hold back the queue', () => {
+  const text = readFileSync(SCRIPT, 'utf8');
+  const bridges = text.indexOf('# 2b. The bridges come back by themselves.');
+  const queue = text.indexOf('# 3. Run what has not run.');
+  assert.ok(bridges > 0 && bridges < queue, 'the bridge check runs before the queue');
+  for (const [task, port] of [['alpha-music bridge', 8790], ['alpha-image bridge', 7861]]) {
+    assert.ok(text.includes(`task = '${task}'; port = ${port}`), `${task} on ${port}`);
+  }
+  assert.match(text, /if \(\$queuedRan -and \$p\.ok/, 'a restarted bridge never counts as a queued action for the time plan');
+});

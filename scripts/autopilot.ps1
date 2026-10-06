@@ -324,15 +324,41 @@ else {
   }
 }
 
-# 3. Run what has not run.
+# 2b. The bridges come back by themselves. Both are logon tasks on this
+# machine; on 2026-10-06 the music (8790) and image (7861) bridges were found
+# down together, and Alpha's IMAGE_GEN_URL points through 7861, so chat images
+# failed until someone noticed. A registered bridge task with nothing on its
+# port is started again here, before any queued action (a live test needs them).
 $ran = New-Object System.Collections.ArrayList
+$bridgeLines = New-Object System.Collections.ArrayList
+if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
+  foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790 }, @{ task = 'alpha-image bridge'; port = 7861 })) {
+    if (-not (Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue)) { continue }
+    if (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue) { continue }
+    # A launcher loop that is still running but whose node died cannot be
+    # told apart from outside: end the task's instance, then start it fresh.
+    Stop-ScheduledTask -TaskName $b.task -EA SilentlyContinue
+    Start-ScheduledTask -TaskName $b.task -EA SilentlyContinue
+    $deadline = (Get-Date).AddSeconds(45)
+    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 3 }
+    $up = [bool](Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)
+    [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): restarted, " + $(if ($up) { 'it answers now' } else { "still nothing on $($b.port) after 45s (its log is in %TEMP%)" }))
+  }
+}
+if ($bridgeLines.Count) {
+  [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if (($bridgeLines -join ' ') -match 'still nothing') { '1 (still down)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
+  $bridgeLines | ForEach-Object { Write-Host $_ }
+}
+
+# 3. Run what has not run.
+$queuedRan = 0
 foreach ($a in $queued) {
   $p = Resolve-Action $a
   if (-not $p.id -or $done.Contains($p.id)) { continue }
   # One long action may run past the plan, but none starts that would not fit:
   # it waits for the next pass, and so does everything queued after it.
   $elapsed = ((Get-Date) - $passStart).TotalMinutes
-  if ($ran.Count -and $p.ok -and ($elapsed + [int]$p.timeoutMin) -gt $PassMinutes) {
+  if ($queuedRan -and $p.ok -and ($elapsed + [int]$p.timeoutMin) -gt $PassMinutes) {
     Write-Host ("{0} {1}: deferred to the next pass ({2:N0} of {3} minutes used, it may take {4})" -f $p.id, $p.do, $elapsed, $PassMinutes, $p.timeoutMin)
     break
   }
@@ -416,6 +442,7 @@ foreach ($a in $queued) {
   $entry = [ordered]@{ id = $p.id; do = $p.do; result = "$code"; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail }
   $done[$p.id] = [ordered]@{ result = "$code"; at = $entry.at }
   [void]$ran.Add($entry)
+  $queuedRan++
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.

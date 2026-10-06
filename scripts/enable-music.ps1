@@ -112,6 +112,16 @@ if ($py) {
 # ------------------------------------------------------------ 2. .env.agent (+ service)
 if (-not (Test-Path -LiteralPath (Join-Path $Repo '.env.agent'))) { Write-Host 'no .env.agent yet: creating one with the music settings only' }
 $settings = @{ ALPHA_MUSIC_ROOT = $Repo }
+# The model cache this run filled is in this user's profile. An agent that is
+# a Windows service (Worker1's 'alpha-agent') runs as another account, whose
+# cache is empty: every track then started a multi-GB download inside its
+# 10-minute limit and never finished (live tests, 2026-10-06: 25-27 min
+# timeouts on Worker1, 50 s on the Host, whose agent runs as the user).
+$hfHome = if ($env:HF_HOME) { $env:HF_HOME } elseif ($env:USERPROFILE) { Join-Path $env:USERPROFILE '.cache\huggingface' } else { $null }
+if ($hfHome -and (Test-Path -LiteralPath $hfHome)) {
+  $settings.HF_HOME = $hfHome
+  Write-Host "model cache for the agent: $hfHome"
+}
 if ($py) { $settings.ALPHA_MUSIC_PYTHON = $py }
 if ($DryRun) { $settings.ALPHA_MUSIC_DRY_RUN = '1' }
 $handlers = Set-AgentHandlers -Repo $Repo -Handlers @('alpha-music', 'alpha-music-audio') -Settings $settings -Remove $(if ($DryRun) { @() } else { @('ALPHA_MUSIC_DRY_RUN') }) -Agent $agent

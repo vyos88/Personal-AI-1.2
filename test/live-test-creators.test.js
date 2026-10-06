@@ -12,7 +12,7 @@ const WAV = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WA
 
 // Stand-ins for the two bridges: two machines, and each new job goes to the
 // one with less in hand, the way the real bridges pick.
-function fakeBridges({ failImage = false } = {}) {
+function fakeBridges({ failImage = false, stuckMusic = false } = {}) {
   const tasks = new Map();
   const load = { worker1: 0, host: 0 };
   const pick = () => (load.worker1 <= load.host ? 'worker1' : 'host');
@@ -33,7 +33,7 @@ function fakeBridges({ failImage = false } = {}) {
       const task = /^\/music\/tasks\/(t\d+)$/.exec(req.url);
       if (task) {
         const t = tasks.get(task[1]); t.polls++;
-        const done = t.polls > 1;
+        const done = !stuckMusic && t.polls > 1;
         return send(res, 200, { taskId: task[1], status: done ? 'succeeded' : 'running', done, agent: t.machine, outputs: [{ name: 'a.wav', bytes: 1234 }] });
       }
       if (req.url === '/sdapi/v1/sd-models') return send(res, 200, [{ title: 'alpha-tunnel (worker1, host)' }]);
@@ -107,4 +107,14 @@ test('a failed creator fails the live test, with the reason', { timeout: 120_000
   const { code, text } = await runAgainst(fakeBridges({ failImage: true }), ['--only', 'image']);
   assert.equal(code, 1);
   assert.match(text, /PROBLEM: image 1: HTTP 503 no_image_machine/);
+});
+
+// 2026-10-06, Worker1: one track that never finished was waited on for 25 min,
+// and the run's 45-minute limit stopped it before images or the reel.
+test('stuck tracks share one deadline, and images are still tested', { timeout: 120_000 }, async () => {
+  const { code, text } = await runAgainst(fakeBridges({ stuckMusic: true }), ['--music-timeout-min', '0.1']);
+  assert.equal(code, 1);
+  assert.equal((text.match(/PROBLEM: track \d on \w+: timed out while running/g) || []).length, 2, text);
+  assert.match(text, /ok: image 1 made by/);
+  assert.match(text, /ok: image 2 made by/);
 });
