@@ -174,13 +174,6 @@ function Resolve-Action($a) {
       }
       $spec = Ps1 'ollama-keepalive.ps1' $rest; $out.timeoutMin = 10
     }
-    'install-agent-task' {
-      # Registers the 'alpha-tunnel agent' logon task, which is what
-      # enable-music restarts the agent with. No argument comes from the
-      # payload: with no -AlphaRoot it installs the agent keeper only, never
-      # Alpha, the standby or a Cloudflare tunnel.
-      $spec = Ps1 'install-always-on.ps1' @(); $out.timeoutMin = 5
-    }
     'brain-topology' {
       $rest = @((Join-Path $PSScriptRoot 'brain-topology-check.mjs'), '--alpha-root', $AlphaRoot, '--ops', $OpsDir)
       if ($a.fix -eq $true) {
