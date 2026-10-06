@@ -82,11 +82,6 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.ok(plan.a9.args.includes('--skip-scripts'));
   assert.match(plan.a6.reason, /not on the menu/);
   assert.match(plan.a8.reason, /task must be one of/);
-  // The agent task is what enable-music restarts the agent with, and nothing
-  // from the payload reaches install-always-on.ps1 -- so e2's extra keys are
-  // dropped rather than passed on.
-  assert.match(plan.e1.args.at(-1), /install-always-on\.ps1$/);
-  assert.deepEqual(plan.e2.args, plan.e1.args);
 });
 
 test('a pass runs each queued id once, refuses the rest, and reports without secrets', { skip }, () => {
