@@ -58,6 +58,8 @@ param(
   [string]$ExpectHost = 'DESKTOP-41HPLCN',
   [string]$Channel = 'laptop41',
   [int]$EveryMinutes = 5,
+  # How long one pass may take; the task's own time limit, read below, wins.
+  [int]$PassMinutes = 100,
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
@@ -241,7 +243,7 @@ if ($Install) {
   $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes)
   $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
-                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 6)
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
   Start-ScheduledTask -TaskName $taskName
   Write-Host "installed '$taskName': every $EveryMinutes minutes, runs what control/$Channel queues, reports to status/$Channel-autopilot." -ForegroundColor Green
@@ -258,6 +260,31 @@ if (Test-Path -LiteralPath $statePath) { try { $state = Get-Content -LiteralPath
 $done = [ordered]@{}
 if ($state -and $state.done) { foreach ($p in $state.done.PSObject.Properties) { $done[$p.Name] = $p.Value } }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$passStart = Get-Date
+# Entries that ran in a pass that never got to report (the task's time limit
+# stopped it): they are reported by this one.
+$pending = @()
+if ($state -and $state.pending) { $pending = @($state.pending) }
+
+# Task Scheduler stops a pass at the task's time limit, and on 2026-10-06
+# Worker1's queue (music, the route update, images, a live test) needed more
+# than the 2 hours it was installed with. A pass that is stopped loses nothing
+# now (progress is saved after every action), but it should not be stopped:
+# raise the limit to 6 hours once, and plan this pass inside whatever it is.
+if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
+  try {
+    $self = Get-ScheduledTask -TaskName $taskName -EA Stop
+    $limit = [string]$self.Settings.ExecutionTimeLimit
+    $span = if ($limit -and $limit -ne 'PT0S') { [Xml.XmlConvert]::ToTimeSpan($limit) } else { [TimeSpan]::FromHours(10) }
+    if ($span.TotalHours -lt 6) {
+      $self.Settings.ExecutionTimeLimit = 'PT6H'
+      Set-ScheduledTask -InputObject $self -EA Stop | Out-Null
+      Write-Host "raised '$taskName' time limit from $limit to 6 hours"
+      # This pass still runs under the old limit.
+    }
+    $PassMinutes = [math]::Max(20, [int]$span.TotalMinutes - 10)
+  } catch { }
+}
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
 $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
@@ -294,6 +321,13 @@ $ran = New-Object System.Collections.ArrayList
 foreach ($a in $queued) {
   $p = Resolve-Action $a
   if (-not $p.id -or $done.Contains($p.id)) { continue }
+  # One long action may run past the plan, but none starts that would not fit:
+  # it waits for the next pass, and so does everything queued after it.
+  $elapsed = ((Get-Date) - $passStart).TotalMinutes
+  if ($ran.Count -and $p.ok -and ($elapsed + [int]$p.timeoutMin) -gt $PassMinutes) {
+    Write-Host ("{0} {1}: deferred to the next pass ({2:N0} of {3} minutes used, it may take {4})" -f $p.id, $p.do, $elapsed, $PassMinutes, $p.timeoutMin)
+    break
+  }
   $started = Get-Date
   $log = Join-Path $dir "$stamp-$($p.id).log"
   $code = $null
@@ -351,6 +385,10 @@ foreach ($a in $queued) {
   $done[$p.id] = [ordered]@{ result = "$code"; at = $entry.at }
   [void]$ran.Add($entry)
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
+  # Saved now, not at the end: a pass stopped by the task's time limit would
+  # otherwise run every action of it again on the next pass.
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
 # 3b. Standing checks: run every pass, report only a change.
@@ -377,9 +415,10 @@ if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
 
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
-$history = @(@($ran) + $history | Select-Object -First 20)
+$history = @(@($ran) + $pending + $history | Select-Object -First 20)
+$ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.

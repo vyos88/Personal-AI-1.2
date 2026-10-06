@@ -51,6 +51,15 @@ reported.
 | `brain-topology` | `brain-topology-check.mjs`: the brain deck's links, from the backend's anatomy map through the deck's source to the build the site serves; with `"fix": true` and `"branch"`, brings in the fixed deck from that Alpha branch (`apply-alpha-update.mjs`, backups and rollback) |
 | `start-task` | `Start-ScheduledTask` for `Alpha`, `Alpha Backend`, `Alpha Self-Heal` or `Alpha Doctor` |
 
+## Long queues
+
+A pass saves its progress after every action, so a pass that Task Scheduler
+stops at the task's time limit never runs an action twice, and what it did is
+reported by the next pass. The task's limit is 6 hours (a machine installed
+with the old 2-hour limit raises it on its next pass), and a pass does not
+start an action that would not fit in what is left: that action, and what is
+queued after it, waits for the next pass, five minutes later.
+
 ## Standing checks
 
 Some checks run on every pass, with no id, and report only when their result
