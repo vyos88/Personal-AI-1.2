@@ -226,6 +226,28 @@ function npm(args, cwd) {
   return { ok: r.status === 0, tail: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim().split('\n').slice(-12).join('\n') };
 }
 
+// npm ci deletes node_modules before installing. On a host where Alpha's
+// frontend is running, Windows refuses to delete a native module it has loaded
+// (EPERM on rolldown-binding.win32-x64-msvc.node, Worker1, 2026-10-06), so an
+// update that changed no package failed and was rolled back. Reinstall only
+// when the packages changed or are missing; otherwise just build.
+const PACKAGE_FILES = new Set(['frontend/package.json', 'frontend/package-lock.json']);
+export function needsPackageInstall(fe, touchedPaths) {
+  return !existsSync(join(fe, 'node_modules')) || touchedPaths.some((p) => PACKAGE_FILES.has(p));
+}
+
+function installAndBuild(fe, touchedPaths, log) {
+  if (needsPackageInstall(fe, touchedPaths)) {
+    log('  installing frontend packages (npm ci) and building...');
+    const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
+    if (!ci.ok) return { ok: false, why: `npm ci failed:\n${ci.tail}` };
+  } else {
+    log('  packages unchanged and installed: building (no npm ci)...');
+  }
+  const build = npm(['run', 'build'], fe);
+  return build.ok ? { ok: true } : { ok: false, why: `the frontend build failed:\n${build.tail}` };
+}
+
 /** Puts every file in a backup back, and removes the ones the apply added. */
 export function rollback(backupDir, log = console.log) {
   const manifest = JSON.parse(readFileSync(join(backupDir, 'manifest.json'), 'utf8'));
@@ -262,9 +284,9 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     if (!opts.skipBuild && manifest.frontendTouched) {
       const fe = join(manifest.softwareRoot, 'frontend');
       log('  rebuilding the frontend from the restored files');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      const build = ci.ok ? npm(['run', 'build'], fe) : ci;
-      log(build.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${build.tail}`);
+      const touched = (manifest.areas?.[0] ? [...manifest.areas[0].changed, ...manifest.areas[0].added] : []);
+      const built = installAndBuild(fe, touched, log);
+      log(built.ok ? '  ok: frontend rebuilt' : `  frontend rebuild failed:\n${built.why}`);
     }
     if (opts.restart) restartWindows(log);
     return EXIT_OK;
@@ -416,11 +438,8 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
 
     if (frontendTouched && !opts.skipBuild) {
       const fe = join(softwareRoot, 'frontend');
-      log('  installing frontend packages (npm ci) and building...');
-      const ci = npm(['ci', '--no-audit', '--no-fund'], fe);
-      if (!ci.ok) return undo(`npm ci failed:\n${ci.tail}`);
-      const build = npm(['run', 'build'], fe);
-      if (!build.ok) return undo(`the frontend build failed:\n${build.tail}`);
+      const built = installAndBuild(fe, areas[0].todo.map((r) => r.path), log);
+      if (!built.ok) return undo(built.why);
       log('  ok: frontend built');
     }
 

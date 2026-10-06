@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot } from '../scripts/apply-alpha-update.mjs';
+import { main, findSoftwareRoot, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -258,4 +258,34 @@ test('a branch name that is not one is refused', async () => {
   const out = quiet();
   assert.equal(await main(args(f, '--branch', '../../etc'), out), 1);
   assert.match(out.lines.join('\n'), /not a branch name/);
+});
+
+test('packages are reinstalled only when they changed or are missing', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-npm-'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), true, 'no node_modules: install');
+  mkdirSync(join(dir, 'node_modules'));
+  assert.equal(needsPackageInstall(dir, ['frontend/src/a.css']), false);
+  assert.equal(needsPackageInstall(dir, ['frontend/package.json']), true);
+  assert.equal(needsPackageInstall(dir, ['frontend/package-lock.json']), true);
+});
+
+test('an update that changes no package builds without npm ci, which a running frontend would block', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  mkdirSync(join(f.live, 'frontend', 'node_modules'));
+  const bin = join(f.dir, 'bin');
+  mkdirSync(bin);
+  const calls = join(f.dir, 'npm-calls.txt');
+  writeFileSync(join(bin, 'npm'), `#!/bin/sh\necho "$@" >> "${calls}"\nexit 0\n`, { mode: 0o755 });
+  const path = process.env.PATH;
+  process.env.PATH = `${bin}:${path}`;
+  try {
+    const a = args(f, '--apply').filter((x) => x !== '--skip-build');
+    const out = quiet();
+    assert.equal(await main(a, out), 0, out.lines.join('\n'));
+    assert.match(out.lines.join('\n'), /packages unchanged and installed: building \(no npm ci\)/);
+  } finally {
+    process.env.PATH = path;
+  }
+  const lines = readFileSync(calls, 'utf8').trim().split('\n');
+  assert.deepEqual(lines, ['run build']);
 });
