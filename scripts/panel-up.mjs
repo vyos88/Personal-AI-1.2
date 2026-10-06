@@ -14,8 +14,10 @@
  *                     for ever. That is the mistake this script exists to stop
  *   2. coordinator  — is one answering? If not, start one, bound to loopback
  *                     *and* that LAN address, and leave it running
- *   3. credential   — a key for the panel, scoped to agents:read and nothing
- *                     else
+ *   3. credential   — a key for the panel, scoped to agents:read + tasks:read
+ *                     and nothing else: both read-only, so the screen on the
+ *                     wall can show the fleet and its receipts and queue
+ *                     nothing
  *   4. port         — which serial port the board is on
  *   5. provision    — SSID, password and the address, down the wire
  *   6. verify       — wait for the coordinator to see that key being used
@@ -68,6 +70,9 @@ Options
   --no-serve       Do not start a coordinator; fail if none is answering
   --list-ports     Print the serial ports on this machine and stop
   --scan           Ask the board which WiFi networks it can see, and stop
+  --page <n>       Turn the display to a page (fleet, machines, work, receipts,
+                   panel, or next) and stop. Add --hold to stop the rotation
+                   there, --no-hold to let it run again
   --help           This message
 
   Password: ALPHA_PANEL_WIFI_PASSWORD, or you will be asked
@@ -227,13 +232,18 @@ function startCoordinator(address, token) {
   return child.pid;
 }
 
-/** A credential for the panel: agents:read, and nothing else, ever. */
+// Two read scopes and nothing else: agents:read for the fleet pages, tasks:read
+// for the receipts page. Both are read-only — nothing here can queue work, which
+// is the property that matters for a credential living on a wall.
+const PANEL_SCOPES = ['agents:read', 'tasks:read'];
+
+/** A credential for the panel: two read scopes, and nothing else, ever. */
 async function mintPanelKey(url, token) {
   const email = `panel-${randomBytes(3).toString('hex')}@panel.local`;
   const { body: invited } = await fetchJson(`${url}/invites`, {
     method: 'POST',
     token,
-    body: { email, scopes: ['agents:read'] },
+    body: { email, scopes: PANEL_SCOPES },
   });
   const { body: redeemed } = await fetchJson(`${url}/invites/redeem`, {
     method: 'POST',
@@ -301,6 +311,8 @@ function parseArgs(argv) {
     serve: true,
     listPorts: false,
     scan: false,
+    page: null,
+    hold: undefined,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -309,6 +321,9 @@ function parseArgs(argv) {
     else if (arg === '--ssid') options.ssids.push(argv[++i] ?? '');
     else if (arg === '--list-ports') options.listPorts = true;
     else if (arg === '--scan') options.scan = true;
+    else if (arg === '--page') options.page = argv[++i] ?? '';
+    else if (arg === '--hold') options.hold = true;
+    else if (arg === '--no-hold') options.hold = false;
     else if (arg === '--port') options.port = argv[++i] ?? '';
     else if (arg === '--address') options.address = argv[++i] ?? '';
     else if (arg === '--primary') options.primary = argv[++i] ?? '';
@@ -365,12 +380,30 @@ async function main() {
     process.exit(0);
   }
 
+  // --- the display, which is the only thing this changes -----------------
+  if (options.page !== null || options.hold !== undefined) {
+    const port = await pickPort();
+    const turned = await panel.run(
+      {
+        action: 'Page',
+        port,
+        ...(options.page ? { page: options.page } : {}),
+        ...(options.hold === undefined ? {} : { hold: options.hold }),
+      },
+      {},
+    );
+    if (!turned.ready) stop(`page       : ${turned.refused}`);
+    say(`page       : showing ${turned.page}${turned.hold ? ' (held)' : ''}`);
+    if (turned.pages) say(`page       : pages are ${turned.pages.join(', ')}`);
+    process.exit(0);
+  }
+
   // --- read-only: what the board can hear -------------------------------
   if (options.scan) {
     const port = await pickPort();
     say(`scanning   : asking the board on ${port} what it can see...`);
     const scan = await panel.run({ action: 'Scan', port }, {});
-    if (!scan.ready) stop(`scan       : nothing on ${port} answered. Wrong port, or the board needs flashing`);
+    if (!scan.ready) stop(`scan       : ${scan.refused}`);
     if (!scan.networks?.length) stop('scan       : the board sees no networks at all from where it is');
     for (const network of scan.networks) {
       say(`  ${String(network.rssi).padStart(4)} dBm  ${network.ssid}${network.open ? '  (open)' : ''}`);
@@ -418,7 +451,7 @@ async function main() {
   let panelKey;
   try {
     panelKey = await mintPanelKey(here, token);
-    say(`key        : minted ${panelKey.id}, scoped to agents:read`);
+    say(`key        : minted ${panelKey.id}, scoped to ${PANEL_SCOPES.join(' + ')}`);
   } catch (error) {
     stop(`key        : could not mint one — ${error.message}`);
   }
@@ -467,9 +500,7 @@ async function main() {
     stop(`provision  : ${error.message}`);
   }
 
-  if (!provisioned.ready) {
-    stop(`provision  : nothing on ${port} answered. Wrong port, or the board needs flashing`);
-  }
+  if (!provisioned.ready) stop(`provision  : ${provisioned.refused}`);
   if (!provisioned.provisioned) {
     // Ask the board what it can hear before blaming the password. "None of
     // these is in range" and "that password is wrong" are different mornings,

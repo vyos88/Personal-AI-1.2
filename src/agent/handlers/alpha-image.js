@@ -321,9 +321,33 @@ function wait(ms, signal) {
   });
 }
 
+/**
+ * The checkpoint to load: the configured one when this ComfyUI has it, or
+ * else one it does have (an SD 1.5 one first), so a machine whose ComfyUI was
+ * set up by hand with another file still renders. ComfyUI lists its files at
+ * /object_info/CheckpointLoaderSimple; if that cannot be read, the configured
+ * name is used and ComfyUI's own error says what is missing.
+ */
+export function chooseCheckpoint(configuredName, available) {
+  const list = Array.isArray(available) ? available.filter((n) => typeof n === 'string' && n) : [];
+  if (!list.length || list.includes(configuredName)) return configuredName;
+  return list.find((n) => /v1-5|sd15|sd-v1|1\.5/i.test(n)) ?? list[0];
+}
+
+async function comfyCheckpoint(base, signal) {
+  const configuredName = configured('ALPHA_COMFYUI_CHECKPOINT', DEFAULT_CHECKPOINT);
+  try {
+    const info = await request(`${base}/object_info/CheckpointLoaderSimple`, { headers: { accept: 'application/json' }, signal }, 'ComfyUI');
+    const body = await info.json().catch(() => null);
+    return chooseCheckpoint(configuredName, body?.CheckpointLoaderSimple?.input?.required?.ckpt_name?.[0]);
+  } catch {
+    return configuredName;
+  }
+}
+
 async function renderComfy(recipe, signal) {
   const base = configured('ALPHA_COMFYUI_URL', DEFAULT_COMFYUI_URL).replace(/\/+$/, '');
-  const checkpoint = configured('ALPHA_COMFYUI_CHECKPOINT', DEFAULT_CHECKPOINT);
+  const checkpoint = await comfyCheckpoint(base, signal);
   const json = { 'content-type': 'application/json', accept: 'application/json' };
 
   const queued = await request(`${base}/prompt`, {

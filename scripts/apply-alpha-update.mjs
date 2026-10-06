@@ -56,7 +56,7 @@ import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync,
 } from 'node:fs';
 import { homedir, platform, tmpdir } from 'node:os';
-import { dirname, join, posix, resolve } from 'node:path';
+import { basename, dirname, join, posix, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULTS = {
@@ -136,7 +136,10 @@ export function resolveCommit(cache, ref) {
 /** The changes under subdir between two commits, as a patch and a file list. */
 export function buildPatch({ cache, from, to, subdir }) {
   const rel = `--relative=${subdir}`;
-  const patch = git(['diff', '--no-color', '--no-ext-diff', rel, from, to, '--', subdir], { cwd: cache }).stdout;
+  // --no-renames, as for the file list: a rename is a delete and an add, so
+  // a renamed file this machine never had is a delete already done plus a new
+  // file, not a rename of a missing file (Worker1, jobs 29 and 32).
+  const patch = git(['diff', '--no-color', '--no-ext-diff', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout;
   const files = git(['diff', '--name-status', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout
     .split('\n').filter(Boolean).map((line) => {
       const [status, path] = line.split('\t');
@@ -245,19 +248,54 @@ export function plan({ root, patch, files }) {
   return { stage, tree, patchFile, rows, meta };
 }
 
-function findPython(given) {
-  if (given) return given;
-  for (const name of platform() === 'win32' ? ['py', 'python'] : ['python3', 'python']) {
-    const r = spawnSync(name, ['--version'], { encoding: 'utf8' });
-    if (r.status === 0) return name;
+/**
+ * Every Python worth trying, as [command, ...leading args]: the one named
+ * with --python, Alpha's own backend venv, then the newest the launcher has.
+ * Worker1's backend runs a newer Python than plain `py` picked, and its live
+ * main.py uses syntax that older one cannot read (job 38: "line 18004:
+ * invalid syntax", 2300 lines from any change), so one interpreter is not
+ * enough to judge a merge.
+ */
+export function pythonCandidates(given, softwareRoot) {
+  const list = [];
+  if (given) list.push([given]);
+  const win = platform() === 'win32';
+  for (const venv of ['venv', '.venv']) {
+    const exe = join(softwareRoot ?? '', 'backend', venv, win ? 'Scripts' : 'bin', win ? 'python.exe' : 'python');
+    if (softwareRoot && existsSync(exe)) list.push([exe]);
   }
-  return null;
+  if (win) list.push(['py', '-3.14'], ['py', '-3.13'], ['py', '-3.12'], ['py'], ['python']);
+  else list.push(['python3'], ['python']);
+  return list;
 }
 
 function pythonParses(python, file) {
-  const code = 'import ast,sys; ast.parse(open(sys.argv[1], encoding="utf-8-sig").read())';
-  const r = spawnSync(python, ['-c', code, file], { encoding: 'utf8' });
-  return { ok: r.status === 0, detail: (r.stderr || '').trim().split('\n').pop() };
+  // The line number, never the line's text: the report is pushed to the tunnel.
+  const [cmd, ...pre] = Array.isArray(python) ? python : [python];
+  const code = 'import ast,sys\ntry: ast.parse(open(sys.argv[1], encoding="utf-8-sig").read())\nexcept SyntaxError as e: sys.exit("line %s: %s" % (e.lineno, e.msg))';
+  const r = spawnSync(cmd, [...pre, '-c', code, file], { encoding: 'utf8' });
+  const last = `${r.stderr || ''}`.trim().split('\n').pop();
+  return { ok: r.status === 0, detail: last, line: Number(/^line (\d+):/.exec(last)?.[1]) || null };
+}
+
+/**
+ * Where a broken line sits among the changes the patch made to one file:
+ * inside a hunk, or how far from the nearest one. A file that applied cleanly
+ * but no longer parses means a hunk landed beside code that changed here.
+ */
+export function nearestHunk(patch, path, line) {
+  const hunks = [];
+  let inFile = false;
+  for (const l of patch.split('\n')) {
+    if (l.startsWith('diff --git ')) inFile = l === `diff --git a/${path} b/${path}`;
+    const m = inFile && /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(l);
+    if (m) hunks.push({ start: Number(m[1]), end: Number(m[1]) + Number(m[2] ?? 1) - 1 });
+  }
+  if (!hunks.length || !line) return null;
+  const inside = hunks.find((h) => line >= h.start && line <= h.end);
+  if (inside) return `inside the change at lines ${inside.start}-${inside.end}`;
+  const near = hunks.reduce((a, h) => (Math.min(Math.abs(line - h.start), Math.abs(line - h.end)) < Math.min(Math.abs(line - a.start), Math.abs(line - a.end)) ? h : a));
+  return `${Math.min(Math.abs(line - near.start), Math.abs(line - near.end))} line(s) from the change at lines ${near.start}-${near.end}`;
 }
 
 function findPowerShell() {
@@ -363,13 +401,31 @@ export function rollback(backupDir, log = console.log) {
   return manifest;
 }
 
-function restartWindows(log) {
-  if (platform() !== 'win32') { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
-  for (const task of ['Alpha Backend', 'Alpha']) {
-    const q = spawnSync('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
+// Each task and the port its server listens on. `schtasks /End` ends the
+// task's cmd.exe and leaves the server it started holding the port, so the
+// task's next run cannot bind and the OLD server keeps serving: on Worker1,
+// 2026-10-06, the rebuilt pages showed (they are read from disk) but
+// vite.config.js's new /music routes did not (the preview server reads its
+// config once, at start). Whatever listens on the port goes too.
+export const RESTART_TASKS = [
+  { task: 'Alpha Backend', port: 8001 },
+  { task: 'Alpha', port: 4173 },
+];
+
+export function restartWindows(log, { spawn = spawnSync, isWindows = platform() === 'win32', tasks = RESTART_TASKS } = {}) {
+  if (!isWindows) { log('  --restart only does something on the Windows host; restart Alpha by hand.'); return; }
+  for (const { task, port } of tasks) {
+    const q = spawn('schtasks', ['/Query', '/TN', task], { encoding: 'utf8' });
     if (q.status !== 0) { log(`  no scheduled task '${task}': restart it by hand`); continue; }
-    spawnSync('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
-    const r = spawnSync('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
+    spawn('schtasks', ['/End', '/TN', task], { encoding: 'utf8' });
+    const held = spawn('powershell.exe', ['-NoProfile', '-Command',
+      `@(Get-NetTCPConnection -LocalPort ${port} -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess) -join ' '`], { encoding: 'utf8' });
+    const pids = String(held.stdout || '').trim().split(/\s+/).filter((pid) => /^\d+$/.test(pid) && pid !== '0' && pid !== '4');
+    for (const pid of new Set(pids)) {
+      const k = spawn('taskkill.exe', ['/T', '/F', '/PID', pid], { encoding: 'utf8' });
+      log(k.status === 0 ? `  stopped pid ${pid}, which held port ${port}` : `  could not stop pid ${pid} on port ${port}`);
+    }
+    const r = spawn('schtasks', ['/Run', '/TN', task], { encoding: 'utf8' });
     log(r.status === 0 ? `  restarted task '${task}'` : `  could not start '${task}': ${(r.stderr || r.stdout).trim()}`);
   }
   log('  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.');
@@ -501,6 +557,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
         cpSync(join(area.root, path), join(backupDir, 'files', area.name, path));
       }
     }
+    mkdirSync(backupDir, { recursive: true }); // an update that only adds files copies nothing into it
     writeFileSync(join(backupDir, 'manifest.json'), JSON.stringify({ softwareRoot, from, to, frontendTouched, areas: manifestAreas }, null, 2));
     log(`\n  backup: ${backupDir}`);
 
@@ -522,11 +579,29 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     const written = live.flatMap((area) => area.todo.filter((r) => r.status !== 'D').map((r) => join(area.root, r.path)));
     const pyFiles = written.filter((f) => f.endsWith('.py'));
     if (pyFiles.length) {
-      const python = findPython(opts.python);
-      if (!python) return undo('no Python found to check the backend files (pass --python)');
+      const candidates = pythonCandidates(opts.python, softwareRoot);
+      const usable = candidates.filter(([cmd, ...pre]) => spawnSync(cmd, [...pre, '--version'], { encoding: 'utf8' }).status === 0);
+      if (!usable.length) return undo('no Python found to check the backend files (pass --python)');
       for (const file of pyFiles) {
+        const area = live.find((a) => file.startsWith(join(a.root, '')));
+        const rel = area ? relative(area.root, file).split(sep).join('/') : null;
+        // Judge a changed file with a Python that reads it as it was before
+        // the merge; a new file with the first one that runs.
+        const before = area && rel ? join(backupDir, 'files', area.name, ...rel.split('/')) : null;
+        let python = usable[0];
+        if (before && existsSync(before)) {
+          python = usable.find((py) => pythonParses(py, before).ok);
+          if (!python) { log(`  note: no Python here reads ${file} as it was before this update either; not checked`); continue; }
+        }
         const res = pythonParses(python, file);
-        if (!res.ok) return undo(`${file} does not parse: ${res.detail}`);
+        if (res.ok) continue;
+        const where = rel ? nearestHunk(area.patch, rel, res.line) : null;
+        // Kept for whoever fixes it on this machine; rollback puts the live copy back.
+        const kept = join(backupDir, 'failed', area?.name ?? '', rel ?? basename(file));
+        mkdirSync(dirname(kept), { recursive: true });
+        cpSync(file, kept);
+        log(`  the merged file is kept at ${kept}`);
+        return undo(`${file} does not parse: ${res.detail}${where ? ` (${where})` : ''}`);
       }
       log(`  ok: ${pyFiles.length} Python file(s) parse`);
     }

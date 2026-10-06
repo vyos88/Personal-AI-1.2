@@ -390,6 +390,51 @@ on. Its policy lives in the pure `decide()` and is pinned by
 - Probes send `Host: <public host>` through `node:http` because that is what
   cloudflared sends and `fetch` cannot.
 
+## Alpha's Agent Manager, seen from any machine
+
+Alpha's Agent Manager (`scripts/alpha_agent_manager.ps1` in vyos88/Alpha) runs
+on the machine that runs Alpha and is the one authority over Alpha's agents: it
+starts and stops them, holds a machine-wide mutex so a second copy exits, and
+checks an allocation before its `device-command` starts anything on another
+laptop. The owner asked to see every agent from either laptop, with no
+duplicate work and no loops between managers. That is answered here with a
+viewer, never a second manager:
+
+- **One manager, any number of viewers.** `scripts/fleet-agents.mjs` draws the
+  manager's snapshot beside the coordinator's agents and leases, in the
+  manager's own Norton layout. It sends reads and one task type,
+  `alpha.agent-manager.status`, at most one at a time and only when an attached,
+  non-silent agent offers it; a test pins that this is the whole of what it
+  sends. Installing the manager itself on a second laptop to "see" it is the
+  thing not to do: two authorities is exactly how stewards double up and
+  restart each other.
+- **The read is a handler because the HTTP route wants the owner.**
+  `/agent-manager/status` needs Alpha's owner login, which no scheduled
+  console should hold. `agent-manager-status.js` reads
+  `memory/local/agent-manager/manager-status.json` inside
+  `ALPHA_AGENT_MANAGER_ROOT`, else `ALPHA_REPO_ROOT` (the root the coordination
+  handler uses), takes no arguments, starts no process, and is opt-in.
+  `available()` declines a root with no snapshot, because the Host's records
+  standby has an `ALPHA_REPO_ROOT` too. The two roots differ on Worker1: its
+  coordination log is in `C:\Users\Vyo\Alpha-1.8`, but the live manager runs
+  from `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai`, and reading the first
+  served a week-old snapshot. The stale check is what caught it.
+- **Stale is drawn as stale.** The manager rewrites its snapshot every 15 s;
+  both the handler and the viewer call it stale after two minutes, and the
+  viewer ages a kept snapshot by the time since it was read. An old snapshot
+  must never look like a live fleet.
+- **Managing across laptops is Alpha's, not this repo's.** Alpha already has
+  that half: `device-command` on the manager, `agent-control/poll` and
+  `receipt` from `alpha_agent_controller.py` on the other laptop, allowlisted
+  scripts only. A laptop takes part only if its device enrollment includes
+  `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
+  the "Managed control denied (HTTP=403)" in its supervisor log.
+
+Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
+that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
+not `ALPHA_REPO_ROOT`), then on any machine:
+`node scripts/fleet-agents.mjs --machines host=laptop-gj8dfmlk,worker1=desktop-41hplcn`.
+
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally
@@ -648,6 +693,63 @@ map has it either way, and the difference between the two is reported as "in use
 by another program?" rather than as no board at all. On POSIX `/dev/serial/by-id`
 supplies the label (`usb-1a86_...` is the CH340 this panel is behind) while the
 port opened is the node it resolves to.
+
+**The panel has pages, and each one is fetched only while it is on screen.**
+Five — `fleet`, `machines`, `work`, `receipts`, `panel` — rotating every
+`PAGE_INTERVAL_MS`, each sourced from the endpoint that owns its numbers
+(`/stats`, `/agents`, `/stats`, `/receipts/summary`, and nothing). Four rules
+hold it up:
+
+- **Only the visible page's endpoint is fetched.** `/stats` is polled for the
+  header regardless; `/agents` and `/receipts/summary` are read when their page
+  comes round. A wall display must not be the reason a coordinator is busy.
+- **`/agents` is parsed through a `DeserializationOption::Filter`.** The row
+  carries every field the host knows; an ESP32 parsing all of it for four
+  numbers is how a panel runs out of heap on the day a fourth laptop joins.
+- **The `panel` page needs no network**, which is the whole point of it: it is
+  what answers "is it the panel or the fleet?" when nothing is answering, and
+  it is where the board starts before a coordinator has ever replied.
+- **`Page` is an action, and the page list is mirrored from the firmware**
+  (`PANEL_PAGES` against `PAGE_NAMES`). A payload naming a page the board does
+  not have is refused on the task rather than swallowed by a board that keeps
+  showing what it was showing. `hold` stops the rotation, because somebody
+  standing in front of the machines page should not have it slide away
+  mid-sentence.
+
+The panel's key carries `agents:read` **and `tasks:read`** — the receipts page
+needs the second, both are read-only, and nothing either scope allows can queue
+work. A panel provisioned before that shows `key needs tasks:read` on that page
+instead of a confident row of zeroes.
+
+**Alpha's deck feed is three settings, and `scripts/fix-panel-host.mjs` is all
+three.** Alpha's own panel reaches its backend on a home-network address or not
+at all — never `127.0.0.1`, never a tailnet `100.x` — so `HOST` (what the
+backend binds), `ALPHA_TRUSTED_HOSTS` (read at startup; an address bound but not
+trusted answers 400, which reads as the panel's fault) and
+`ALPHA_PANEL_LAN_READ` (the route itself; off is a 404) each keep the screen
+dark on their own. The script adds this machine's address to the first two,
+turns the third on, and then makes *the request the panel makes* from that
+address, which is the only check that means anything. Three rules it follows:
+
+- **Nothing is removed.** `127.0.0.1` goes back if somebody took it out — the
+  doctor, the frontend and every local script reach the backend there — and a
+  tailnet address already listed stays, because the rest of the fleet is
+  reaching the backend through it.
+- **A missing `ALPHA_TRUSTED_HOSTS` is not invented.** Absent means the default
+  decides; writing one would quietly narrow a backend nobody asked to narrow.
+- **The duplicate that counts is the one rewritten.** dotenv takes the last
+  line, so changing an earlier one looks right in the file and does nothing —
+  the failure a reader cannot see.
+
+**Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
+`hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no
+credential, polls `/panel/crowpanel/public-state` on Alpha's backend, and takes
+bare-word `STATUS` / `WIFI` / `ALPHA` commands. Same board family, so it is the
+mistake that actually happens. `converseOver` records whether anything
+*non-JSON* arrived, and `describeSilence()` turns that into the difference
+between "nothing on COM3 answered" (bootloader, wrong port, no board) and
+"something on COM3 is talking but not in this protocol" with what it said. A
+timeout that blames the cable for the other firmware costs an evening.
 
 The panel reads `GET /stats` and draws it, so it reads the host's own key names
 — `queue.byStatus.leased` is what it calls *running* — and a test pins those

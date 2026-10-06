@@ -10,7 +10,8 @@
  *                the list, because that is the panel
  *   3. flash   — only with --flash: compile, then upload. Minutes, not seconds
  *   4. key     — the credential the panel reads /stats with. Minted here if you
- *                do not pass one, scoped to agents:read and nothing else
+ *                do not pass one, scoped to agents:read + tasks:read and
+ *                nothing else — both read-only
  *   5. provision — SSID, password, host and key, down the wire to the sketch
  *   6. verify  — watch the host until that key is actually used. This is the
  *                part that matters: everything above can succeed while the
@@ -152,9 +153,10 @@ async function mintKey(name) {
   const { body } = await fetchJson(`${hostUrl()}/keys`, {
     method: 'POST',
     token: adminToken(),
-    // agents:read and nothing else. The panel reads one endpoint; a key that
-    // could queue work is a screen on the wall that could queue work.
-    body: { name, scopes: ['agents:read'] },
+    // Two read scopes and nothing else: agents:read for the fleet pages,
+    // tasks:read for the receipts page. A key that could queue work would be a
+    // screen on the wall that could queue work.
+    body: { name, scopes: ['agents:read', 'tasks:read'] },
   });
   return { token: body.token, id: body.key.id };
 }
@@ -302,7 +304,7 @@ async function main() {
       const minted = await mintKey(options.keyName);
       keyToken = minted.token;
       keyId = minted.id;
-      say(`key       : minted ${keyId} as "${options.keyName}", scoped to agents:read`);
+      say(`key       : minted ${keyId} as "${options.keyName}", scoped to agents:read + tasks:read`);
     } catch (error) {
       say(`key       : ${error.message}`);
       return finish(record, options, say, 1);

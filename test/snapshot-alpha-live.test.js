@@ -38,6 +38,7 @@ function fixture({ liveMain = 'def login():\r\n    return "live"\r\n' } = {}) {
   write(repo, `${BASE}/software/frontend/src/a.css`, '.a{color:red}\n');
   write(repo, `${BASE}/scripts/steward.ps1`, '# steward\n');
   write(repo, 'Models/big.bin', 'never part of a snapshot\n');
+  write(repo, '.gitignore', 'builds/\n');
   git(repo, 'add', '-A');
   git(repo, 'commit', '-qm', 'base');
   // A bare copy to push to, so the test can see what arrived.
@@ -138,4 +139,43 @@ test('a second run works after alpha-full moved on under the first one\'s copied
   const log = quiet();
   assert.equal(await main(args(f), log), 0, log.lines.join('\n'));
   assert.match(log.lines.join('\n'), /READY: 1 file/);
+});
+
+// 2026-10-06: the live fleet view imports fleet_unified_view.py, a file only
+// Laptop41 has, so no session could read or fix it.
+test('--include-new brings new source files only, and scans every line of them', async () => {
+  const f = fixture();
+  write(f.live, 'software/backend/fleet_unified_view.py', 'def merge_fleet():\n    return {}\n');
+  write(f.live, 'software/frontend/src/newPanel.jsx', 'export default () => null\n');
+  write(f.live, 'scripts/new-steward.ps1', '# new\n');
+  write(f.live, 'software/backend/data/cache.py', 'x = 1\n');
+  write(f.live, 'software/frontend/src/node_modules/pkg/index.js', 'x\n');
+  write(f.live, 'software/backend/secret_keys.py', 'x = 1\n');
+  write(f.live, 'software/backend/big.py', `x = "${'a'.repeat(600 * 1024)}"\n`);
+  write(f.live, 'software/backend/notes.txt', 'not source\n');
+  write(f.live, 'Models/new.py', 'outside software and scripts\n');
+  // Laptop41 job 36: a path Alpha's .gitignore ignores stopped the snapshot.
+  write(f.live, 'scripts/games/guess/builds/run.js', 'x\n');
+  const log = quiet();
+  assert.equal(await main(args(f, '--push', '--include-new', '--branch', 'alpha-from-host-new'), log), 0, log.lines.join('\n'));
+  const text = log.lines.join('\n');
+  assert.match(text, /3 source file\(s\) only this machine has/);
+  assert.match(text, /not taken: 1 file\(s\) Alpha's \.gitignore ignores/);
+  assert.match(text, /not taken: software\/backend\/secret_keys\.py \(named like a secret\)/);
+  assert.match(text, /not taken: software\/backend\/big\.py \(over 512 KB\)/);
+  const bare = f.remote.replace('file://', '');
+  const files = git(bare, 'diff', '--name-only', 'alpha-full', 'alpha-from-host-new').trim().split('\n').sort();
+  assert.deepEqual(files, [
+    `${BASE}/scripts/new-steward.ps1`,
+    `${BASE}/software/backend/fleet_unified_view.py`,
+    `${BASE}/software/backend/main.py`,
+    `${BASE}/software/frontend/src/newPanel.jsx`,
+  ]);
+
+  const g = fixture();
+  write(g.live, 'software/backend/new_client.py', 'import os\nAPI_TOKEN = "abcdefghijklmnopqrstuvwxyz123456"\n');
+  const refused = quiet();
+  assert.equal(await main(args(g, '--push', '--include-new'), refused), 2);
+  assert.match(refused.lines.join('\n'), /software\/backend\/new_client\.py:2 +credential-looking/);
+  assert.equal(git(g.remote.replace('file://', ''), 'branch', '--list', 'alpha-from-host*').trim(), '');
 });

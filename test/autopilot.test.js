@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -47,11 +47,12 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'g2', do: 'brain-topology', fix: true, branch: 'claude/x-route-b' },
     { id: 'g3', do: 'brain-topology', fix: true, branch: '../x' },
     { id: 'g4', do: 'brain-topology', fix: true },
+    { id: 'h1', do: 'restart-site' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -65,6 +66,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.deepEqual(plan.g2.args.slice(-5), ['--fix', '--branch', 'claude/x-route-b', '--retry-hours', '0']);
   assert.match(plan.g3.reason, /plain branch name/);
   assert.match(plan.g4.reason, /fix needs branch/);
+  assert.equal(plan.h1.internal, 'restart-site');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -196,6 +198,62 @@ test('the standing brain check fixes the deck by itself and reports only a chang
   assert.match(pwsh(args, env).stdout, /nothing new to run/);
 });
 
+test('a pass defers what will not fit, and a stopped pass loses nothing', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-budget-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'actions.json'), JSON.stringify({ actions: [
+    { id: 'q1', do: 'ollama-pull', model: 'a:1' },
+    { id: 'q2', do: 'ollama-pull', model: 'b:1' },
+  ] }));
+  git(work, 'add', 'actions.json');
+  git(work, 'commit', '-qm', 'queue');
+  git(work, 'push', '-q', 'origin', 'control/laptop41');
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'ollama'), '#!/bin/sh\necho "pulled $2"\n');
+  chmodSync(join(bin, 'ollama'), 0o755);
+  const env = { PATH: `${bin}${delimiter}${process.env.PATH}`, COMPUTERNAME: '' };
+  const ops = join(dir, 'ops');
+  // ollama-pull may take 60 minutes: with a 1-minute plan, only the first runs.
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', ops, '-AlphaRoot', join(dir, 'sw'), '-PassMinutes', '1'];
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /q1 ollama-pull: 0/);
+  assert.match(first.stdout, /q2 ollama-pull: deferred to the next pass/);
+  const second = pwsh(args, env);
+  assert.match(second.stdout, /q2 ollama-pull: 0/);
+  assert.doesNotMatch(second.stdout, /q1 ollama-pull/);
+
+  // A pass the task's time limit stopped after an action: its state says the
+  // action is done and still to be reported. The next pass reports it and
+  // does not run it again.
+  const statePath = join(ops, 'autopilot', 'state.json');
+  const state = JSON.parse(readFileSync(statePath, 'utf8').replace(/^﻿/, ''));
+  state.done.q3 = { result: '0', at: '2026-10-06T19:00:00' };
+  state.pending = [{ id: 'q3', do: 'ollama-pull', result: '0', at: '2026-10-06T19:00:00', seconds: 5, tail: 'pulled c:1 before the stop' }];
+  writeFileSync(statePath, JSON.stringify(state));
+  const third = pwsh(args, env);
+  assert.equal(third.status, 0, third.stdout + third.stderr);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /## q3 {2}ollama-pull {2}-> {2}0/);
+  assert.match(report, /pulled c:1 before the stop/);
+  assert.match(pwsh(args, env).stdout, /nothing new to run/);
+});
+
 test('it does nothing on the wrong machine', { skip }, () => {
   const r = pwsh([SCRIPT, '-ExpectHost', 'DESKTOP-41HPLCN'], { COMPUTERNAME: 'LAPTOP-GJ8DFMLK' });
   assert.equal(r.status, 3);
@@ -228,4 +286,24 @@ test('a checkout that cannot update says why in the report', { skip }, () => {
   const before = git(remote, 'rev-parse', 'status/laptop41-autopilot');
   pwsh(args, env);
   assert.equal(git(remote, 'rev-parse', 'status/laptop41-autopilot'), before);
+});
+
+// 2026-10-06: Worker1's music and image bridges were found down together,
+// with chat images routed through the image bridge. The autopilot starts a
+// registered bridge task whose port is empty, before any queued action runs.
+// (Get-ScheduledTask and Get-NetTCPConnection are Windows-only, so this checks
+// the code's shape; the full passes above show it stays out of the way.)
+test('down bridges are restarted before queued actions, and do not hold back the queue', () => {
+  const text = readFileSync(SCRIPT, 'utf8');
+  const bridges = text.indexOf('# 2b. The bridges come back by themselves.');
+  const queue = text.indexOf('# 3. Run what has not run.');
+  assert.ok(bridges > 0 && bridges < queue, 'the bridge check runs before the queue');
+  for (const [task, port] of [['alpha-music bridge', 8790], ['alpha-image bridge', 7861]]) {
+    assert.ok(text.includes(`task = '${task}'; port = ${port}`), `${task} on ${port}`);
+  }
+  assert.match(text, /if \(\$queuedRan -and \$p\.ok/, 'a restarted bridge never counts as a queued action for the time plan');
+  // Why they keep going down: the task's state and last result, and the end of each log.
+  for (const log of ['alpha-music-bridge.log', 'alpha-image-bridge.log']) assert.ok(text.includes(`log = '${log}'`), log);
+  assert.match(text, /Get-ScheduledTaskInfo -TaskName \$b\.task/);
+  assert.match(text, /-replace '\(alpha_key_\|sk-\|ghp_\|github_pat_\)\\S\+', '\$1\*\*\*'/, 'keys in a log line are masked');
 });
