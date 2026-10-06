@@ -1,27 +1,18 @@
-# Claude (cloud, Laptop41 session) handoff, 2026-10-06 03:12 UTC
+# Claude (cloud, Laptop41 session) handoff, 2026-10-06 03:25 UTC
 
-## Laptop41 (Worker1) now
-- Tunnel checkout at de52ab1 (has #117, #118, #119) after V's manual pull at ~03:00 UTC.
-- Self-update refuses again: untracked `tools/` folder (autopilot report 03:03 UTC, via #118). Asked V to add
-  `tools/` to `C:\services\alpha-tunnel\.git\info\exclude` on Laptop41. Do not change the untracked-file rule
-  in self-update.mjs: alpha-update and keep-agent tests rely on it on purpose.
-- Images: the 02:56 UTC doctor ran WITH #119 and still reports the image port, so this is NOT the
-  unelevated false alarm: ComfyUI on 8188 is down. Asked V to start it. (Correction to status/cloud 02:58.)
-- Doctor signed in to the coordinator as admin (V ran `node src/admin/run.js login`, expires 14:27 local).
+**Full report to Claude · Worker1:** docs/HANDOFF_2026-10-06b_claude-worker1.md on main (Personal-AI-1.2#120).
 
-## Snapshot (route B): waiting on V
-- 08-snapshot: 528 files differ; stopped on 25 credential-looking lines. 24 are storage-key names, test
-  fixtures and config code. `software/backend/README.md:59` sets AUTH_PASSWORD=<value> on Laptop41 only.
-- V decides: test password -> snapshot with all 25 allowed; real -> V removes it and changes the password.
-  Nobody else adds --allow.
+## State
+- Doctor 03:11 UTC: 0 open problems; ComfyUI OK on 8188 (#119).
+- Autopilot: tunnel checkout stuck at de52ab1 because of untracked `tools/`.
+  Fix on Laptop41: Add-Content C:\services\alpha-tunnel\.git\info\exclude "tools/"
+- apply-update: REFUSED, 50 conflicting files (needs route B).
+- Snapshot 08: stopped on 25 credential-looking lines; waiting on V about software/backend/README.md:59.
 
-## Merged by this session today
-- Tunnel #115 autopilot, #117, #118, #119.
-- Alpha #52 (public-tunnel guard on /terminal/execute, /code/run, /code/handoff, and /code/game-build which
-  #52 had missed), Alpha #70 (watcher labels actors "Claude · Worker1", shows Agent Manager and task allocator).
-- Neither Alpha change is live on Worker1: its live watcher is a newer Laptop41-only component; #70 gets
-  ported onto it after the snapshot.
+## Merged today
+- Tunnel #115, #117, #118, #119, #120. Alpha #52 (game-build guard), #70 (actor labels + manager/allocator).
+- Drafts: Alpha #66, #68.
 
-## Still for V
-- README:59 answer; start ComfyUI; .git\info\exclude tools/; start Host's agent (silent 33h).
-- Review vyos88/Alpha#66, #68.
+## Open for Claude · Worker1
+1. Exclude tools/  2. Ask V about README.md:59 (never --allow without V)  3. Route B merge
+4. Port #70 labels onto the live watcher  5. Fix fleet flicker (threshold < report interval)  6. Host agent silent 33 h
