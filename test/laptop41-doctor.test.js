@@ -105,3 +105,63 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   assert.equal(third.status, 0, third.stdout + third.stderr);
   assert.equal(readFileSync(posts, 'utf8').trim().split(/\r?\n/).filter((l) => l.startsWith('Post|claude-')).length, 3);
 });
+
+// Chat is checked without a login: /ready, /chat guarded, Ollama has the
+// model and answers. A stand-in serves both the backend and Ollama.
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+
+function runPwsh(args, env) {
+  return new Promise((resolve) => {
+    const p = spawn(PWSH, args, { env });
+    let out = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    p.on('close', (status) => resolve({ status, out }));
+  });
+}
+
+async function doctorAgainst(handler) {
+  const server = createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-chat-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const r = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`, '-ChatModel', 'llama3.2:3b'], env);
+  server.close();
+  return r;
+}
+
+const json = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+
+test('chat is checked without a login: route guarded, model pulled and answering', { skip, timeout: 300_000 }, async () => {
+  const { status, out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 200, { ready: true, phase: 'ready' });
+    if (req.url === '/chat') return json(res, 401, { detail: 'Not authenticated' });
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'llama3.2:3b' }] });
+    if (req.url === '/api/generate') return json(res, 200, { response: 'OK', load_duration: 2e9, eval_count: 4, eval_duration: 1e9 });
+    json(res, 404, {});
+  });
+  assert.equal(status, 0, out);
+  assert.match(out, /ok: backend ready \(phase ready\)/);
+  assert.match(out, /ok: \/chat is mounted and asks for a login \(HTTP 401\)/);
+  assert.match(out, /ok: chat model 'llama3\.2:3b' answered in [\d.]+s \(load 2s, 4 tokens\/s\): OK/);
+  assert.doesNotMatch(out, /PROBLEM: (backend (is still|\/ready)|\/chat|Ollama|chat model)/);
+});
+
+test('a missing chat model and an open /chat are problems with a next step', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 503, { ready: false });
+    if (req.url === '/chat') return json(res, 200, { response: 'hi' });
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'qwen2.5:0.5b' }] });
+    json(res, 404, {});
+  });
+  assert.match(out, /PROBLEM: backend is still warming up/);
+  assert.match(out, /PROBLEM: \/chat answered without a login/);
+  assert.match(out, /Ollama models: qwen2\.5:0\.5b/);
+  assert.match(out, /PROBLEM: chat model 'llama3\.2:3b' is not pulled in Ollama/);
+  assert.match(out, /Pull the chat model/);
+});
