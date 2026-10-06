@@ -1074,6 +1074,27 @@ if ($Watch) {
   $handoffSeen = Relay-Branch 'status/claude-laptop41' 'reports/handoff.md' 'claude-laptop41' $handoffSeen
 }
 
+# Every machine's fleet-status.json in one folder on this machine, where
+# Alpha's /fleet/status and the CrowPanel read them (BACKLOG R10, R11): this
+# doctor's own, and each autopilot's from its status branch. Fetching is for
+# scheduled runs, like the relay.
+$fleetDir = Join-Path $reportDir 'fleet'
+New-Item -ItemType Directory -Force -Path $fleetDir | Out-Null
+Copy-Item $fleetPath (Join-Path $fleetDir 'laptop41.json') -Force
+if ($Watch) {
+  foreach ($b in 'status/host-autopilot', 'status/laptop41-autopilot') {
+    git -C $repo fetch -q origin $b 2>&1 | Plain | Out-Null
+    if ($LASTEXITCODE -ne 0) { continue }
+    $json = (git -C $repo show 'FETCH_HEAD:reports/fleet-status.json' 2>$null) -join "`n"
+    if ($LASTEXITCODE -eq 0 -and $json) {
+      [IO.File]::WriteAllText((Join-Path $fleetDir (($b -replace '^status/', '') + '.json')), $json, (New-Object Text.UTF8Encoding($false)))
+    }
+  }
+  # A branch that does not exist yet is not a failed check; without this its
+  # git exit code (128) became the doctor's own.
+  $global:LASTEXITCODE = 0
+}
+
 $state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; handoffSeen = $handoffSeen; relay = $(if ($relayNote) { $relayNote } elseif ($prev) { $prev.relay } else { $null }); open = $open }
 $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 

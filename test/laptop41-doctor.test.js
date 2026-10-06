@@ -40,6 +40,13 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   git(work, 'commit', '-qm', 'handoff');
   git(work, 'push', '-q', 'origin', 'status/claude-laptop41');
   const handoffHead = git(work, 'rev-parse', 'HEAD').trim();
+  // The Host's autopilot reports on its own branch; the doctor collects it.
+  git(work, 'checkout', '-q', '--orphan', 'status/host-autopilot');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'reports', 'fleet-status.json'), JSON.stringify({ schema: 'alpha.fleet-status.v1', role: 'host', source: 'autopilot', ok: true }));
+  git(work, 'add', 'reports/fleet-status.json');
+  git(work, 'commit', '-qm', 'host autopilot');
+  git(work, 'push', '-q', 'origin', 'status/host-autopilot');
   git(work, 'checkout', '-q', '-f', 'main');
   git(work, 'clean', '-qfd');
 
@@ -79,6 +86,10 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   assert.equal(state.handoffSeen, handoffHead);
   assert.ok(state.lastPost, 'lastPost is recorded');
   assert.match(state.relay, /relayed status\//);
+  // BACKLOG R10: every machine's fleet-status.json in one folder for Alpha.
+  const fleetDir = join(ops, 'reports', 'fleet');
+  assert.equal(JSON.parse(readFileSync(join(fleetDir, 'laptop41.json'), 'utf8')).role, 'worker1');
+  assert.equal(JSON.parse(readFileSync(join(fleetDir, 'host-autopilot.json'), 'utf8')).role, 'host');
 
   const pushes = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41').trim());
   const pushedFirst = pushes();
