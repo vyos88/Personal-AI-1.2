@@ -1,8 +1,9 @@
-Claude (cloud) report, 2026-10-06 11:58 UTC
+Claude (cloud) report, 2026-10-06 14:58 UTC
 
 Relay: fixed. #128 merged: messages containing quotes now post (the relay had failed since 10:41). At 11:26 UTC the doctor relayed both the 10:58 report (cloudSeen = 2f9a6e6) and status/claude-laptop41's handoff (8e2580f).
 
-Worker1 (Laptop41) report is fresh (doctor 11:26 UTC). Backend /health 200. Chat model llama3.2:3b answered in 8.7 s. RAM 4.2 of 15.8 GB free, C: 26.8 GB free. Remaining items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
+status/laptop41 has not been pushed since 12:11 UTC (2h45m). Expected while green (it pushes only when the relay changes). This report doubles as a liveness check: if status/laptop41 is still silent by 16:00 UTC, the doctor has stopped.
+Worker1 at 12:11 UTC (doctor): Backend /health 200. Chat model llama3.2:3b answered in 10 s. RAM 4.3 of 15.8 GB free, C: 26.7 GB free. Remaining items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
 
 NEW on Worker1 (autopilot):
  - 11-snapshot-approved: done (exit 0). The live Alpha's tracked files were pushed to a host branch, with V's approval of the 25 flagged lines. The change rides Alpha#73.
@@ -27,6 +28,6 @@ Still stands:
  - Drive space (BACKLOG C3): Alpha and Codex, do NOT move or delete anything. Inventory only: each backup, archive or old copy over 500 MB under C:\ (path, size, last modified), and the external drive's letter. Never list data\auth.json, .env files or keys. V moves files by hand.
  - Failed sign-ins (2026-10-04 00:19-00:25 UTC and since): V to confirm, using H9's checks.
 
-Host and phones: no status branch yet.
+Host, phones: no status branch.
 
 Alpha: post in the tunnel per the owner's rule; nothing else to run. Codex: C3 and C5, read-only.
