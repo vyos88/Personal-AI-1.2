@@ -1,8 +1,71 @@
-﻿# laptop41 autopilot 20261006-181346
+﻿# laptop41 autopilot 20261006-185352
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 824ee29 is current
+checkout 25072a3 is current
+
+## 20261006-19-enable-music  enable-music  ->  1   (2026-10-06T18:54:07, 1092s)
+```
+putting back 1 requirement(s) an earlier install broke in C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe: anyio<4.0.0,>=3.7.1
+ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe requirements are consistent again
+python: C:\AlphaData\creators-venv\Scripts\python.exe
+installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
+PROBLEM: torch/transformers do not import: NameError: name 'cpu' is not defined
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio
+ok: restarted the alpha-agent service
+the agent now offers alpha.music
+music bridge machines: host,worker1
+ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
+```
+
+## 20261006-20-music-route  apply-update  ->  0   (2026-10-06T19:12:19, 172s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: 47f0c5c..dff4d98 of claude/frie...(30) (last applied here: 47f0c5c)
+  applies  M frontend/src/brainTopology.js
+  applies  M frontend/src/brainTopologyProvenance.test.js
+  applies  M frontend/src/components/BrainNeuralModel.jsx
+  applies  A frontend/src/musicProxyRoutes.test.js
+  applies  M frontend/vite.config.js
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 5 file(s)
+  packages unchanged and installed: building (no npm ci)...
+  ok: frontend built
+DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+  restarted task 'Alpha Backend'
+  restarted task 'Alpha'
+  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+```
+
+## 20261006-21-enable-image  enable-image  ->  0   (2026-10-06T19:15:11, 28s)
+```
+image backend: a1111
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the alpha-agent service
+the agent now offers alpha.image
+image bridge machines: host,worker1
+ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
+ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
+restarted task 'Alpha Backend' so it reads the new image route
+done: this machine renders images for Alpha through the tunnel
+```
+
+## 20261006-22-live-test  live-test  ->  1   (2026-10-06T19:15:43, 1630s)
+```
+PROBLEM: the site (https://127.0.0.1:4173) sends /music to Alpha's backend, not the bridge (404)
+music machines: host, worker1
+PROBLEM: track 1 made by host in 50s, 511 bytes, audio did not start with a WAV header (HTTP 504)
+PROBLEM: track 2 on worker1: timed out (1613s)
+image machines: alpha-tunnel (host, worker1)
+PROBLEM: image 1: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
+PROBLEM: image 2: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
+PROBLEM: no images to make a reel from (the image test made none)
+music: 0/2 worked; by machine: none
+image: 0/2 worked; by machine: none
+video: 0/1 worked; by machine: none
+(node:19140) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
 
 ## 20261006-17-enable-music  enable-music  ->  1   (2026-10-06T18:13:49, 729s)
 ```
@@ -674,89 +737,5 @@ no alpha_coordination_tunnel.ps1 under C:\Users\Vyo\Downloads\VyoS-advance-tech-
   To https://github.com/vyos88/Personal-AI-1.2
      7cdc26c..a39a266  HEAD -> status/laptop41
 pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## 20261006-04-snapshot  snapshot  ->     (2026-10-06T03:06:11, 4s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
-STOP: could not fetch alpha-full: git checkout -q -B failed: error: Your local changes to the following files would be overwritten by checkout:
-	BuildArtifacts/installers/Alpha-Full/scripts/alpha_coordination_tunnel.ps1
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/__init__.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/auth.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/crowpanel.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/api/monetization.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/main.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/multibrain_router.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_crowpanel_api.py
-	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_multibrain_router.py
-	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/AdminSecurityPanel.jsx
-	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/SubscriptionPlansPanel.jsx
-Please commit your changes or stash them before you switch branches.
-Aborting
-  Alpha is a private repository: this machine needs git credentials for github.com.
-```
-
-## 20261006-05-apply-update  apply-update  ->     (2026-10-06T03:06:15, 41s)
-```
-  conflict M frontend/src/components/MusicCreatorPanel.jsx  -- error: frontend/src/components/MusicCreatorPanel.jsx: No such file or directory
-  applies  A frontend/src/config/fleetNames.js
-  conflict M frontend/src/config/generalRecommendations.js  -- error: patch failed: frontend/src/config/generalRecommendations.js:51
-  applies  M frontend/src/deckDensity.test.js
-  applies  A frontend/src/fleetNames.test.js
-  applies  A frontend/src/generalRecommendations.test.js
-  applies  A frontend/src/hubControlsReachable.test.js
-  conflict M frontend/src/main.jsx  -- error: patch failed: frontend/src/main.jsx:3
-  applies  A frontend/src/musicEntitlements.js
-  applies  A frontend/src/musicEntitlements.test.js
-  applies  A frontend/src/naturalVoices.test.js
-  conflict M frontend/src/pages/AdminSecurityPanel.jsx  -- error: patch failed: frontend/src/pages/AdminSecurityPanel.jsx:1
-  conflict M frontend/src/pages/CodingPanel.jsx  -- error: patch failed: frontend/src/pages/CodingPanel.jsx:1
-  conflict M frontend/src/pages/FileTailPanel.jsx  -- error: patch failed: frontend/src/pages/FileTailPanel.jsx:1
-  applies  M frontend/src/pages/HubDetail.jsx
-  conflict M frontend/src/pages/NetworkHubPanel.jsx  -- error: patch failed: frontend/src/pages/NetworkHubPanel.jsx:4
-  applies  M frontend/src/pages/OperationsWorkspacePanel.jsx
-  applies  A frontend/src/pages/OwnerSubscribersSummary.jsx
-  conflict M frontend/src/pages/SubscriptionPlansPanel.jsx  -- error: patch failed: frontend/src/pages/SubscriptionPlansPanel.jsx:3
-  applies  A frontend/src/phoneLayout.js
-  applies  A frontend/src/phoneLayout.test.js
-  applies  A frontend/src/scrollWithin.js
-  applies  A frontend/src/scrollWithin.test.js
-  applies  A frontend/src/securityEvents.js
-  applies  A frontend/src/securityEvents.test.js
-  conflict M frontend/src/services/lipSync.js  -- error: patch failed: frontend/src/services/lipSync.js:1
-  applies  A frontend/src/services/naturalVoices.js
-  conflict M frontend/src/styles-astral-unification.css  -- error: patch failed: frontend/src/styles-astral-unification.css:441
-  applies  A frontend/src/styles-audit-fixes.css
-  conflict M frontend/src/styles-chat-fit.css  -- error: patch failed: frontend/src/styles-chat-fit.css:76
-  applies  A frontend/src/styles-chrome-polish.css
-  conflict M frontend/src/styles-deck-fit.css  -- error: patch failed: frontend/src/styles-deck-fit.css:24
-  applies  A frontend/src/styles-fonts.css
-  applies  A frontend/src/styles-mobile-shell.css
-  applies  M frontend/src/styles-normal-window.css
-  conflict M frontend/src/styles-spatial-final.css  -- error: patch failed: frontend/src/styles-spatial-final.css:315
-  conflict M frontend/src/styles.css  -- error: patch failed: frontend/src/styles.css:129
-  conflict M frontend/src/tabs/Chat.jsx  -- error: patch failed: frontend/src/tabs/Chat.jsx:4
-  conflict M frontend/src/tabs/Hubs.jsx  -- error: patch failed: frontend/src/tabs/Hubs.jsx:20
-  conflict M frontend/src/voiceRuntime.test.js  -- error: patch failed: frontend/src/voiceRuntime.test.js:47
-  applies  M scripts/alpha-tailnet-git-ssh.ps1
-  conflict M scripts/alpha_agent_manager.ps1  -- error: patch failed: alpha_agent_manager.ps1:3
-  applies  M scripts/alpha_agent_manager_rotation.ps1
-  conflict M scripts/alpha_api_improvement_agent.ps1  -- error: patch failed: alpha_api_improvement_agent.ps1:1
-  applies  M scripts/alpha_api_stabilization_agent.py
-  conflict M scripts/alpha_chat_improvement_agent.ps1  -- error: patch failed: alpha_chat_improvement_agent.ps1:1
-  conflict M scripts/alpha_coordination_tunnel.ps1  -- error: patch failed: alpha_coordination_tunnel.ps1:16
-  conflict M scripts/alpha_deck_improvement_agent.ps1  -- error: patch failed: alpha_deck_improvement_agent.ps1:1
-  conflict M scripts/alpha_fleet_verification_steward.ps1  -- error: patch failed: alpha_fleet_verification_steward.ps1:135
-  conflict M scripts/alpha_gmail_triage_steward.ps1  -- error: patch failed: alpha_gmail_triage_steward.ps1:16
-  conflict M scripts/alpha_package_update_steward.ps1  -- error: patch failed: alpha_package_update_steward.ps1:1
-  conflict M scripts/alpha_spatial_signal_steward.ps1  -- error: patch failed: alpha_spatial_signal_steward.ps1:18
-  applies  A scripts/alpha_steward_common.ps1
-  conflict M scripts/alpha_surface_health_steward.ps1  -- error: patch failed: alpha_surface_health_steward.ps1:17
-  conflict M scripts/test_alpha_agent_manager.ps1  -- error: patch failed: test_alpha_agent_manager.ps1:3
-  applies  A scripts/test_alpha_steward_common.ps1
-  conflict M scripts/watch_alpha_coding_executor.ps1  -- error: patch failed: watch_alpha_coding_executor.ps1:2
-  applies  M scripts/watch_alpha_workspace_agent.ps1
-REFUSED: 50 file(s) here differ where the change was made. Nothing was written.
-  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
 ```
 
