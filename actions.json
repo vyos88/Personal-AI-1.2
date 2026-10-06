@@ -155,6 +155,12 @@
    "includeNew": true,
    "allow": "software/backend/README.md:59,software/backend/config.py:464,software/backend/main.py:23607,software/backend/run_server.py:24,software/backend/tests/test_autonomy_runs.py:304,software/backend/tests/test_codex_provider_executor.py:37,software/backend/tests/test_google_integration.py:26,software/backend/tests/test_knowledge_store.py:65,software/backend/tests/test_knowledge_store.py:95,software/backend/tests/test_spotify_integration.py:84,software/backend/tests/test_spotify_integration.py:191,software/backend/tests/test_spotify_integration.py:212,software/frontend/src/app/shell/AppShell.tsx:14,software/frontend/src/app/shell/AppShell.tsx:15,software/frontend/src/components/AlphaDockedChat.jsx:30,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/SupervisedCodexExecutor.jsx:11,software/frontend/src/pages/DiagnosticsHubPanel.jsx:216,software/frontend/src/pages/DiagnosticsHubPanel.jsx:217,software/frontend/src/pages/DiagnosticsHubPanel.jsx:218,software/frontend/src/pages/MemoryHubPanel.jsx:378,software/frontend/src/tabs/Chat.jsx:41,software/frontend/src/tabs/Hubs.jsx:111,software/frontend/src/tabs/Hubs.jsx:112,software/frontend/src/tabs/Hubs.jsx:113",
    "why": "owner asked what to update from Laptop41: the live code has source files GitHub never got (fleet_unified_view.py, which the live fleet view imports). #140 --include-new: source only, credential-scanned; allow = exactly the 25 lines the owner approved 2026-10-05, nothing more. Any new finding stops the push."
+  },
+  {
+   "id": "20261006-29-fleet-coordinator",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "owner: live fleet not live. The fleet view asked the coordinator on 127.0.0.1:8787; it runs on the Host since 2026-10-05 (Alpha route-b: tunnel_coordinator.py reads ALPHA_HOST_URL from the tunnel .env). Restarts the backend and site with #139's restart."
   }
  ],
  "autofix": {
