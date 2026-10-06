@@ -283,19 +283,33 @@ function pythonParses(python, file) {
  * inside a hunk, or how far from the nearest one. A file that applied cleanly
  * but no longer parses means a hunk landed beside code that changed here.
  */
-export function nearestHunk(patch, path, line) {
+export function nearestHunk(patch, path, line, applyLog = '') {
   const hunks = [];
   let inFile = false;
   for (const l of patch.split('\n')) {
     if (l.startsWith('diff --git ')) inFile = l === `diff --git a/${path} b/${path}`;
     const m = inFile && /^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/.exec(l);
-    if (m) hunks.push({ start: Number(m[1]), end: Number(m[1]) + Number(m[2] ?? 1) - 1 });
+    if (m) hunks.push({ n: hunks.length + 1, start: Number(m[1]), end: Number(m[1]) + Number(m[2] ?? 1) - 1, offset: 0 });
+  }
+  // `git apply -v` names each hunk it had to place elsewhere in this
+  // machine's copy: "Hunk #3 succeeded at 17990 (offset 2300 lines)." Line
+  // numbers in the merged file are where the hunks landed, not where the
+  // branch has them.
+  let current = null;
+  for (const l of applyLog.split('\n')) {
+    const checking = /^Checking patch (.+)\.\.\.$/.exec(l.trim());
+    if (checking) { current = checking[1]; continue; }
+    const moved = current === path && /^Hunk #(\d+) succeeded at \d+ \(offset (-?\d+) lines?\)/.exec(l.trim());
+    const h = moved && hunks[Number(moved[1]) - 1];
+    if (h) { h.offset = Number(moved[2]); h.start += h.offset; h.end += h.offset; }
   }
   if (!hunks.length || !line) return null;
+  const label = (h) => `change #${h.n} at lines ${h.start}-${h.end}${h.offset ? `, placed ${Math.abs(h.offset)} line(s) ${h.offset > 0 ? 'later' : 'earlier'} than on the branch` : ''}`;
   const inside = hunks.find((h) => line >= h.start && line <= h.end);
-  if (inside) return `inside the change at lines ${inside.start}-${inside.end}`;
-  const near = hunks.reduce((a, h) => (Math.min(Math.abs(line - h.start), Math.abs(line - h.end)) < Math.min(Math.abs(line - a.start), Math.abs(line - a.end)) ? h : a));
-  return `${Math.min(Math.abs(line - near.start), Math.abs(line - near.end))} line(s) from the change at lines ${near.start}-${near.end}`;
+  if (inside) return `inside ${label(inside)}`;
+  const dist = (h) => Math.min(Math.abs(line - h.start), Math.abs(line - h.end));
+  const near = hunks.reduce((a, h) => (dist(h) < dist(a) ? h : a));
+  return `${dist(near)} line(s) from ${label(near)}`;
 }
 
 function findPowerShell() {
@@ -537,8 +551,9 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
 
     // Apply in each scratch tree, then copy back with each file's own endings.
     for (const area of live.filter((x) => x.todo.length)) {
-      const applied = git(['apply', ...area.todo.map((r) => `--include=${r.path}`), area.patchFile], { cwd: area.tree, allowFail: true });
+      const applied = git(['apply', '-v', ...area.todo.map((r) => `--include=${r.path}`), area.patchFile], { cwd: area.tree, allowFail: true });
       if (applied.status !== 0) { log(`STOP: git apply failed: ${applied.stderr.trim()}`); return EXIT_ERROR; }
+      area.applyLog = applied.stderr ?? '';
     }
 
     const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
@@ -595,7 +610,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
         }
         const res = pythonParses(python, file);
         if (res.ok) continue;
-        const where = rel ? nearestHunk(area.patch, rel, res.line) : null;
+        const where = rel ? nearestHunk(area.patch, rel, res.line, area.applyLog) : null;
         // Kept for whoever fixes it on this machine; rollback puts the live copy back.
         const kept = join(backupDir, 'failed', area?.name ?? '', rel ?? basename(file));
         mkdirSync(dirname(kept), { recursive: true });
