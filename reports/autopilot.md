@@ -1,8 +1,75 @@
-﻿# laptop41 autopilot 20261006-210846
+﻿# laptop41 autopilot 20261006-213346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 0e2d11d is current
+checkout a3b0fd1 is current
+
+## auto-bridges-20261006-213346  bridges (standing)  ->  0 (restarted)   (2026-10-06T21:34:04, 0s)
+```
+'alpha-music bridge' was not listening on 8790: restarted, it answers now
+```
+
+## 20261006-33-enable-image  enable-image  ->  0   (2026-10-06T21:34:05, 20s)
+```
+image backend: comfyui
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the alpha-agent service
+the agent now offers alpha.image
+image bridge machines: host,worker1
+ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
+ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
+restarted task 'Alpha Backend' so it reads the new image route
+done: this machine renders images for Alpha through the tunnel
+```
+
+## 20261006-34-apply-route-b  apply-update  ->  1   (2026-10-06T21:34:25, 10s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
+  applies  M backend/main.py
+  already  D backend/tests/test_image_backend_probe.py
+  applies  A backend/tests/test_image_backend_probe_live.py
+  applies  A backend/tests/test_tunnel_coordinator.py
+  applies  A backend/tunnel_coordinator.py
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 4 file(s)
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: SyntaxError: invalid syntax -- putting everything back
+  restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+```
+
+## 20261006-35-live-test  live-test  ->  1   (2026-10-06T21:34:35, 722s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+ok: track 1 made by host in 68s, 511 bytes, plays (WAV)
+PROBLEM: track 2 on worker1: timed out (721s)
+PROBLEM: image bridge does not answer at http://127.0.0.1:7861: fetch failed
+PROBLEM: no images to make a reel from (the image test made none)
+music: 1/2 worked; by machine: host x1
+image: 0/1 worked; by machine: none
+video: 0/1 worked; by machine: none
+(node:14716) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261006-36-snapshot-new  snapshot  ->  1   (2026-10-06T21:46:38, 43s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
+  1300 file(s) tracked under software\ and scripts\; 529 differ here; 115 not on this machine (left as they are)
+  not taken: software/backend/tests/test_owner_password_is_seed_only.py (named like a secret)
+  not taken: software/backend/tests/test_owner_password_persistence.py (named like a secret)
+  not taken: software/backend/tests/test_secret_scan_rules.py (named like a secret)
+  not taken: software/backend/tests/test_stale_password_consumers.py (named like a secret)
+  not taken: software/frontend/src/styles-tile-tokens.css (named like a secret)
+  not taken: scripts/alpha_private_beta_gate.ps1 (named like a secret)
+  not taken: scripts/alpha_secret_scan.py (named like a secret)
+  not taken: scripts/apply_pending_owner_password.py (named like a secret)
+  not taken: scripts/enter-owner-password-private.ps1 (named like a secret)
+STOP: git add -N -- failed: The following paths are ignored by one of your .gitignore files:
+BuildArtifacts/installers/Alpha-Full/scripts/alpha_code/games/alpha-guess-the-number/builds
+hint: Use -f if you really want to add them.
+hint: Disable this message with "git config set advice.addIgnoredFile false"
+```
 
 ## auto-bridges-20261006-210846  bridges (standing)  ->  0 (restarted)   (2026-10-06T21:09:05, 0s)
 ```
@@ -192,83 +259,5 @@ DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\a
   restarted task 'Alpha Backend'
   restarted task 'Alpha'
   Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-```
-
-## 20261006-21-enable-image  enable-image  ->  0   (2026-10-06T19:15:11, 28s)
-```
-image backend: a1111
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the alpha-agent service
-the agent now offers alpha.image
-image bridge machines: host,worker1
-ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
-ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
-restarted task 'Alpha Backend' so it reads the new image route
-done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261006-22-live-test  live-test  ->  1   (2026-10-06T19:15:43, 1630s)
-```
-PROBLEM: the site (https://127.0.0.1:4173) sends /music to Alpha's backend, not the bridge (404)
-music machines: host, worker1
-PROBLEM: track 1 made by host in 50s, 511 bytes, audio did not start with a WAV header (HTTP 504)
-PROBLEM: track 2 on worker1: timed out (1613s)
-image machines: alpha-tunnel (host, worker1)
-PROBLEM: image 1: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
-PROBLEM: image 2: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
-PROBLEM: no images to make a reel from (the image test made none)
-music: 0/2 worked; by machine: none
-image: 0/2 worked; by machine: none
-video: 0/1 worked; by machine: none
-(node:19140) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-17-enable-music  enable-music  ->  1   (2026-10-06T18:13:49, 729s)
-```
-python: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-  ERROR: pip's dependency resolver does not currently take into account all the packages that are installed. This behaviour is the source of the following dependency conflicts.
-  fastapi 0.104.1 requires anyio<4.0.0,>=3.7.1, but you have anyio 4.15.1 which is incompatible.
-ok: torch and transformers import (2.14.1+cpu 5.19.0)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-backed up .env.agent to .env.agent.bak-20261006-182545
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio
-PROBLEM: no scheduled task 'alpha-tunnel agent' to restart the agent with (scripts\install-always-on.ps1 installs it)
-ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
-```
-
-## 20261006-18-music-route  apply-update  ->  1   (2026-10-06T18:25:59, 102s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: 47f0c5c..af139ec of claude/frie...(30) (last applied here: 47f0c5c)
-  applies  A frontend/src/musicProxyRoutes.test.js
-  applies  M frontend/vite.config.js
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 2 file(s)
-  packages unchanged and installed: building (no npm ci)...
-  the frontend build failed:
-    at aggregateBindingErrorsIntoJsError (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/rolldown/dist/shared/error-BgfXq0Tb.mjs:48:18)
-    at unwrapBindingResult (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/rolldown/dist/shared/error-BgfXq0Tb.mjs:18:128)
-    at #build (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/rolldown/dist/shared/rolldown-DP_p9pd3.mjs:132:34)
-    at async bundleConfigFile (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/chunks/node.js:36962:17)
-    at async bundleAndLoadConfigFile (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/chunks/node.js:36863:18)
-    at async loadConfigFromFile (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/chunks/node.js:36824:42)
-    at async resolveConfig (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/chunks/node.js:36433:22)
-    at async createBuilder (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/chunks/node.js:34066:17)
-    at async CAC.<anonymous> (file:///C:/Users/Vyo/Downloads/VyoS-advance-tech-ai/software/frontend/node_modules/vite/dist/node/cli.js:765:19) {
-  errors: [Getter/Setter]
-} -- putting everything back
-  restored 1 file(s), removed 1 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-```
-
-## 20261006-15-ollama-keepalive  ollama-keepalive  ->  0   (2026-10-06T17:58:49, 33s)
-```
-set OLLAMA_KEEP_ALIVE=24h for this user and the machine
-stopped 2 Ollama process(es)
-started the Ollama app
-loaded 'llama3.2:3b' in 23.5s
-ok: 'llama3.2:3b' is loaded and kept for 24 h after each use
 ```
 
