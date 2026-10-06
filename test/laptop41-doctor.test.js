@@ -191,3 +191,30 @@ test('a slow load is reported as a load, with the keep-alive fix', { skip, timeo
   assert.match(out, /"do":"ollama-keepalive"/);
   assert.doesNotMatch(out, /close heavy apps/);
 });
+
+// 2026-10-06: Generate failed three ways at once and the doctor said nothing.
+test('the Music Creator path is checked link by link', { skip, timeout: 300_000 }, async () => {
+  const server = createServer((req, res) => {
+    // The live site's mistake: /music went to Alpha's backend.
+    if (req.url === '/music/healthz') return json(res, 404, { detail: 'Not Found' });
+    json(res, 404, {});
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-music-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  // The doctor calls curl.exe by name.
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
+  chmodSync(join(bin, 'curl.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', String(port),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  server.close();
+  assert.match(out, /=== 5b\. Music Creator ===/);
+  assert.match(out, /PROBLEM: music bridge is not running on 127\.0\.0\.1:8790/);
+  assert.match(out, /PROBLEM: the site sends \/music to Alpha's backend, not the music bridge/);
+  assert.match(out, /"do":"enable-music","bridge":true/);
+});

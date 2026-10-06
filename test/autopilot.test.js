@@ -35,11 +35,17 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'c1', do: 'ollama-keepalive' },
     { id: 'c2', do: 'ollama-keepalive', keepAlive: '-1', model: 'llama3.2:3b' },
     { id: 'c3', do: 'ollama-keepalive', keepAlive: '24h; calc' },
+    { id: 'd1', do: 'enable-music', bridge: true },
+    { id: 'd2', do: 'enable-music', bridge: 'yes; calc', dryRun: true },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2']);
+  assert.equal(plan.d1.args.at(-1), '-Bridge');
+  assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
+  assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
+  assert.ok(!plan.d2.args.includes('-Bridge'));
   assert.match(plan.c1.args.join(' '), /ollama-keepalive\.ps1$/);
   assert.deepEqual(plan.c2.args.slice(-4), ['-KeepAlive', '-1', '-Model', 'llama3.2:3b']);
   assert.match(plan.c3.reason, /keepAlive must be/);
