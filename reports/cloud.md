@@ -1,21 +1,24 @@
-Claude (cloud) report, 2026-10-06 09:58 UTC
+Claude (cloud) report, 2026-10-06 10:58 UTC
 
-Relay: working. cloudSeen = 1541910 (the 06:58 report). This report reaches Alpha's tunnel within about 15 min.
+Relay: cloudSeen = 7593ae1 (the 09:58 report). The doctor's last attempt to post status/claude-laptop41's handoff failed (exit 1); it will retry on the next run.
 
-Worker1 (Laptop41) report is fresh (doctor 09:41 UTC): 0 open problems, backend /health 200, RAM 4.6 of 15.8 GB free, C: 26.9 GB free.
-NEW, #124 merged: the doctor now checks Alpha's chat on every run, without a login. First result:
- - the backend is ready, and /chat is mounted and asks for a login (401);
- - Ollama has llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b and deepseek-r1:1.5b;
- - llama3.2:3b answered in 6.3 s (4.9 s load, 13.2 tokens/s).
-So chat works up to the model; a full logged-in conversation is still tested only with -ChatUser. If Ollama stops, the model goes missing, or a reply takes over 60 s, the doctor will report it.
-Remaining doctor items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
+Worker1 (Laptop41) report is fresh (doctor 10:56 UTC). Backend /health 200. Chat model llama3.2:3b answered in 8.5 s. RAM 4.2 of 15.8 GB free, C: 26.9 GB free. Remaining items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
 
-NEW, route B unblocked: a session queued 11-snapshot-approved on control/laptop41 (09:56 UTC). Its commit says V approved all 25 flagged lines at about 09:50 UTC: README.md:59's AUTH_PASSWORD is a test value and the other 24 are code. When autopilot runs it, the live Alpha's tracked files go to a new alpha-from-host branch. A session then merges alpha-full onto it, which brings Alpha#52 (public-tunnel guard) and #70 (actor labels) live.
+NEW on Worker1 (autopilot):
+ - 11-snapshot-approved: done (exit 0). The live Alpha's tracked files were pushed to a host branch, with V's approval of the 25 flagged lines. The change rides Alpha#73.
+ - 14-apply-live-watcher: done (exit 0), after jobs 12 and 13 failed. Five files were applied:
+   - the coordination watcher now labels actors by machine ("Claude · Worker1", "Codex · Host", "Alpha · Worker1"; relayed cloud reports read "Claude (cloud)"), with new "Agent Manager · Worker1" and "Task allocator · Worker1" rows;
+   - the fleet-flicker fix (a 10-min presence window) went into alpha_agent_manager.ps1.
+   The frontend packages were found half-installed after job 12, so the updater reinstalled them (npm ci), rebuilt, and restarted 'Alpha Backend' and 'Alpha'. A rollback command is printed in the autopilot report.
+Merged here: #125 (apply-update --branch follows a host branch with its own applied record), #126 (build without npm ci when no package changed), #127 (repair half-deleted packages; stop and start the frontend around npm ci).
 
-Open for Claude · Worker1 (docs/HANDOFF_2026-10-06b_claude-worker1.md): route B merge once the snapshot lands; port #70's labels onto the live watcher; fix the fleet flicker (the silent threshold is shorter than the report interval); the Host agent has been silent for about 39 h.
+Open (status/claude-laptop41, HANDOFF_2026-10-06b):
+ 1. Restart the Agent Manager and stewards so the flicker fix loads (close the agent windows, then open "Alpha Governed Agents"). This needs a person.
+ 2. Route B, the rest: merge alpha-full's other fixes (#52 public-tunnel guard, #57-59, #68, login hardening) onto the live branch.
+ 3. The Host (laptop-gj8dfmlk) agent is silent; check it answers on the tailnet.
 Open here: drafts #121, #116, #99, #66 and older; #86, #83.
 
-Still needs V: Alpha#47/#24 (subscriber summary; premium-gated music tracks); Alpha#63 or #64; review Alpha#66 and #68 (drafts); the Host agent; storing the coordinator admin key on Worker1; the H9 failed-login checks; S1-S7 when the server arrives (today).
+Still needs V: the steward restart; Alpha#47/#24 (subscriber summary; premium-gated music tracks); Alpha#63 or #64; review Alpha#66, #68 and #73; the Host agent; storing the coordinator admin key on Worker1; the H9 failed-login checks; S1-S7 when the server arrives (today).
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
