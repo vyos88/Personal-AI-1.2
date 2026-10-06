@@ -41,6 +41,10 @@ param(
   [int]$CoordinatorPort = 8787,
   [string]$PublicHost = 'alpha-ai.uk',
   [string]$ChatUser = '',
+  # Where Alpha's chat model runs, and which model it asks for (Alpha's own
+  # defaults: config.py OLLAMA_BASE_URL / OLLAMA_MODEL).
+  [string]$OllamaUrl = $(if ($env:OLLAMA_BASE_URL) { $env:OLLAMA_BASE_URL } else { 'http://127.0.0.1:11434' }),
+  [string]$ChatModel = $(if ($env:OLLAMA_MODEL) { $env:OLLAMA_MODEL } else { 'llama3.2:3b' }),
   [switch]$Fix,
   [switch]$Push,
   # Scheduled mode: no prompts, never fixes, tracks problems across runs,
@@ -256,6 +260,49 @@ function Run-Checks {
 
   # ------------------------------------------------------------ chat
   Section '2. Chat'
+  # Without a login: is the backend ready, is /chat mounted and guarded, and
+  # does the chat model answer at all? Runs every pass, so scheduled reports
+  # say whether chat can work, not only whether the backend is up.
+  try {
+    $ready = Invoke-RestMethod -Uri "http://127.0.0.1:$BackendPort/ready" -TimeoutSec 15
+    OK "backend ready (phase $($ready.phase))"
+  } catch {
+    $code = $null; try { $code = [int]$_.Exception.Response.StatusCode } catch {}
+    if ($code -eq 503) { Problem "backend is still warming up (/ready answers 503)" }
+    else { Problem "backend /ready does not answer (HTTP $code)" }
+  }
+  $chatCode = $null
+  try {
+    Invoke-RestMethod -Method Post -Uri "http://127.0.0.1:$BackendPort/chat" -ContentType 'application/json' -Body '{"message":"ping"}' -TimeoutSec 30 | Out-Null
+    $chatCode = 200
+  } catch { try { $chatCode = [int]$_.Exception.Response.StatusCode } catch {} }
+  if ($chatCode -in 401, 403) { OK "/chat is mounted and asks for a login (HTTP $chatCode)" }
+  elseif ($chatCode -eq 200) { Problem '/chat answered without a login' }
+  else { Problem "/chat without a login answers HTTP $chatCode, expected 401 (route missing or failing)" }
+  $tags = $null
+  try { $tags = Invoke-RestMethod -Uri "$($OllamaUrl.TrimEnd('/'))/api/tags" -TimeoutSec 15 } catch { Problem "Ollama does not answer at $OllamaUrl" }
+  if ($tags) {
+    $names = @($tags.models | ForEach-Object { $_.name })
+    Note ("Ollama models: " + $(if ($names) { $names -join ', ' } else { 'none' }))
+    $want = if ($ChatModel -match ':') { $ChatModel } else { "${ChatModel}:latest" }
+    if ($names -notcontains $want) { Problem "chat model '$ChatModel' is not pulled in Ollama" }
+    else {
+      try {
+        $t0 = Get-Date
+        $gen = Invoke-RestMethod -Method Post -Uri "$($OllamaUrl.TrimEnd('/'))/api/generate" -ContentType 'application/json' -TimeoutSec 180 `
+                 -Body (@{ model = $ChatModel; prompt = 'Reply with the single word OK.'; stream = $false; options = @{ num_predict = 8 } } | ConvertTo-Json)
+        $secs = [math]::Round(((Get-Date) - $t0).TotalSeconds, 1)
+        $load = [math]::Round(([double]$gen.load_duration) / 1e9, 1)
+        $tps = if ([double]$gen.eval_duration -gt 0) { [math]::Round([double]$gen.eval_count / ([double]$gen.eval_duration / 1e9), 1) } else { 0 }
+        $txt = ("$($gen.response)" -replace '\s+', ' ').Trim()
+        if ($txt.Length -gt 60) { $txt = $txt.Substring(0, 60) + '...' }
+        OK "chat model '$ChatModel' answered in ${secs}s (load ${load}s, $tps tokens/s): $txt"
+        if ($secs -gt 60) { Problem "chat model '$ChatModel' took ${secs}s for a one-word reply: chat will time out" }
+      } catch {
+        Problem "chat model '$ChatModel' did not answer: $($_.Exception.Message)"
+      }
+    }
+  }
   if ($ChatUser -and -not $Watch) {
     if (-not $script:chatPass) { $script:chatPass = Read-Host "Alpha password for $ChatUser" -AsSecureString }
     $plainPw = [Runtime.InteropServices.Marshal]::PtrToStringAuto([Runtime.InteropServices.Marshal]::SecureStringToBSTR($script:chatPass))
@@ -611,6 +658,9 @@ $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
   @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
+  @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
+  @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
+  @{ m = "chat model '.*' (did not answer|took)";                                               r = 'The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
   @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
   @{ m = 'no dist|build is older|nothing serves Alpha|older build than dist';                   r = 'Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.' },
