@@ -75,6 +75,17 @@ function Resolve-Action($a) {
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
+      # A host branch (this machine's live code plus fixes, alpha-from-host-*
+      # based) keeps its own applied record; its first run names the commit
+      # this machine matches.
+      if ($a.branch) {
+        if ([string]$a.branch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or [string]$a.branch -match '\.\.') { $out.reason = 'branch must be a plain branch name'; return $out }
+        $rest += @('--branch', [string]$a.branch)
+      }
+      if ($a.from) {
+        if ([string]$a.from -notmatch '^[0-9a-f]{40}$') { $out.reason = 'from must be a full 40-character commit id'; return $out }
+        $rest += @('--from', [string]$a.from)
+      }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
     'snapshot' {
