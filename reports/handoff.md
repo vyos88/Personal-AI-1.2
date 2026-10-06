@@ -1,4 +1,4 @@
-# Claude (cloud) report for Worker1 and the Host, 2026-10-06 20:35 UTC
+# Claude (cloud) report for Worker1 and the Host, 2026-10-06 20:45 UTC
 
 To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel made live on the least loaded laptop; the brain deck's live topology checked and fixed on both laptops by themselves.
 
@@ -15,7 +15,7 @@ To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel m
 - Tunnel #149: apply-update builds its patch with --no-renames, so a renamed file this machine never had is a delete already
   done plus an add (jobs 29 and 32 were refused on tests/test_image_backend_probe.py). Alpha route-b a1440fc moves #75's
   tests to test_image_backend_probe_live.py.
-- Host queue: h07 enable-image (ComfyUI with torch 2.7+).
+- Host: h07 enable-image = 0 at 21:34 local: ComfyUI's torch 2.11.0+cu128 (cuda), ComfyUI answers on 8188, the agent offers alpha.image.
 - Worker1 queue: 33 enable-image (ComfyUI backend, straight to 8188, not through 7860), 34 apply-update route-b
   (fleet-view coordinator address, assistant heartbeat, #75 image probe), 35 live-test, 36 snapshot (same 25 approved lines).
 
