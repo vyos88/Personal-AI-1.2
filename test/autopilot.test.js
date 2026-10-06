@@ -292,4 +292,8 @@ test('down bridges are restarted before queued actions, and do not hold back the
     assert.ok(text.includes(`task = '${task}'; port = ${port}`), `${task} on ${port}`);
   }
   assert.match(text, /if \(\$queuedRan -and \$p\.ok/, 'a restarted bridge never counts as a queued action for the time plan');
+  // Why they keep going down: the task's state and last result, and the end of each log.
+  for (const log of ['alpha-music-bridge.log', 'alpha-image-bridge.log']) assert.ok(text.includes(`log = '${log}'`), log);
+  assert.match(text, /Get-ScheduledTaskInfo -TaskName \$b\.task/);
+  assert.match(text, /-replace '\(alpha_key_\|sk-\|ghp_\|github_pat_\)\\S\+', '\$1\*\*\*'/, 'keys in a log line are masked');
 });
