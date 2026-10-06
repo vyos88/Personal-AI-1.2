@@ -757,8 +757,11 @@ $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 
 # ------------------------------------------------------------ push
 # One branch, status/laptop41, fast-forwarded each time, so it is one place to
-# read rather than a branch per run. Scheduled runs push when Alpha is told.
-if ($Push -or ($Watch -and $due)) {
+# read rather than a branch per run. Scheduled runs push when Alpha is told,
+# and when the relay's outcome changes: while all is green nothing else would
+# push, so a cloud session could not see whether its report got through.
+$relayChanged = [bool]$relayNote -and ($relayNote -ne $(if ($prev) { [string]$prev.relay } else { '' }))
+if ($Push -or ($Watch -and ($due -or $relayChanged))) {
   $branch = 'status/laptop41'
   $wt = Join-Path $tmpDir "push-$stamp"
   git -C $repo fetch -q origin $branch 2>&1 | Plain | Out-Null

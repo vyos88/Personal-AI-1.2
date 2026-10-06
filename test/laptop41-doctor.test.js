@@ -76,10 +76,32 @@ test('the scheduled doctor finds scripts\\ beside software\\ and relays both clo
   assert.ok(state.lastPost, 'lastPost is recorded');
   assert.match(state.relay, /relayed status\//);
 
+  const pushes = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41').trim());
+  const pushedFirst = pushes();
+  assert.ok(pushedFirst >= 1, 'the first run pushed status/laptop41');
+
+  // A new handoff arrives while nothing else changed: the relay alone is
+  // reason to push, or the cloud session never sees that it got through.
+  git(work, 'checkout', '-q', 'status/claude-laptop41');
+  writeFileSync(join(work, 'reports', 'handoff.md'), '# Claude handoff, second\n');
+  git(work, 'commit', '-qam', 'handoff 2');
+  git(work, 'push', '-q', 'origin', 'status/claude-laptop41');
+  const handoff2 = git(work, 'rev-parse', 'HEAD').trim();
+  git(work, 'checkout', '-q', 'main');
+
   // The same reports are relayed once, not every 15 minutes.
   const second = spawnSync(PWSH, args, { encoding: 'utf8', env });
   assert.equal(second.status, 0, second.stdout + second.stderr);
   const again = readFileSync(posts, 'utf8').trim().split(/\r?\n/);
   assert.equal(again.filter((l) => l.startsWith('Post|claude-cloud|')).length, 1);
-  assert.equal(again.filter((l) => l.startsWith('Post|claude-laptop41|')).length, 1);
+  assert.equal(again.filter((l) => l.startsWith('Post|claude-laptop41|')).length, 2);
+  assert.ok(again.includes('Post|claude-laptop41|# Claude handoff, second'), again.join('\n'));
+  assert.equal(pushes(), pushedFirst + 1, 'the new relay was pushed');
+  const pushedState = JSON.parse(git(remote, 'show', 'status/laptop41:reports/doctor-state.json'));
+  assert.equal(pushedState.handoffSeen, handoff2);
+
+  // Nothing new: nothing relayed again.
+  const third = spawnSync(PWSH, args, { encoding: 'utf8', env });
+  assert.equal(third.status, 0, third.stdout + third.stderr);
+  assert.equal(readFileSync(posts, 'utf8').trim().split(/\r?\n/).filter((l) => l.startsWith('Post|claude-')).length, 3);
 });
