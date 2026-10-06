@@ -3,8 +3,10 @@
 Usage: alpha_login_failures.py <auth_users.db> <audit_store.db> [hours]
 
 Alpha records each failed sign-in in auth_security_events (address, client,
-account) and each rate-limited one in audit_events. Both are opened read-only.
-Called by check-alpha-logins.ps1.
+account) and in audit_events (address, account), and each rate-limited one in
+audit_events. Worker1's live backend wrote its failures to audit_events only:
+on 2026-10-06 this check said "none" over 1,789 of them, so both tables are
+read. Both are opened read-only. Called by check-alpha-logins.ps1.
 """
 import sqlite3
 import sys
@@ -40,6 +42,23 @@ def main(argv):
     for n, ip, user, agent, first, last in rows:
         print(f"  {n:6}  {ip or '?':16} {user or '?':12} {agent or '?'}  [{(first or '')[:19]} .. {(last or '')[:19]}]")
     if not rows:
+        print("  none")
+
+    print(f"Failed sign-ins, last {hours}h, by address / account (audit_events):")
+    rows = query(audit_db, f"""
+        select count(*), ip, actor, min(timestamp), max(timestamp)
+        from audit_events
+        where action = 'login' and status = 'failure' and replace(timestamp, 'T', ' ') >= {since}
+        group by 2, 3 order by 1 desc limit 12""")
+    for n, ip, actor, first, last in rows:
+        print(f"  {n:6}  {ip or '?':16} {actor or '?':12} [{(first or '')[:19]} .. {(last or '')[:19]}]")
+    if rows:
+        recent = query(audit_db, """
+            select count(*) from audit_events
+            where action = 'login' and status = 'failure'
+              and replace(timestamp, 'T', ' ') >= datetime('now', '-15 minutes')""")
+        print(f"  in the last 15 minutes: {recent[0][0] if recent else '?'}")
+    else:
         print("  none")
 
     print(f"Blocked sign-ins (rate limits), last {hours}h (audit_events):")
