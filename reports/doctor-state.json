@@ -1,24 +1,24 @@
 {
-    "cloudSeen":  "d852ceb5d1c63e2aa7e5424740867442ff4198f7",
-    "lastRun":  "2026-10-06T22:26:31",
-    "handoffSeen":  "f6903e6dc1209d987643164bb27f273183992f9a",
+    "cloudSeen":  "8af6f14775e33896d4c5589b0b7559cc14a001bb",
+    "lastRun":  "2026-10-06T22:41:29",
+    "handoffSeen":  "55215c3f932c78f3ad616bf9fac7c7cac0630385",
     "open":  {
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-06T19:56:29",
-                                                                                                                                            "runs":  11,
+                                                                                                                                            "runs":  12,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
                                                                                                                                                                               "since":  "2026-10-06T19:56:29",
-                                                                                                                                                                              "runs":  11,
+                                                                                                                                                                              "runs":  12,
                                                                                                                                                                               "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
                                                                                                                                                                           },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-06T19:56:29",
-                                                                                                                                                         "runs":  11,
+                                                                                                                                                         "runs":  12,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
     "lastPost":  "2026-10-06T21:56:27",
-    "relay":  "relayed status/cloud d852ceb"
+    "relay":  "relayed status/claude-laptop41 55215c3"
 }
