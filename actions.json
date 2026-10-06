@@ -170,6 +170,13 @@
    "why": "the music bridge answered on 8790 at 19:53 (job 23) and was down by 20:26: 'Generate cannot queue anything'. Both bridges start at logon and nothing supervises them. enable-music re-registers and starts 'alpha-music bridge', and everything else in it is already done so it is quick. The cheap fix lands with PR #99 (start-task may start 'alpha-music bridge' / 'alpha-image bridge'); use that once it is on main."
   },
   {
+   "id": "20261006-31-enable-music",
+   "do": "enable-music",
+   "bridge": true,
+   "machines": "host,worker1",
+   "why": "Worker1 tracks time out (25-27 min) while the Host makes one in 50 s: the alpha-agent service runs as another account without the user's MusicGen cache. enable-music now sets HF_HOME for the agent (tunnel PR, music-cache) and restarts the service; before live test 30."
+  },
+  {
    "id": "20261006-30-live-test",
    "do": "live-test",
    "count": 2,
