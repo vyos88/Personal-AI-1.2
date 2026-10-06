@@ -1,4 +1,4 @@
-laptop41-doctor 20261006-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-034103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -35,25 +35,63 @@ laptop41-doctor 20261006-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-06 03:02 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-06 03:00 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 0 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T02:21:39.406Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-    {"at":"2026-10-06T02:23:39.545Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
-    {"at":"2026-10-06T02:25:39.492Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+    {"at":"2026-10-06T02:35:41.983Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T02:37:39.470Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T02:39:39.509Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
   the coordinator runs on another machine; none should listen here
   --- agents
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    NAME     PRINCIPAL               VERSION  CAPABILITIES                                                                         RAM     FREE   HELD  CPU  RUN  IDLE
+    -------  ----------------------  -------  -----------------------------------------------------------------------------------  ------  -----  ----  ---  ---  ----
+    host     viorel.ciuca@gmail.com  1.7.0    alpha.render,alpha.render.inventory,device.inventory,echo,grow,memory.store,sysinfo  16147M  443M   0M    19%  0    8s  
+    worker1  viorel.ciuca@gmail.com  1.7.0    alpha.coordination,echo,grow,sysinfo                                                 16157M  6042M  0M    27%  0    12s 
   --- stats
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    Alpha 1.7.0 ΓÇö 2 agent(s) attached
+      capabilities   alpha.coordination, alpha.render, alpha.render.inventory, device.inventory, echo, grow, memory.store, sysinfo
+      queue          0 pending, 2 agent(s) waiting
+      offered RAM    6484M
+      load           busiest 27%, idlest 19%, 0 task(s) running
   --- keys
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    ID                KIND  NAME                     SCOPES                              LAST USED            REVOKED            
+    ----------------  ----  -----------------------  ----------------------------------  -------------------  -------------------
+    d9f8bb2fcf3d650b  ses   login session            admin                               2026-10-06 02:41:19  -                  
+    fd0e11b6b959c486  key   worker1-standby-agent    agent:connect                       -                    -                  
+    0f010981a4c89533  ses   login session            admin                               2026-10-06 01:28:19  -                  
+    06b288bc60f5deea  key   host-agent               agent:connect                       2026-10-06 02:41:10  -                  
+    ccce59b43a3ff4eb  key   host-agent               agent:connect                       -                    2026-10-05 22:49:51
+    b242ee916d3d8bf6  key   worker1-report           agents:read,tasks:read,tasks:write  2026-10-06 02:38:49  -                  
+    78012211a3220854  key   host-report              agents:read,tasks:read,tasks:write  2026-10-06 02:40:38  -                  
+    5b3f0539d22dfd09  key   laptop-41-v2-agent       agent:connect                       2026-10-06 02:41:06  -                  
+    0d61361ad3e7d604  key   initial key from invite  admin                               2026-09-29 18:19:20  -                  
   --- tasks
-    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+    ID                     TYPE                FOR      STATUS     TRIES  DECLINED  CREATED            
+    ---------------------  ------------------  -------  ---------  -----  --------  -------------------
+    task_0724xo8xyj2zlhnz  alpha.coordination  -        succeeded  1      0         2026-10-06 02:37:39
+    task_wg5py6fp2y20lgul  alpha.coordination  -        succeeded  1      0         2026-10-06 02:35:50
+    task_6yw1tdsjnmb8nlbt  alpha.coordination  -        succeeded  1      0         2026-10-06 01:34:38
+    task_pahe6hm9x145uxuk  alpha.coordination  -        succeeded  1      0         2026-10-06 01:32:49
+    task_3pxokbqooace94uf  alpha.coordination  -        succeeded  1      0         2026-10-06 01:15:53
+    task_o21pp0u187qq4xtn  alpha.coordination  -        succeeded  1      0         2026-10-06 01:14:36
+    task_xz9xl651i2vk8fzz  alpha.coordination  -        succeeded  1      0         2026-10-06 01:13:53
+    task_akdxb2pe2khc56ow  alpha.coordination  -        succeeded  1      0         2026-10-06 00:56:44
+    task_dhialg2zimd5yhh8  sysinfo             worker1  succeeded  1      0         2026-10-06 00:56:43
+    task_90jmd8xuihw9e4zf  alpha.coordination  -        succeeded  1      0         2026-10-06 00:31:38
+    task_5ey6gjm60gm4ifea  alpha.coordination  -        succeeded  1      0         2026-10-06 00:29:46
+    task_91ntpsdac5r0v04m  alpha.coordination  -        succeeded  1      0         2026-10-06 00:19:46
+    task_jkip6jtzjltnlor4  alpha.coordination  -        succeeded  1      0         2026-10-06 00:06:45
+    task_f27byd0r9sr8bzz7  alpha.coordination  -        succeeded  1      0         2026-10-05 23:28:39
+    task_nw0f3le5velg9qef  alpha.coordination  -        succeeded  1      0         2026-10-05 23:26:45
+    task_3pjp54uzy9b6cc83  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:34
+    task_jzuitne6akqwot6w  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:10
+    task_3bxruobtssilsh7z  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:01
+    task_69gj6moef3abgxav  alpha.coordination  -        succeeded  1      0         2026-10-05 22:54:47
+    task_xmnb9rgolif1mb6o  alpha.coordination  -        succeeded  1      0         2026-10-05 22:54:24
 
 === 6. CrowPanel ===
     COM4
@@ -65,16 +103,16 @@ laptop41-doctor 20261006-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the panel is live only if its agents:read key in the keys list above was used in the last few seconds
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 6.7 of 15.8 GB RAM free
+  ok: 7.8 of 15.8 GB RAM free
   ok: C: 27 GB free
-  node                            698 MB  pid 4100
-  Memory Compression              646 MB  pid 3840
-  claude                          578 MB  pid 4148
-  MsMpEng                         438 MB  pid 6040
-  explorer                        303 MB  pid 10108
-  claude                          216 MB  pid 17380
-  msedge                          204 MB  pid 19212
-  powershell                      201 MB  pid 19800
+  Memory Compression              738 MB  pid 3840
+  claude                          541 MB  pid 4148
+  MsMpEng                         410 MB  pid 6040
+  explorer                        321 MB  pid 10108
+  powershell                      223 MB  pid 19800
+  claude                          214 MB  pid 17380
+  msedge                          180 MB  pid 19212
+  claude                          156 MB  pid 7320
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -82,12 +120,11 @@ laptop41-doctor 20261006-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
 
 === SUMMARY ===
-  this pass took 26s
-  - image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503  (open 1 run(s), since 2026-10-06T03:26:27)
-  + fixed since last run: the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder
+  this pass took 24s
+  - image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503  (open 2 run(s), since 2026-10-06T03:26:27)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend.
+  1. [open 2 runs] Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
