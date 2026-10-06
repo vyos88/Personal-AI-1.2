@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 
 // scripts/laptop41-doctor.ps1 needs PowerShell. Set PWSH to its path, or have
 // pwsh on PATH; without it these tests are skipped, not failed.
@@ -133,7 +133,10 @@ async function doctorAgainst(handler, { env: extraEnv = {}, files = {}, curlExe 
   const port = server.address().port;
   const dir = mkdtempSync(join(tmpdir(), 'doctor-chat-'));
   mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
-  for (const [path, text] of Object.entries(files)) writeFileSync(join(dir, path), text);
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
   const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ALPHA_PANEL_LAN_READ: '', ...extraEnv };
   if (curlExe) {
     // The doctor calls curl.exe by name and discards bodies to NUL.
@@ -152,7 +155,7 @@ async function doctorAgainst(handler, { env: extraEnv = {}, files = {}, curlExe 
     ? ['-NoProfile', '-Command', `${stubs}\n& '${script}' ${params.map((a) => (a.startsWith('-') ? a : `'${a}'`)).join(' ')}; exit $LASTEXITCODE`]
     : ['-NoProfile', '-File', script, ...params], env);
   server.close();
-  return r;
+  return { ...r, dir };
 }
 
 // Ollama's own format: nanoseconds and a local offset, e.g. 2026-10-07T17:40:00.123456789+01:00.
@@ -372,4 +375,49 @@ test("Alpha's deck feed: the panel's calls are counted, this machine's own are n
   });
   assert.match(out, /ok: home-network devices that called the backend in the last couple of minutes: 192\.168\.1\.97 \(2 connections\)/);
   assert.doesNotMatch(out, /PROBLEM: (the backend listens on no|no device on the home network)/);
+});
+
+// A backend main.py the doctor recognises: it defines chat().
+const CHAT_MAIN = 'async def chat(request: ChatRequest, http_request, current_user):\n    pass\n';
+
+// BACKLOG R9: the same pass, machine-readable, for Alpha's hubs and the CrowPanel.
+test('fleet-status.json carries every check, each open problem with its fix, and a summary line', { skip, timeout: 300_000 }, async () => {
+  const { out, dir } = await doctorAgainst(deckFeed(200, { status: 'degraded', alive: false }), {
+    env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true, files: { 'app/software/backend/main.py': CHAT_MAIN },
+  });
+  const fleet = JSON.parse(readFileSync(join(dir, 'ops', 'reports', 'fleet-status.json'), 'utf8'));
+  assert.equal(fleet.schema, 'alpha.fleet-status.v1');
+  assert.equal(fleet.role, 'worker1');
+  assert.equal(fleet.ok, false);
+  assert.match(fleet.summary, /^Worker1: \d+ open, 0 need a person$/);
+  assert.ok(!Number.isNaN(Date.parse(fleet.at)), fleet.at);
+  const deck = fleet.checks.find((c) => /deck feed is degraded/.test(c.text));
+  assert.ok(deck, out);
+  assert.equal(deck.section, '6. CrowPanel');
+  assert.equal(deck.ok, false);
+  const open = fleet.open.find((o) => /deck feed is degraded/.test(o.text));
+  assert.equal(open.runs, 1);
+  assert.equal(open.needsPerson, false);
+  assert.match(open.fix, /Alpha#26 \(merged to alpha-full\)/);
+  const backend = fleet.checks.find((c) => c.ok === true && /^backend: /.test(c.text));
+  assert.ok(backend, 'passing checks are listed too');
+  assert.match(backend.section, /^0\. Where Alpha lives/);
+});
+
+// 2026-10-06: the voice was better on Laptop41 than in the Host's desktop app.
+// Without Piper's model files every browser uses its own system voice.
+test('the voice section says whether Alpha has its Piper voice models', { skip, timeout: 300_000 }, async () => {
+  const main = CHAT_MAIN;
+  const none = await doctorAgainst(deckFeed(404, {}), { files: { 'app/software/backend/main.py': main } });
+  assert.match(none.out, /=== 2b\. Voice ===/);
+  assert.match(none.out, /PROBLEM: Alpha has no Piper voice models/);
+  assert.match(none.out, /Give Alpha its own voice: install piper-tts==1\.6\.0/);
+
+  const withModels = await doctorAgainst(deckFeed(404, {}), { files: {
+    'app/software/backend/main.py': main,
+    'app/software/backend/voice_models/en_GB-cori-high.onnx': 'x',
+    'app/software/backend/voice_models/en_US-lessac-high.onnx': 'x',
+  } });
+  assert.match(withModels.out, /ok: Piper voice models: en_GB-cori-high, en_US-lessac-high/);
+  assert.doesNotMatch(withModels.out, /no Piper voice models/);
 });

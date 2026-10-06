@@ -133,6 +133,16 @@ test('a pass runs each queued id once, refuses the rest, and reports without sec
   assert.doesNotMatch(report, /\x1b|\[K|\[1G/);
   assert.match(report, /pulling 100%/);
   assert.equal(report.match(/^verifying$/gm)?.length, 1, 'repeated lines are kept once');
+
+  // BACKLOG R9: the same pass, machine-readable, beside the report.
+  const fleet = JSON.parse(git(remote, 'show', 'status/laptop41-autopilot:reports/fleet-status.json'));
+  assert.equal(fleet.schema, 'alpha.fleet-status.v1');
+  assert.equal(fleet.role, 'laptop41');
+  assert.equal(fleet.source, 'autopilot');
+  assert.equal(fleet.ok, false, 'the refused job counts as failed');
+  assert.equal(fleet.summary, 'laptop41: 1 of 2 jobs failed');
+  assert.deepEqual(fleet.jobs.map((j) => [j.id, j.result.split(' ')[0]]), [['p1', '0'], ['p2', 'refused']]);
+  assert.doesNotMatch(JSON.stringify(fleet), /abcd1234efgh|sk1234567890|live_secret/);
 });
 
 test('the standing brain check fixes the deck by itself and reports only a change', { skip }, () => {
