@@ -181,6 +181,12 @@
    "do": "live-test",
    "count": 2,
    "why": "owner wants the live test results; bridges were found down at 20:26 (job 27 may have run without them). #141 restarts down bridges at the start of every pass, so this run starts with both up."
+  },
+  {
+   "id": "20261006-32-apply-route-b",
+   "do": "apply-update",
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "Alpha#75 (image backend readiness probe: a 503 from the image bridge's sd-models or a ComfyUI that does not answer means 'down', so chat images fall back to a backend that can draw) merged into route-b after job 29 may have run. Nothing new = no-op."
   }
  ],
  "autofix": {
