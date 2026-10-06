@@ -1,4 +1,4 @@
-laptop41-doctor 20261006-182608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
+laptop41-doctor 20261006-185606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,14 +20,14 @@ laptop41-doctor 20261006-182608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 8.2s (load 0s, 4 tokens/s): OK.
+  ok: chat model 'llama3.2:3b' answered in 3.8s (load 0s, 6.2 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
   dist built     2026-10-06 18:01
-  newest source  2026-10-06 18:26  src\musicProxyRoutes.test.js
-  PROBLEM: the build is older than the source: the site shows the old Alpha until dist is rebuilt
+  newest source  2026-10-06 17:59  src\liveCoordinationLabels.test.js
+  ok: build is newer than every source file
   frontend probed at https://127.0.0.1:4173/
   bundle in dist     /assets/index-pN5kpTWK.js
   bundle on :4173   /assets/index-pN5kpTWK.js
@@ -44,9 +44,9 @@ laptop41-doctor 20261006-182608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-06T17:21:41.608Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791306062298:9073","code":0}],"events":[]}
-    {"at":"2026-10-06T17:23:40.488Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-06T17:25:40.310Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T17:51:40.069Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T17:53:41.275Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-06T17:55:40.335Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -65,26 +65,36 @@ laptop41-doctor 20261006-182608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404
   PROBLEM: no machine offers alpha.music: a queued track waits forever
 
+=== 5c. Image creator ===
+  PROBLEM: image bridge is not running on 127.0.0.1:7861: images are not shared between machines
+  PROBLEM: no machine offers alpha.image: the image bridge has nowhere to send work
+
 === 6. CrowPanel ===
     COM4
-    COM20
-    COM50
-  device: USB-SERIAL CH340 (COM20)
-  device: USB-SERIAL CH340 (COM50)
+    COM7
+    COM24
+  device: USB-SERIAL CH340 (COM24)
+  device: USB Serial Device (COM7)
   device: USB-SERIAL CH340 (COM4)
-  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
+  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
+  --- Alpha's deck feed (/panel/crowpanel/public-state)
+  PROBLEM: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
+  backend listens on: ::1, 100.69.243.25, 127.0.0.1
+  not listening on 192.168.2.151 (Wi-Fi)
+  PROBLEM: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
+  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.8 of 15.8 GB RAM free
-  ok: C: 23.5 GB free
-  llama-server                  2,441 MB  pid 7428
-  llama-server                  1,932 MB  pid 14236
-  claude                          601 MB  pid 4148
-  MsMpEng                         420 MB  pid 6040
-  explorer                        398 MB  pid 10108
-  msedge                          337 MB  pid 7820
-  msedge                          278 MB  pid 15748
-  msedge                          232 MB  pid 17956
+  ok: 3 of 15.8 GB RAM free
+  ok: C: 23.7 GB free
+  llama-server                  1,993 MB  pid 7428
+  llama-server                  1,916 MB  pid 14236
+  claude                          696 MB  pid 4148
+  MsMpEng                         413 MB  pid 6040
+  explorer                        397 MB  pid 10108
+  msedge                          250 MB  pid 14120
+  msedge                          249 MB  pid 7268
+  msedge                          231 MB  pid 19284
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
@@ -92,19 +102,22 @@ laptop41-doctor 20261006-182608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: port 7860 is held by python.exe (its command line is hidden without elevation), and ComfyUI answers on 8188 (200): Alpha's ComfyUI bridge
 
 === SUMMARY ===
-  this pass took 89s
-  - the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404  (open 2 run(s), since 2026-10-06T18:11:37)
-  - no machine offers alpha.music: a queued track waits forever  (open 2 run(s), since 2026-10-06T18:11:37)
-  - the build is older than the source: the site shows the old Alpha until dist is rebuilt  (open 1 run(s), since 2026-10-06T18:27:32)
-  + fixed since last run: music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything
+  this pass took 51s
+  - NEEDS A PERSON - the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404  (open 4 run(s), since 2026-10-06T18:11:37)
+  - NEEDS A PERSON - no machine offers alpha.music: a queued track waits forever  (open 4 run(s), since 2026-10-06T18:11:37)
+  - the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it  (open 1 run(s), since 2026-10-06T18:56:53)
+  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 1 run(s), since 2026-10-06T18:56:53)
+  - Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles  (open 1 run(s), since 2026-10-06T18:56:53)
+  - image bridge is not running on 127.0.0.1:7861: images are not shared between machines  (open 1 run(s), since 2026-10-06T18:56:53)
+  - no machine offers alpha.image: the image bridge has nowhere to send work  (open 1 run(s), since 2026-10-06T18:56:53)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 2 runs] Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy).
-  2. [open 2 runs] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
-  3. [new] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  7. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  8. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  9. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  1. [open 4 runs NEEDS A PERSON] Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy).
+  2. [open 4 runs NEEDS A PERSON] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
+  3. [new] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
+  4. [new] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  5. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
+  6. [new] Share images between machines: queue {"do":"enable-image","bridge":true} on Worker1's autopilot (keeps 7860 as the fallback).
+  7. [new] Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).
+  8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
