@@ -75,6 +75,7 @@ test('choosing an image machine', () => {
   assert.equal(pickMachine(agents, 'alpha.music', 'auto'), 'e');
   assert.equal(pickMachine(agents, 'alpha.image', ['a', 'b']), 'b');
   assert.equal(pickMachine(agents, 'alpha.image', ['e']), null);
+  assert.equal(pickMachine(agents, 'alpha.image', 'auto', new Set(['c'])), 'b', 'a machine set aside is passed over');
   assert.deepEqual(describeAgent(agents[2], 'alpha.image'), { name: 'c', idleMs: 5, inFlight: 0, stale: false });
   assert.equal(describeAgent(agents[4], 'alpha.image'), null);
 });
@@ -159,6 +160,50 @@ test('a failed render is a 502 with the machine\'s reason', async (t) => {
   assert.equal(body.error, 'image_failed');
   assert.match(body.message, /CUDA out of memory/);
   assert.equal(headers.get('access-control-allow-origin'), null);
+});
+
+// Live test 2026-10-06: both images went to the Host, whose ComfyUI was not
+// running yet, and both failed while Worker1 could have made them.
+test('a machine that fails a render is set aside: the image goes to the next one', async (t) => {
+  const host = await startHost(t);
+  host.registry.register({ name: 'worker1', capabilities: ['alpha.image'], remoteAddress: '100.64.0.9' });
+  host.registry.register({ name: 'host', capabilities: ['alpha.image'], remoteAddress: '100.64.0.10' });
+  const seen = new Set();
+  // The next alpha.image task the bridge queues, whatever order the queue lists.
+  const nextTask = async () => {
+    const deadline = Date.now() + 5_000;
+    while (Date.now() < deadline) {
+      const fresh = host.queue.list({}).find((task) => task.type === 'alpha.image' && !seen.has(task.id));
+      if (fresh) { seen.add(fresh.id); return fresh; }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error('no new alpha.image task');
+  };
+  const fail = (task, message) => Object.assign(host.queue.get(task.id), { status: 'failed', error: { message } });
+
+  const bridge = await startBridge(t, host.url, { targetAgent: 'host,worker1', timeoutMs: 1_500 });
+  const first = txt2img(bridge, { prompt: 'x' });
+  const onHost = await nextTask();
+  assert.equal(onHost.targetAgent, 'host', 'equal load: the GPU machine first');
+  fail(onHost, 'ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed');
+  const retried = await nextTask();
+  assert.equal(retried.targetAgent, 'worker1', 'the retry goes to the machine that has not failed');
+  fail(retried, 'worker1 failed too');
+  const both = await first;
+  assert.equal(both.status, 502, 'nobody left to try: the last failure is the answer');
+  assert.match(both.body.message, /worker1 failed too/);
+
+  // A fresh bridge: the Host fails once, and the next image starts on Worker1.
+  const bridge2 = await startBridge(t, host.url, { targetAgent: 'host,worker1', timeoutMs: 300 });
+  const second = txt2img(bridge2, { prompt: 'y' });
+  const again = await nextTask();
+  assert.equal(again.targetAgent, 'host');
+  fail(again, 'ComfyUI is not reachable');
+  assert.equal((await nextTask()).targetAgent, 'worker1');
+  assert.equal((await second).status, 504);
+  const third = txt2img(bridge2, { prompt: 'z' });
+  assert.equal((await nextTask()).targetAgent, 'worker1', 'the Host failed moments ago, so Worker1 goes first');
+  assert.equal((await third).status, 504);
 });
 
 test('txt2img round trip: bridge, coordinator, agent, alpha.image and the chunked fetch', async (t) => {

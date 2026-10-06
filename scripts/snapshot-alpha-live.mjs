@@ -7,7 +7,7 @@
  * Why not publish the whole folder: on Laptop41 it is 117,000 files and 55 GB
  * (model checkpoints, disk images, databases, test zips). What the merge needs
  * is narrower: for every file alpha-full tracks under software\ and scripts\,
- * the version this machine runs. Nothing new is added, so nothing that has
+ * the version this machine runs. Without --include-new nothing new is added, so nothing that has
  * never been reviewed (a database, a saved credential) can come along.
  *
  * Line endings and a UTF-8 BOM are matched to the repository's copy, so the
@@ -28,14 +28,22 @@
  * Never main, never alpha-full, never forced. Alpha is private; the push uses
  * this machine's git credentials.
  *
+ * --include-new also brings source files this machine has and alpha-full never
+ * had, because without them a fix to the live code cannot even be written
+ * (2026-10-06: the fleet view imports fleet_unified_view.py, which exists only
+ * on Laptop41). Only source code is taken: these folders, these extensions,
+ * nothing over 512 KB, no folder that holds data, builds, packages or keys,
+ * and no file named like a secret. Every line of every new file goes through
+ * the same credential scan, so a finding stops the push just the same.
+ *
  * Other options: --repo <url>  --ops <dir>  --work <dir>
  *
  * Exit codes: 0 done (or report clean); 2 a finding stopped the push; 1 could not run.
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { DEFAULTS as UPDATE_DEFAULTS, findSoftwareRoot } from './apply-alpha-update.mjs';
@@ -58,10 +66,48 @@ export function parseArgs(argv) {
     else if (a === '--ops') opts.ops = next();
     else if (a === '--work') opts.work = next();
     else if (a === '--branch') opts.branch = next();
+    else if (a === '--include-new') opts.includeNew = true;
     else if (a === '--allow') opts.allow = next().split(',').map((x) => x.trim()).filter(Boolean);
     else throw new Error(`unknown option ${a}`);
   }
   return opts;
+}
+
+// What --include-new may bring: source code in the folders a fix touches.
+export const NEW_FILE_ROOTS = ['software/backend', 'software/frontend/src', 'software/windows-worker', 'software/android-worker', 'scripts'];
+export const NEW_FILE_EXTENSIONS = new Set(['.py', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.ps1', '.html']);
+const NEW_FILE_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '__pycache__', '.venv', 'venv', 'env', '.git', 'memory', 'data',
+  'logs', 'log', 'backups', 'backup', '.pytest_cache', 'coverage', '.tls', 'uploads', 'output', 'outputs', 'models', 'checkpoints', 'tmp', 'temp', 'cache']);
+const NEW_FILE_SKIP_NAME = /(^\.env)|secret|credential|password|token|private|\.key$|\.pem$|\.bak$|\.orig$/i;
+export const NEW_FILE_MAX_BYTES = 512 * 1024;
+export const NEW_FILE_MAX_COUNT = 400;
+
+/** Source files under `liveRoot` that --include-new may take, as repo-relative paths (software/..., scripts/...). */
+export function newSourceFiles(liveRoot, tracked) {
+  const known = new Set(tracked.map((p) => p.slice(BASE.length + 1)));
+  const found = [];
+  const skipped = [];
+  const walk = (dir) => {
+    let entries;
+    try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) {
+        if (!NEW_FILE_SKIP_DIRS.has(e.name.toLowerCase()) && !e.name.startsWith('.')) walk(full);
+        continue;
+      }
+      if (!e.isFile()) continue;
+      const rel = relative(liveRoot, full).split(sep).join('/');
+      if (known.has(rel)) continue;
+      const dot = e.name.lastIndexOf('.');
+      if (dot < 0 || !NEW_FILE_EXTENSIONS.has(e.name.slice(dot).toLowerCase())) continue;
+      if (NEW_FILE_SKIP_NAME.test(e.name)) { skipped.push(`${rel} (named like a secret)`); continue; }
+      if (statSync(full).size > NEW_FILE_MAX_BYTES) { skipped.push(`${rel} (over 512 KB)`); continue; }
+      found.push(rel);
+    }
+  };
+  for (const root of NEW_FILE_ROOTS) walk(join(liveRoot, ...root.split('/')));
+  return { found: found.sort(), skipped };
 }
 
 function git(args, { cwd, allowFail = false } = {}) {
@@ -178,7 +224,26 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     if (!next.equals(repoBytes)) { writeFileSync(join(work, path), next); changed++; }
   }
   log(`  ${tracked.length} file(s) tracked under software\\ and scripts\\; ${changed} differ here; ${missing.length} not on this machine (left as they are)`);
-  if (!changed) { log('ok: the live files match alpha-full; nothing to publish'); return 0; }
+  let added = 0;
+  if (opts.includeNew) {
+    const { found, skipped } = newSourceFiles(liveRoot, tracked);
+    for (const s of skipped.slice(0, 20)) log(`  not taken: ${s}`);
+    if (found.length > NEW_FILE_MAX_COUNT) {
+      log(`STOP: ${found.length} new source files is more than ${NEW_FILE_MAX_COUNT}; something other than source code is in these folders. First ones: ${found.slice(0, 10).join(', ')}`);
+      return 1;
+    }
+    for (const rel of found) {
+      const target = join(work, BASE, ...rel.split('/'));
+      mkdirSync(dirname(target), { recursive: true });
+      writeFileSync(target, readFileSync(join(liveRoot, ...rel.split('/'))));
+      // Intent to add: the diff below, and so the credential scan, then
+      // includes every line of the new file.
+      git(['add', '-N', '--', `${BASE}/${rel}`], { cwd: work });
+      added++;
+    }
+    log(`  ${added} source file(s) only this machine has, taken with --include-new`);
+  }
+  if (!changed && !added) { log('ok: the live files match alpha-full; nothing to publish'); return 0; }
 
   const stat = git(['diff', '--stat=120', '--stat-count=60'], { cwd: work }).stdout.trimEnd();
   log(stat.split('\n').map((l) => `  ${l}`).join('\n'));
@@ -199,7 +264,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     : '  no credential-looking lines among the changes');
 
   if (!opts.push) {
-    log(`\nREADY: ${changed} file(s) would go to a new branch of vyos88/Alpha. Nothing was pushed.`);
+    log(`\nREADY: ${changed} file(s)${added ? ` and ${added} new file(s)` : ''} would go to a new branch of vyos88/Alpha. Nothing was pushed.`);
     log('  Push:  node scripts/snapshot-alpha-live.mjs --alpha-root <same folder> --push');
     return 0;
   }
@@ -209,10 +274,10 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   git(['checkout', '-q', '-b', branch], { cwd: work });
   git(['add', '-A', '--', ...AREAS.map((a) => `${BASE}/${a}`)], { cwd: work });
   git(['-c', 'user.name=Alpha host', '-c', 'user.email=alpha-host@localhost', 'commit', '-q', '-m',
-    `Live Alpha on this machine: ${changed} file(s) that differ from alpha-full\n\nsnapshot-alpha-live.mjs, from ${liveRoot}. Only files alpha-full tracks under software/ and scripts/; line endings and BOM matched to the repository.`], { cwd: work });
+    `Live Alpha on this machine: ${changed} file(s) that differ from alpha-full${added ? `, ${added} source file(s) only it has` : ''}\n\nsnapshot-alpha-live.mjs, from ${liveRoot}. ${added ? 'Files alpha-full tracks under software/ and scripts/, plus new source files (--include-new: source folders and extensions only, each under 512 KB, credential-scanned)' : 'Only files alpha-full tracks under software/ and scripts/'}; line endings and BOM matched to the repository.`], { cwd: work });
   const pushed = git(['push', 'origin', `${branch}:refs/heads/${branch}`], { cwd: work, allowFail: true });
   if (pushed.status !== 0) { log(`STOP: push failed: ${(pushed.stderr || pushed.stdout).trim()}`); return 1; }
-  log(`\nDONE: pushed ${branch} (${changed} file(s)). Tell the session that branch name.`);
+  log(`\nDONE: pushed ${branch} (${changed} file(s)${added ? `, ${added} new` : ''}). Tell the session that branch name.`);
   return 0;
 }
 

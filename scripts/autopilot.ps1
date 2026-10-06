@@ -21,8 +21,9 @@
     doctor           laptop41-doctor.ps1 -Watch -Push
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
+    restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
-    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
+    snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
     enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
@@ -58,6 +59,8 @@ param(
   [string]$ExpectHost = 'DESKTOP-41HPLCN',
   [string]$Channel = 'laptop41',
   [int]$EveryMinutes = 5,
+  # How long one pass may take; the task's own time limit, read below, wins.
+  [int]$PassMinutes = 100,
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
@@ -84,6 +87,7 @@ function Resolve-Action($a) {
     'doctor'          { $spec = Ps1 'laptop41-doctor.ps1' @('-Watch', '-Push', '-AlphaRoot', $AlphaRoot); $out.timeoutMin = 12 }
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
+    'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
@@ -102,6 +106,7 @@ function Resolve-Action($a) {
     }
     'snapshot' {
       $rest = @((Join-Path $PSScriptRoot 'snapshot-alpha-live.mjs'), '--alpha-root', $AlphaRoot, '--push')
+      if ($a.includeNew -eq $true) { $rest += '--include-new' }
       if ($a.allow) {
         $items = ([string]$a.allow).Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }
         $bad = @($items | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
@@ -241,7 +246,7 @@ if ($Install) {
   $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes $EveryMinutes)
   $principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Highest
   $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
-                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2)
+                -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 6)
   Register-ScheduledTask -TaskName $taskName -Action $action -Trigger $trigger -Principal $principal -Settings $settings -Force | Out-Null
   Start-ScheduledTask -TaskName $taskName
   Write-Host "installed '$taskName': every $EveryMinutes minutes, runs what control/$Channel queues, reports to status/$Channel-autopilot." -ForegroundColor Green
@@ -258,6 +263,31 @@ if (Test-Path -LiteralPath $statePath) { try { $state = Get-Content -LiteralPath
 $done = [ordered]@{}
 if ($state -and $state.done) { foreach ($p in $state.done.PSObject.Properties) { $done[$p.Name] = $p.Value } }
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+$passStart = Get-Date
+# Entries that ran in a pass that never got to report (the task's time limit
+# stopped it): they are reported by this one.
+$pending = @()
+if ($state -and $state.pending) { $pending = @($state.pending) }
+
+# Task Scheduler stops a pass at the task's time limit, and on 2026-10-06
+# Worker1's queue (music, the route update, images, a live test) needed more
+# than the 2 hours it was installed with. A pass that is stopped loses nothing
+# now (progress is saved after every action), but it should not be stopped:
+# raise the limit to 6 hours once, and plan this pass inside whatever it is.
+if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
+  try {
+    $self = Get-ScheduledTask -TaskName $taskName -EA Stop
+    $limit = [string]$self.Settings.ExecutionTimeLimit
+    $span = if ($limit -and $limit -ne 'PT0S') { [Xml.XmlConvert]::ToTimeSpan($limit) } else { [TimeSpan]::FromHours(10) }
+    if ($span.TotalHours -lt 6) {
+      $self.Settings.ExecutionTimeLimit = 'PT6H'
+      Set-ScheduledTask -InputObject $self -EA Stop | Out-Null
+      Write-Host "raised '$taskName' time limit from $limit to 6 hours"
+      # This pass still runs under the old limit.
+    }
+    $PassMinutes = [math]::Max(20, [int]$span.TotalMinutes - 10)
+  } catch { }
+}
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
 $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
@@ -294,6 +324,13 @@ $ran = New-Object System.Collections.ArrayList
 foreach ($a in $queued) {
   $p = Resolve-Action $a
   if (-not $p.id -or $done.Contains($p.id)) { continue }
+  # One long action may run past the plan, but none starts that would not fit:
+  # it waits for the next pass, and so does everything queued after it.
+  $elapsed = ((Get-Date) - $passStart).TotalMinutes
+  if ($ran.Count -and $p.ok -and ($elapsed + [int]$p.timeoutMin) -gt $PassMinutes) {
+    Write-Host ("{0} {1}: deferred to the next pass ({2:N0} of {3} minutes used, it may take {4})" -f $p.id, $p.do, $elapsed, $PassMinutes, $p.timeoutMin)
+    break
+  }
   $started = Get-Date
   $log = Join-Path $dir "$stamp-$($p.id).log"
   $code = $null
@@ -302,6 +339,30 @@ foreach ($a in $queued) {
     $code = 'refused'; $text = $p.reason
   } elseif ($p.internal -eq 'start-task') {
     try { Start-ScheduledTask -TaskName $p.args[0] -EA Stop; $code = 0; $text = "started '$($p.args[0])'" } catch { $code = 1; $text = $_.Exception.Message }
+  } elseif ($p.internal -eq 'restart-site') {
+    # Stop-ScheduledTask ends the task's cmd.exe and can leave the preview
+    # server on the port: then the task cannot start a new one, and the old
+    # one keeps serving its old vite.config (Worker1, 2026-10-06: /music 404).
+    $port = 4173
+    $lines = New-Object System.Collections.ArrayList
+    Stop-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue
+    $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+    if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+    Start-Sleep -Seconds 3
+    if (Get-ScheduledTask -TaskName 'Alpha' -EA SilentlyContinue) { Start-ScheduledTask -TaskName 'Alpha'; [void]$lines.Add("started task 'Alpha'") }
+    else { [void]$lines.Add("no task 'Alpha' to start the site with") }
+    $deadline = (Get-Date).AddSeconds(180)
+    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+    $now = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+    $up = [bool]$now.Count
+    [void]$lines.Add($(if ($up) { "site listening on $port (pid $($now -join ', '))" } else { "site NOT listening on $port after 180s" }))
+    if ($up) {
+      $music = ''
+      foreach ($scheme in 'https', 'http') { if (-not $music) { $music = (& curl.exe -s -k --max-time 10 "${scheme}://127.0.0.1:$port/music/healthz" 2>$null | Out-String).Trim() } }
+      [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
+    }
+    $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
@@ -351,6 +412,10 @@ foreach ($a in $queued) {
   $done[$p.id] = [ordered]@{ result = "$code"; at = $entry.at }
   [void]$ran.Add($entry)
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
+  # Saved now, not at the end: a pass stopped by the task's time limit would
+  # otherwise run every action of it again on the next pass.
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
 # 3b. Standing checks: run every pass, report only a change.
@@ -377,9 +442,10 @@ if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
 
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
-$history = @(@($ran) + $history | Select-Object -First 20)
+$history = @(@($ran) + $pending + $history | Select-Object -First 20)
+$ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
