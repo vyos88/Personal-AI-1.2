@@ -165,14 +165,32 @@ $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
 $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
-if ($LASTEXITCODE -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+$updateExit = $LASTEXITCODE
+if ($updateExit -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+# A checkout that cannot update is silent otherwise, and every fix sent through
+# this repository then stops reaching the machine. Say why, in every report.
+$head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()
+$checkoutNote = "checkout $head is current"
+if ($updateExit -ne 0) {
+  $why = ($update -split "`r?`n" | Where-Object { $_ -match 'reason|refus|uncommitted|diverg|fail|error' } | Select-Object -First 3) -join ' / '
+  $paths = @(git -C $repo status --porcelain 2>$null | Select-Object -First 15)
+  $checkoutNote = "checkout $head did NOT update (self-update exit $updateExit): $why" +
+    $(if ($paths.Count) { "; local changes: " + ($paths -join ', ') } else { '' })
+}
 
 # 2. What is queued.
+# Nothing queued is not a reason to stop here: a checkout that cannot update
+# is still reported below.
+$queued = @()
 git -C $repo fetch -q origin "control/$Channel" 2>&1 | Out-Null
-if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)"; exit 0 }
-$raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
-if (-not $raw.Trim()) { Write-Host 'nothing queued'; exit 0 }
-try { $queued = @((ConvertFrom-Json $raw).actions) | Where-Object { $_ } } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)" }
+else {
+  $raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
+  if (-not $raw.Trim()) { Write-Host 'nothing queued' }
+  else {
+    try { $queued = @(@((ConvertFrom-Json $raw).actions) | Where-Object { $_ }) } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+  }
+}
 
 # 3. Run what has not run.
 $ran = New-Object System.Collections.ArrayList
@@ -233,12 +251,13 @@ foreach ($a in $queued) {
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $history | Select-Object -First 20)
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s') } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
-if (-not $ran.Count) { Write-Host 'nothing new to run'; exit 0 }
+$noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
 $branch = "status/$Channel-autopilot"
-$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '')
+$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '', (Redact $checkoutNote), '')
 foreach ($h in $history) {
   $body += "## $($h.id)  $($h.do)  ->  $($h.result)   ($($h.at), $($h.seconds)s)"
   $body += '```'; $body += $h.tail; $body += '```'; $body += ''
@@ -253,7 +272,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host 'could not create a worktree; report kept 
 New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
 Set-Content -LiteralPath (Join-Path $wt 'reports\autopilot.md') -Value ($body -join "`n") -Encoding UTF8
 git -C $wt add reports 2>&1 | Out-Null
-$summary = ($ran | ForEach-Object { "$($_.id)=$($_.result)" }) -join ' '
+$summary = $(if ($ran.Count) { ($ran | ForEach-Object { "$($_.id)=$($_.result)" }) -join ' ' } else { 'checkout cannot update' })
 git -C $wt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel).invalid" commit -q -m "$Channel autopilot ${stamp}: $summary" 2>&1 | Out-Null
 git -C $wt push -q origin "HEAD:refs/heads/$branch" 2>&1 | Out-Null
 $pushed = ($LASTEXITCODE -eq 0)
