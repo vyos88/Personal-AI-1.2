@@ -24,6 +24,7 @@
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...")
     ollama-pull      ollama pull <"model">
+    ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -102,6 +103,18 @@ function Resolve-Action($a) {
       $model = [string]$a.model
       if ($model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
       $spec = @{ exe = 'ollama'; args = @('pull', $model) }; $out.timeoutMin = 60
+    }
+    'ollama-keepalive' {
+      $rest = @()
+      if ($a.keepAlive) {
+        if ([string]$a.keepAlive -notmatch '^(-1|[1-9][0-9]{0,4}[smh]?)$') { $out.reason = 'keepAlive must be -1 or a duration like 30m or 24h'; return $out }
+        $rest += @('-KeepAlive', [string]$a.keepAlive)
+      }
+      if ($a.model) {
+        if ([string]$a.model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
+        $rest += @('-Model', [string]$a.model)
+      }
+      $spec = Ps1 'ollama-keepalive.ps1' $rest; $out.timeoutMin = 10
     }
     'start-task' {
       $t = [string]$a.task
