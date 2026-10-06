@@ -62,6 +62,17 @@ import { findGenre, findSubgenre, isBpmTypical, isValidKey } from '../../common/
  *   ALPHA_MUSIC_VOCALS      `1` if the generator can sing; anything else means
  *                           instrumental only
  *   ALPHA_MUSIC_TIMEOUT_MS  Hard ceiling on one track. Defaults to 10 minutes
+ *   ALPHA_MUSIC_FREE_GPU    `0` to leave ComfyUI's models loaded (below)
+ *
+ * **One small GPU, two models, taking turns.** On a machine whose
+ * `ALPHA_IMAGE_BACKEND` is `comfyui`, ComfyUI keeps its checkpoint in VRAM
+ * after every image — 2.6 GB of the Host's 4 GB RTX 3050. MusicGen then did
+ * not fail for want of room: the Windows driver spilled it into system RAM,
+ * and a five-second track went from 44-68 s to 400 s, then past the
+ * live test's 12-minute limit (2026-10-06, jobs 30, 35, 39 and 40). So before
+ * generating, the handler asks ComfyUI's `/free` to unload its models. It is
+ * best-effort and quick: a ComfyUI that is down or slow holds nothing and
+ * costs a track nothing, and the next image reloads its checkpoint in seconds.
  *
  * Generation outlives the default 60s lease, so queue it the way renders are:
  *
@@ -243,6 +254,35 @@ function timeoutMs() {
   return parsed;
 }
 
+const FREE_GPU_TIMEOUT_MS = 5_000;
+
+/**
+ * Asks this machine's ComfyUI to unload its models so MusicGen has the GPU
+ * (see the header). Never throws: the answer only decides whether a log line
+ * says it worked.
+ */
+export async function releaseImageModels({ signal, log } = {}) {
+  if (configured('ALPHA_IMAGE_BACKEND', '').trim().toLowerCase() !== 'comfyui') return false;
+  if (configured('ALPHA_MUSIC_FREE_GPU', '1').trim() === '0') return false;
+  const base = configured('ALPHA_COMFYUI_URL', 'http://127.0.0.1:8188').replace(/\/+$/, '');
+  const timeout = AbortSignal.timeout(FREE_GPU_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${base}/free`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ unload_models: true, free_memory: true }),
+      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
+    });
+    await response.arrayBuffer().catch(() => {});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    log?.info?.('asked ComfyUI to unload its models, so the track has the GPU');
+    return true;
+  } catch (error) {
+    log?.warn?.('ComfyUI did not unload its models; the track may share the GPU', { error: error.message });
+    return false;
+  }
+}
+
 /** Same lookup execFile does: PATH, plus PATHEXT on Windows. */
 
 /**
@@ -286,6 +326,7 @@ export async function run(payload, { signal, log } = {}) {
   log?.info?.('generating music', { genre: recipe.genre, subgenre: recipe.subgenre, bpm: recipe.bpm });
 
   const startedAt = Date.now();
+  await releaseImageModels({ signal, log });
   let outcome;
   try {
     outcome = await new Promise((resolvePromise, rejectPromise) => {

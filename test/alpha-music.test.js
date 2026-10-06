@@ -2,13 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { copyFile, mkdtemp, mkdir, writeFile, readFile, readdir } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import * as music from '../src/agent/handlers/alpha-music.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 
-const { available, buildArgs, genreFolder, run, validateSettings } = music;
+const { available, buildArgs, genreFolder, releaseImageModels, run, validateSettings } = music;
 
 const BASE = { genre: 'Electronic', subgenre: 'Rollers', key: 'F minor', vocals: false, seed: 7 };
 
@@ -19,6 +20,9 @@ const ENV = [
   'ALPHA_MUSIC_OUTPUT',
   'ALPHA_MUSIC_VOCALS',
   'ALPHA_MUSIC_TIMEOUT_MS',
+  'ALPHA_MUSIC_FREE_GPU',
+  'ALPHA_IMAGE_BACKEND',
+  'ALPHA_COMFYUI_URL',
 ];
 
 function isolateEnv(t) {
@@ -131,6 +135,58 @@ test('a track returns the recipe and leaves the audio on the machine', async (t)
   assert.ok(JSON.parse(await readFile(argvLog, 'utf8')).includes('R&B / Soul'));
   // No staging directory is left behind.
   assert.deepEqual(await readdir(join(root, 'output')), ['r-b-soul']);
+});
+
+// 2026-10-06, the Host: ComfyUI held 2.6 GB of the RTX 3050's 4 GB between
+// images, MusicGen spilled into system RAM, and tracks went from ~60 s to
+// past the live test's 12 minutes.
+async function fakeComfy(t, { status = 200 } = {}) {
+  const calls = [];
+  const server = createServer((req, res) => {
+    let body = '';
+    req.on('data', (d) => { body += d; });
+    req.on('end', () => {
+      calls.push({ method: req.method, url: req.url, body: body ? JSON.parse(body) : null });
+      res.writeHead(status);
+      res.end();
+    });
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  t.after(() => server.close());
+  process.env.ALPHA_COMFYUI_URL = `http://127.0.0.1:${server.address().port}/`;
+  return calls;
+}
+
+test('on a ComfyUI machine, its models are unloaded before the track starts', async (t) => {
+  await fixture(t);
+  const calls = await fakeComfy(t);
+  process.env.ALPHA_IMAGE_BACKEND = 'comfyui';
+  const result = await run(BASE);
+  assert.equal(result.outputs.length, 1);
+  assert.deepEqual(calls, [{ method: 'POST', url: '/free', body: { unload_models: true, free_memory: true } }]);
+});
+
+test('ComfyUI is left alone where it is not the image backend, or when told to', async (t) => {
+  await fixture(t);
+  const calls = await fakeComfy(t);
+  await run(BASE);
+  process.env.ALPHA_IMAGE_BACKEND = 'a1111';
+  await run(BASE);
+  process.env.ALPHA_IMAGE_BACKEND = 'comfyui';
+  process.env.ALPHA_MUSIC_FREE_GPU = '0';
+  await run(BASE);
+  assert.deepEqual(calls, []);
+});
+
+test('a ComfyUI that is down or refuses never costs the track', async (t) => {
+  await fixture(t);
+  await fakeComfy(t, { status: 500 });
+  process.env.ALPHA_IMAGE_BACKEND = 'comfyui';
+  assert.equal(await releaseImageModels(), false);
+  assert.equal((await run(BASE)).outputs.length, 1);
+  process.env.ALPHA_COMFYUI_URL = 'http://127.0.0.1:9';
+  assert.equal(await releaseImageModels(), false);
+  assert.equal((await run(BASE)).outputs.length, 1);
 });
 
 test('a generator that fails is a failed task', async (t) => {

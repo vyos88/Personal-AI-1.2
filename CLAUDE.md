@@ -812,6 +812,12 @@ mirrors), and hands them to a Python generator. Three rules it adds:
   instrumental track is the `alpha.render` `params` mistake again. `vocals`
   must be stated either way, so the recipe always says which it is.
 - **Unknown payload keys are refused, not dropped**, for the same reason.
+- **On a ComfyUI machine, the image models leave the GPU first.** ComfyUI keeps
+  its checkpoint in VRAM between images (2.6 GB of the Host's 4 GB RTX 3050),
+  and MusicGen beside it did not fail: the driver spilled it into system RAM
+  and a track went from a minute to past twelve. `run()` posts ComfyUI's
+  `/free` before generating, best-effort and bounded at 5 s, so a ComfyUI that
+  is down never costs a track. `ALPHA_MUSIC_FREE_GPU=0` turns it off.
 
 Unlike `alpha.render`, the generator contract is defined *here*
 (`buildArgs`, pinned by tests), and so is the generator:
