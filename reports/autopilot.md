@@ -1,8 +1,113 @@
-﻿# laptop41 autopilot 20261006-231345
+﻿# laptop41 autopilot 20261006-235345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout a465f3f is current
+checkout 6854981 is current
+
+## 20261006-42-skill-music  live-test  ->  1   (2026-10-06T23:54:01, 724s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+ok: track 1 made by host in 648s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
+PROBLEM: track 2 on worker1: timed out while leased (721s)
+ok: track task_9kf8jdweyz9lxhpf is in the playlist (/music/recipes), roll...(34).wav
+music: 1/2 worked; by machine: host x1
+playlist: 1/1 worked; by machine: music bridge x1
+(node:5992) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261006-43-skill-image  live-test  ->  0   (2026-10-07T00:06:09, 13s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+image machines: alpha-tunnel (host, worker1)
+ok: image 1 made by host (comfyui) in 9s, 87021 bytes, PNG
+ok: image 2 made by host (comfyui) in 5s, 111100 bytes, PNG
+image: 2/2 worked; by machine: host x2
+(node:21816) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261006-44-skill-video  live-test  ->  0   (2026-10-07T00:06:25, 106s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+ok: track 1 made by host in 38s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
+ok: track task_fbp3czshb6xgvq8o is in the playlist (/music/recipes), roll...(34).wav
+image machines: alpha-tunnel (host, worker1)
+ok: image 1 made by host (comfyui) in 8s, 87021 bytes, PNG
+ok: reel made in 53s from 1 image(s) with the generated track, 212868 bytes, MP4
+music: 1/1 worked; by machine: host x1
+playlist: 1/1 worked; by machine: music bridge x1
+image: 1/1 worked; by machine: host x1
+video: 1/1 worked; by machine: this machine x1
+(node:896) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261006-45-skill-doctor  doctor  ->  0   (2026-10-07T00:08:11, 305s)
+```
+=== 5c. Image creator ===
+  ok: image bridge answers on 127.0.0.1:7861
+  ok: machines that make images (the image bridge's view): host, worker1
+=== 5d. Brain topology (neurological deck) ===
+  ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+  ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
+  ok: brain deck: the site serves the fixed deck (Brai...(25).js)
+=== 6. CrowPanel ===
+    COM4
+    COM7
+    COM20   in use by another program?
+    COM24   in use by another program?
+  device: USB-SERIAL CH340 (COM24)
+  device: USB-SERIAL CH340 (COM20)
+  device: USB Serial Device (COM7)
+  device: USB-SERIAL CH340 (COM4)
+  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
+  --- Alpha's deck feed (/panel/crowpanel/public-state)
+  ok: Alpha's deck feed is live
+  backend listens on: ::1, 100.69.243.25, 127.0.0.1
+  not listening on 192.168.2.151 (Wi-Fi)
+  PROBLEM: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
+  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
+=== 7. Memory, disk, heaviest processes ===
+  PROBLEM: only 1.2 of 15.8 GB RAM free
+  ok: C: 13.1 GB free
+  python                        2,959 MB  pid 7292
+  llama-server                  1,591 MB  pid 4080
+  claude                          494 MB  pid 7832
+  MsMpEng                         439 MB  pid 6040
+  explorer                        355 MB  pid 10108
+  chrome                          344 MB  pid 6588
+  msedge                          304 MB  pid 6228
+  python                          284 MB  pid 2300
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
+  port 7861 : pid 12084 node.exe: "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge.mjs
+  ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
+=== SUMMARY ===
+  this pass took 156s
+  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 18 run(s), since 2026-10-06T19:56:29)
+  - NEEDS A PERSON - the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it  (open 18 run(s), since 2026-10-06T19:56:29)
+  - only 1.2 of 15.8 GB RAM free  (open 1 run(s), since 2026-10-07T00:10:47)
+  + fixed since last run: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [open 18 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  2. [open 18 runs NEEDS A PERSON] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
+  3. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  7. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  8. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  9. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+posted to Alpha: True
+relayed status/cloud to Alpha
+  To https://github.com/vyos88/Personal-AI-1.2
+     b76aece..1802bb9  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
 
 ## 20261006-41-apply-route-b  apply-update  ->  1   (2026-10-06T23:13:58, 17s)
 ```
@@ -249,69 +354,6 @@ STOP: 1745 new source files is more than 400; something other than source code i
 ```
 
 ## 20261006-29-fleet-coordinator  apply-update  ->  2   (2026-10-06T21:09:31, 6s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..8216243 of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  conflict M backend/tests/test_image_backend_probe.py  -- error: backend/tests/test_image_backend_probe.py: No such file or directory
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
-  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
-```
-
-## 20261006-25-restore-bridges  enable-music  ->  0   (2026-10-06T21:09:38, 85s)
-```
-ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
-python: C:\AlphaData\creators-venv\Scripts\python.exe
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-ok: torch and transformers import (2.14.1+cpu 5.19.0 cpu)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-model cache for the agent: C:\Users\Vyo\.cache\huggingface
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the alpha-agent service
-the agent now offers alpha.music
-music bridge machines: host,worker1
-ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
-done: this machine makes music for the Music Creator
-```
-
-## 20261006-31-enable-music  enable-music  ->  0   (2026-10-06T21:11:03, 67s)
-```
-ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
-python: C:\AlphaData\creators-venv\Scripts\python.exe
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-ok: torch and transformers import (2.14.1+cpu 5.19.0 cpu)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-model cache for the agent: C:\Users\Vyo\.cache\huggingface
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the alpha-agent service
-the agent now offers alpha.music
-music bridge machines: host,worker1
-ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
-done: this machine makes music for the Music Creator
-```
-
-## 20261006-30-live-test  live-test  ->  1   (2026-10-06T21:12:10, 507s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: worker1, host
-ok: track 1 made by host in 44s, 511 bytes, plays (WAV)
-ok: track 2 made by worker1 in 318s, 511 bytes, plays (WAV)
-image machines: alpha-tunnel (worker1, host)
-PROBLEM: image 1: HTTP 502 image_failed worker1 could not render the image: AUTOMATIC1111 answered HTTP 503: {"error": "Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting image-generation"}
-PROBLEM: image 2: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
-PROBLEM: no images to make a reel from (the image test made none)
-music: 2/2 worked; by machine: host x1, worker1 x1 (work was shared)
-image: 0/2 worked; by machine: none
-video: 0/1 worked; by machine: none
-(node:764) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-32-apply-route-b  apply-update  ->  2   (2026-10-06T21:20:38, 5s)
 ```
 Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 changes: dff4d98..8216243 of claude/frie...(30) (last applied here: dff4d98)
