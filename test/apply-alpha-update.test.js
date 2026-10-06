@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot, nearestHunk, needsPackageInstall } from '../scripts/apply-alpha-update.mjs';
+import { main, findSoftwareRoot, nearestHunk, needsPackageInstall, readLive, writeLive } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -443,4 +443,29 @@ test('a restart stops whatever holds each port before running the task again', a
   const off = [];
   restartWindows((l) => off.push(l), { spawn: () => { throw new Error('must not run'); }, isWindows: false });
   assert.match(off[0], /only does something on the Windows host/);
+});
+
+test('line endings come back as the file had them, whatever git apply wrote', () => {
+  // On Windows `git apply` writes CRLF into the scratch tree. Restoring CRLF on
+  // top of that turned every line end of Worker1's alpha_agent_manager.ps1 into
+  // CR-CR-LF, so each backtick continuation ended at the first CR and the next
+  // line ran as a command ("The term '-ReceiptStatus' is not recognized").
+  // Linux CI never sees CRLF from git apply, so this drives the writer directly.
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-eol-'));
+
+  const crlfFile = join(dir, 'manager.ps1');
+  writeLive(crlfFile, 'Get-Thing -A $a `\r\n    -B $b\r\n', { crlf: true });
+  assert.equal(readFileSync(crlfFile, 'utf8'), 'Get-Thing -A $a `\r\n    -B $b\r\n');
+
+  const lfFile = join(dir, 'site.css');
+  writeLive(lfFile, '.a{color:green}\r\n.b{color:blue}\r\n', { crlf: false });
+  assert.equal(readFileSync(lfFile, 'utf8'), '.a{color:green}\n.b{color:blue}\n');
+
+  // A file already damaged that way reads as plain CRLF, so the next update heals it.
+  writeFileSync(join(dir, 'damaged.ps1'), 'Get-Thing -A $a `\r\r\n    -B $b\r\r\n');
+  const damaged = readLive(join(dir, 'damaged.ps1'));
+  assert.equal(damaged.crlf, true);
+  assert.equal(damaged.text, 'Get-Thing -A $a `\n    -B $b\n');
+  writeLive(join(dir, 'damaged.ps1'), damaged.text, damaged);
+  assert.equal(readFileSync(join(dir, 'damaged.ps1'), 'utf8'), 'Get-Thing -A $a `\r\n    -B $b\r\n');
 });

@@ -201,16 +201,29 @@ export function newFilesPatch({ cache, to, subdir, paths }) {
     ...paths.map((p) => `${subdir}/${p}`)], { cwd: cache }).stdout;
 }
 
-function readLive(file) {
+// Any run of CRs before a newline is one line end. `\r\r\n` is what this file
+// used to write; reading it as one line end lets the next update heal it.
+const toLf = (text) => text.replace(/\r+\n/g, '\n');
+
+export function readLive(file) {
   const raw = readFileSync(file);
   const bom = raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf;
   const text = raw.subarray(bom ? 3 : 0).toString('utf8');
-  return { bom, crlf: text.includes('\r\n'), text: text.replace(/\r\n/g, '\n') };
+  return { bom, crlf: text.includes('\r\n'), text: toLf(text) };
 }
 
-function writeLive(file, text, { bom = false, crlf = false } = {}) {
+/**
+ * Writes `text` with the file's own line endings, whatever endings `text`
+ * arrives with. It used to trust that the text was LF, and the patched files
+ * are not: on Windows `git apply` writes CRLF into the scratch tree. So an LF
+ * file came back CRLF, and a CRLF file came back CR-CR-LF, which breaks every
+ * PowerShell backtick continuation (Worker1's alpha_agent_manager.ps1, written
+ * 2026-10-06 11:48: "The term '-ReceiptStatus' is not recognized").
+ */
+export function writeLive(file, text, { bom = false, crlf = false } = {}) {
   mkdirSync(dirname(file), { recursive: true });
-  const body = Buffer.from(crlf ? text.replace(/\n/g, '\r\n') : text, 'utf8');
+  const lf = toLf(text);
+  const body = Buffer.from(crlf ? lf.replace(/\n/g, '\r\n') : lf, 'utf8');
   writeFileSync(file, bom ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), body]) : body);
 }
 
