@@ -1,8 +1,24 @@
-﻿# laptop41 autopilot 20261006-222845
+﻿# laptop41 autopilot 20261006-224847
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 8809f6a is current
+checkout 2f4ac0a is current
+
+## 20261006-40-apply-route-b  apply-update  ->  1   (2026-10-06T22:49:03, 17s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
+  applies  M backend/main.py
+  already  D backend/tests/test_image_backend_probe.py
+  applies  A backend/tests/test_image_backend_probe_live.py
+  applies  A backend/tests/test_tunnel_coordinator.py
+  applies  A backend/tunnel_coordinator.py
+  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+  ok: wrote 4 file(s)
+  the merged file is kept at C:\AlphaData\alpha-ops\backups\alph...(37)\failed\software\backend\main.py
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: line 18004: invalid syntax (2300 line(s) from the change at lines 15690-15704) -- putting everything back
+  restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+```
 
 ## 20261006-40-music-host-check  live-test  ->  1   (2026-10-06T22:29:04, 722s)
 ```
@@ -297,18 +313,5 @@ stopped pid 1532 (and its children) on 4173
 started task 'Alpha'
 site listening on 4173 (pid 6028)
 /music/healthz through the site: the music bridge answers
-```
-
-## 20261006-26-enable-image  enable-image  ->  0   (2026-10-06T20:14:04, 21s)
-```
-image backend: a1111
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the alpha-agent service
-the agent now offers alpha.image
-image bridge machines: host,worker1
-ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
-ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
-restarted task 'Alpha Backend' so it reads the new image route
-done: this machine renders images for Alpha through the tunnel
 ```
 
