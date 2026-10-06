@@ -106,6 +106,10 @@ function Resolve-Action($a) {
 
 # Cut anything that looks like a credential before a line leaves the machine.
 function Redact([string]$t) {
+  # Progress bars (ollama, npm) redraw with escape codes and carriage returns:
+  # keep only what the line finally said.
+  $t = $t -replace '\x1b\[[0-9;?]*[A-Za-z]', ''
+  if ($t.Contains("`r")) { $t = ($t -split "`r" | Where-Object { $_.Trim() } | Select-Object -Last 1) }
   $t = $t -replace 'alpha_key_[A-Za-z0-9_\-]+', 'alpha_key_...'
   $t = $t -replace '(?i)((password|passwd|token|secret|api[_-]?key|authorization)["'']?\s*[:=]\s*["'']?)[^\s"'',;]+', '$1...'
   $t = $t -replace '(?i)(bearer\s+)[A-Za-z0-9._\-]+', '$1...'
@@ -217,13 +221,21 @@ foreach ($a in $queued) {
       $quoted = $p.args | ForEach-Object { if ($_ -match '[\s"]') { '"' + ($_ -replace '"', '\"') + '"' } else { $_ } }
       $proc = Start-Process -FilePath $p.exe -ArgumentList $quoted -WorkingDirectory $repo -NoNewWindow -PassThru `
                 -RedirectStandardOutput $log -RedirectStandardError $errLog
+      # Without a handle taken now, .NET drops the exit code once the process
+      # ends, and ExitCode reads back empty: the first report showed "->" with
+      # no result for every action.
+      $null = $proc.Handle
       if ($proc.WaitForExit([int]$p.timeoutMin * 60000)) { $code = $proc.ExitCode }
       else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $code = "timeout after $($p.timeoutMin) min" }
     } catch { $code = 'could not start'; Set-Content -LiteralPath $errLog -Value $_.Exception.Message }
-    $text = ((Get-Content -LiteralPath $log -EA SilentlyContinue) + (Get-Content -LiteralPath $errLog -EA SilentlyContinue)) -join "`n"
+    # -Raw: line by line, Get-Content also splits at a bare carriage return,
+    # and a progress bar's redraws would come back as separate lines.
+    $text = (@(Get-Content -LiteralPath $log -Raw -EA SilentlyContinue) + @(Get-Content -LiteralPath $errLog -Raw -EA SilentlyContinue) | Where-Object { $_ }) -join "`n"
   }
   if ($p.internal -or -not $p.ok) { Set-Content -LiteralPath $log -Value $text }
-  $tail = (($text -split "`r?`n") | Where-Object { $_.Trim() } | Select-Object -Last 60 | ForEach-Object { Redact $_ }) -join "`n"
+  $prev = $null
+  $tail = (($text -split "`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } |
+           Where-Object { $same = ($_ -eq $prev); $prev = $_; -not $same } | Select-Object -Last 60) -join "`n"
   $entry = [ordered]@{ id = $p.id; do = $p.do; result = "$code"; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail }
   $done[$p.id] = [ordered]@{ result = "$code"; at = $entry.at }
   [void]$ran.Add($entry)
