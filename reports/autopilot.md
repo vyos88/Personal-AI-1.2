@@ -1,6 +1,90 @@
-﻿# laptop41 autopilot 20261006-025744
+﻿# laptop41 autopilot 20261006-031346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+
+## 20261006-06-snapshot-retry  snapshot  ->     (2026-10-06T03:13:49, 2s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
+STOP: could not fetch alpha-full: git checkout -q -B failed: error: Your local changes to the following files would be overwritten by checkout:
+	BuildArtifacts/installers/Alpha-Full/scripts/alpha_coordination_tunnel.ps1
+	BuildArtifacts/installers/Alpha-Full/software/backend/api/__init__.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/api/auth.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/api/crowpanel.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/api/monetization.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/main.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/multibrain_router.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_crowpanel_api.py
+	BuildArtifacts/installers/Alpha-Full/software/backend/tests/test_multibrain_router.py
+	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/AdminSecurityPanel.jsx
+	BuildArtifacts/installers/Alpha-Full/software/frontend/src/pages/SubscriptionPlansPanel.jsx
+Please commit your changes or stash them before you switch branches.
+Aborting
+  Alpha is a private repository: this machine needs git credentials for github.com.
+```
+
+## 20261006-07-doctor  doctor  ->     (2026-10-06T03:13:51, 34s)
+```
+  task Alpha Backend    Running  last run 2026-10-06 03:00 result 0x00041301 (still running)
+  task Alpha Self-Heal  Ready    last run 2026-10-06 03:13 result 0x00000000 (success)
+  cloudflared service: Stopped
+  cloudflared processes on this machine: 1
+  last self-heal entries:
+    {"at":"2026-10-06T02:09:39.490Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+    {"at":"2026-10-06T02:11:39.452Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+    {"at":"2026-10-06T02:13:39.510Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791252107712:9073","code":1}],"events":[]}
+=== 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
+  ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
+  the coordinator runs on another machine; none should listen here
+  --- agents
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- stats
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- keys
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- tasks
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+=== 6. CrowPanel ===
+    COM4
+    COM20
+    COM50
+  device: USB-SERIAL CH340 (COM20)
+  device: USB-SERIAL CH340 (COM50)
+  device: USB-SERIAL CH340 (COM4)
+  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
+=== 7. Memory, disk, heaviest processes ===
+  ok: 5.7 of 15.8 GB RAM free
+  ok: C: 27 GB free
+  claude                          719 MB  pid 4148
+  Memory Compression              719 MB  pid 3840
+  node                            718 MB  pid 4100
+  MsMpEng                         446 MB  pid 6040
+  explorer                        335 MB  pid 10108
+  msedge                          257 MB  pid 19212
+  claude                          231 MB  pid 7320
+  msedge                          219 MB  pid 17100
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
+  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
+  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
+=== SUMMARY ===
+  this pass took 27s
+  - NEEDS A PERSON - the 'Alpha' task does not mention C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend: it serves some other folder  (open 101 run(s), since 2026-10-05T02:56:26)
+  + fixed since last run: image port 7860 is held by python.exe, not Stable Diffusion's API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [open 101 runs NEEDS A PERSON] Re-point the 'Alpha' task at the frontend found in section 0 (repair-alpha-host.ps1 does it and keeps the old task exported).
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+no alpha_coordination_tunnel.ps1 under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software - not posted
+  To https://github.com/vyos88/Personal-AI-1.2
+     85a2c62..440f9f9  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
 
 ## 20261006-01-repair  repair-host  ->     (2026-10-06T02:57:46, 318s)
 ```
