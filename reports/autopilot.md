@@ -1,8 +1,14 @@
-﻿# laptop41 autopilot 20261006-213346
+﻿# laptop41 autopilot 20261006-214902
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout a3b0fd1 is current
+checkout 1262d43 is current
+
+## auto-bridges-20261006-214902  bridges (standing)  ->  0 (restarted)   (2026-10-06T21:51:18, 0s)
+```
+'alpha-music bridge' was not listening on 8790: restarted, it answers now
+'alpha-image bridge' was not listening on 7861: restarted, it answers now
+```
 
 ## auto-bridges-20261006-213346  bridges (standing)  ->  0 (restarted)   (2026-10-06T21:34:04, 0s)
 ```
@@ -240,24 +246,5 @@ ok: restarted the alpha-agent service
 the agent now offers alpha.music
 music bridge machines: host,worker1
 ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
-```
-
-## 20261006-20-music-route  apply-update  ->  0   (2026-10-06T19:12:19, 172s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: 47f0c5c..dff4d98 of claude/frie...(30) (last applied here: 47f0c5c)
-  applies  M frontend/src/brainTopology.js
-  applies  M frontend/src/brainTopologyProvenance.test.js
-  applies  M frontend/src/components/BrainNeuralModel.jsx
-  applies  A frontend/src/musicProxyRoutes.test.js
-  applies  M frontend/vite.config.js
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 5 file(s)
-  packages unchanged and installed: building (no npm ci)...
-  ok: frontend built
-DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-  restarted task 'Alpha Backend'
-  restarted task 'Alpha'
-  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
 ```
 
