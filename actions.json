@@ -161,6 +161,13 @@
    "do": "apply-update",
    "branch": "claude/friendly-wright-jw4ep6-route-b",
    "why": "owner: live fleet not live. The fleet view asked the coordinator on 127.0.0.1:8787; it runs on the Host since 2026-10-05 (Alpha route-b: tunnel_coordinator.py reads ALPHA_HOST_URL from the tunnel .env). Restarts the backend and site with #139's restart."
+  },
+  {
+   "id": "20261006-25-restore-bridges",
+   "do": "enable-music",
+   "bridge": true,
+   "machines": "host,worker1",
+   "why": "the music bridge answered on 8790 at 19:53 (job 23) and was down by 20:26: 'Generate cannot queue anything'. Both bridges start at logon and nothing supervises them. enable-music re-registers and starts 'alpha-music bridge', and everything else in it is already done so it is quick. The cheap fix lands with PR #99 (start-task may start 'alpha-music bridge' / 'alpha-image bridge'); use that once it is on main."
   }
  ],
  "autofix": {
