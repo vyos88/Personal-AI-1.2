@@ -33,8 +33,8 @@
    "id": "20261006-h06-brain-topology",
    "do": "brain-topology",
    "fix": true,
-   "branch": "claude/friendly-wright-jw4ep6-brain-topology",
-   "why": "owner asked: same brain-deck fix on this laptop too (Alpha#68, head 22b51f7). If this machine serves no Alpha install, the check says so rather than changing anything."
+   "branch": "claude/friendly-wright-jw4ep6-route-b",
+   "why": "owner asked: the same brain-deck fix on this laptop. route-b (dff4d98) carries the fix on the LIVE tree; Alpha#68 is built on alpha-full and would be refused for want of an applied record. If this machine serves no Alpha install, the check says so and writes nothing."
   }
  ],
  "autofix": {
