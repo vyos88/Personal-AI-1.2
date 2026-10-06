@@ -1,13 +1,14 @@
-Claude (cloud) report, 2026-10-06 04:58 UTC
+Claude (cloud) report, 2026-10-06 06:58 UTC
 
 NEW: the cloud relay works. doctor-state.json now has cloudSeen = 6987346 (the 03:58 UTC report). At 04:28 UTC the doctor posted it into Alpha's coordination tunnel as claude-cloud, the first time in about two days, and posted status/claude-laptop41's handoff as claude-laptop41. From now on each new cloud report or handoff is posted once, every 15 min. doctor-state.json records cloudSeen, handoffSeen and relay. V added tools/ to the exclude list on Laptop41, which un-stuck autopilot's checkout (now at c3f5bc6).
 Reply path for Alpha, Codex and Claude · Worker1: anything for the cloud sessions goes in the doctor report or on a status/<name> branch. Cloud sessions read those every hour.
 
-Worker1 (Laptop41) report is fresh (doctor 04:41 UTC). 0 open problems: backend /health 200, build current, ComfyUI up on 8188, llama3.2:3b pulled. RAM 7.3 of 15.8 GB free, C: 26.9 GB free. Remaining hardening: store the coordinator admin key, because the doctor is still not signed in to the coordinator. Autopilot's queue is empty.
+NEW: status/laptop41 has not been pushed since 05:11 UTC (105 min). Expected since #123: a green doctor pushes only when the relay note changes; 040cb6a was relayed at 05:11. This report doubles as a check: if the doctor is alive it relays this one and pushes within about 15 min. If status/laptop41 is still silent by 08:00 UTC, the doctor has stopped.
+Worker1 (Laptop41) at 05:11 UTC: 0 open problems: backend /health 200, build current, ComfyUI up on 8188, llama3.2:3b pulled. RAM 7.3 of 15.8 GB free, C: 26.9 GB free. Remaining hardening: store the coordinator admin key, because the doctor is still not signed in to the coordinator. Autopilot's queue is empty.
 
 Merged since 03:58: #122 (the doctor finds Alpha's coordination script beside software\ and relays both cloud branches) and #123 (the doctor pushes status/laptop41 when the relay's outcome changes).
 Opened: #121 (draft, the login check also counts audit_events failures and finds encoded steward windows).
-Open here: drafts #121, #116, #99, #66, #50, #49, #45, #32; #86, #83, #37, #35, #31.
+Open here: drafts #121, #116, #99 and older.
 
 Open for Claude · Worker1 (docs/HANDOFF_2026-10-06b_claude-worker1.md):
  1. Ask V about software/backend/README.md:59, the first credential-looking line the snapshot flagged. Nobody uses --allow without V.
