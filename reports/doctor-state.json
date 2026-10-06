@@ -1,12 +1,12 @@
 {
     "cloudSeen":  null,
     "lastPost":  null,
-    "lastRun":  "2026-10-06T03:14:17",
+    "lastRun":  "2026-10-06T03:26:27",
     "open":  {
-                 "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder":  {
-                                                                                                                                                                      "since":  "2026-10-05T02:56:26",
-                                                                                                                                                                      "runs":  101,
-                                                                                                                                                                      "text":  "the \u0027Alpha\u0027 task does not mention C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend: it serves some other folder"
-                                                                                                                                                                  }
+                 "image port # is held by python.exe, not Stable Diffusion\u0027s API (/sdapi/v#/sd-models answers #): chat images fail with HTTP #":  {
+                                                                                                                                                           "since":  "2026-10-06T03:26:27",
+                                                                                                                                                           "runs":  1,
+                                                                                                                                                           "text":  "image port 7860 is held by python.exe, not Stable Diffusion\u0027s API (/sdapi/v1/sd-models answers 404): chat images fail with HTTP 503"
+                                                                                                                                                       }
              }
 }
