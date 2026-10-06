@@ -139,6 +139,8 @@ async function doctorAgainst(handler) {
   return r;
 }
 
+// Ollama's own format: nanoseconds and a local offset, e.g. 2026-10-07T17:40:00.123456789+01:00.
+const ollamaTime = (ms) => new Date(ms + 3600e3).toISOString().replace('Z', '').replace(/\.(\d{3})$/, '.$1456789') + '+01:00';
 const json = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
 
 test('chat is checked without a login: route guarded, model pulled and answering', { skip, timeout: 300_000 }, async () => {
@@ -147,9 +149,11 @@ test('chat is checked without a login: route guarded, model pulled and answering
     if (req.url === '/chat') return json(res, 401, { detail: 'Not authenticated' });
     if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'llama3.2:3b' }] });
     if (req.url === '/api/generate') return json(res, 200, { response: 'OK', load_duration: 2e9, eval_count: 4, eval_duration: 1e9 });
+    if (req.url === '/api/ps') return json(res, 200, { models: [{ name: 'llama3.2:3b', expires_at: ollamaTime(Date.now() + 24 * 3600e3) }] });
     json(res, 404, {});
   });
   assert.equal(status, 0, out);
+  assert.match(out, /ok: Ollama keeps 'llama3\.2:3b' loaded for 24 h after each use/);
   assert.match(out, /ok: backend ready \(phase ready\)/);
   assert.match(out, /ok: \/chat is mounted and asks for a login \(HTTP 401\)/);
   assert.match(out, /ok: chat model 'llama3\.2:3b' answered in [\d.]+s \(load 2s, 4 tokens\/s\): OK/);
@@ -168,4 +172,49 @@ test('a missing chat model and an open /chat are problems with a next step', { s
   assert.match(out, /Ollama models: qwen2\.5:0\.5b/);
   assert.match(out, /PROBLEM: chat model 'llama3\.2:3b' is not pulled in Ollama/);
   assert.match(out, /Pull the chat model/);
+});
+
+// 2026-10-06: a 77.9s reply was 75.6s of loading at a normal speed. That is a
+// keep-alive problem, and "close apps or move chat" was the wrong advice.
+test('a slow load is reported as a load, with the keep-alive fix', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 200, { ready: true, phase: 'ready' });
+    if (req.url === '/chat') return json(res, 401, {});
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'llama3.2:3b' }] });
+    if (req.url === '/api/generate') return json(res, 200, { response: 'OK', load_duration: 75.6e9, eval_count: 9, eval_duration: 1e9 });
+    if (req.url === '/api/ps') return json(res, 200, { models: [{ name: 'llama3.2:3b', expires_at: ollamaTime(Date.now() + 5 * 60e3) }] });
+    json(res, 404, {});
+  });
+  assert.match(out, /PROBLEM: chat model 'llama3\.2:3b' took 75\.6s to load: the first chat after an idle spell waits that long/);
+  assert.doesNotMatch(out, /to answer once loaded/);
+  assert.match(out, /Ollama unloads 'llama3\.2:3b' 5 min after each use/);
+  assert.match(out, /"do":"ollama-keepalive"/);
+  assert.doesNotMatch(out, /close heavy apps/);
+});
+
+// 2026-10-06: Generate failed three ways at once and the doctor said nothing.
+test('the Music Creator path is checked link by link', { skip, timeout: 300_000 }, async () => {
+  const server = createServer((req, res) => {
+    // The live site's mistake: /music went to Alpha's backend.
+    if (req.url === '/music/healthz') return json(res, 404, { detail: 'Not Found' });
+    json(res, 404, {});
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-music-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  // The doctor calls curl.exe by name.
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
+  chmodSync(join(bin, 'curl.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', String(port),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  server.close();
+  assert.match(out, /=== 5b\. Music Creator ===/);
+  assert.match(out, /PROBLEM: music bridge is not running on 127\.0\.0\.1:8790/);
+  assert.match(out, /PROBLEM: the site sends \/music to Alpha's backend, not the music bridge/);
+  assert.match(out, /"do":"enable-music","bridge":true/);
 });

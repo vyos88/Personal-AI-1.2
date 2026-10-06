@@ -297,7 +297,26 @@ function Run-Checks {
         $txt = ("$($gen.response)" -replace '\s+', ' ').Trim()
         if ($txt.Length -gt 60) { $txt = $txt.Substring(0, 60) + '...' }
         OK "chat model '$ChatModel' answered in ${secs}s (load ${load}s, $tps tokens/s): $txt"
-        if ($secs -gt 60) { Problem "chat model '$ChatModel' took ${secs}s for a one-word reply: chat will time out" }
+        # Loading and answering are different problems with different fixes:
+        # on 2026-10-06 a 77.9s reply was 75.6s of loading and a normal 9.4
+        # tokens/s, and "close apps or move chat" sent people the wrong way.
+        $answer = [math]::Round([math]::Max(0, $secs - $load), 1)
+        if ($answer -gt 60) { Problem "chat model '$ChatModel' took ${answer}s to answer once loaded: chat will time out" }
+        elseif ($load -gt 30) { Problem "chat model '$ChatModel' took ${load}s to load: the first chat after an idle spell waits that long" }
+        # How long Ollama keeps it loaded decides how often anyone pays that load.
+        try {
+          $want2 = if ($ChatModel -match ':') { $ChatModel } else { "${ChatModel}:latest" }
+          $ps = @((Invoke-RestMethod -Uri "$($OllamaUrl.TrimEnd('/'))/api/ps" -TimeoutSec 10).models) | Where-Object { $_.name -eq $want2 -or $_.model -eq $want2 } | Select-Object -First 1
+          if ($ps -and $ps.expires_at) {
+            # Ollama writes nanoseconds (trimmed to 7 digits for .NET Framework); PowerShell 7 may hand over a date.
+            $at = $ps.expires_at
+            $when = if ($at -is [datetime]) { [DateTimeOffset]$at } else { [DateTimeOffset]::Parse(([string]$at -replace '(\.\d{7})\d+', '$1'), [Globalization.CultureInfo]::InvariantCulture) }
+            $mins = [math]::Round(($when - [DateTimeOffset]::UtcNow).TotalMinutes)
+            if ($mins -gt 525600) { OK "Ollama keeps '$ChatModel' loaded until it stops" }
+            elseif ($mins -ge 60) { OK "Ollama keeps '$ChatModel' loaded for $([math]::Round($mins / 60)) h after each use" }
+            else { Note "Ollama unloads '$ChatModel' $mins min after each use (OLLAMA_KEEP_ALIVE not set); the next chat then waits for a reload" }
+          }
+        } catch { }
       } catch {
         Problem "chat model '$ChatModel' did not answer: $($_.Exception.Message)"
       }
@@ -464,8 +483,35 @@ function Run-Checks {
   } else {
     Note "port $CoordinatorPort : $(Describe (Owner $CoordinatorPort))"
   }
+  $agentsOut = ''
   if ($hz) {
-    foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') { Note "--- $cmd"; Indent (Admin $cmd) }
+    foreach ($cmd in 'agents', 'stats', 'keys', 'tasks') {
+      $out1 = Admin $cmd
+      if ($cmd -eq 'agents') { $agentsOut = "$out1" }
+      Note "--- $cmd"; Indent $out1
+    }
+  }
+
+  # ------------------------------------------------------------ music
+  # Generate on the Music Creator runs: page -> /music/* on the site -> the
+  # music bridge on 127.0.0.1:8790 -> an alpha.music task -> a machine whose
+  # agent offers alpha.music. On 2026-10-06 three of those links were missing
+  # and nothing said so: the site sent /music to the backend (404), no bridge
+  # ran, and no machine offered alpha.music.
+  Section '5b. Music Creator'
+  $bridgeUp = (Body 'http://127.0.0.1:8790/music/healthz') -match '"ok"\s*:\s*true'
+  if ($bridgeUp) { OK 'music bridge answers on 127.0.0.1:8790' }
+  else { Problem 'music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything' }
+  $viaSite = ''
+  foreach ($scheme in 'http', 'https') { if (-not $viaSite) { $viaSite = Body "${scheme}://127.0.0.1:$FrontendPort/music/healthz" } }
+  if ($viaSite -match '"ok"\s*:\s*true') { OK "the site routes /music to the bridge (port $FrontendPort)" }
+  elseif ($viaSite -match 'bridge_down') { Note "the site routes /music to the bridge, which is not answering" }
+  elseif ($viaSite -match 'Not Found|"detail"') { Problem "the site sends /music to Alpha's backend, not the music bridge: Generate gets a 404" }
+  elseif ($viaSite) { Note "/music/healthz on port $FrontendPort answered something else: $(($viaSite -replace '\s+', ' ').Substring(0, [math]::Min(80, $viaSite.Length)))" }
+  if ($hz -and $agentsOut) {
+    $makers = @($agentsOut -split "`r?`n" | Where-Object { $_ -match '(^|[\s,])alpha\.music([\s,]|$)' } | ForEach-Object { ($_.Trim() -split '\s+')[0] })
+    if ($makers.Count) { OK "machines that make music: $($makers -join ', ')" }
+    else { Problem 'no machine offers alpha.music: a queued track waits forever' }
   }
 
   # ------------------------------------------------------------ panel
@@ -658,9 +704,13 @@ $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
   @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
+  @{ m = 'music bridge is not running';                                                         r = 'Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).' },
+  @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
+  @{ m = 'no machine offers alpha.music';                                                       r = 'Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).' },
   @{ m = "Ollama does not answer";                                                              r = 'Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.' },
   @{ m = "chat model '.*' is not pulled";                                                       r = 'Pull the chat model: queue {"do":"ollama-pull","model":"<name>"} for the autopilot, or run `ollama pull <name>`.' },
-  @{ m = "chat model '.*' (did not answer|took)";                                               r = 'The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).' },
+  @{ m = "chat model '.*' took .*s to load";                                                    r = 'Keep the chat model loaded: queue {"do":"ollama-keepalive"} for the autopilot (sets OLLAMA_KEEP_ALIVE=24h, restarts Ollama, loads the model). Closing apps does not help a slow load.' },
+  @{ m = "chat model '.*' (did not answer|took .*s to answer)";                                             r = 'The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HANDOFF_2026-10-06_server-day.md).' },
   @{ m = "chat '.*' failed";                                                                    r = 'Chat answers 500: the traceback in section 2 names the line. Send the report to Claude; do not restart in a loop, it is a code bug, not a crash.' },
   @{ m = 'dictionary bug';                                                                      r = 'Run the doctor once with -Fix as Administrator: apply-chat-fix.ps1 patches the dictionary 500, keeps a backup and restarts the backend.' },
   @{ m = 'no dist|build is older|nothing serves Alpha|older build than dist';                   r = 'Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.' },
