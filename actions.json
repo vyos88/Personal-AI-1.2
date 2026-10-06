@@ -4,6 +4,18 @@
       "id": "20261006-h01-enable-music",
       "do": "enable-music",
       "why": "Music Creator on Host too: MusicGen + alpha-music on this agent; Worker1's bridge sends tracks here when Host is the less busy machine (Personal-AI-1.2#130)"
+    },
+    {
+      "id": "20261006-h02-enable-music",
+      "do": "enable-music",
+      "why": "music on the RTX 3050: own venv with CUDA torch (#132)"
+    },
+    {
+      "id": "20261006-h03-enable-image",
+      "do": "enable-image",
+      "installComfy": true,
+      "backend": "comfyui",
+      "why": "images on the RTX 3050 (GPU 0): ComfyUI + SD 1.5 with CUDA torch, alpha-image handlers (#132)"
     }
   ]
 }
