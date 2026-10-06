@@ -194,10 +194,13 @@ test('over a real coordinator: it reads the manager through the agent that has i
   mkdirSync(join(root, 'memory', 'local', 'agent-manager'), { recursive: true });
   writeFileSync(join(root, 'memory', 'local', 'agent-manager', 'manager-status.json'), `﻿${JSON.stringify(managerSnapshot())}`);
   const previous = process.env.ALPHA_REPO_ROOT;
+  const previousManager = process.env.ALPHA_AGENT_MANAGER_ROOT;
   process.env.ALPHA_REPO_ROOT = root;
+  delete process.env.ALPHA_AGENT_MANAGER_ROOT;
   t.after(() => {
     if (previous === undefined) delete process.env.ALPHA_REPO_ROOT;
     else process.env.ALPHA_REPO_ROOT = previous;
+    if (previousManager !== undefined) process.env.ALPHA_AGENT_MANAGER_ROOT = previousManager;
   });
 
   const host = await startHost();

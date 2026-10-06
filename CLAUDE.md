@@ -411,10 +411,14 @@ viewer, never a second manager:
 - **The read is a handler because the HTTP route wants the owner.**
   `/agent-manager/status` needs Alpha's owner login, which no scheduled
   console should hold. `agent-manager-status.js` reads
-  `memory/local/agent-manager/manager-status.json` inside `ALPHA_REPO_ROOT` (the
-  root the coordination handler already uses), takes no arguments, starts no
-  process, and is opt-in. `available()` declines a root with no snapshot,
-  because the Host's records standby has an `ALPHA_REPO_ROOT` too.
+  `memory/local/agent-manager/manager-status.json` inside
+  `ALPHA_AGENT_MANAGER_ROOT`, else `ALPHA_REPO_ROOT` (the root the coordination
+  handler uses), takes no arguments, starts no process, and is opt-in.
+  `available()` declines a root with no snapshot, because the Host's records
+  standby has an `ALPHA_REPO_ROOT` too. The two roots differ on Worker1: its
+  coordination log is in `C:\Users\Vyo\Alpha-1.8`, but the live manager runs
+  from `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai`, and reading the first
+  served a week-old snapshot. The stale check is what caught it.
 - **Stale is drawn as stale.** The manager rewrites its snapshot every 15 s;
   both the handler and the viewer call it stale after two minutes, and the
   viewer ages a kept snapshot by the time since it was read. An old snapshot
@@ -427,7 +431,8 @@ viewer, never a second manager:
   the "Managed control denied (HTTP=403)" in its supervisor log.
 
 Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
-that runs Alpha, then on any machine:
+that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
+not `ALPHA_REPO_ROOT`), then on any machine:
 `node scripts/fleet-agents.mjs --machines host=laptop-gj8dfmlk,worker1=desktop-41hplcn`.
 
 ## Adding a handler
