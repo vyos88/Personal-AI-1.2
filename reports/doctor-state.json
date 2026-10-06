@@ -1,24 +1,39 @@
 {
     "cloudSeen":  "2b8f694c7f9a5f46152fed2c0e1e78c3084822bb",
-    "lastRun":  "2026-10-06T21:11:26",
-    "handoffSeen":  "e435f00edded7bfc911bb6c402819fbb23eb4125",
+    "lastRun":  "2026-10-06T21:42:09",
+    "handoffSeen":  "a78e0e8d536fe32d8ea45d6d0d38d896206a065c",
     "open":  {
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-06T19:56:29",
-                                                                                                                                            "runs":  6,
+                                                                                                                                            "runs":  8,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha##, which keeps the assistant heartbeat fresh between cycles":  {
                                                                                                                                                                               "since":  "2026-10-06T19:56:29",
-                                                                                                                                                                              "runs":  6,
+                                                                                                                                                                              "runs":  8,
                                                                                                                                                                               "text":  "Alpha\u0027s deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
                                                                                                                                                                           },
+                 "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
+                                                                                                          "since":  "2026-10-06T21:42:09",
+                                                                                                          "runs":  1,
+                                                                                                          "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
+                                                                                                      },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-06T19:56:29",
-                                                                                                                                                         "runs":  6,
+                                                                                                                                                         "runs":  8,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
-                                                                                                                                                     }
+                                                                                                                                                     },
+                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
+                                                                                                           "since":  "2026-10-06T21:42:09",
+                                                                                                           "runs":  1,
+                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
+                                                                                                       },
+                 "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
+                                                                                                  "since":  "2026-10-06T21:42:09",
+                                                                                                  "runs":  1,
+                                                                                                  "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
+                                                                                              }
              },
-    "lastPost":  "2026-10-06T21:11:26",
-    "relay":  "relayed status/cloud 2b8f694"
+    "lastPost":  "2026-10-06T21:42:09",
+    "relay":  "relayed status/claude-laptop41 a78e0e8"
 }
