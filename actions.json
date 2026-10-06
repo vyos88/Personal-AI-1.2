@@ -42,6 +42,11 @@
       "installComfy": true,
       "backend": "comfyui",
       "why": "h05: ComfyUI crashed on start: comfy_kitchen needs torch 2.7+ ('infer_schema ... stride has unsupported type list[int]' on 2.6.0+cu124). #147 upgrades to torch>=2.7 from the cu128 index (RTX 3050, GPU 0); the clone and checkpoint are already there."
+    },
+    {
+      "id": "20261006-h08-enable-music",
+      "do": "enable-music",
+      "why": "owner asked: restart the agent onto #156 (alpha.music unloads ComfyUI's models before a track, so MusicGen has the RTX 3050's VRAM); job 40 timed out at 12 min while ComfyUI held 2.6 of 4 GB"
     }
   ],
   "autofix": {
