@@ -99,3 +99,31 @@ test('it does nothing on the wrong machine', { skip }, () => {
   assert.equal(r.status, 3);
   assert.match(r.stdout, /does nothing here/);
 });
+
+test('a checkout that cannot update says why in the report', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-dirty-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  writeFileSync(join(work, 'notes.txt'), 'tracked\n');
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  // Someone edited a tracked file on the machine: self-update must refuse.
+  writeFileSync(join(work, 'notes.txt'), 'edited here\n');
+  const env = { COMPUTERNAME: '' };
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', join(dir, 'sw')];
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /did NOT update/);
+  assert.match(report, /notes\.txt/);
+  // Said once: the same refusal on the next pass pushes nothing new.
+  const before = git(remote, 'rev-parse', 'status/laptop41-autopilot');
+  pwsh(args, env);
+  assert.equal(git(remote, 'rev-parse', 'status/laptop41-autopilot'), before);
+});
