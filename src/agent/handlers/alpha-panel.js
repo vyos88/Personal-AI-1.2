@@ -63,6 +63,8 @@ export const description =
  * - `Scan` asks the board which WiFi networks *it* can see. The laptop beside
  *   it is not the same radio in the same place, and provisioning a panel with
  *   a network it cannot hear is the failure that looks like a wrong password.
+ * - `Page` turns the display to one of its pages, or holds it there. It changes
+ *   nothing but what is on screen, and the screen is read-only either way.
  * - `Compile` builds the pinned sketch and touches no hardware, so it answers
  *   "would a flash even work?" without writing to the board.
  * - `Flash` writes that same pinned sketch to the board.
@@ -73,10 +75,32 @@ export const description =
  * arbitrary code execution on the microcontroller — the hardware equivalent of
  * the remote shell `handlers/index.js` says must never appear here.
  */
+/**
+ * What to say when nothing answered, which depends on whether the port was
+ * quiet or busy.
+ *
+ * A board in bootloader mode says nothing. A board running Alpha's own deck
+ * firmware — same board family, no credential, polls
+ * `/panel/crowpanel/public-state`, takes bare-word `STATUS` / `WIFI` / `ALPHA`
+ * commands — talks, just not in this protocol. Blaming the cable for the second
+ * one costs an evening.
+ */
+export function describeSilence(port, outcome) {
+  if (outcome?.spoke) {
+    return (
+      `something on ${port} is talking but not in this protocol — if this board runs Alpha's ` +
+      `deck firmware, provision it with its own STATUS/WIFI/ALPHA commands instead` +
+      (outcome.heard ? `. It said: ${outcome.heard}` : '')
+    );
+  }
+  return `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`;
+}
+
 export const ALLOWED_ACTIONS = Object.freeze([
   'Ports',
   'Status',
   'Scan',
+  'Page',
   'Compile',
   'Flash',
   'Provision',
@@ -124,6 +148,12 @@ const MIN_PASSWORD_LENGTH = 8;
 // board is the one that enforces it — this only turns "silently forgot the
 // fourth" into an answer that comes back on the task.
 const MAX_NETWORKS = 4;
+
+// The pages the firmware draws, in its order (PAGE_NAMES in crowpanel.ino).
+// Mirrored by hand, and that is the point of validating here: a payload naming
+// a page the board does not have should be told so by the task, not swallowed by
+// a board that silently keeps showing what it was showing.
+export const PANEL_PAGES = Object.freeze(['fleet', 'machines', 'work', 'receipts', 'panel']);
 
 export function validateAction(action) {
   // Ports is the harmless one, so it is what an empty payload means.
@@ -240,6 +270,38 @@ export function validateCredentials(payload) {
  * provisioned with three of the four networks somebody meant is the kind of
  * half-success nobody notices until they are in the wrong room.
  */
+/**
+ * Which page to turn to, and whether to stop the rotation there.
+ *
+ * `next` is accepted because it is what a person actually wants from a queued
+ * task, and nothing but a page name or `next` is: the board holds a fixed set
+ * of pages, so a typo is answerable here rather than on the wire.
+ */
+export function validatePage(payload) {
+  const page = payload?.page;
+  const hold = payload?.hold;
+
+  if (hold !== undefined && typeof hold !== 'boolean') {
+    throw new ProtocolError('"hold" must be true or false');
+  }
+  if (page === undefined || page === null || page === '') {
+    // Hold or release where it already is. A payload with neither is refused
+    // rather than quietly doing nothing.
+    if (hold === undefined) {
+      throw new ProtocolError(
+        `the Page action needs "page" (one of ${PANEL_PAGES.join(', ')}, or next) or "hold"`,
+      );
+    }
+    return { page: null, hold };
+  }
+  if (typeof page !== 'string' || (!PANEL_PAGES.includes(page) && page !== 'next')) {
+    throw new ProtocolError(
+      `"page" must be one of ${PANEL_PAGES.join(', ')} or next, got ${JSON.stringify(page)}`,
+    );
+  }
+  return { page, hold };
+}
+
 export function validateNetworks(payload) {
   const list = payload?.networks;
 
@@ -656,6 +718,9 @@ export async function converseOver(handle, commands, secret, options = {}) {
   let received = '';
   let consumed = 0;
   let inflight = null;
+  // Whether anything at all came back that was not a reply of ours. A board in
+  // bootloader mode is silent; one running different firmware is not.
+  let spokeSomething = false;
 
   function readChunk() {
     if (!inflight) {
@@ -686,7 +751,13 @@ export async function converseOver(handle, commands, secret, options = {}) {
     for (let i = consumed; i < lines.length - 1; i++) {
       const trimmed = lines[i].trim();
       consumed = i + 1;
-      if (!trimmed.startsWith('{')) continue;
+      if (!trimmed.startsWith('{')) {
+        // Not ours, and not nothing: a boot banner is this too, which is why it
+        // only ever decides between "silent" and "talking", never on its own
+        // that the firmware is wrong.
+        if (trimmed.length) spokeSomething = true;
+        continue;
+      }
       try {
         const reply = JSON.parse(trimmed);
         if (reply?.ok === undefined && reply?.error === undefined) continue;
@@ -740,7 +811,19 @@ export async function converseOver(handle, commands, secret, options = {}) {
   if (ready === null) {
     // Nothing was sent but a status query, so there is no half-provisioned
     // board here: either it is not running this firmware, or it is not there.
-    return { ready: false, status: null, replies: [], transcript: transcript() };
+    //
+    // Those two are worth telling apart, and the port already did. Anything
+    // that arrived is a board that is talking but not in this protocol —
+    // Alpha's own deck firmware is the one that does that, and it is the same
+    // family of board, so it is the mistake that actually happens.
+    return {
+      ready: false,
+      status: null,
+      spoke: spokeSomething,
+      heard: spokeSomething ? redact(received, secret).trim().slice(-200) : '',
+      replies: [],
+      transcript: transcript(),
+    };
   }
 
   const replies = [];
@@ -796,14 +879,38 @@ export async function run(payload, { signal, log } = {}) {
       action,
       port,
       ready: outcome.ready,
-      refused: outcome.ready
-        ? undefined
-        : `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`,
+      refused: outcome.ready ? undefined : describeSilence(port, outcome),
       // Strongest first, because the answer people want from a scan is "which
       // of these should I provision".
       networks: Array.isArray(networks)
         ? [...networks].sort((a, b) => (b?.rssi ?? -999) - (a?.rssi ?? -999))
         : null,
+      timedOut: !outcome.ready || outcome.replies.some((entry) => entry.timedOut),
+      transcript: outcome.transcript,
+    };
+  }
+
+  if (action === 'Page') {
+    const port = validatePort(payload?.port);
+    const { page, hold } = validatePage(payload);
+    const command = { cmd: 'page' };
+    if (page) command.page = page;
+    if (hold !== undefined) command.hold = hold;
+
+    const outcome = await converse(port, [command], '', { signal, log });
+    const turned = outcome.replies.find((entry) => entry.cmd === 'page');
+
+    return {
+      action,
+      port,
+      ready: outcome.ready,
+      refused: outcome.ready ? undefined : describeSilence(port, outcome),
+      // What it is showing now, from the board rather than from what was asked
+      // for: `next` only means something once it has been resolved.
+      page: turned?.reply?.page ?? null,
+      hold: turned?.reply?.hold ?? null,
+      pages: turned?.reply?.pages ?? null,
+      changed: turned?.reply?.ok === true,
       timedOut: !outcome.ready || outcome.replies.some((entry) => entry.timedOut),
       transcript: outcome.transcript,
     };
@@ -841,7 +948,7 @@ export async function run(payload, { signal, log } = {}) {
       // that never came back is a different problem from one that came back and
       // could not join, and the two send an operator to different places.
       ready: outcome.ready,
-      refused: outcome.ready ? undefined : `nothing on ${port} answered; check the board is running this firmware and not held in bootloader`,
+      refused: outcome.ready ? undefined : describeSilence(port, outcome),
       provisioned: wifi?.reply?.ok === true,
       ip: wifi?.reply?.ip ?? null,
       // What it tried and could not join, straight from the board: "none of
