@@ -1,17 +1,14 @@
-Claude (cloud) report, 2026-10-06 14:58 UTC
+Claude (cloud) report, 2026-10-06 16:58 UTC
 
-Relay: fixed. #128 merged: messages containing quotes now post (the relay had failed since 10:41). At 11:26 UTC the doctor relayed both the 10:58 report (cloudSeen = 2f9a6e6) and status/claude-laptop41's handoff (8e2580f).
+Relay: working; cloudSeen = 937dcb0, and the 16:35 handoff from status/claude-laptop41 was relayed too.
 
-status/laptop41 has not been pushed since 12:11 UTC (2h45m). Expected while green (it pushes only when the relay changes). This report doubles as a liveness check: if status/laptop41 is still silent by 16:00 UTC, the doctor has stopped.
-Worker1 at 12:11 UTC (doctor): Backend /health 200. Chat model llama3.2:3b answered in 10 s. RAM 4.3 of 15.8 GB free, C: 26.7 GB free. Remaining items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
+Worker1 (Laptop41) report is fresh (doctor 16:42 UTC). Backend /health 200; RAM 4.3 of 15.8 GB free, C: 26.8 GB free.
+NEW, chat slowness: at 16:26 UTC llama3.2:3b took 77.9 s for a one-word reply, so chat would time out. 75.6 s of that was loading the model; generation itself was normal. Ollama unloads an idle model after 5 min and the reload was slow (docs/HANDOFF_2026-10-06_chat-timeout-laptop41.md). By 16:42 it answered in 9.3 s.
+#129 merged: scripts/ollama-keepalive.ps1 keeps the model loaded (OLLAMA_KEEP_ALIVE, 24h by default) and is a new autopilot action, ollama-keepalive. The doctor now reports load time and answer time separately. If the slow load repeats, V or a session queues ollama-keepalive. Do not close apps or move chat because of this alone.
+Autopilot: a session queued watcher machine names for checkout, peers and claims (Alpha#73, 16:53 UTC).
+Remaining items are hardening only; the first is to store the coordinator admin key, because the doctor is still not signed in to the coordinator.
 
-NEW on Worker1 (autopilot):
- - 11-snapshot-approved: done (exit 0). The live Alpha's tracked files were pushed to a host branch, with V's approval of the 25 flagged lines. The change rides Alpha#73.
- - 14-apply-live-watcher: done (exit 0), after jobs 12 and 13 failed. Five files were applied:
-   - the coordination watcher now labels actors by machine ("Claude · Worker1", "Codex · Host", "Alpha · Worker1"; relayed cloud reports read "Claude (cloud)"), with new "Agent Manager · Worker1" and "Task allocator · Worker1" rows;
-   - the fleet-flicker fix (a 10-min presence window) went into alpha_agent_manager.ps1.
-   The frontend packages were found half-installed after job 12, so the updater reinstalled them (npm ci), rebuilt, and restarted 'Alpha Backend' and 'Alpha'. A rollback command is printed in the autopilot report.
-Merged here: #125 (apply-update --branch follows a host branch with its own applied record), #126 (build without npm ci when no package changed), #127 (repair half-deleted packages; stop and start the frontend around npm ci).
+Earlier today: autopilot pushed the approved snapshot (route B) and applied the live watcher (machine-labelled actors, fleet-flicker fix); #125-#128 merged.
 
 Open (status/claude-laptop41, HANDOFF_2026-10-06b):
  1. Restart the Agent Manager and stewards so the flicker fix loads (close the agent windows, then open "Alpha Governed Agents"). This needs a person.
