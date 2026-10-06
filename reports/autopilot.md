@@ -1,8 +1,105 @@
-﻿# laptop41 autopilot 20261006-201346
+﻿# laptop41 autopilot 20261006-210846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 6bcb982 is current
+checkout 0e2d11d is current
+
+## auto-bridges-20261006-210846  bridges (standing)  ->  0 (restarted)   (2026-10-06T21:09:05, 0s)
+```
+'alpha-music bridge' was not listening on 8790: restarted, it answers now
+'alpha-image bridge' was not listening on 7861: restarted, it answers now
+```
+
+## 20261006-28-snapshot-new  snapshot  ->  1   (2026-10-06T21:09:07, 24s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
+  1300 file(s) tracked under software\ and scripts\; 529 differ here; 115 not on this machine (left as they are)
+  not taken: software/backend/tests/test_owner_password_is_seed_only.py (named like a secret)
+  not taken: software/backend/tests/test_owner_password_persistence.py (named like a secret)
+  not taken: software/backend/tests/test_secret_scan_rules.py (named like a secret)
+  not taken: software/backend/tests/test_stale_password_consumers.py (named like a secret)
+  not taken: software/frontend/src/styles-tile-tokens.css (named like a secret)
+  not taken: scripts/alpha_private_beta_gate.ps1 (named like a secret)
+  not taken: scripts/alpha_secret_scan.py (named like a secret)
+  not taken: scripts/apply_pending_owner_password.py (named like a secret)
+  not taken: scripts/enter-owner-password-private.ps1 (named like a secret)
+STOP: 1745 new source files is more than 400; something other than source code is in these folders. First ones: scripts/Configure-Alpha-Dedicated-Worker.ps1, scripts/Deploy-Alpha-Dedicated-WorkerRemote.ps1, scripts/Install-Alpha-Fleet-Transport.ps1, scripts/Restart-Alpha-Dedicated-Worker.ps1, scripts/Start-AlphaAnatomyOvernight.ps1, scripts/alpha-yocto.ps1, scripts/alpha_agent_accuracy_policy.ps1, scripts/alpha_agent_adoption_policy.ps1, scripts/alpha_agent_code_freshness.ps1, scripts/alpha_agent_officer.ps1
+```
+
+## 20261006-29-fleet-coordinator  apply-update  ->  2   (2026-10-06T21:09:31, 6s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: dff4d98..8216243 of claude/frie...(30) (last applied here: dff4d98)
+  applies  M backend/main.py
+  conflict M backend/tests/test_image_backend_probe.py  -- error: backend/tests/test_image_backend_probe.py: No such file or directory
+  applies  A backend/tests/test_tunnel_coordinator.py
+  applies  A backend/tunnel_coordinator.py
+REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
+  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
+```
+
+## 20261006-25-restore-bridges  enable-music  ->  0   (2026-10-06T21:09:38, 85s)
+```
+ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
+python: C:\AlphaData\creators-venv\Scripts\python.exe
+installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
+ok: torch and transformers import (2.14.1+cpu 5.19.0 cpu)
+downloading facebook/musicgen-small once, so the first track does not wait for it...
+ok: facebook/musicgen-small is cached
+model cache for the agent: C:\Users\Vyo\.cache\huggingface
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the alpha-agent service
+the agent now offers alpha.music
+music bridge machines: host,worker1
+ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
+done: this machine makes music for the Music Creator
+```
+
+## 20261006-31-enable-music  enable-music  ->  0   (2026-10-06T21:11:03, 67s)
+```
+ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
+python: C:\AlphaData\creators-venv\Scripts\python.exe
+installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
+ok: torch and transformers import (2.14.1+cpu 5.19.0 cpu)
+downloading facebook/musicgen-small once, so the first track does not wait for it...
+ok: facebook/musicgen-small is cached
+model cache for the agent: C:\Users\Vyo\.cache\huggingface
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the alpha-agent service
+the agent now offers alpha.music
+music bridge machines: host,worker1
+ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
+done: this machine makes music for the Music Creator
+```
+
+## 20261006-30-live-test  live-test  ->  1   (2026-10-06T21:12:10, 507s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: worker1, host
+ok: track 1 made by host in 44s, 511 bytes, plays (WAV)
+ok: track 2 made by worker1 in 318s, 511 bytes, plays (WAV)
+image machines: alpha-tunnel (worker1, host)
+PROBLEM: image 1: HTTP 502 image_failed worker1 could not render the image: AUTOMATIC1111 answered HTTP 503: {"error": "Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting image-generation"}
+PROBLEM: image 2: HTTP 502 image_failed host could not render the image: ComfyUI is not reachable at http://127.0.0.1:8188/prompt: fetch failed
+PROBLEM: no images to make a reel from (the image test made none)
+music: 2/2 worked; by machine: host x1, worker1 x1 (work was shared)
+image: 0/2 worked; by machine: none
+video: 0/1 worked; by machine: none
+(node:764) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261006-32-apply-route-b  apply-update  ->  2   (2026-10-06T21:20:38, 5s)
+```
+Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+changes: dff4d98..8216243 of claude/frie...(30) (last applied here: dff4d98)
+  applies  M backend/main.py
+  conflict M backend/tests/test_image_backend_probe.py  -- error: backend/tests/test_image_backend_probe.py: No such file or directory
+  applies  A backend/tests/test_tunnel_coordinator.py
+  applies  A backend/tunnel_coordinator.py
+REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
+  Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
+```
 
 ## 20261006-25-restart-site  restart-site  ->  0   (2026-10-06T20:13:52, 12s)
 ```
@@ -173,289 +270,5 @@ stopped 2 Ollama process(es)
 started the Ollama app
 loaded 'llama3.2:3b' in 23.5s
 ok: 'llama3.2:3b' is loaded and kept for 24 h after each use
-```
-
-## 20261006-16-watcher-machine-names  apply-update  ->  0   (2026-10-06T17:59:23, 120s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: bdd4244..47f0c5c of claude/frie...(30) (last applied here: bdd4244)
-  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-  applies  M frontend/src/liveCoordinationLabels.js
-  applies  M frontend/src/liveCoordinationLabels.test.js
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 3 file(s)
-  packages unchanged and installed: building (no npm ci)...
-  ok: frontend built
-DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-  restarted task 'Alpha Backend'
-  restarted task 'Alpha'
-  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-```
-
-## 20261006-14-apply-live-watcher  apply-update  ->  0   (2026-10-06T11:48:48, 138s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: 030195d..bdd4244 of claude/frie...(30)
-  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-  applies  A frontend/src/liveCoordinationLabels.js
-  applies  A frontend/src/liveCoordinationLabels.test.js
-  applies  M scripts/alpha_agent_manager.ps1
-  applies  M scripts/test_alpha_agent_manager.ps1
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 5 file(s)
-  ok: 2 PowerShell file(s) parse
-  installed frontend packages are incomplete (an earlier install was cut short): reinstalling
-  stopped 2 frontend process(es) so packages can be reinstalled
-  installing frontend packages (npm ci) and building...
-  ok: frontend built
-DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-  restarted task 'Alpha Backend'
-  restarted task 'Alpha'
-  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-  The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").
-```
-
-## 20261006-13-apply-live-watcher  apply-update  ->  1   (2026-10-06T11:33:48, 9s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: 030195d..bdd4244 of claude/frie...(30)
-  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-  applies  A frontend/src/liveCoordinationLabels.js
-  applies  A frontend/src/liveCoordinationLabels.test.js
-  applies  M scripts/alpha_agent_manager.ps1
-  applies  M scripts/test_alpha_agent_manager.ps1
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 5 file(s)
-  ok: 2 PowerShell file(s) parse
-  packages unchanged and installed: building (no npm ci)...
-  the frontend build failed:
-> vyos-frontend@2.0.0 build
-> vite build && node scripts/precompress-assets.mjs
-'vite' is not recognized as an internal or external command,
-operable program or batch file. -- putting everything back
-  restored 1 file(s), removed 2 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-  restored 2 file(s), removed 0 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts
-```
-
-## 20261006-12-apply-live-watcher  apply-update  ->  1   (2026-10-06T11:18:48, 26s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: 030195d..bdd4244 of claude/frie...(30)
-  applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-  applies  A frontend/src/liveCoordinationLabels.js
-  applies  A frontend/src/liveCoordinationLabels.test.js
-  applies  M scripts/alpha_agent_manager.ps1
-  applies  M scripts/test_alpha_agent_manager.ps1
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 5 file(s)
-  ok: 2 PowerShell file(s) parse
-  installing frontend packages (npm ci) and building...
-  npm ci failed:
-npm error [Error: EPERM: operation not permitted, unlink 'C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\@rolldown\binding-win32-x64-msvc\rolldown-binding.win32-x64-msvc.node'] {
-npm error   errno: -4048,
-npm error   code: 'EPERM',
-npm error   syscall: 'unlink',
-npm error   path: 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\node_modules\\@rolldown\\binding-win32-x64-msvc\\rolldown-binding.win32-x64-msvc.node'
-npm error }
-npm error
-npm error The operation was rejected by your operating system.
-npm error It's possible that the file was already in use (by a text editor or antivirus), or that you lack permissions to access it.
-npm error
-npm error If you believe this might be a permissions issue, please double-check the permissions of the file and its containing directories, or try running the command again as root/Administrator.
-npm error A complete log of this run can be found in: C:\Users\Vyo\AppData\Local\npm-cache\_logs\2026...(32).log -- putting everything back
-  restored 1 file(s), removed 2 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-  restored 2 file(s), removed 0 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts
-```
-
-## 20261006-11-snapshot-approved  snapshot  ->  0   (2026-10-06T10:58:48, 35s)
-```
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha-tailnet-git-ssh.ps1      |   21 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alph...(27).py |   47 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_agent_manager.ps1        | 1461 +++++++++++++++++--
-   .../installers/Alpha-Full/scripts/alpha_agent_manager_rotation.ps1          |   10 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_agent_simulation.py      |    8 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_all_hubs_next_level.ps1  |   76 +-
-   .../installers/Alpha-Full/scripts/alpha_api_improvement_agent.ps1           |   28 +-
-   .../installers/Alpha-Full/scripts/alpha_api_stabilization_agent.py          |   51 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_autorepair.ps1           |  125 +-
-   .../installers/Alpha-Full/scripts/alpha_board_connectivity_audit.py         |   18 +-
-   .../installers/Alpha-Full/scripts/alpha_book_acquisition_agent.py           |   94 +-
-   .../installers/Alpha-Full/scripts/alpha_chat_improvement_agent.ps1          |   77 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_chat_stability_probe.py  |   70 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_coordination_tunnel.ps1  |  757 +++++++++-
-   .../installers/Alpha-Full/scripts/alpha_deck_improvement_agent.ps1          |  130 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_enroll_compute_peer.ps1  |   21 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_evolution_steward.ps1    |   47 +-
-   .../installers/Alpha-Full/scripts/alpha_fleet_verification_steward.ps1      |  229 ++-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_gmail_triage_steward.ps1 |   57 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_health_agent.py          | 2677 ++++++++++++++++++++++++++++++++++-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_hotspot_bridge_relay.ps1 |   24 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alph...(25).ps1  |  226 +--
-   .../installers/Alpha-Full/scripts/alpha_interface_style_steward.ps1         |   33 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_overnight_9h.ps1         |  650 +--------
-   .../installers/Alpha-Full/scripts/alpha_package_update_steward.ps1          |   97 +-
-   .../installers/Alpha-Full/scripts/alpha_release_integrity_gate.ps1          |   15 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_runtime_always_on.ps1    |  546 ++++++-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_runtime_watchdog.ps1     |  802 +++++++++--
-   .../installers/Alpha-Full/scripts/alpha_scroll_improvement_agents.py        |    9 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_sensitive_data_gate.py   |   42 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_skill_registry_audit.py  |   86 +-
-   .../installers/Alpha-Full/scripts/alpha_spatial_signal_steward.ps1          |   46 +-
-   .../installers/Alpha-Full/scripts/alpha_surface_health_steward.ps1          |   79 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_ui_button_audit.py       |   38 +-
-   .../installers/Alpha-Full/scripts/alpha_ui_contract_regression.mjs          |   42 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_unoq_identity_probe.py   |   65 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_video_creator.py         |  104 +-
-   .../installers/Alpha-Full/scripts/alpha_visual_contract_audit.mjs           |    4 +
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_voice_steward.ps1        |   16 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/alpha_work_autoread_monitor.py |   32 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/audit-alpha.ps1                |   17 +
-   BuildArtifacts/installers/Alpha-Full/scripts/audit_deck_display_modes.mjs   |   44 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/audit_shadowed_routes.py       |   65 +
-   BuildArtifacts/installers/Alpha-Full/scripts/backup-alpha-checkpoint.ps1    |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-installer.ps1      |    7 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-installers.ps1     |  194 ++-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-launcher.ps1       |    3 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-release.ps1        |   26 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-setup-exe.ps1      |    8 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/build-alpha-update.ps1         |   95 +-
-   .../installers/Alpha-Full/scripts/build_surface_recommendation_queue.mjs    |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_alpha_hubs.mjs         |   60 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_deck.mjs        |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_avatar_outfits.mjs     |    2 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_brain_deck.mjs         |    4 +-
-   BuildArtifacts/installers/Alpha-Full/scripts/capture_hardware_deck.mjs      |    2 +-
-   ...
-   528 files changed, 63218 insertions(+), 15402 deletions(-)
-  25 credential-looking line(s), every one cleared with --allow
-DONE: pushed alpha-from-host-20261006-0959 (528 file(s)). Tell the session that branch name.
-```
-
-## 20261006-10-doctor-chat  doctor  ->  0   (2026-10-06T10:33:47, 109s)
-```
-    task_yybt1nm3fa1bg9s2  alpha.coordination  succeeded  1      0         2026-10-06 08:55:39
-    task_la591f5kmjzbug4n  alpha.coordination  succeeded  1      0         2026-10-06 08:53:50
-    task_63a9b1gts8pljlpu  alpha.coordination  succeeded  1      0         2026-10-06 07:52:38
-    task_v37z44t0b3bttv2e  alpha.coordination  succeeded  1      0         2026-10-06 07:50:49
-    task_qn399f8alj6v3he4  alpha.coordination  succeeded  1      0         2026-10-06 06:49:38
-    task_nb5ijy8k1h6cv05e  alpha.coordination  succeeded  1      0         2026-10-06 06:47:50
-    task_1jp6p1v9xx5vv8k9  alpha.coordination  succeeded  1      0         2026-10-06 05:46:38
-    task_topnr7mxez6mo5qf  alpha.coordination  succeeded  1      0         2026-10-06 05:44:50
-    task_kp7l48pn34k6ulx3  alpha.coordination  succeeded  1      0         2026-10-06 04:43:39
-    task_p7o8mhi7x93oa0ku  alpha.coordination  succeeded  1      0         2026-10-06 04:41:50
-    task_su403yu4pjjspbqn  alpha.coordination  succeeded  1      0         2026-10-06 03:40:39
-    task_5sf00y1uyv1yelg7  alpha.coordination  succeeded  1      0         2026-10-06 03:38:50
-    task_0724xo8xyj2zlhnz  alpha.coordination  succeeded  1      0         2026-10-06 02:37:39
-    task_wg5py6fp2y20lgul  alpha.coordination  succeeded  1      0         2026-10-06 02:35:50
-    task_6yw1tdsjnmb8nlbt  alpha.coordination  succeeded  1      0         2026-10-06 01:34:38
-    task_pahe6hm9x145uxuk  alpha.coordination  succeeded  1      0         2026-10-06 01:32:49
-    task_3pxokbqooace94uf  alpha.coordination  succeeded  1      0         2026-10-06 01:15:53
-    task_o21pp0u187qq4xtn  alpha.coordination  succeeded  1      0         2026-10-06 01:14:36
-    task_xz9xl651i2vk8fzz  alpha.coordination  succeeded  1      0         2026-10-06 01:13:53
-    task_akdxb2pe2khc56ow  alpha.coordination  succeeded  1      0         2026-10-06 00:56:44
-=== 6. CrowPanel ===
-    COM4
-    COM20
-    COM50   in use by another program?
-  device: USB-SERIAL CH340 (COM20)
-  device: USB-SERIAL CH340 (COM50)
-  device: USB-SERIAL CH340 (COM4)
-  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
-=== 7. Memory, disk, heaviest processes ===
-  ok: 4.6 of 15.8 GB RAM free
-  ok: C: 26.9 GB free
-  llama-server                  2,441 MB  pid 6880
-  msedge                          674 MB  pid 12440
-  Memory Compression              673 MB  pid 3840
-  claude                          559 MB  pid 4148
-  MsMpEng                         353 MB  pid 6040
-  explorer                        348 MB  pid 10108
-  msedge                          222 MB  pid 16264
-  powershell                      210 MB  pid 19800
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
-  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
-  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
-=== SUMMARY ===
-  this pass took 92s
-  - chat model 'llama3.2:3b' took 71s for a one-word reply: chat will time out  (open 1 run(s), since 2026-10-06T10:35:19)
-=== RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HAND...(29).md).
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
-report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
-posted to Alpha: True
-  To https://github.com/vyos88/Personal-AI-1.2
-     fc8cddf..0c56134  HEAD -> status/laptop41
-pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## 20261006-09-doctor  doctor  ->  0   (2026-10-06T05:28:47, 31s)
-```
-    ID                     TYPE                FOR      STATUS     TRIES  DECLINED  CREATED            
-    ---------------------  ------------------  -------  ---------  -----  --------  -------------------
-    task_su403yu4pjjspbqn  alpha.coordination  -        succeeded  1      0         2026-10-06 03:40:39
-    task_5sf00y1uyv1yelg7  alpha.coordination  -        succeeded  1      0         2026-10-06 03:38:50
-    task_0724xo8xyj2zlhnz  alpha.coordination  -        succeeded  1      0         2026-10-06 02:37:39
-    task_wg5py6fp2y20lgul  alpha.coordination  -        succeeded  1      0         2026-10-06 02:35:50
-    task_6yw1tdsjnmb8nlbt  alpha.coordination  -        succeeded  1      0         2026-10-06 01:34:38
-    task_pahe6hm9x145uxuk  alpha.coordination  -        succeeded  1      0         2026-10-06 01:32:49
-    task_3pxokbqooace94uf  alpha.coordination  -        succeeded  1      0         2026-10-06 01:15:53
-    task_o21pp0u187qq4xtn  alpha.coordination  -        succeeded  1      0         2026-10-06 01:14:36
-    task_xz9xl651i2vk8fzz  alpha.coordination  -        succeeded  1      0         2026-10-06 01:13:53
-    task_akdxb2pe2khc56ow  alpha.coordination  -        succeeded  1      0         2026-10-06 00:56:44
-    task_dhialg2zimd5yhh8  sysinfo             worker1  succeeded  1      0         2026-10-06 00:56:43
-    task_90jmd8xuihw9e4zf  alpha.coordination  -        succeeded  1      0         2026-10-06 00:31:38
-    task_5ey6gjm60gm4ifea  alpha.coordination  -        succeeded  1      0         2026-10-06 00:29:46
-    task_91ntpsdac5r0v04m  alpha.coordination  -        succeeded  1      0         2026-10-06 00:19:46
-    task_jkip6jtzjltnlor4  alpha.coordination  -        succeeded  1      0         2026-10-06 00:06:45
-    task_f27byd0r9sr8bzz7  alpha.coordination  -        succeeded  1      0         2026-10-05 23:28:39
-    task_nw0f3le5velg9qef  alpha.coordination  -        succeeded  1      0         2026-10-05 23:26:45
-    task_3pjp54uzy9b6cc83  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:34
-    task_jzuitne6akqwot6w  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:10
-    task_3bxruobtssilsh7z  alpha.coordination  -        succeeded  1      0         2026-10-05 22:57:01
-=== 6. CrowPanel ===
-    COM4
-    COM20
-    COM50
-  device: USB-SERIAL CH340 (COM20)
-  device: USB-SERIAL CH340 (COM50)
-  device: USB-SERIAL CH340 (COM4)
-  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
-=== 7. Memory, disk, heaviest processes ===
-  ok: 7.4 of 15.8 GB RAM free
-  ok: C: 26.9 GB free
-  Memory Compression              638 MB  pid 3840
-  claude                          552 MB  pid 4148
-  explorer                        332 MB  pid 10108
-  MsMpEng                         323 MB  pid 6040
-  msedge                          230 MB  pid 12440
-  msedge                          217 MB  pid 16976
-  msedge                          216 MB  pid 16264
-  claude                          212 MB  pid 17380
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
-  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
-  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
-=== SUMMARY ===
-  this pass took 25s
-  ok: no problems found
-=== RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  2. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  3. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  4. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  5. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  6. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  7. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
-report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
-  To https://github.com/vyos88/Personal-AI-1.2
-     f0ab6c7..d653a65  HEAD -> status/laptop41
-pushed to status/laptop41 - tell Claude 'doctor pushed'
 ```
 
