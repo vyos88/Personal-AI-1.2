@@ -45,7 +45,7 @@ test('the coordinator check counts failed logins by reason, address and source',
   assert.match(out, /^last: {2}21:12:00\.000 /m);
 });
 
-test('the Alpha check groups recent failed sign-ins and never prints .env.local', { skip }, () => {
+test('the Alpha check groups recent failed sign-ins, names the stewards and never prints .env.local', { skip }, () => {
   const root = mkdtempSync(join(tmpdir(), 'alpha-root-'));
   mkdirSync(join(root, 'memory', 'local'), { recursive: true });
   mkdirSync(join(root, 'data'));
@@ -66,10 +66,31 @@ b = sqlite3.connect(sys.argv[2])
 b.execute('create table audit_events (id integer primary key, event_id text, timestamp text, actor text, ip text, route text, method text, action text, resource_type text, resource_id text, status text, detail text)')
 b.execute("insert into audit_events (event_id, timestamp, actor, ip, action, status, detail) values ('e1', ?, 'VyoS', '127.0.0.1', 'login', 'blocked', '{\\"reason\\": \\"account_rate_limit\\"}')", (now.isoformat(),))
 b.execute("insert into audit_events (event_id, timestamp, actor, ip, action, status, detail) values ('e2', ?, 'VyoS', '127.0.0.1', 'login', 'success', '{}')", (now.isoformat(),))
+# Worker1's live backend wrote failures here only (2026-10-06): 25 in the last
+# 50 minutes, 7 of them in the last 15, plus one too old to count.
+for i in range(25):
+    b.execute("insert into audit_events (event_id, timestamp, actor, ip, action, status, detail) values (?, ?, 'VyoS', '127.0.0.1', 'login', 'failure', '{}')", ('f%d' % i, (now - d.timedelta(minutes=2 + 2 * i, seconds=30)).isoformat()))
+b.execute("insert into audit_events (event_id, timestamp, actor, ip, action, status, detail) values ('fold', ?, 'root', '198.51.100.7', 'login', 'failure', '{}')", ((now - d.timedelta(days=2)).isoformat(),))
 b.commit()
 `, join(root, 'data', 'auth_users.db'), join(root, 'memory', 'audit_store.db')]);
 
-  const out = pwsh('check-alpha-logins.ps1', '-AlphaRoot', join(root, 'software'), '-Python', PY);
+  // The stewards as Worker1 runs them: start_visible_alpha_codex_agents.ps1
+  // opens each window with -EncodedCommand, so its script name is hidden.
+  const encoded = (text) => Buffer.from(text, 'utf16le').toString('base64');
+  const windowCommand = (title, script) => `"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe" -NoExit -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${encoded(
+    `$Host.UI.RawUI.WindowTitle='${title}'; Set-Location -LiteralPath 'C:\\Alpha'; & 'C:\\Alpha\\scripts\\${script}'`)}`;
+  const processes = join(root, 'processes.json');
+  writeFileSync(processes, JSON.stringify([
+    { ProcessId: 2984, CommandLine: windowCommand('ALPHA AGENT MANAGER', 'alpha_agent_manager.ps1') },
+    { ProcessId: 15808, CommandLine: windowCommand('ALPHA GOVERNED WORKSPACE AGENT', 'watch_alpha_workspace_agent.ps1') },
+    { ProcessId: 4100, CommandLine: 'powershell.exe -NoProfile -File C:\\Alpha\\scripts\\alpha_gmail_triage_steward.ps1' },
+    // Not stewards: the tray, another encoded window, and an undecodable one.
+    { ProcessId: 1196, CommandLine: 'powershell.exe -NoLogo -STA -File C:\\Alpha\\scripts\\alpha-desktop-tray.ps1 -OpenLiveTerminals' },
+    { ProcessId: 7000, CommandLine: windowCommand('BUILD WINDOW', 'build-alpha-update.ps1') },
+    { ProcessId: 7001, CommandLine: 'powershell.exe -EncodedCommand !!!!not-base64-at-all!!!!' },
+  ]));
+
+  const out = pwsh('check-alpha-logins.ps1', '-AlphaRoot', join(root, 'software'), '-Python', PY, '-ProcessList', processes);
   assert.ok(!out.includes('do-not-print-this'), 'the .env.local file is never printed');
   assert.match(out, /^Alpha root: /m, 'a path ending in software is taken as its parent');
   assert.ok(out.includes(join(root, 'data', 'auth_users.db')), 'the auth db path comes from .env.local');
@@ -78,4 +99,18 @@ b.commit()
   assert.match(out, /^\s+1 {2}127\.0\.0\.1\s+VyoS\s+\{"reason": "account_rate_limit"\}/m);
   assert.match(out, /alpha-local-service\.credential\.xml {2}last changed /);
   assert.match(out, /steward-auth-backoff\.json {2}\(none\)/);
+
+  // Failures recorded only in audit_events are counted, and whether they are still happening.
+  const audit = out.slice(out.indexOf('(audit_events):'), out.indexOf('Blocked sign-ins'));
+  assert.match(audit, /^\s+25 {2}127\.0\.0\.1\s+VyoS\s+\[/m);
+  assert.match(audit, /^ {2}in the last 15 minutes: 7$/m);
+  assert.ok(!audit.includes('198.51.100.7'), 'an audit failure older than 24 hours is left out');
+
+  // Stewards are found by decoded window title as well as by script name.
+  const stewards = out.slice(out.indexOf('Steward processes running:'));
+  assert.match(stewards, /^\s+2984 {2}ALPHA AGENT MANAGER {2}scripts\\alpha_agent_manager\.ps1 {2}\(-EncodedCommand\)$/m);
+  assert.match(stewards, /^\s+15808 {2}ALPHA GOVERNED WORKSPACE AGENT {2}scripts\\watch_alpha_workspace_agent\.ps1 {2}\(-EncodedCommand\)$/m);
+  assert.match(stewards, /^\s+4100 {2}scripts\\alpha_gmail_triage_steward\.ps1$/m);
+  for (const pid of ['1196', '7000', '7001']) assert.ok(!new RegExp(`^\\s+${pid} `, 'm').test(stewards), `pid ${pid} is not a steward`);
+  assert.ok(!stewards.includes('could not list processes'));
 });
