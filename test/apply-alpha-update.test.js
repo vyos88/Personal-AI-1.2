@@ -142,6 +142,21 @@ test('an update that leaves Python unparseable is put back on the spot', { skip:
   assert.equal(existsSync(join(f.ops, 'alpha-full-applied.json')), false, 'nothing recorded as applied');
 });
 
+// Worker1 job 38: `py` was older than the Python Alpha's backend runs, and
+// could not read the live main.py at all (a line 2300 lines from any change).
+// The merge is judged by a Python that reads the file as it was.
+test('a Python too old for the live file is passed over for one that reads it', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  write(f.live, 'backend/main.py', `${readFileSync(join(f.live, 'backend/main.py'), 'utf8')}\r\n# needs-newer-python\r\n`);
+  const old = join(f.dir, 'old-python');
+  writeFileSync(old, `#!/bin/sh\nfor a; do last=$a; done\nif [ -f "$last" ] && grep -q needs-newer-python "$last"; then echo "line 12: invalid syntax" >&2; exit 1; fi\nexec ${PY} "$@"\n`, { mode: 0o755 });
+  const log = quiet();
+  const code = await main(['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', f.base, '--ops', f.ops, '--skip-build', '--python', old, '--apply'], log);
+  assert.equal(code, 0, log.lines.join('\n'));
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "new"/);
+  assert.match(log.lines.join('\n'), /ok: 1 Python file\(s\) parse/);
+});
+
 test('--rollback restores the files and removes the added ones', { skip: !PY && 'no python' }, async () => {
   const f = fixture();
   const before = readFileSync(join(f.live, 'backend/main.py'), 'utf8');
