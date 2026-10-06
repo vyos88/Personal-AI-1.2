@@ -682,6 +682,18 @@ Copy-Item $report (Join-Path $reportDir 'latest.txt') -Force
 Get-ChildItem $reportDir -Filter 'laptop41-doctor-*.txt' | Sort-Object LastWriteTime -Descending | Select-Object -Skip 100 | Remove-Item -Force -EA SilentlyContinue
 Write-Host "`nreport: $report"
 
+# Alpha's coordination script lives in scripts\ beside software\, and the
+# schedule passes software\ as -AlphaRoot. Looking only under -AlphaRoot never
+# found it, so for two days nothing was posted and no cloud report was relayed.
+function Find-CoordinationScript {
+  $parent = Split-Path $AlphaRoot -Parent
+  foreach ($c in @((Join-Path $AlphaRoot 'scripts'), $(if ($parent) { Join-Path $parent 'scripts' }))) {
+    if ($c) { $f = Join-Path $c 'alpha_coordination_tunnel.ps1'; if (Test-Path -LiteralPath $f -PathType Leaf) { return (Get-Item -LiteralPath $f) } }
+  }
+  Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+}
+$relayNote = $null
+
 # ------------------------------------------------------------ tell Alpha
 # On a change, and hourly while anything is open: every 15 minutes is noise
 # nobody reads.
@@ -690,7 +702,7 @@ $lastPost = if ($prev -and $prev.lastPost) { [datetime]$prev.lastPost } else { [
 $due = $changed -or (($open.Count -gt 0) -and (($now - $lastPost).TotalMinutes -ge 60))
 $posted = $false
 if ($Watch -and $due) {
-  $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
+  $co = Find-CoordinationScript
   $head = if ($open.Count -eq 0) { 'Alpha host check: all green.' } else { "Alpha host check: $($open.Count) open problem(s), $($escalate.Count) need a person." }
   $body = @($head)
   foreach ($o in ($open.Values | Sort-Object { -$_.runs } | Select-Object -First 5)) { $body += "- $($o.text) [open $($o.runs) runs]" }
@@ -703,40 +715,53 @@ if ($Watch -and $due) {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'alpha-doctor' -Message $msg 2>&1 | Out-Null
     $posted = ($LASTEXITCODE -eq 0)
     Write-Host ("posted to Alpha: {0}" -f $posted)
-  } else { Write-Host "no alpha_coordination_tunnel.ps1 under $AlphaRoot - not posted" -ForegroundColor Yellow }
+  } else { $relayNote = "no alpha_coordination_tunnel.ps1 near $AlphaRoot - not posted"; Write-Host $relayNote -ForegroundColor Yellow }
 }
 
 # ------------------------------------------------------------ relay the cloud
-# The other direction. A scheduled cloud Claude session cannot reach the
-# tailnet, so it writes its report to the status/cloud branch every 30
-# minutes; this passes each new one to Alpha's coordination tunnel, where
-# Alpha and Codex read. Posted once per report: the commit id is remembered.
-$cloudSeen = if ($prev -and $prev.cloudSeen) { [string]$prev.cloudSeen } else { $null }
-if ($Watch) {
-  git -C $repo fetch -q origin status/cloud 2>&1 | Plain | Out-Null
+# The other direction. A cloud Claude session cannot reach the tailnet, so it
+# writes its report to a status branch; this passes each new one to Alpha's
+# coordination tunnel, where Alpha and Codex read. Two branches:
+#   status/cloud           reports/cloud.md    the "Alpha fleet relay" routine
+#   status/claude-laptop41 reports/handoff.md  the cloud session that runs
+#                                              Laptop41 through the autopilot
+# Each is posted once per commit: the commit id is remembered.
+function Relay-Branch([string]$branch, [string]$file, [string]$actor, [string]$seen) {
+  git -C $repo fetch -q origin $branch 2>&1 | Plain | Out-Null
+  if ($LASTEXITCODE -ne 0) { return $seen }
+  $head = (git -C $repo rev-parse FETCH_HEAD 2>$null | Out-String).Trim()
+  if (-not $head -or $head -eq $seen) { return $seen }
+  $msg = (git -C $repo show "FETCH_HEAD:$file" 2>$null | Out-String).Trim()
+  if (-not $msg) { return $seen }
+  $co = Find-CoordinationScript
+  if (-not $co) { $script:relayNote = "no alpha_coordination_tunnel.ps1 near $AlphaRoot - $branch not relayed"; Write-Host $script:relayNote -ForegroundColor Yellow; return $seen }
+  $msg = Redact $msg
+  if ($msg.Length -gt 3900) { $msg = $msg.Substring(0, 3900) }
+  & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor $actor -Message $msg 2>&1 | Out-Null
   if ($LASTEXITCODE -eq 0) {
-    $cloudHead = (git -C $repo rev-parse FETCH_HEAD 2>$null | Out-String).Trim()
-    if ($cloudHead -and $cloudHead -ne $cloudSeen) {
-      $cloudMsg = (git -C $repo show 'FETCH_HEAD:reports/cloud.md' 2>$null | Out-String).Trim()
-      $co = Find-Files @($AlphaRoot) @('alpha_coordination_tunnel.ps1') 3 | Select-Object -First 1
-      if ($cloudMsg -and $co) {
-        $cloudMsg = Redact $cloudMsg
-        if ($cloudMsg.Length -gt 3900) { $cloudMsg = $cloudMsg.Substring(0, 3900) }
-        & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $co.FullName -Action Post -Actor 'claude-cloud' -Message $cloudMsg 2>&1 | Out-Null
-        if ($LASTEXITCODE -eq 0) { $cloudSeen = $cloudHead; Write-Host 'relayed the cloud report to Alpha' }
-        else { Write-Host 'could not relay the cloud report to Alpha; will retry next run' -ForegroundColor Yellow }
-      }
-    }
+    $script:relayNote = "relayed $branch $($head.Substring(0, 7))"; Write-Host "relayed $branch to Alpha"
+    return $head
   }
+  $script:relayNote = "posting $branch failed (exit $LASTEXITCODE); will retry next run"; Write-Host $script:relayNote -ForegroundColor Yellow
+  return $seen
+}
+$cloudSeen = if ($prev -and $prev.cloudSeen) { [string]$prev.cloudSeen } else { $null }
+$handoffSeen = if ($prev -and $prev.handoffSeen) { [string]$prev.handoffSeen } else { $null }
+if ($Watch) {
+  $cloudSeen = Relay-Branch 'status/cloud' 'reports/cloud.md' 'claude-cloud' $cloudSeen
+  $handoffSeen = Relay-Branch 'status/claude-laptop41' 'reports/handoff.md' 'claude-laptop41' $handoffSeen
 }
 
-$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; open = $open }
+$state = @{ lastRun = $now.ToString('s'); lastPost = $(if ($posted) { $now.ToString('s') } elseif ($prev) { $prev.lastPost } else { $null }); cloudSeen = $cloudSeen; handoffSeen = $handoffSeen; relay = $(if ($relayNote) { $relayNote } elseif ($prev) { $prev.relay } else { $null }); open = $open }
 $state | ConvertTo-Json -Depth 5 | Set-Content -Path $statePath -Encoding ASCII
 
 # ------------------------------------------------------------ push
 # One branch, status/laptop41, fast-forwarded each time, so it is one place to
-# read rather than a branch per run. Scheduled runs push when Alpha is told.
-if ($Push -or ($Watch -and $due)) {
+# read rather than a branch per run. Scheduled runs push when Alpha is told,
+# and when the relay's outcome changes: while all is green nothing else would
+# push, so a cloud session could not see whether its report got through.
+$relayChanged = [bool]$relayNote -and ($relayNote -ne $(if ($prev) { [string]$prev.relay } else { '' }))
+if ($Push -or ($Watch -and ($due -or $relayChanged))) {
   $branch = 'status/laptop41'
   $wt = Join-Path $tmpDir "push-$stamp"
   git -C $repo fetch -q origin $branch 2>&1 | Plain | Out-Null
