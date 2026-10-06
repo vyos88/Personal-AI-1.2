@@ -27,6 +27,10 @@ anything longer in a dated handoff that this page links to.
   on Laptop41 is correct. Each laptop runs the `Alpha peer report` task every
   3 minutes (`C:\AlphaData\alpha-ops\peer-report.log`). Healthy reads
   `host ok, worker1 ok, 2 agents attached` (since 03:28 local, 2026-10-05).
+  `scripts/peer-handoff.ps1 -Install` replaces it with `Alpha peer handoff`,
+  which every 3 minutes also posts a handoff to the tunnel and reads the
+  other laptop's (`peer-handoff.log`; "STALE" means the peer's is over 10
+  minutes old).
   "missing" or "silent" now means that agent is down; "coordinator NOT
   answering" means the Host coordinator is.
 - **Next: server day** (expected 2026-10-06): [`HANDOFF_2026-10-06_server-day.md`](HANDOFF_2026-10-06_server-day.md), BACKLOG S1-S7. First a real model for Alpha on the server, then the server as Host.
