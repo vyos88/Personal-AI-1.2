@@ -46,8 +46,8 @@ exit 0
   chmodSync(fake, 0o755);
   const r = ps(`Repair-PipConflicts '${fake}'`);
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /putting back 1 requirement\(s\) .*: anyio<4\.0\.0,>=3\.7\.1/);
-  assert.match(r.stdout, /requirements are consistent again/);
+  assert.match(r.stdout, /putting back 1 requirement\(s\) Alpha's server needs .*: anyio<4\.0\.0,>=3\.7\.1/);
+  assert.match(r.stdout, /has what Alpha's server needs again/);
   assert.match(readFileSync(log, 'utf8'), /-m pip install .*anyio<4\.0\.0,>=3\.7\.1/);
 });
 
@@ -60,4 +60,32 @@ test('nothing broken, nothing installed', { skip, timeout: 60_000 }, () => {
   const r = ps(`Repair-PipConflicts '${fake}'`);
   assert.match(r.stdout, /has no broken requirements/);
   assert.doesNotMatch(readFileSync(log, 'utf8'), /install/);
+});
+
+// Review of #132: `pip check` also lists conflicts that are not the backend's.
+// Following one that wants a newer fastapi would upgrade the live server.
+test("only pins Alpha's server needs are put back; its packages are never moved", { skip, timeout: 60_000 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'pip-repair-'));
+  const log = join(dir, 'calls.log');
+  const fake = join(dir, 'python');
+  writeFileSync(fake, `#!/bin/sh
+echo "$@" >> '${log}'
+if [ "$3" = "check" ]; then
+  echo "fastapi 0.104.1 requires anyio<4.0.0,>=3.7.1, but you have anyio 4.15.1."
+  echo "some-sdk 2.0 requires fastapi>=0.110, but you have fastapi 0.104.1."
+  echo "fastapi 0.104.1 requires starlette<0.28.0,>=0.27.0, but you have starlette 0.38.0."
+  echo "torch 2.4 requires sympy>=1.13, but you have sympy 1.12."
+  exit 1
+fi
+exit 0
+`);
+  chmodSync(fake, 0o755);
+  const r = ps(`Repair-PipConflicts '${fake}'`);
+  const installs = readFileSync(log, 'utf8').split('\n').filter((l) => /pip install/.test(l));
+  assert.equal(installs.length, 1, r.stdout);
+  assert.match(installs[0], /anyio<4\.0\.0,>=3\.7\.1$/);
+  assert.doesNotMatch(installs[0], /fastapi|starlette|sympy/);
+  assert.match(r.stdout, /left as is .*some-sdk 2\.0 requires fastapi>=0\.110/);
+  assert.match(r.stdout, /left as is .*requires starlette/);
+  assert.match(r.stdout, /left as is .*sympy/);
 });

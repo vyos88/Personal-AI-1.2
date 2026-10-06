@@ -135,15 +135,34 @@ function Get-CreatorsPython([string]$Base, [string]$Dir = 'C:\AlphaData\creators
   return $null
 }
 
-# `pip check` names every requirement an install broke; put each pin back.
+# `pip check` names every requirement an install broke. On the base Python,
+# which on Worker1 also runs Alpha's backend, only the pins Alpha's own server
+# packages need are put back (fastapi's anyio<4, after MusicGen lifted it), and
+# those packages are never moved themselves: "repairing" some other package's
+# wish for a newer fastapi would upgrade the server under the live backend.
+# Every other conflict is reported and left as it is.
+$script:AlphaServerPackages = @('fastapi', 'starlette', 'uvicorn', 'pydantic', 'pydantic-core')
+function Get-PipRepairs([string]$Report) {
+  $norm = { param($n) ($n.ToLower() -replace '_', '-') }
+  $fixes = New-Object System.Collections.ArrayList
+  $left = New-Object System.Collections.ArrayList
+  foreach ($m in [regex]::Matches($Report, '(?m)^(\S+) \S+ (?:has requirement|requires) ([A-Za-z0-9_.\-]+)([<>=!~][^,\s]*(?:,[<>=!~][^,\s]*)*), but you have[^\r\n]*')) {
+    $by = & $norm $m.Groups[1].Value
+    $dep = & $norm $m.Groups[2].Value
+    if ($script:AlphaServerPackages -contains $by -and $script:AlphaServerPackages -notcontains $dep) { [void]$fixes.Add("$($m.Groups[2].Value)$($m.Groups[3].Value)") }
+    else { [void]$left.Add($m.Value.Trim()) }
+  }
+  @{ fixes = @($fixes | Select-Object -Unique); left = @($left) }
+}
 function Repair-PipConflicts([string]$Python) {
   $report = (& $Python -m pip check 2>&1 | Out-String)
-  $fixes = @([regex]::Matches($report, '(?m)^\S+ \S+ (?:has requirement|requires) ([A-Za-z0-9_.\-]+)([<>=!~][^,\s]*(?:,[<>=!~][^,\s]*)*), but you have') | ForEach-Object { "$($_.Groups[1].Value)$($_.Groups[2].Value)" } | Select-Object -Unique)
-  if (-not $fixes.Count) { Write-Host "ok: $Python has no broken requirements"; return $true }
-  Write-Host "putting back $($fixes.Count) requirement(s) an earlier install broke in ${Python}: $($fixes -join ', ')"
-  & $Python -m pip install --disable-pip-version-check --quiet @fixes 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
-  $after = (& $Python -m pip check 2>&1 | Out-String)
-  $clean = $after -notmatch 'but you have'
-  Write-Host $(if ($clean) { "ok: $Python requirements are consistent again" } else { "PROBLEM: $Python still has broken requirements: $(($after -split "`n" | Select-Object -First 2) -join ' / ')" })
+  $plan = Get-PipRepairs $report
+  foreach ($l in $plan.left) { Write-Host "left as is (not a pin Alpha's server needs): $l" }
+  if (-not $plan.fixes.Count) { Write-Host "ok: $Python has no broken requirements Alpha's server needs"; return $true }
+  Write-Host "putting back $($plan.fixes.Count) requirement(s) Alpha's server needs in ${Python}: $($plan.fixes -join ', ')"
+  & $Python -m pip install --disable-pip-version-check --quiet @($plan.fixes) 2>&1 | Select-Object -Last 3 | ForEach-Object { Write-Host "  $_" }
+  $after = Get-PipRepairs (& $Python -m pip check 2>&1 | Out-String)
+  $clean = -not $after.fixes.Count
+  Write-Host $(if ($clean) { "ok: $Python has what Alpha's server needs again" } else { "PROBLEM: $Python still breaks Alpha's server: $($after.fixes -join ', ')" })
   return $clean
 }
