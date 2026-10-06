@@ -1,8 +1,72 @@
-﻿# laptop41 autopilot 20261006-052844
+﻿# laptop41 autopilot 20261006-103345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout c3f5bc6 is current
+checkout 980338d is current
+
+## 20261006-10-doctor-chat  doctor  ->  0   (2026-10-06T10:33:47, 109s)
+```
+    task_yybt1nm3fa1bg9s2  alpha.coordination  succeeded  1      0         2026-10-06 08:55:39
+    task_la591f5kmjzbug4n  alpha.coordination  succeeded  1      0         2026-10-06 08:53:50
+    task_63a9b1gts8pljlpu  alpha.coordination  succeeded  1      0         2026-10-06 07:52:38
+    task_v37z44t0b3bttv2e  alpha.coordination  succeeded  1      0         2026-10-06 07:50:49
+    task_qn399f8alj6v3he4  alpha.coordination  succeeded  1      0         2026-10-06 06:49:38
+    task_nb5ijy8k1h6cv05e  alpha.coordination  succeeded  1      0         2026-10-06 06:47:50
+    task_1jp6p1v9xx5vv8k9  alpha.coordination  succeeded  1      0         2026-10-06 05:46:38
+    task_topnr7mxez6mo5qf  alpha.coordination  succeeded  1      0         2026-10-06 05:44:50
+    task_kp7l48pn34k6ulx3  alpha.coordination  succeeded  1      0         2026-10-06 04:43:39
+    task_p7o8mhi7x93oa0ku  alpha.coordination  succeeded  1      0         2026-10-06 04:41:50
+    task_su403yu4pjjspbqn  alpha.coordination  succeeded  1      0         2026-10-06 03:40:39
+    task_5sf00y1uyv1yelg7  alpha.coordination  succeeded  1      0         2026-10-06 03:38:50
+    task_0724xo8xyj2zlhnz  alpha.coordination  succeeded  1      0         2026-10-06 02:37:39
+    task_wg5py6fp2y20lgul  alpha.coordination  succeeded  1      0         2026-10-06 02:35:50
+    task_6yw1tdsjnmb8nlbt  alpha.coordination  succeeded  1      0         2026-10-06 01:34:38
+    task_pahe6hm9x145uxuk  alpha.coordination  succeeded  1      0         2026-10-06 01:32:49
+    task_3pxokbqooace94uf  alpha.coordination  succeeded  1      0         2026-10-06 01:15:53
+    task_o21pp0u187qq4xtn  alpha.coordination  succeeded  1      0         2026-10-06 01:14:36
+    task_xz9xl651i2vk8fzz  alpha.coordination  succeeded  1      0         2026-10-06 01:13:53
+    task_akdxb2pe2khc56ow  alpha.coordination  succeeded  1      0         2026-10-06 00:56:44
+=== 6. CrowPanel ===
+    COM4
+    COM20
+    COM50   in use by another program?
+  device: USB-SERIAL CH340 (COM20)
+  device: USB-SERIAL CH340 (COM50)
+  device: USB-SERIAL CH340 (COM4)
+  the panel is live only if its agents:read key in the keys list above was used in the last few seconds
+=== 7. Memory, disk, heaviest processes ===
+  ok: 4.6 of 15.8 GB RAM free
+  ok: C: 26.9 GB free
+  llama-server                  2,441 MB  pid 6880
+  msedge                          674 MB  pid 12440
+  Memory Compression              673 MB  pid 3840
+  claude                          559 MB  pid 4148
+  MsMpEng                         353 MB  pid 6040
+  explorer                        348 MB  pid 10108
+  msedge                          222 MB  pid 16264
+  powershell                      210 MB  pid 19800
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7860/sdapi/v1/txt2img  (from .env.local)
+  port 7860 : pid 16160 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_comfyui_bridge...
+  ok: port 7860 is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 (200)
+=== SUMMARY ===
+  this pass took 92s
+  - chat model 'llama3.2:3b' took 71s for a one-word reply: chat will time out  (open 1 run(s), since 2026-10-06T10:35:19)
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [new] The chat model is too slow or failing here: close heavy apps (section 7), or move chat to a bigger machine (HAND...(29).md).
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+posted to Alpha: True
+  To https://github.com/vyos88/Personal-AI-1.2
+     fc8cddf..0c56134  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
 
 ## 20261006-09-doctor  doctor  ->  0   (2026-10-06T05:28:47, 31s)
 ```
