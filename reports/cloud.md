@@ -1,15 +1,20 @@
-Claude (cloud) report, 2026-10-06 17:05 UTC
+Claude (cloud) report, 2026-10-06 17:45 UTC
+
+BEFORE: work starting on Worker1's music rollout (session "Image generation bug", at V's request). Jobs 17 and 18 (18:13 and 18:25 BST) both ended 1:
+ - 17 enable-music: pip upgraded anyio to 4.15.1 in Python312, but Alpha's fastapi 0.104.1 needs anyio<4. MusicGen moves into a venv of its own; next is checking which Python the backend runs on. Then it could not restart the agent ("no scheduled task 'alpha-tunnel agent'"), so no machine offers alpha.music yet.
+ - 18 music-route: the frontend build failed while bundling vite.config.js (Alpha#73 af139ec); apply-update put both files back, so the live site is unchanged.
+Fixes come as PRs, then autopilot jobs. Alpha and Codex: please do not pip-install into Python312 or edit .env.agent, vite.config.js or the music bridge task by hand meanwhile. Also verifying and merging tunnel PR #131 (CrowPanel feed checks). An AFTER report follows.
 
 NEW, failed-login check fixed: tunnel PR #121 is merged (main 6f48cde). This is BACKLOG H9. On 2026-10-06 scripts\check-alpha-logins.ps1 said "none" while 1,789 sign-ins had failed from 127.0.0.1 as VyoS. It missed them for two reasons. Worker1's backend writes failed sign-ins only to Alpha's audit_events, and the check never read that table. And the Alpha Governed Agents windows start with -EncodedCommand, which hides their script names. The check now reads audit_events, grouped by address and account, with a line "in the last 15 minutes: N". It also decodes -EncodedCommand and lists each window by its 'ALPHA ...' title. Tested: 612/612 on main with it merged, with PowerShell 7.4. It has not been run on Worker1 yet.
 To run it on Laptop41 once the autopilot has pulled main (read-only; it never prints .env.local):
   powershell -ExecutionPolicy Bypass -File C:\services\alpha-tunnel\scripts\check-alpha-logins.ps1
 "in the last 15 minutes: 0" means the stewards' stale-password sign-ins have stopped. A non-zero count with "ALPHA ..." windows listed means they have not: restart the stewards (open item 1).
 
-Tunnel check, 17:00 UTC:
+Tunnel check, 17:00 UTC (autopilot line updated 17:45):
  - Relay: working. The doctor relayed the 16:35 handoff (c9e1e3a). The 16:58 cloud report (167007a) and this one go out on its next pass.
  - Worker1 (doctor 16:42 UTC): 0 open. Backend /health 200. Chat model answered in 9.3 s (load 7.3 s). Public alpha-ai.uk serves the same build as the machine. ComfyUI answers behind Alpha's bridge on 7860. Self-heal is running with no repairs. RAM 4.3 of 15.8 GB free, C: 26.8 GB free.
  - Coordinator 100.93.104.24:8787: healthz ok (1.7.0). Agents, keys and tasks are unseen because the doctor is not signed in (store the admin key; first hardening item).
- - Autopilot: its checkout now updates itself (the tools/ ignore fixed it; it reported "checkout ccc37ac is current"). The last action it reported is 14-apply-live-watcher = 0 at 10:48 UTC. 15-ollama-keepalive and 16-watcher-machine-names (queued 16:50 and 16:53 UTC) were not yet reported at 17:00. The next cloud check confirms both.
+ - Autopilot: its checkout updates itself again (the tools/ ignore fixed it; now 824ee29). 15-ollama-keepalive and 16-watcher-machine-names both ended 0 (17:58 BST); 17 and 18 failed, see above.
 
 Open (status/claude-laptop41, HANDOFF_2026-10-06b):
  1. Restart the Agent Manager and stewards so the flicker fix loads (close the agent windows, then open "Alpha Governed Agents"). This needs a person.
