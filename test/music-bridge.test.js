@@ -16,7 +16,9 @@ import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import * as music from '../src/agent/handlers/alpha-music.js';
 import * as musicAudio from '../src/agent/handlers/alpha-music-audio.js';
-import { createMusicBridge, describeTask, musicPool, pickMusicMachine } from '../src/bridge/music.js';
+import {
+  createMusicBridge, describeReceipt, describeTask, musicPool, pickMusicMachine,
+} from '../src/bridge/music.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
 const REPO = join(import.meta.dirname, '..');
@@ -135,6 +137,7 @@ const finishedMusic = (over = {}) => ({
   result: {
     recipe: SETTINGS,
     outputs: [{ name: 'track.wav', path: 'C:\\Users\\someone\\music\\track.wav', bytes: 4_096 }],
+    stats: { engine: 'facebook/musicgen-small on cpu', generatedInMs: 4_000 },
     stdout: 'generator chatter',
   },
   ...over,
@@ -156,13 +159,15 @@ test('the recipe book is the ledger\'s music receipts, and only what the panel n
   const { status, body } = await get(bridge, '/music/recipes');
   assert.equal(status, 200);
   assert.deepEqual(body.recipes, [
-    { taskId: 'task_new', status: 'failed', recipe: null, agent: 'alpha-host', outputs: [], createdAt: 1_000, finishedAt: 5_000, durationMs: 4_000 },
+    { taskId: 'task_new', status: 'failed', recipe: null, agent: 'alpha-host', outputs: [], engine: null, createdAt: 1_000, finishedAt: 5_000, durationMs: 4_000 },
     {
       taskId: 'task_old',
       status: 'succeeded',
       recipe: SETTINGS,
       agent: 'laptop41',
       outputs: [{ name: 'track.wav', bytes: 4_096 }],
+      // What ran it: a machine on cpu and one on cuda are twenty minutes apart.
+      engine: 'facebook/musicgen-small on cpu',
       createdAt: 1_000,
       finishedAt: 5_000,
       durationMs: 4_000,
@@ -267,6 +272,26 @@ test('task status names outputs but not paths on the generating machine', () => 
   assert.deepEqual(view.outputs, [{ name: 'x.wav', bytes: 10 }]);
   assert.equal(view.agent, null, 'an untargeted task names no machine rather than a registration id');
   assert.equal(describeTask({ id: 't2', status: 'leased', attempts: 1, agentId: 'agent_x', targetAgent: 'laptop41' }).agent, 'laptop41');
+});
+
+// Worker1 timed out at 721s twice on 2026-10-06 while the Host made a track in
+// 38s, and nothing the bridge passed on said what either of them ran it on.
+test('both views say what made the track, and nothing if the result does not', () => {
+  const result = {
+    recipe: SETTINGS,
+    outputs: [{ name: 'x.wav', path: 'C:\\Users\\me\\x.wav', bytes: 10 }],
+    generatedInMs: 5,
+    stats: { engine: 'facebook/musicgen-small on cuda', generatedInMs: 5 },
+  };
+  const view = describeTask({ id: 't3', status: 'succeeded', attempts: 1, payload: SETTINGS, result });
+  assert.equal(view.engine, 'facebook/musicgen-small on cuda');
+  assert.equal(describeTask({ id: 't4', status: 'queued', attempts: 0, payload: SETTINGS }).engine, null);
+
+  // The receipt is the half that survives a restart, and a trimmed result
+  // keeps `stats` while dropping the stdout the engine used to travel in.
+  assert.equal(describeReceipt({ id: 't3', status: 'succeeded', stats: result.stats }).engine,
+    'facebook/musicgen-small on cuda');
+  assert.equal(describeReceipt({ id: 't5', status: 'failed' }).engine, null);
 });
 
 async function post2(url, path, body) {
