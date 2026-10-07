@@ -246,6 +246,16 @@ function Check-DeckFeed {
       if ($null -ne $feed.snapshot_age_s) { $ages += "panel snapshot $($feed.snapshot_age_s)s old" }
       if ($f.cycle_step) { $ages += "assistant cycle in step '$($f.cycle_step)' since $(if ($f.cycle_step_since -is [datetime]) { $f.cycle_step_since.ToString('s') } else { $f.cycle_step_since })" }
       if ($ages.Count) { Note "  $($ages -join '; ')" }
+      # The loop starts only with background or lightweight autonomy on and
+      # interactive-first off. Name each setting, its value and where it came
+      # from, so one that changed between two starts shows.
+      if ($f.reason -eq 'assistant-loop-not-started') {
+        $flags = foreach ($n in 'ALPHA_INTERACTIVE_FIRST_MODE', 'ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED', 'ALPHA_BACKGROUND_AUTOMATION_ENABLED') {
+          $v = EnvSetting $n
+          if ($v) { "$n=$($v.value) ($($v.from))" } else { "$n not set" }
+        }
+        Note "  settings that start the loop: $($flags -join '; ')"
+      }
     } else {
       Problem "Alpha's deck feed is $($feed.status), and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
     }
