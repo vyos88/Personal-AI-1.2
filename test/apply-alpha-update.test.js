@@ -365,6 +365,31 @@ test('a broken line is placed among the changes made to its file', () => {
   assert.equal(nearestHunk(patch, 'backend/main.py', 6, log), '2 line(s) from change #1 at lines 1-4');
 });
 
+// 2026-10-07: files whose CRs were doubled on Worker1 (before #158) and
+// captured back to the branch as CR-CR-LF refused every later change: the
+// patch kept the CRs, the scratch copy did not, and no line matched.
+test('a CRLF or CR-CR-LF file still takes a change, and comes back with single CRLF', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  const repo = f.repo.slice('file://'.length);
+  const lines = ['export const a = 1', 'export const b = 2', 'export const c = 3', ''];
+  write(repo, `${SUB}/frontend/src/doubled.js`, lines.join('\r\r\n'));
+  write(repo, `${SUB}/frontend/src/crlf.js`, lines.join('\r\n'));
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'files as live sync captured them');
+  const from = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/src/doubled.js`, lines.join('\r\r\n').replace('b = 2', 'b = 20'));
+  write(repo, `${SUB}/frontend/src/crlf.js`, lines.join('\r\n').replace('c = 3', 'c = 30'));
+  git(repo, 'commit', '-qam', 'a change to each');
+  write(f.live, 'frontend/src/doubled.js', lines.join('\r\r\n'));
+  write(f.live, 'frontend/src/crlf.js', lines.join('\r\n'));
+  const log = quiet();
+  const code = await main(['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', from, '--ops', f.ops, '--skip-build', '--python', PY, '--apply'], log);
+  assert.equal(code, 0, log.lines.join('\n'));
+  assert.doesNotMatch(log.lines.join('\n'), /conflict/);
+  assert.equal(readFileSync(join(f.live, 'frontend/src/doubled.js'), 'utf8'), lines.join('\r\n').replace('b = 2', 'b = 20'));
+  assert.equal(readFileSync(join(f.live, 'frontend/src/crlf.js'), 'utf8'), lines.join('\r\n').replace('c = 3', 'c = 30'));
+});
+
 test('a branch name that is not one is refused', async () => {
   const f = fixture();
   const out = quiet();
