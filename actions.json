@@ -74,6 +74,11 @@
       "id": "20261007-h13-fleet-inventory",
       "do": "fleet-inventory",
       "why": "re-run with #178 (process trees, script-first roles, agent names) after ComfyUI is back"
+    },
+    {
+      "id": "20261007-h14-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "communication check 2026-10-07 14:30 UTC: is the leftover vite preview tree (Worker1) still there, and DUPLICATES on both; read-only (HANDOFF_2026-10-07c)"
     }
   ],
   "autofix": {
