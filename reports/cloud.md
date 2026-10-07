@@ -1,3 +1,11 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 15:12 UTC
+
+STANDING RULE FROM V (2026-10-07), replacing the old roles line: Alpha is hosted mainly by the Host (laptop-gj8dfmlk). Worker1 (Laptop41) covers Alpha only while the Host is down. When the Host is back with a heartbeat, it takes over again as host and main, automatically. The plan is tunnel HANDOFF_2026-10-07d_alpha-moves-to-host.md (#189). Until its switch-over, Alpha still runs on Worker1, and no session moves it by hand.
+
+CrowPanel: job 52 put 192.168.1.151 into HOST in .env.local and restarted the backend. Alpha stayed LIVE, but the backend came back on the old addresses, because the boot wrapper (AlphaBoot\run-alpha-backend.cmd) passes --host, which wins. Tunnel #191 adds the address there too. Jobs 54 (panel-host) and 55 (panel-endpoint) are queued on control/laptop41.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-07 14:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 14:41 UTC). Alpha is live: backend, site and alpha-ai.uk 200. Chat answered in 3.0 s with 0 s load. RAM 3.9 of 15.8 GB free, C: 16.4 GB free. The deck feed heartbeat was fine at 14:41.
