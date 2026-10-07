@@ -1,8 +1,22 @@
-﻿# laptop41 autopilot 20261007-222849
+﻿# laptop41 autopilot 20261007-223345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout bcd5e47 is current
+
+## auto-brain-topology-20261007-223345  brain-topology (standing)  ->  0 (deck ok)   (2026-10-07T22:34:10, 1s)
+```
+OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+OK: the deck's source draws the links the backend sends and checks them (Region links)
+OK: the site serves the fixed deck (BrainNeuralModel-wpwtdqSp.js)
+```
+
+## auto-live-sync-20261007-223345  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:34:11, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs cedec9d of claude/frie...(30)
+CAPTURED: nothing; every source file here matches cedec9d
+```
 
 ## 20261007-66-panel-identify  panel-identify  ->  1   (2026-10-07T22:29:06, 0s)
 ```
@@ -385,28 +399,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## 20261007-60-interactive-first-off  interactive-first-off  ->  -1073740791   (2026-10-07T18:14:24, 41s)
-```
-file    : C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local
-before  : ALPHA_INTERACTIVE_FIRST_MODE=true
-loop    : ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true
-loop    : ALPHA_BACKGROUND_AUTOMATION_ENABLED=not set
-after   : ALPHA_INTERACTIVE_FIRST_MODE=false (backup at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local.bak-interactive-first)
-restart : stopped pid 10052, which held port 8001
-restart : restarted task 'Alpha Backend'
-restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-ok      : backend answers on 127.0.0.1:8001/health
-done    : the assistant loop starts with the backend; the next deck check should show the CrowPanel feed live within a few minutes
-Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 94
-```
-
-## 20261007-58-stop-stray-site  stop-stray-site  ->  0   (2026-10-07T17:39:20, 5s)
-```
-STOP STRAY SITE DESKTOP-41HPLCN 2026-10-07 17:39
-live : tree 4332 (2 processes, 53 MB) holds 4173: C:\Windows\system32\cmd.exe /d /s /c vite preview --host 127.0.0.1 --port 4173 --strictPor...
-leave: tree 6508 (31 MB) is not a preview server, left alone: "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\....
-nothing to stop: one preview tree, and it is the live one
 ```
 
