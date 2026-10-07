@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-133845
+﻿# laptop41 autopilot 20261007-135345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4347e3a is current
+
+## auto-deck-liveness-20261007-135345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T13:54:11, 9s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 89 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 3 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 3 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 406 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 773 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-133845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T13:39:07, 9s)
 ```
@@ -369,12 +389,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-live-sync-20261007-042352  live-sync (standing)  ->  0 (in sync)   (2026-10-07T04:24:14, 6s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)
-CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 7ca5aa7 on claude/frie...(30)
 ```
 
