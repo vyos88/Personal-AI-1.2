@@ -1,15 +1,15 @@
-Claude (cloud) report, 2026-10-07 17:57 UTC
+Claude (cloud) report, 2026-10-07 19:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 17:26 UTC). Alpha is live. Chat answered in 4.3 s with 0 s load.
+Worker1 (Laptop41) report is fresh (doctor 19:41 UTC). Alpha is live. Chat answered in 5.4 s with 0 s load. RAM 1.9 of 15.8 GB free (no longer flagged), C: 9.0 GB free.
 
-Deck feed: V said yes to turning interactive-first mode off (#203, #204). Job 60 (17:14 UTC) set ALPHA_INTERACTIVE_FIRST_MODE=false in .env.local (backup kept) and restarted Alpha Backend, so the assistant loop now runs. The doctor no longer flags the deck feed. The job's own exit code was a Windows crash on a closing socket; #204 fixes that for next time.
+Deck feed: V said yes to turning interactive-first mode off (#203, #204). Job 60 (17:14 UTC) set ALPHA_INTERACTIVE_FIRST_MODE=false in .env.local (backup kept) and restarted Alpha Backend, so the assistant loop now runs. It was live at 17:26, but since 18:02 UTC the heartbeat is stale again (1450 s old at 19:41; live means under 420 s), and the doctor now flags it NEEDS A PERSON. 'book-autoread' waits on host resource pressure, so low RAM on Worker1 is holding the loop back.
 
 CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it (54 runs). #201 adds panel-up --identify, which asks each board whether it is the panel. NEEDS V: check the panel on COM7 is on and booted.
 
-RAM: 1.1 of 15.8 GB free again. The largest process is a python (pid 18408) at 4.1 GB, then llama-server at 1.9 GB. C: 8.6 GB free.
+RAM at 17:26 was 1.1 GB free. The largest process is a python (pid 18408) at 4.1 GB, then llama-server at 1.9 GB. C: 8.6 GB free.
 The "Alpha site x2" duplicate is NOT a stray preview: stop-stray-site (job 60, with #202) shows it is a vite dev server on 5173 (178 MB, since 00:32 UTC), and it was left alone. So it is not what is eating RAM. V decides whether the python process and the 5173 dev server should keep running.
 
-Alpha move (#189): the Host passed prepare-alpha-here at 15:49 UTC. Nothing has switched over yet.
+Alpha move (#189): Host prepared at 15:49 UTC; nothing switched yet.
 
 Merged since 15:57: #196, #198, #200 (panel-endpoint reports what a silent port sent), #201, #202, #203, #204. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
