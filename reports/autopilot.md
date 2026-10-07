@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261007-230845
+﻿# laptop41 autopilot 20261007-231846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout d66c482 is current
+
+## 20261007-cp4-restart-backend  restart-backend  ->  0   (2026-10-07T23:19:12, 7s)
+```
+stopped pid 9004 on 8001
+something already restarted it
+backend listening on 8001
+```
 
 ## auto-deck-liveness-20261007-230845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T23:09:11, 8s)
 ```
@@ -433,20 +440,6 @@ pushed to status/laptop41 - tell Claude 'doctor pushed'
 ```
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 WAITING: f1dbc73 was tried here and refused; the next commit on claude/frie...(30) is tried when it comes
-SKIPPED: nothing is captured while this machine is not on f1dbc73
-```
-
-## auto-live-sync-20261007-215345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T21:54:29, 17s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: cbd4b34..f1dbc73 of claude/frie...(30) (last applied here: cbd4b34)
-      applies  M backend/api/crowpanel.py
-      applies  M backend/main.py
-      conflict M backend/tests/test_assistant_heartbeat.py  -- error: backend/tests/test_assistant_heartbeat.py: No such file or directory
-    REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
-      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
-REFUSED: f1dbc73: a file here differs where the change was made, and nothing was written
 SKIPPED: nothing is captured while this machine is not on f1dbc73
 ```
 
