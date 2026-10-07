@@ -1,26 +1,19 @@
-Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 16:16 UTC
+Claude (cloud) report, 2026-10-07 17:57 UTC
 
-CrowPanel, after the router renumbered the house network to 192.168.1.x:
-- Done (job 54, tunnel #191): Worker1's backend now listens on 192.168.1.151 too. The boot wrapper's --host gained it, a .bak was kept, nothing was removed. The panel feed answers 200 from that address. Alpha was LIVE throughout.
-- Not done: the panel still dials 192.168.2.151. COM7 sent nothing at all back to 15 STATUS requests (jobs 55 and cp3; #200 now reports what a port sends). Alpha's full-deck firmware keeps its console on the CH340 UART, not the native USB port, so COM7 may not be the port to talk to it on. FLEET.md's "COM7 = deck STATUS/ALPHA" line is unconfirmed.
-- Needs V, one of: in Alpha, Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi", with the Alpha address http://192.168.1.151:8001; or name the panel's port, and allow it to be opened. No session opens COM4, COM6, COM20 or COM24 meanwhile.
-Alpha: nothing to run.
+Worker1 (Laptop41) report is fresh (doctor 17:26 UTC). Alpha is live. Chat answered in 4.3 s with 0 s load.
 
-----
-Claude (cloud) report, 2026-10-07 15:57 UTC
+Deck feed: V said yes to turning interactive-first mode off (#203, #204). Job 60 (17:14 UTC) set ALPHA_INTERACTIVE_FIRST_MODE=false in .env.local (backup kept) and restarted Alpha Backend, so the assistant loop now runs. The doctor no longer flags the deck feed. The job's own exit code was a Windows crash on a closing socket; #204 fixes that for next time.
 
-Worker1 (Laptop41) report is fresh (doctor 15:57 UTC). Alpha is live. Chat answered in 6.8 s.
+CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it (54 runs). #201 adds panel-up --identify, which asks each board whether it is the panel. NEEDS V: check the panel on COM7 is on and booted.
 
-NEEDS V, NEW: Worker1 is short of RAM and disk. RAM: 1.3 of 15.8 GB free; a python process holds 3.3 GB and llama-server 1.9 GB. C: 8.4 GB free (16.4 GB at 13:41). V decides what to close or clear; Alpha and Codex do not move or delete anything. The C3 inventory (below) is what tells V where the space went.
+RAM: 1.1 of 15.8 GB free again. The largest process is a python (pid 18408) at 4.1 GB, then llama-server at 1.9 GB. C: 8.6 GB free.
+The "Alpha site x2" duplicate is NOT a stray preview: stop-stray-site (job 60, with #202) shows it is a vite dev server on 5173 (178 MB, since 00:32 UTC), and it was left alone. So it is not what is eating RAM. V decides whether the python process and the 5173 dev server should keep running.
 
-CrowPanel: the backend now listens on 192.168.1.151 (job 54 plus #191: the boot wrapper's --host gets the address too). Job 55 panel-endpoint FAILED: the board on COM7 did not answer STATUS within 30 s ("wrong board, wrong firmware, or not booting"). The panel still has not called the backend (48 runs). The deck feed shows "assistant-loop-not-started", which is V's interactive-first setting. NEEDS V: look at the panel (is it on and booted?), then rerun panel-endpoint.
+Alpha move (#189): the Host passed prepare-alpha-here at 15:49 UTC. Nothing has switched over yet.
 
-Alpha move (#189, #192, #193, #195, #197): Phase 0 check done. On the Host, h19 prepare-alpha-here passed (16:49 local): code up to date, backend venv ready (Python 3.12), site built, llama3.2:3b present. The move must also stop Worker1's Health Guard and Alpha's always-on scripts (#193). Nothing has been switched over yet.
-Promo reel (#190, #199): job 56 made a 25 s reel. Two image scenes timed out while the Host's image agent restarted, and the retries rode over it.
+Merged since 15:57: #196, #198, #200 (panel-endpoint reports what a silent port sent), #201, #202, #203, #204. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
-Merged since 14:57: #190-#195, #197, #199. New handoff: docs/HANDOFF_2026-10-07_low-ram-disk-laptop41.md. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
-
-Needs V: RAM and disk on Worker1; the CrowPanel on COM7; a DHCP reservation for Worker1; the assistant loop for the deck feed; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
+Needs V: the CrowPanel on COM7; RAM (python 4.1 GB) and C: space on Worker1; a DHCP reservation for Worker1; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
