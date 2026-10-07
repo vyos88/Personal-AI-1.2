@@ -331,6 +331,14 @@
       "id": "20261007-51-fleet-inventory",
       "do": "fleet-inventory",
       "why": "communication check 2026-10-07 14:30 UTC: is the leftover vite preview tree (Worker1) still there, and DUPLICATES on both; read-only (HANDOFF_2026-10-07c)"
+    },
+    {
+      "id": "20261007-52-panel-host",
+      "do": "panel-host"
+    },
+    {
+      "id": "20261007-53-panel-endpoint",
+      "do": "panel-endpoint"
     }
   ],
   "autofix": {
