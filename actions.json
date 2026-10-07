@@ -326,6 +326,11 @@
       "id": "20261007-50-fleet-inventory",
       "do": "fleet-inventory",
       "why": "re-run with #178: job 49 counted venv parent+child and cmd->node chains as DUPLICATES; read agent names"
+    },
+    {
+      "id": "20261007-51-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "communication check 2026-10-07 14:30 UTC: is the leftover vite preview tree (Worker1) still there, and DUPLICATES on both; read-only (HANDOFF_2026-10-07c)"
     }
   ],
   "autofix": {
