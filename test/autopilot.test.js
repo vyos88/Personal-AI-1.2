@@ -49,12 +49,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'g4', do: 'brain-topology', fix: true },
     { id: 'h1', do: 'restart-site' },
     { id: 'h2', do: 'restart-coordinator', task: 'anything else' },
+    { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -71,6 +72,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.equal(plan.h1.internal, 'restart-site');
   assert.equal(plan.h2.internal, 'restart-coordinator');
   assert.deepEqual(plan.h2.args, [], 'it restarts alpha-coordinator and nothing a payload names');
+  assert.match(plan.i1.args.join(' '), /fleet-inventory\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -521,4 +523,14 @@ test('the standing deck check runs with the backend\'s Python, at most every eve
   assert.match(r.stdout, /deck liveness: 2 \(not every deck is live\)/);
   assert.equal(readFileSync(runs, 'utf8'), before);
   assert.match(report(), /DECK DOWN: backend \(\/health\) -> nothing listens on 8001/);
+});
+
+test('the fleet inventory runs read-only and fits the report', { skip }, () => {
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'fleet-inventory.ps1'), '-AlphaRoot', mkdtempSync(join(tmpdir(), 'inv-'))]);
+  assert.equal(r.status, 0, r.stderr);
+  const out = r.stdout.trim().split(/\r?\n/);
+  assert.ok(out.length <= 60, `${out.length} lines; the autopilot keeps 60`);
+  for (const section of ['FLEET INVENTORY', 'TASKS', 'SERVICES', 'PROCESSES', 'DUPLICATES', 'PORTS', 'AGENT MANAGER']) {
+    assert.ok(out.some((line) => line.startsWith(section)), section);
+  }
 });

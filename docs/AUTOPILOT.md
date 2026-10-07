@@ -41,6 +41,7 @@ reported.
 | `doctor` | `laptop41-doctor.ps1 -Watch -Push` |
 | `repair-host` | `repair-alpha-host.ps1`, with its own rollback |
 | `restart-backend` | Stops whatever listens on the backend port, then starts it again: the `Alpha Backend` task if it exists, otherwise `scripts\start-local.ps1`. |
+| `fleet-inventory` | `fleet-inventory.ps1`: one read-only list of everything Alpha runs here, in the report's 60 lines. It covers scheduled tasks (state, last run, result, next run, what they run), services, background processes grouped by role (coordinator, agent, keeper, bridges, backend, site, ComfyUI, stewards by script name), DUPLICATES of anything that should run once, listening ports, and Alpha's Agent Manager snapshot. It starts, stops and writes nothing, and takes no arguments |
 | `restart-coordinator` | On the Host: stops the scheduled task `alpha-coordinator` and whatever holds its port (8787, or `ALPHA_HOST_PORT`), starts the task again from the current checkout, and fails unless `/healthz` answers. A `git pull` alone leaves the coordinator on its old code. The queue survives (`data/tasks.json`) and agents re-register by themselves. Takes no arguments |
 | `restart-site` | Stops whatever holds the site's port (4173) with its process tree and starts task `Alpha` again, then asks `/music/healthz` through the site. `Stop-ScheduledTask` alone left the old preview server serving its old `vite.config.js` |
 | `apply-update` | `apply-alpha-update.mjs --apply --restart`; add `"skipScripts": true` to leave `scripts\` alone |

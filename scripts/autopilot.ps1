@@ -193,6 +193,7 @@ function Resolve-Action($a) {
     # own home-network address. Takes nothing from the action: the URL is
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
+    'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
