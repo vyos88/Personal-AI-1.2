@@ -63,6 +63,12 @@ with the old 2-hour limit raises it on its next pass), and a pass does not
 start an action that would not fit in what is left: that action, and what is
 queued after it, waits for the next pass, five minutes later.
 
+A pass that finds new code on main updates its checkout first and then runs
+the rest of the pass with the new code, in a new process, once. It used to
+stop there and leave the work to the next pass. On 2026-10-07 main moved
+every few minutes for a quarter of an hour, so four passes in a row updated
+and stopped, with nothing run and nothing reported.
+
 ## Standing checks
 
 - Bridges, every pass and before any queued action: when the scheduled task
