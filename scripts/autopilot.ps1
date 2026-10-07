@@ -28,6 +28,7 @@
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
     enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
     live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
+    promo-reel       promo-reel.mjs: a 25 s reel about Alpha into Alpha's video folder  (takes no arguments)
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
     panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
@@ -167,6 +168,19 @@ function Resolve-Action($a) {
       $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
       if ($py) { $rest += @('--video-python', $py) }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
+    }
+    # The owner's reel about Alpha, made the way the live test makes its reel
+    # (the bridges, then Alpha's renderer with the backend's Python), and saved
+    # in the folder /video/chat-artifact serves, so the Video Creator opens it.
+    # Takes nothing from the action: scenes and captions live in the script.
+    'promo-reel' {
+      $alphaHome = $AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', ''
+      $rest = @((Join-Path $PSScriptRoot 'promo-reel.mjs'), '--video-script', ($alphaHome + '\scripts\alpha_video_creator.py'),
+                '--out-dir', ($alphaHome + '\artifacts\generated\videos'))
+      $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+      $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+      if ($py) { $rest += @('--video-python', $py) }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 60
     }
     'ollama-pull' {
       $model = [string]$a.model
