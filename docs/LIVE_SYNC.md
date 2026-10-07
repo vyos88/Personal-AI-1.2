@@ -36,6 +36,31 @@ tried. That is also how a refusal is fixed: push a commit that resolves it.
 The owner chose updates "any time", not a nightly window, because every
 failure puts itself back.
 
+## Knowledge: what Alpha learns, every pass
+
+Alpha does not learn by retraining. It reads `memory\knowledge\*.json` once,
+when its backend starts (`knowledge_autoload.py`), and neither `software\`
+nor `scripts\` carries that folder. So a record a session committed to the
+branch ("teach Alpha") used to stay in git and never reached the machine
+Alpha runs on.
+
+Every pass now also writes the branch's documents
+(`BuildArtifacts/installers/Alpha-Full/memory/knowledge/*.json`, top level
+only) into this machine's `memory\knowledge\`:
+
+- a document this machine does not have is written;
+- one it still has exactly as it was last written or found equal is
+  updated to the branch's version;
+- one edited here is **kept** and named on every pass (`KNOWLEDGE: ... kept
+  as they are`); line ends alone do not count as an edit;
+- one that is not a JSON object is not written, because Alpha would skip it;
+- nothing is ever deleted, and nothing in this folder is captured back.
+
+When a document is written, `Alpha Backend` is restarted so Alpha reads it,
+unless this pass's delivery already restarted it. This step runs before the
+code is applied, so one restart covers both. To teach Alpha, commit a document
+to the branch; the next pass, within five minutes, puts it in front of Alpha.
+
 ## Capture: this machine to git, on the primary only
 
 With `"capture": true`, and only when this machine runs exactly the branch tip,
@@ -102,6 +127,7 @@ is in the lines that start with these words:
 | `CAPTURED` | edits from here were pushed, or there was nothing to push |
 | `HELD BACK` | files with credential-looking lines were not pushed; they need the owner, and `ALLOW WITH:` after it is the list to approve |
 | `SKIPPED` | capture did not run this pass, and why |
+| `KNOWLEDGE` | documents for Alpha were written (and the backend restarted), or are kept here, or are not JSON |
 | `STOP` | it could not run |
 
 Exit codes: 0 fine, 2 needs a person (`REFUSED`, `FAILED`, `HELD BACK`),

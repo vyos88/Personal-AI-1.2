@@ -242,3 +242,49 @@ test('only source, package and requirements files are overlaid, outside data and
   assert.equal(capturableTracked('software/backend/settings.json'), false);
   assert.equal(capturableTracked('software/backend/.cache/x.py'), false);
 });
+
+test("the branch's knowledge documents teach this machine's Alpha, and one edited here is kept", { skip }, async () => {
+  const f = fixture();
+  const K = `${BASE}/memory/knowledge`;
+  const live = (name) => join(f.alpha, 'memory', 'knowledge', name);
+  write(f.alpha, 'memory/knowledge/alpha_same.json', '{"a":1}\r\n');
+  commitOnLive(f, {
+    [`${K}/alpha_new.json`]: '{"title":"v1"}\n',
+    [`${K}/alpha_edited.json`]: '{"title":"v1"}\n',
+    [`${K}/alpha_same.json`]: '{"a":1}\n',
+    [`${K}/alpha_list.json`]: '[1]\n',
+    [`${K}/notes.txt`]: 'not a document\n',
+    [`${K}/old/alpha_nested.json`]: '{}\n',
+  }, 'knowledge only');
+
+  const first = await run(f);
+  assert.equal(first.code, 0, first.out);
+  assert.match(first.out, /KNOWLEDGE: 2 document\(s\) for Alpha written to memory\\knowledge: alpha_edited\.json, alpha_new\.json/);
+  assert.match(first.out, /KNOWLEDGE: 1 document\(s\) on the branch are not a JSON object and were not written: alpha_list\.json/);
+  assert.match(first.out, /restart Alpha Backend so Alpha reads them/);
+  assert.equal(readFileSync(live('alpha_new.json'), 'utf8'), '{"title":"v1"}\n');
+  assert.equal(readFileSync(live('alpha_same.json'), 'utf8'), '{"a":1}\r\n', 'line ends alone are not rewritten');
+  for (const name of ['alpha_list.json', 'notes.txt', 'old/alpha_nested.json']) assert.ok(!existsSync(live(name)), name);
+
+  // Edited here: kept, and named on every pass. Untouched since delivery: updated.
+  writeFileSync(live('alpha_edited.json'), '{"title":"mine"}\n');
+  commitOnLive(f, { [`${K}/alpha_new.json`]: '{"title":"v2"}\n', [`${K}/alpha_edited.json`]: '{"title":"v2"}\n' }, 'knowledge v2');
+  const second = await run(f);
+  assert.equal(second.code, 0, second.out);
+  assert.match(second.out, /KNOWLEDGE: 1 document\(s\) for Alpha written to memory\\knowledge: alpha_new\.json\n/);
+  assert.match(second.out, /KNOWLEDGE: 1 document\(s\) differ here from the branch and are kept as they are: alpha_edited\.json/);
+  assert.equal(readFileSync(live('alpha_new.json'), 'utf8'), '{"title":"v2"}\n');
+  assert.equal(readFileSync(live('alpha_edited.json'), 'utf8'), '{"title":"mine"}\n');
+
+  const third = await run(f);
+  assert.match(third.out, /IN SYNC/);
+  assert.doesNotMatch(third.out, /for Alpha written|restart Alpha Backend/, 'nothing new, no restart');
+  assert.match(third.out, /kept as they are: alpha_edited\.json/);
+
+  // A document removed from the branch stays here: nothing is deleted.
+  git(f.work, 'rm', '-q', `${K}/alpha_new.json`);
+  git(f.work, 'commit', '-qm', 'drop one');
+  git(f.work, 'push', '-q', 'origin', 'HEAD:live');
+  await run(f);
+  assert.ok(existsSync(live('alpha_new.json')));
+});
