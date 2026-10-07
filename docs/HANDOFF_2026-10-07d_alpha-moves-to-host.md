@@ -79,6 +79,38 @@ It is queued on both laptops: `20261007-h15-alpha-move-check` on the Host
 to move, and how big it is). The results appear in `status/host-autopilot` and
 `status/laptop41-autopilot` about 10 minutes after this PR merges.
 
+### Phase 0 results (jobs h15 and 52, 14:59 UTC)
+
+| | Host, `LAPTOP-GJ8DFMLK` | Laptop41, `DESKTOP-41HPLCN` |
+|---|---|---|
+| RAM free | **1.0 of 15.8 GB** | 3.4 of 15.8 GB |
+| C: free | 65.1 GB | 16.4 GB |
+| GPU | RTX 3050 Laptop, Intel UHD | AMD Radeon RX 640, Intel UHD |
+| LAN | 192.168.1.88 (Ethernet) | 192.168.1.151 (Wi-Fi), the same network |
+| Alpha copy | **none** | `Downloads\VyoS-advance-tech-ai\software` (backend, frontend, node_modules, dist; live sync keeps it in step) and an old `Alpha-1.8` copy |
+| Alpha's data | none | `memory\`: **13.0 GB, 41,850 files** |
+| Tools | git, Node 24, Python 3.12, Tailscale; Ollama installed but **not running, no models**; **no cloudflared** | everything, with Ollama models `llama3.2:3b`, `qwen3:1.7b`, `qwen2.5:1.5b`, `deepseek-r1:1.5b` |
+| Runs now | coordinator 8787, ComfyUI 8188 | backend, site, both bridges, Ollama, ComfyUI, A1111, the Agent Manager |
+
+What this changes in the plan:
+
+- **The Host has no memory to spare for Alpha.**
+  - At 14:34 the Codex (3 processes, about 1.5 GB) and Claude (1.6 GB)
+    desktop apps were open, beside ComfyUI and the coordinator.
+  - Alpha's backend, its site and a chat model need roughly 3-4 GB.
+  - Before Phase 2, V either closes the desktop apps when they are not in use,
+    or keeps chat on Laptop41: the Host's Alpha calls Laptop41's Ollama over
+    the tailnet. The second also shares the work, which is what V asked for.
+- **13 GB of data.**
+  - The first copy (Phase 1, step 5) is a long one; do it over the home
+    network or by USB.
+  - The copy every 10 minutes in Phase 3 must copy only what changed
+    (`robocopy /MIR` or similar), never the whole 13 GB.
+  - The Host has room (65 GB free).
+- **The `.env.local` warning on Laptop41 was the check's mistake.** The check
+  only looked inside `software\`. It now also looks beside it.
+- Both laptops are on 192.168.1.x, so the CrowPanel can reach either one.
+
 ## Phase 1: prepare the Host (Claude · Host; nothing visible changes)
 
 1. **Alpha copy.** Clone `vyos88/Alpha` at branch
@@ -170,6 +202,20 @@ Claude · Worker1 does this, after Phase 2 passes.
   - Until that step is automated, it is a person's step: V or Claude · Host.
 - **Disabled, not deleted:** `Alpha`, `Alpha Backend` and `Alpha Self-Heal`
   as start-at-boot tasks on Laptop41. The standby owns starting them now.
+- **Two more things on Laptop41 bring Alpha back by themselves**, and Phase 2
+  step 1 must stop them too, or a second Alpha is running within minutes:
+  - the `Alpha Server - Health Guard` task, which runs every 5 minutes (job 51's
+    inventory);
+  - Alpha's own `alpha_runtime_always_on.ps1` and `alpha_runtime_watchdog.ps1`,
+    which run as processes on Laptop41. They are Alpha's, so stop them through
+    the Agent Manager, the same as the manager itself.
+
+  While Laptop41 is standby, the autopilot's 5-minute live report will read
+  Alpha DOWN there. That is correct until the report learns the standby's
+  role.
+- **The CrowPanel's address.** `fix-panel-host.mjs` (the `panel-host` job,
+  #188 and #191) adds the machine's home-network address in both places that
+  decide it: `HOST` in `.env.local`, and the boot wrapper's `--host`.
 - `worker1` stays a full worker throughout: the work is shared.
 - **CrowPanel:** V points it at the Host's LAN address. The CrowPanel is not
   on the tailnet.

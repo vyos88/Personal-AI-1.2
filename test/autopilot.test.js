@@ -597,6 +597,18 @@ test('preparing Alpha refuses a folder that is not a checkout, and a dry run cha
   assert.deepEqual(readdirSync(join(base, 'Alpha')), ['keep.txt'], 'nothing was changed');
 });
 
+test('the Alpha move check finds the backend configuration beside software, and never reads it', { skip }, () => {
+  const top = mkdtempSync(join(tmpdir(), 'move-top-'));
+  mkdirSync(join(top, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(top, 'software', 'backend', 'main.py'), '');
+  writeFileSync(join(top, '.env.local'), 'SECRET_VALUE=do-not-print\n');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'alpha-move-check.ps1'), '-AlphaRoot', join(top, 'software')]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\.env\.local: present, 26 bytes \(contents not read\)/);
+  assert.doesNotMatch(r.stdout, /the backend's \.env\.local/, 'present beside software\\ is present');
+  assert.doesNotMatch(r.stdout, /SECRET_VALUE|do-not-print/);
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');
@@ -623,7 +635,10 @@ test('the live report is written every pass, and a stopped self-heal is started 
   mkdirSync(join(alpha, 'memory', 'local', 'deck-liveness'), { recursive: true });
   writeFileSync(join(alpha, 'memory', 'local', 'deck-liveness', 'latest.json'), JSON.stringify({
     checked_at: '2026-10-07T02:30:00+00:00', not_live: ['CrowPanel feed (/panel/crowpanel/state)'],
-    sources: [{ verdict: 'LIVE' }, { verdict: 'LIVE' }, { verdict: 'SETTING' }],
+    // Two checks of one deck (the CrowPanel) are one deck, at its worst verdict.
+    sources: [{ source: 'hubs pulse', decks: 'alpha, terminal', verdict: 'LIVE' }, { source: 'site', decks: 'every deck page', verdict: 'LIVE' },
+      { source: 'CrowPanel feed (/panel/crowpanel/state)', decks: 'CrowPanel', verdict: 'SETTING' },
+      { source: 'CrowPanel display (LAN reads)', decks: 'CrowPanel', verdict: 'STALE' }],
   }));
   mkdirSync(join(ops, 'logs'), { recursive: true });
   const log = join(ops, 'logs', 'selfheal.jsonl');
@@ -645,7 +660,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   let md = live();
   assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
-  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel feed/);
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
 

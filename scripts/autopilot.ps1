@@ -740,9 +740,23 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $receipt) {
     try {
       $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
-      $counts = @($r.sources | Group-Object verdict | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
+      # One count per deck, not per check: the CrowPanel has two checks (its
+      # feed and whether a panel reads it) and was counted as two decks. A deck
+      # takes its worst verdict; its checks are named under it when not live.
+      $rank = @{ 'DOWN' = 0; 'ERROR' = 1; 'SETTING' = 2; 'PLACEHOLDER' = 3; 'STALE' = 4; 'DEGRADED' = 5 }
+      $groups = @($r.sources | Group-Object { if ($_.decks) { [string]$_.decks } else { [string]$_.source } })
+      $verdicts = @(); $notLive = @()
+      foreach ($g in $groups) {
+        $bad = @($g.Group | Where-Object { $rank.ContainsKey([string]$_.verdict) } | Sort-Object { $rank[[string]$_.verdict] })
+        if ($bad.Count) {
+          $verdicts += [string]$bad[0].verdict
+          $parts = @($bad | ForEach-Object { $n = [string]$_.source; if ($g.Name -and $n.StartsWith("$($g.Name) ")) { $n.Substring($g.Name.Length + 1) } else { $n } })
+          $notLive += $(if ($g.Group.Count -gt 1 -or $parts[0] -ne $g.Name) { "$($g.Name): $($parts -join ', ')" } else { $g.Name })
+        } else { $verdicts += [string]$g.Group[0].verdict }
+      }
+      $counts = @($verdicts | Group-Object | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
       $decks.summary = $counts -join ', '
-      $decks.not_live = @($r.not_live)
+      $decks.not_live = $(if ($r.sources) { $notLive } else { @($r.not_live) })
       $decks.checked_at = [string]$r.checked_at
     } catch { $decks.summary = 'receipt unreadable' }
   }
