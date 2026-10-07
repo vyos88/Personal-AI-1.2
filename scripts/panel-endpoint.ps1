@@ -80,6 +80,11 @@ Write-Host "ok: backend answers on $base"
 $bridges = @(Get-CimInstance Win32_PnPEntity -EA SilentlyContinue |
              Where-Object { $_.Name -match '\((COM\d+)\)' -and $_.Name -match 'CH340|CH341|CH9102|CP210|USB-SERIAL|USB Serial|UART' })
 if ($bridges.Count -eq 0) { Fail 'no USB serial bridge attached: is the deck plugged into this machine?' }
+# Worker1 carries five boards: four CH340 clones and the CrowPanel, which is an
+# ESP32-S3 on its own native USB (Espressif, VID 303A). Exactly one of those is
+# the deck; any other count is not guessed at.
+$native = @($bridges | Where-Object { [string]$_.DeviceID -match 'VID_303A' })
+if ($bridges.Count -gt 1 -and $native.Count -eq 1) { $bridges = $native }
 if ($bridges.Count -gt 1) { Fail ("more than one USB serial bridge attached ({0}): not guessing which is the deck" -f (($bridges | ForEach-Object { $_.Name }) -join '; ')) }
 $com = [regex]::Match($bridges[0].Name, '\((COM\d+)\)').Groups[1].Value
 Write-Host "deck port: $com ($($bridges[0].Name))"
