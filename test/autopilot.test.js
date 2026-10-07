@@ -323,6 +323,19 @@ test('panel-endpoint takes nothing from the action, and reads the deck STATUS li
   assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
 });
 
+test('panel-host edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-host-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'panel-host', address: '10.9.9.9', env: 'C:\\evil\\.env', task: 'calc' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /fix-panel-host\.mjs$/);
+  assert.deepEqual(p.args.slice(1), ['--env', 'C:\\A\\.env.local', '--require-host'], "run_server.py's own file, and only if it sets HOST");
+  assert.ok(!/10\.9\.9\.9|evil|calc/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
   const remote = join(dir, 'remote.git');
