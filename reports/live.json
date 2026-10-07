@@ -1,0 +1,25 @@
+﻿{
+    "at":  "2026-10-07T03:39:18.0333266+01:00",
+    "machine":  "DESKTOP-41HPLCN",
+    "alpha":  {
+                  "verdict":  "LIVE",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
+                  "checked_by":  "self-heal, 1 min ago"
+              },
+    "selfheal":  {
+                     "state":  "RUNNING",
+                     "age_min":  1,
+                     "repairs":  1,
+                     "restarted":  ""
+                 },
+    "decks":  {
+                  "summary":  "2 stale, 3 live, 1 setting, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "deck evidence (/hubs/pulse)",
+                                   "command deck (/command-center/summary)",
+                                   "CrowPanel feed (/panel/crowpanel/state)"
+                               ],
+                  "checked_at":  "2026-10-07T02:31:38.667231+00:00"
+              },
+    "sync":  "IN SYNC: this machine runs bf5b813 of claude/frie...(30)"
+}
