@@ -264,6 +264,10 @@ function Resolve-Action($a) {
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
     'prepare-alpha-here' { $spec = Ps1 'prepare-alpha-here.ps1' @(); $out.timeoutMin = 90 }
+    # The data step of the move: copies memory\ and artifacts\ from an
+    # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
+    # never a .env file; refuses while anything answers on 8001 here.
+    'alpha-data-in' { $spec = Ps1 'alpha-data-in.ps1' @(); $out.timeoutMin = 60 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
