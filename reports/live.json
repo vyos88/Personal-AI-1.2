@@ -1,25 +1,22 @@
 ﻿{
-    "at":  "2026-10-08T00:14:10.3829900+01:00",
+    "at":  "2026-10-08T00:19:12.6432314+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
                  },
     "decks":  {
-                  "summary":  "2 stale, 3 live, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
-                                   "command: deck (/command-center/summary)"
-                               ],
-                  "checked_at":  "2026-10-07T23:00:49.605671+00:00"
+                  "summary":  "5 live, 1 static, 1 no feed",
+                  "not_live":  null,
+                  "checked_at":  "2026-10-07T23:19:11.415357+00:00"
               },
-    "sync":  "IN SYNC: this machine runs a3e1350 of claude/frie...(30)"
+    "sync":  "FAILED: 5147fef could not be applied, and what was written was put back (above)"
 }
