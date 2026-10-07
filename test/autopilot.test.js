@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -50,12 +50,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'h1', do: 'restart-site' },
     { id: 'h2', do: 'restart-coordinator', task: 'anything else' },
     { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
+    { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -73,6 +74,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.equal(plan.h2.internal, 'restart-coordinator');
   assert.deepEqual(plan.h2.args, [], 'it restarts alpha-coordinator and nothing a payload names');
   assert.match(plan.i1.args.join(' '), /fleet-inventory\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
+  assert.match(plan.i2.args.join(' '), /alpha-move-check\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -546,6 +548,20 @@ test('the fleet inventory runs read-only and fits the report', { skip }, () => {
   for (const section of ['FLEET INVENTORY', 'TASKS', 'SERVICES', 'PROCESSES', 'DUPLICATES', 'PORTS', 'AGENT MANAGER']) {
     assert.ok(out.some((line) => line.startsWith(section)), section);
   }
+});
+
+test('the Alpha move check runs read-only, fits the report and names what is missing', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'move-'));
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'alpha-move-check.ps1'), '-AlphaRoot', join(root, 'software')]);
+  assert.equal(r.status, 0, r.stderr);
+  const out = r.stdout.trim().split(/\r?\n/);
+  assert.ok(out.length <= 60, `${out.length} lines; the autopilot keeps 60`);
+  for (const section of ['ALPHA MOVE CHECK', 'MACHINE', 'ALPHA COPY', 'TOOLS', 'PORTS', 'AGENT MANAGER', 'MISSING TO RUN ALPHA HERE']) {
+    assert.ok(out.some((line) => line.startsWith(section)), section);
+  }
+  assert.match(r.stdout, /no Alpha copy with backend\\main\.py/);
+  assert.match(r.stdout, /PORTS: 8001 backend=-/, 'a port nobody listens on is not up');
+  assert.deepEqual(readdirSync(root), [], 'it writes nothing');
 });
 
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
