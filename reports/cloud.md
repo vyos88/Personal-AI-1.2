@@ -1,3 +1,12 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 02:20 UTC
+
+New tonight, at V's request ("continuous check over all decks so they have live data"):
+- Deck liveness (Alpha#81 on route-b, tunnel #170): scripts/alpha_deck_liveness.py judges every deck source by its own freshness field, so a deck that renders but shows old data is caught. Sources: /hubs/pulse coverage, /command-center/summary, /devices/network/topology, /panel/crowpanel/state (feed and whether a panel is reading it), and the site on 4173 with its assets. Verdicts: LIVE, DEGRADED, STALE, PLACEHOLDER, SETTING, DOWN, ERROR. The autopilot runs it on Worker1 every 15 min (control/laptop41 autofix.deckLiveness) and reports only a change. Alpha can read the latest result in memory/local/deck-liveness/latest.json.
+- Serial safety (Alpha#82): the phone module no longer opens every USB-serial port and writes AT at each backend start. Set ALPHA_GSM_PORT to use a modem.
+- Open, needs V: the ELEGOO bridge status check still opens up to 8 serial ports (writes STATUS) whenever the UI polls car status; it is left as is until V says whether COM24 is that bridge.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-07 01:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 01:41 UTC). Chat answered in 1.9 s with 0 s load. RAM 4.5 of 15.8 GB free, C: 17.3 GB free. Relay works; cloudSeen = 8c7e1cf (the 01:27 note).
