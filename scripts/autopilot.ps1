@@ -665,10 +665,14 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $now = Get-Date
   $sh = Read-SelfHeal
   $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
-  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = '' }
+  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = '' }
   if ($sh) {
     $heal.age_min = $sh.age
-    $heal.repairs = @($sh.last.actions | Where-Object { $_ }).Count
+    # A snapshot is self-heal saving the site's last good build for rollback,
+    # not a repair; a failed one is worth saying, as its own note.
+    $heal.repairs = @($sh.last.actions | Where-Object { $_ -and $_.action -ne 'snapshot' }).Count
+    $badSnap = @($sh.last.actions | Where-Object { $_ -and $_.action -eq 'snapshot' -and $_.code -ne 0 }) | Select-Object -First 1
+    if ($badSnap) { $heal.snapshot = 'the rollback copy of the site was not saved' + $(if ($badSnap.error) { ": $(Redact ([string]$badSnap.error))" } else { ' (no reason logged)' }) }
     $heal.state = if ($sh.age -le 6) { 'RUNNING' } else { 'STOPPED' }
   }
   if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
@@ -718,7 +722,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
     '| Check | State | Detail |', '|---|---|---|',
     "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
-    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"

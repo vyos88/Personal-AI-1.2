@@ -593,6 +593,11 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(r.stdout, /nothing new to run/);
   assert.equal(Number(commits()), before + 1);
 
+  // Saving the rollback copy is not a repair; when it fails, the reason is shown.
+  writeFileSync(log, `${JSON.stringify({ at: '2026-10-07T02:30:00Z', probes: { backend: ok, frontend: ok, public: ok, control: ok }, actions: [{ component: 'frontend', action: 'snapshot', code: 1, error: 'EPERM: operation not permitted, rename' }], events: [] })}\n`);
+  run();
+  assert.match(live(), /last pass 0 min ago, 0 repair\(s\) in it; the rollback copy of the site was not saved: EPERM: operation not permitted, rename/);
+
   // A part that does not answer is named.
   heal({ backend: ok, frontend: { ok: false, status: 502 }, public: ok, control: ok });
   run();

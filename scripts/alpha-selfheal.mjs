@@ -566,7 +566,11 @@ export async function runPass({ config, probe = probeAll, executor, post, now = 
         res = { code: 1, stdout: '', stderr: error.message };
       }
       if (a.action === 'snapshot' && res.code === 0) next.lastGoodFingerprint = a.fingerprint;
-      done.push({ ...a, code: res.code });
+      // A failed action says why in the log. A failed snapshot raises no event,
+      // so without this Worker1 logged {"action":"snapshot","code":1} every two
+      // minutes on 2026-10-07 and nothing anywhere said what had failed.
+      const why = res.code === 0 ? '' : `${res.stderr || res.stdout || ''}`.trim().slice(0, 300);
+      done.push({ ...a, code: res.code, ...(why ? { error: why } : {}) });
       if (a.action !== 'snapshot') {
         events.push({
           kind: 'repair',
