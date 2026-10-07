@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-193346
+﻿# laptop41 autopilot 20261007-194846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 67563f8 is current
+
+## auto-deck-liveness-20261007-194846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:49:29, 14s)
+```
+DECKS: 4 live, 2 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 101 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 18 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 4 s old, fresh for 90 s
+DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
+    assistant heartbeat 1113 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 481 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-193346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:34:28, 14s)
 ```
@@ -376,21 +396,5 @@ AGENT MANAGER: 59 agent(s), snapshot 0 min old
   THY, runtime-task:alpha:gmail-self-test=RUNTIME-HEALTHY, runtime-task:alpha:memory-maintenance=RUNTIME-HEALTHY, runtime-task:alpha:ollama-keepalive=RU
   NTIME-HEALTHY, runtime-task:alpha:tunnel-owner-replies=RUNTIME-HEALTHY, runtime-task:alpha:tunnel-work-observations=RUNTIME-HEALTHY, runtime-task:alph
   a:usb-monitor=RUNTIME-HEALTHY, runtime-task:alpha:visu...(38), runtime-task:alpha:workflow-scheduler=RUNTIME-HEALTHY
-```
-
-## 20261007-56-promo-reel  promo-reel  ->  0   (2026-10-07T16:46:56, 540s)
-```
-making alph...(30).mp4: 6 scenes, 25s, 608x1080, high quality
-PROBLEM: scene 1 attempt 1: HTTP 504 image_timeout host did not send the image within 60s. Is it offering alpha.image.file?
-ok: 25s synthwave track made by host in 183s, 272852 bytes (MP3)
-PROBLEM: scene 1 attempt 2: HTTP 0  fetch failed
-ok: scene 2 image made by host (comfyui) in 31s, 536315 bytes
-ok: scene 3 image made by host (comfyui) in 19s, 790683 bytes
-ok: scene 4 image made by host (comfyui) in 14s, 895290 bytes
-ok: scene 5 image made by host (comfyui) in 13s, 828893 bytes
-ok: scene 6 image made by host (comfyui) in 18s, 670898 bytes
-ok: reel rendered in 65s from 5 scenes with its own track, 8427059 bytes, MP4
-saved: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\artifacts\generated\videos\alph...(30).mp4
-done: in Alpha, open the Video Creator, "Open a saved Alpha video", type alph...(30).mp4, then "Download MP4" to post it
 ```
 
