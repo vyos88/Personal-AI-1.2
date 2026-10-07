@@ -1,8 +1,35 @@
-﻿# laptop41 autopilot 20261007-030345
+﻿# laptop41 autopilot 20261007-031345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 1e8cdf5 is current
+checkout 97e5841 is current
+
+## auto-live-sync-20261007-031345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T03:14:05, 14s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: 386c753..98fcb55 of claude/frie...(30) (last applied here: 386c753)
+      applies  M backend/chat_music_generation.py
+      applies  M backend/phone_module.py
+      applies  A backend/tests/test_alpha_deck_liveness.py
+      applies  M backend/tests/test_chat_music_generation.py
+      applies  M backend/tests/test_phone_module_startup.py
+      conflict M frontend/src/components/CoordinationTunnelPanel.jsx  -- error: patch failed: frontend/src/components/CoordinationTunnelPanel.jsx:1
+      conflict M frontend/src/components/MusicSingingPanel.jsx  -- error: patch failed: frontend/src/components/MusicSingingPanel.jsx:14
+      conflict M frontend/src/liveCoordinationLabels.js  -- error: patch failed: frontend/src/liveCoordinationLabels.js:7
+      conflict M frontend/src/liveCoordinationLabels.test.js  -- error: patch failed: frontend/src/liveCoordinationLabels.test.js:2
+      applies  A scripts/alpha_deck_liveness.py
+      applies  M scripts/alpha_public_song_worker.py
+    REFUSED: 4 file(s) here differ where the change was made. Nothing was written.
+      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
+REFUSED: 98fcb55: a file here differs where the change was made, and nothing was written
+SKIPPED: nothing is captured while this machine is not on 98fcb55
+```
+
+## auto-deck-liveness-20261007-031345  deck-liveness (standing)  ->  1 (could not run)   (2026-10-07T03:14:19, 1s)
+```
+STOP: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\alpha_deck_liveness.py is not on this machine yet (live sync delivers it from the live branch)
+```
 
 ## auto-live-sync-20261007-030345  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:04:02, 25s)
 ```
@@ -500,85 +527,5 @@ image: 1/1 worked; by machine: host x1
 video: 1/1 worked; by machine: this machine x1
 (node:896) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
 (Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-45-skill-doctor  doctor  ->  0   (2026-10-07T00:08:11, 305s)
-```
-=== 5c. Image creator ===
-  ok: image bridge answers on 127.0.0.1:7861
-  ok: machines that make images (the image bridge's view): host, worker1
-=== 5d. Brain topology (neurological deck) ===
-  ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
-  ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
-  ok: brain deck: the site serves the fixed deck (Brai...(25).js)
-=== 6. CrowPanel ===
-    COM4
-    COM7
-    COM20   in use by another program?
-    COM24   in use by another program?
-  device: USB-SERIAL CH340 (COM24)
-  device: USB-SERIAL CH340 (COM20)
-  device: USB Serial Device (COM7)
-  device: USB-SERIAL CH340 (COM4)
-  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
-  --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live
-  backend listens on: ::1, 100.69.243.25, 127.0.0.1
-  not listening on 192.168.2.151 (Wi-Fi)
-  PROBLEM: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
-  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
-=== 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.2 of 15.8 GB RAM free
-  ok: C: 13.1 GB free
-  python                        2,959 MB  pid 7292
-  llama-server                  1,591 MB  pid 4080
-  claude                          494 MB  pid 7832
-  MsMpEng                         439 MB  pid 6040
-  explorer                        355 MB  pid 10108
-  chrome                          344 MB  pid 6588
-  msedge                          304 MB  pid 6228
-  python                          284 MB  pid 2300
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
-  port 7861 : pid 12084 node.exe: "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge.mjs
-  ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
-=== SUMMARY ===
-  this pass took 156s
-  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 18 run(s), since 2026-10-06T19:56:29)
-  - NEEDS A PERSON - the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it  (open 18 run(s), since 2026-10-06T19:56:29)
-  - only 1.2 of 15.8 GB RAM free  (open 1 run(s), since 2026-10-07T00:10:47)
-  + fixed since last run: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
-=== RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 18 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
-  2. [open 18 runs NEEDS A PERSON] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
-  3. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  7. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  8. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  9. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
-posted to Alpha: True
-relayed status/cloud to Alpha
-  To https://github.com/vyos88/Personal-AI-1.2
-     b76aece..1802bb9  HEAD -> status/laptop41
-pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## 20261006-41-apply-route-b  apply-update  ->  1   (2026-10-06T23:13:58, 17s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  already  D backend/tests/test_image_backend_probe.py
-  applies  A backend/tests/test_image_backend_probe_live.py
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 4 file(s)
-  the merged file is kept at C:\AlphaData\alpha-ops\backups\alph...(37)\failed\software\backend\main.py
-  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: line 18004: invalid syntax (2300 line(s) from change #3 at lines 15690-15704) -- putting everything back
-  restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 ```
 
