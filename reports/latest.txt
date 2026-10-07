@@ -1,4 +1,4 @@
-laptop41-doctor 20261008-001103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 4987134 2026-10-07)
+laptop41-doctor 20261008-002603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 4987134 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -38,13 +38,13 @@ laptop41-doctor 20261008-001103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-08 00:00 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-08 00:00 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 0 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T23:05:39.853Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T23:07:39.864Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T23:09:39.893Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T23:21:40.006Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T23:23:39.972Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T23:25:40.008Z","probes":{"backend":{"ok":false,"status":0,"reason":"timeout"},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -74,7 +74,7 @@ laptop41-doctor 20261008-001103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 6. CrowPanel ===
     COM7
-    COM24   in use by another program?
+    COM24
   device: USB-SERIAL CH340 (COM24)
   device: USB Serial Device (COM7)
   --- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)
@@ -86,22 +86,22 @@ laptop41-doctor 20261008-001103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 28s old)
+  PROBLEM: Alpha's deck feed answered 000
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (38 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (11 connections)
 
 === 7. Memory, disk, heaviest processes ===
   ok: 6.3 of 15.8 GB RAM free
-  ok: C: 137.2 GB free
-  Memory Compression              785 MB  pid 3840
-  claude                          695 MB  pid 8028
-  MsMpEng                         451 MB  pid 6040
-  explorer                        356 MB  pid 10108
-  python                          315 MB  pid 21068
-  WindowsTerminal                 282 MB  pid 3764
-  claude                          223 MB  pid 12912
-  powershell                      184 MB  pid 10508
+  ok: C: 137.7 GB free
+  claude                          637 MB  pid 8028
+  python                          514 MB  pid 21068
+  MsMpEng                         442 MB  pid 6040
+  explorer                        393 MB  pid 10108
+  Memory Compression              373 MB  pid 3840
+  node                            333 MB  pid 15564
+  WindowsTerminal                 290 MB  pid 3764
+  claude                          224 MB  pid 12912
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -109,15 +109,17 @@ laptop41-doctor 20261008-001103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 22s
-  - Ollama does not answer at http://127.0.0.1:11434  (open 1 run(s), since 2026-10-08T00:11:24)
+  this pass took 37s
+  - Ollama does not answer at http://127.0.0.1:11434  (open 2 run(s), since 2026-10-08T00:11:24)
+  - Alpha's deck feed answered 000  (open 1 run(s), since 2026-10-08T00:26:39)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [open 2 runs] Start Ollama on this machine (the Ollama app, or `ollama serve`); Alpha has no chat model without it.
+  2. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
