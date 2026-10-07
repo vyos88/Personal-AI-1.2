@@ -1,8 +1,23 @@
-﻿# laptop41 autopilot 20261007-235848
+﻿# laptop41 autopilot 20261008-000345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4987134 is current
+
+## auto-brain-topology-20261008-000345  brain-topology (standing)  ->  0 (deck ok)   (2026-10-08T00:04:06, 0s)
+```
+OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+OK: the deck's source draws the links the backend sends and checks them (Region links)
+OK: the site serves the fixed deck (BrainNeuralModel-BizulwOh.js)
+```
+
+## auto-live-sync-20261008-000345  live-sync (standing)  ->  0 (in sync)   (2026-10-08T00:04:06, 5s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs a3e1350 of claude/frie...(30)
+CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as a3e1350 on claude/frie...(30)
+    1 credential-looking line(s) cleared by the owner's list go with this capture
+```
 
 ## auto-live-sync-20261007-235848  live-sync (standing)  ->  0 (in sync)   (2026-10-07T23:59:04, 102s)
 ```
@@ -421,30 +436,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 TOTAL: 98 song(s): 87 can play, 34 of them as MP3, 53 still WAV only; 0 finished but WAV missing; 11 not finished or failed; 0 unreadable
 PROBLEM: no ffmpeg for this account (ALPHA_FFMPEG_PATH or PATH): the MP3s cannot be made until it is installed
 backend MP3 backfill: no summary yet (the backend has not run Alpha cedec9d or later yet)
-```
-
-## auto-live-sync-20261007-221349  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:14:07, 5s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-WAITING: cedec9d was tried here and refused; the next commit on claude/frie...(30) is tried when it comes
-SKIPPED: nothing is captured while this machine is not on cedec9d
-```
-
-## auto-live-sync-20261007-220845  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:09:05, 11s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: cbd4b34..cedec9d of claude/frie...(30) (last applied here: cbd4b34)
-      applies  M backend/api/crowpanel.py
-      applies  M backend/main.py
-      applies  M backend/music_singing.py
-      conflict M backend/tests/test_assistant_heartbeat.py  -- error: backend/tests/test_assistant_heartbeat.py: No such file or directory
-      applies  M backend/tests/test_singing_mp3.py
-      applies  M frontend/src/musicAudioLoader.js
-      applies  M frontend/src/musicAudioLoader.test.js
-    REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
-      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
-REFUSED: cedec9d: a file here differs where the change was made, and nothing was written
-SKIPPED: nothing is captured while this machine is not on cedec9d
 ```
 
