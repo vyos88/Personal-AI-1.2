@@ -425,6 +425,11 @@
       "id": "20261007-66-panel-identify",
       "do": "panel-identify",
       "why": "owner confirmed the panel is on COM4; cp3-panel-endpoint had COM7 sending nothing at all. This asks each of the five bridges which board it is (panel / alpha-deck / other / silent / unreadable) so the next step is the right one. Read-only, one status query per port, no arguments."
+    },
+    {
+      "id": "20261007-67-songs-check",
+      "do": "songs-check",
+      "why": "after Alpha ca87445 (MP3 backfill running since ~22:50 local): how many of the songs play as MP3 now"
     }
   ],
   "autofix": {
