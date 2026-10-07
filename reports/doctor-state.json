@@ -1,24 +1,19 @@
 {
-    "cloudSeen":  "8178f7508b4911617b88949b2b936d6817bb2d78",
-    "lastRun":  "2026-10-07T16:56:53",
+    "cloudSeen":  "068b1459f088f5c1f2a737eef57609481d9a62f5",
+    "lastRun":  "2026-10-07T17:11:59",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-10-07T16:13:31",
-                                                     "runs":  4,
-                                                     "text":  "only 1.3 of 15.8 GB RAM free"
-                                                 },
-                 "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.":  {
-                                                                                                                                                                                                                                                   "since":  "2026-10-07T16:56:53",
-                                                                                                                                                                                                                                                   "runs":  1,
-                                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled."
-                                                                                                                                                                                                                                               },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
+                                                                                                                "since":  "2026-10-07T17:11:59",
+                                                                                                                "runs":  1,
+                                                                                                                "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
+                                                                                                            },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  48,
+                                                                                                                                                         "runs":  49,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T16:56:53",
-    "relay":  "relayed status/cloud 8178f75"
+    "lastPost":  "2026-10-07T17:11:59",
+    "relay":  "relayed status/cloud 068b145"
 }
