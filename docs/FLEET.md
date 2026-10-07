@@ -107,6 +107,23 @@ Port, flash, key, provision, and then the step that decides the exit code:
 waiting for the host to see the panel's key being used. `--verify-only` asks
 that last question on its own, any time.
 
+### What is on Worker1's serial ports
+
+Worker1 (DESKTOP-41HPLCN) has four USB serial boards. That is why every tool
+here that picks a port by itself refuses to guess there.
+
+| Port | Board | Rule |
+|---|---|---|
+| COM24 | the network bridge (V, 2026-10-07) | never opened by a panel tool |
+| COM20 | the Arduino Uno (V, 2026-10-07) | never opened by a panel tool: opening a port resets an Uno (DTR) |
+| COM7 | the CrowPanel deck (USB Serial Device; on COM7 since the 2026-10-02 briefing) | the deck's `STATUS` / `ALPHA` go here |
+| COM4 | CH340, not yet named | ask V before opening it |
+
+Windows renumbers COM ports when a board is re-plugged, so check this table
+against the doctor's section 6 before trusting a number. Pass the deck's port
+explicitly (`connect-panel.mjs --port`, `ALPHA_PANEL_PORT`) rather than letting
+a tool probe: probing opens every candidate.
+
 ## The two scheduled runs, and the receipts they leave
 
 **On the Alpha host, every 30 minutes** — is this machine attached, and is the
