@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-053845
+﻿# laptop41 autopilot 20261007-055345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 8e085c0 is current
+
+## auto-deck-liveness-20261007-055345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:54:07, 10s)
+```
+DECKS: 4 live, 2 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 91 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 12 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 0 s old, fresh for 90 s
+DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
+    assistant heartbeat 1232 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 770 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-053845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:39:06, 8s)
 ```
@@ -403,20 +423,5 @@ KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: a
 DELIVERED: 7e76aeb..f219f4b of claude/frie...(30)
 CAPTURED: 5 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 386c753 on claude/frie...(30)
     3 credential-looking line(s) cleared by the owner's list go with this capture
-```
-
-## auto-live-sync-20261007-025345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T02:54:05, 13s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: 7e76aeb..48bdf61 of claude/frie...(30) (last applied here: 7e76aeb)
-      applies  M backend/chat_music_generation.py
-      applies  M backend/tests/test_chat_music_generation.py
-      conflict M frontend/src/components/MusicSingingPanel.jsx  -- error: patch failed: frontend/src/components/MusicSingingPanel.jsx:14
-      applies  M scripts/alpha_public_song_worker.py
-    REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
-      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
-REFUSED: 48bdf61: a file here differs where the change was made, and nothing was written
-SKIPPED: nothing is captured while this machine is not on 48bdf61
 ```
 
