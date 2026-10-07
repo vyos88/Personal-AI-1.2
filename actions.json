@@ -378,6 +378,16 @@
       "id": "20261007-cp3-panel-endpoint",
       "do": "panel-endpoint",
       "why": "55 got no STATUS from COM7 in 30 s; #200 reports what the port did send (COM7 only, STATUS only)"
+    },
+    {
+      "id": "20261007-58-stop-stray-site",
+      "do": "stop-stray-site",
+      "why": "fleet-inventory 51: DUPLICATES Alpha site x2, leftover vite preview tree 6508 beside the one holding 4173 (HANDOFF_2026-10-07b section 5, BACKLOG F1). #198 merged by the owner"
+    },
+    {
+      "id": "20261007-59-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "after 58: DUPLICATES should read none; read-only"
     }
   ],
   "autofix": {
