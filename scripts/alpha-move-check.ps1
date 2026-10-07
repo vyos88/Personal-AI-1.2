@@ -68,7 +68,7 @@ Say ("  addresses: tailnet {0}; LAN {1}" -f $(if ($ts) { $ts.IPAddress } else { 
 $candidates = New-Object System.Collections.ArrayList
 [void]$candidates.Add($AlphaRoot)
 foreach ($u in @(Get-ChildItem 'C:\Users' -Directory)) {
-  foreach ($rel in @('Downloads\VyoS-advance-tech-ai\software', 'Alpha\software', 'Alpha-1.8\software', 'VyoS-advance-tech-ai\software')) {
+  foreach ($rel in @('Downloads\VyoS-advance-tech-ai\software', 'Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software', 'Alpha\software', 'Alpha-1.8\software', 'VyoS-advance-tech-ai\software')) {
     $p = Join-Path $u.FullName $rel
     if ((Test-Path $p) -and -not ($candidates -contains $p)) { [void]$candidates.Add($p) }
   }

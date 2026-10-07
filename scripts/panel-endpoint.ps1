@@ -30,13 +30,20 @@
   with the reason. The STATUS line it prints carries no secret (the firmware
   reports wifi_set/alpha_set as yes/no, never the values).
 
+.PARAMETER Port
+  The deck's serial port, e.g. COM4. Skips the pick at step 3, which is what a
+  person standing at the board is for: on 2026-10-07 the Espressif rule chose
+  COM7 on Worker1, COM7 sent nothing at all for 30 s, and the board was on COM4.
+
 .PARAMETER ParseStatus
   Test seam: parse one STATUS line and print it as JSON. Touches nothing.
 #>
 param(
   [int]$BackendPort = 8001,
   [int]$Baud = 115200,
-  [string]$ParseStatus
+  [string]$Port,
+  [string]$ParseStatus,
+  [string]$DescribeHeard
 )
 
 $ErrorActionPreference = 'Stop'
@@ -51,6 +58,52 @@ function Parse-Status([string]$line) {
 if ($PSBoundParameters.ContainsKey('ParseStatus')) {
   $p = Parse-Status $ParseStatus
   if ($p) { $p | ConvertTo-Json -Compress } else { 'null' }
+  exit 0
+}
+
+# What came back from the port, so a silent deck and a board speaking some other
+# protocol are told apart. On 2026-10-07 COM7 gave no STATUS for 30 s and the
+# report could not say whether it had said anything at all. At most three
+# lines are kept, each cut short and with anything credential-shaped masked.
+$script:heard = New-Object System.Collections.ArrayList
+$script:bytes = 0
+$script:pending = ''
+
+function Take-Lines([string]$chunk) {
+  $script:pending += $chunk
+  $parts = $script:pending -split "`n"
+  $script:pending = $parts[-1]
+  if ($parts.Count -lt 2) { return @() }
+  return @($parts[0..($parts.Count - 2)] | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+}
+
+function Mask([string]$line) {
+  $clean = ($line -replace '[^\x20-\x7E]', '?') -replace '(?i)((?:pass\w*|key|token|secret)["'']?\s*[=: ]\s*["'']?)[^\s"'',}]+', '$1***'
+  if ($clean.Length -gt 120) { $clean = $clean.Substring(0, 120) + '...' }
+  return $clean
+}
+
+# One chunk of what the port sent: the STATUS reply if a line is one, after
+# keeping up to three lines that were not.
+function Hear([string]$chunk) {
+  $script:bytes += $chunk.Length
+  foreach ($line in (Take-Lines $chunk)) {
+    $p = Parse-Status $line
+    if ($p) { return @{ line = $line; parsed = $p } }
+    if ($script:heard.Count -lt 3) { [void]$script:heard.Add((Mask $line)) }
+  }
+  return $null
+}
+
+function Describe-Silence {
+  if ($script:bytes -eq 0) { return 'nothing at all came back: the board is silent on this port (its console may be on another port, or it is not running)' }
+  if ($script:heard.Count -eq 0) { return "$($script:bytes) byte(s) came back but never a whole line (wrong baud rate?)" }
+  return 'it is talking, but not as Alpha''s deck firmware. It said: ' + (($script:heard | ForEach-Object { "'$_'" }) -join ' | ')
+}
+
+if ($PSBoundParameters.ContainsKey('DescribeHeard')) {
+  $r = Hear ($DescribeHeard -replace '\\n', "`n")
+  if ($r) { "status: $($r.line)" } else { Describe-Silence }
   exit 0
 }
 
@@ -77,6 +130,17 @@ if ($code -ne '200') {
 Write-Host "ok: backend answers on $base"
 
 # ------------------------------------------------------------ 3. port
+# A port given by hand wins, and is the answer to the case the pick cannot
+# settle: on 2026-10-07 the Espressif rule chose COM7 on Worker1, COM7 sent
+# nothing at all for 30 s, and the owner then confirmed the board was on COM4.
+# A person looking at the board beats any rule about VIDs, so -Port skips the
+# pick entirely rather than arguing with it.
+if ($Port) {
+  if ($Port -notmatch '^COM\d+$') { Fail "-Port must look like COM4, not '$Port'" }
+  $com = $Port
+  Write-Host "deck port: $com (given)"
+}
+else {
 $bridges = @(Get-CimInstance Win32_PnPEntity -EA SilentlyContinue |
              Where-Object { $_.Name -match '\((COM\d+)\)' -and $_.Name -match 'CH340|CH341|CH9102|CP210|USB-SERIAL|USB Serial|UART' })
 if ($bridges.Count -eq 0) { Fail 'no USB serial bridge attached: is the deck plugged into this machine?' }
@@ -88,6 +152,7 @@ if ($bridges.Count -gt 1 -and $native.Count -eq 1) { $bridges = $native }
 if ($bridges.Count -gt 1) { Fail ("more than one USB serial bridge attached ({0}): not guessing which is the deck" -f (($bridges | ForEach-Object { $_.Name }) -join '; ')) }
 $com = [regex]::Match($bridges[0].Name, '\((COM\d+)\)').Groups[1].Value
 Write-Host "deck port: $com ($($bridges[0].Name))"
+}
 
 # ------------------------------------------------------------ 4-5. serial
 $sp = New-Object System.IO.Ports.SerialPort $com, $Baud, 'None', 8, 'One'
@@ -99,9 +164,11 @@ function Ask-Status([int]$seconds) {
   $nextSend = Get-Date
   while ((Get-Date) -lt $deadline) {
     if ((Get-Date) -ge $nextSend) { try { $sp.WriteLine('STATUS') } catch {}; $nextSend = (Get-Date).AddSeconds(2) }
-    try { $line = $sp.ReadLine() } catch { continue }
-    $p = Parse-Status $line
-    if ($p) { return @{ line = $line.Trim(); parsed = $p } }
+    $chunk = ''
+    try { $chunk = $sp.ReadExisting() } catch {}
+    if (-not $chunk) { Start-Sleep -Milliseconds 200; continue }
+    $r = Hear $chunk
+    if ($r) { return $r }
   }
   return $null
 }
@@ -110,7 +177,7 @@ try {
   # Opening the port resets the board on adapters that tie DTR to EN; its
   # setup() spends up to 15 s joining Wi-Fi before the loop reads serial.
   $before = Ask-Status 30
-  if (-not $before) { Fail "the deck on $com did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting" }
+  if (-not $before) { Fail "the deck on $com did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting. $(Describe-Silence)" }
   Write-Host "before: $($before.line)"
   if ($before.parsed.wifi_ssid -eq '(none)') {
     Fail "the deck has no Wi-Fi stored: provision it once in Alpha (Hardware Hub > CrowPanel Alpha Deck > Connect this panel to Wi-Fi); a passphrase is never sent from a task"

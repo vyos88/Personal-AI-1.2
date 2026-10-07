@@ -55,11 +55,23 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
     { id: 'i4', do: 'receive-alpha-data', inbox: 'C:\\Windows' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
+    { id: 'p2', do: 'panel-identify', port: 'COM3' },
+    { id: 's1', do: 'stop-stray-site', pid: 12448, port: 8001 },
+    { id: 's2', do: 'comfyui-off', pid: 4, dir: 'C:\\Windows' },
+    { id: 's3', do: 'songs-check', root: 'C:\\Windows' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'p1', 'p2', 's1', 's2', 's3']);
+  assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
+  assert.match(plan.s2.args.at(-1), /comfyui-off\.ps1$/, 'nothing from the payload: what is ComfyUI is read off the machine');
+  assert.deepEqual(plan.s3.args.slice(-3).map(String), [plan.s3.args.at(-3), '-AlphaRoot', 'C:\\A\\software'], 'only the autopilot\'s own AlphaRoot, nothing from the payload');
+  // Identification asks every port and takes no port from the payload: a
+  // payload that could name one is a payload that could aim a write at a board
+  // nobody identified, which is the whole point of asking.
+  assert.deepEqual(plan.p2.args.slice(1), ['--identify']);
+  assert.match(plan.p2.args[0], /panel-up\.mjs$/);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -331,6 +343,17 @@ test('panel-endpoint takes nothing from the action, and reads the deck STATUS li
   assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
 });
 
+test('panel-endpoint says what a port that never answered STATUS did send', { skip }, () => {
+  const panel = join(import.meta.dirname, '..', 'scripts', 'panel-endpoint.ps1');
+  const heard = (text) => pwsh([panel, '-DescribeHeard', text]).stdout.trim();
+  assert.match(heard(''), /^nothing at all came back: the board is silent on this port/);
+  assert.match(heard('abc'), /^3 byte\(s\) came back but never a whole line/);
+  const other = heard('rst:0x1 (POWERON_RESET)\\n{"ok":true,"wifi":"Home","pass":"hunter2"}\\nwifi password=hunter2 key: abc\\n');
+  assert.match(other, /^it is talking, but not as Alpha's deck firmware\. It said: 'rst:0x1 \(POWERON_RESET\)'/);
+  assert.ok(!other.includes('hunter2') && !other.includes('abc'), `nothing credential-shaped is repeated: ${other}`);
+  assert.match(heard('boot\\n[crowpanel] fw=1.4 wifi_ssid=Starlink alpha_base=http://192.168.1.151:8001\\n'), /^status: \[crowpanel\] fw=1\.4/);
+});
+
 test('panel-host edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-host-'));
   const file = join(dir, 'actions.json');
@@ -355,6 +378,19 @@ test('promo-reel renders into the folder Alpha serves videos from, and takes not
   assert.match(p.args[0], /promo-reel\.mjs$/);
   assert.deepEqual(p.args.slice(1, 5), ['--video-script', 'C:\\A\\scripts\\alpha_video_creator.py', '--out-dir', 'C:\\A\\artifacts\\generated\\videos']);
   assert.ok(!/evil/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
+test('interactive-first-off edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-ifo-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'interactive-first-off', env: 'C:\\evil\\.env', value: 'true' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /interactive-first-off\.mjs$/);
+  assert.deepEqual(p.args.slice(1), ['--env', 'C:\\A\\.env.local']);
+  assert.ok(!/evil|true/.test(p.args.join(' ')), 'nothing from the action reaches the script');
 });
 
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
@@ -674,6 +710,26 @@ test('receiving Alpha data refuses an archive that reaches outside memory', { sk
   assert.ok(!readdirSync(join(home, 'software')).includes('evil.py'));
 });
 
+test('preparing Alpha finds the software folder where the live branch keeps it, under Alpha-Full', { skip }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'prep-clone-'));
+  const src = join(base, 'src');
+  const app = join(src, 'BuildArtifacts', 'installers', 'Alpha-Full', 'software');
+  mkdirSync(join(app, 'backend'), { recursive: true });
+  mkdirSync(join(app, 'frontend'), { recursive: true });
+  writeFileSync(join(app, 'backend', 'main.py'), '');
+  writeFileSync(join(app, 'frontend', 'package.json'), JSON.stringify({ name: 'f', version: '1.0.0', scripts: { build: "node -e \"require('fs').mkdirSync('dist');require('fs').writeFileSync('dist/index.html','ok')\"" } }));
+  git(base, 'init', '-q', '-b', 'live', src);
+  git(src, 'add', '.');
+  git(src, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'live');
+  const target = join(base, 'Alpha');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1'), '-Target', target, '-Repo', src, '-Branch', 'live', '-Model', 'none:0']);
+  assert.match(r.stdout, /cloned: /, r.stdout);
+  assert.match(r.stdout, /Alpha's software\\ is .*BuildArtifacts.installers.Alpha-Full.software/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no software/);
+  assert.match(r.stdout, /built: dist\\index\.html/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no frontend/);
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');
@@ -801,4 +857,104 @@ test('a pass that updates its checkout finishes with the new code, so it is neve
   assert.match(r.stdout, /running the v2 code/, 'the rest of the pass is the new code');
   assert.equal(reports(), before + 1, 'and it still wrote its live report');
   assert.equal((r.stdout.match(/updated this checkout/g) || []).length, 1, 'it updates once, not in a loop');
+});
+
+// Worker1 kept a second `vite preview` tree (pid 6508) after the Alpha task's
+// restart; stop-stray-site takes it and must never take the tree on 4173.
+test('stop-stray-site stops only a preview tree that does not hold the port', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stray-site-'));
+  const file = join(dir, 'procs.json');
+  const node = (pid, parent, cmd, mb = 50) => ({ pid, parent, name: 'node.exe', cmd, mb });
+  writeFileSync(file, JSON.stringify([
+    { pid: 4, parent: 0, name: 'System', cmd: '', mb: 1 },
+    { pid: 900, parent: 4, name: 'svchost.exe', cmd: 'svchost', mb: 10 },
+    { pid: 100, parent: 900, name: 'cmd.exe', cmd: 'cmd.exe /c "C:\\ProgramData\\AlphaBoot\\run-alpha.cmd"', mb: 3 },
+    node(11396, 100, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    { pid: 20808, parent: 11396, name: 'cmd.exe', cmd: 'cmd.exe /d /s /c vite preview --port 4173', mb: 3 },
+    node(12448, 20808, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview --port 4173', 90),
+    node(17388, 900, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    node(6508, 17388, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview', 60),
+    { pid: 6600, parent: 6508, name: 'esbuild.exe', cmd: 'esbuild --service', mb: 20 },
+    node(7000, 900, '"node" "C:\\B\\frontend\\node_modules\\vite\\bin\\vite.js" --port 5173', 70),
+  ]));
+  const planFor = (...holders) => {
+    const args = [join(import.meta.dirname, '..', 'scripts', 'stop-stray-site.ps1'), '-ProcessesJson', file];
+    if (holders.length) args.push('-Holders', holders.join(','));
+    const r = pwsh(args);
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+
+  const plan = planFor(12448);
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.live.map((t) => t.pid), [20808], 'the tree whose node holds 4173 is live');
+  assert.deepEqual(plan.stop.map((t) => t.pid), [17388], 'the leftover goes, with the npm run preview that waits on it');
+  assert.equal(plan.stop[0].processes, 2);
+  assert.deepEqual(plan.leave.map((t) => t.pid), [7000], 'a vite dev server is left to whoever is using it');
+
+  // Turned around, the rule turns around with it: it is the port, not the pid.
+  assert.deepEqual(planFor(6508).stop.map((t) => t.pid), [11396]);
+
+  for (const [holders, reason] of [[[], /nothing listens/], [[900], /svchost\.exe 900, not a vite process/]]) {
+    const p = planFor(...holders);
+    assert.equal(p.ok, false);
+    assert.match(p.reason, reason);
+    assert.deepEqual(p.stop, [], 'without a live tree to tell it from, nothing is stopped');
+  }
+});
+
+// The owner, 2026-10-07: Alpha checks her decks one by one and reports in the
+// tunnel. Each new deck-audit report goes into the autopilot report once.
+test("Alpha's deck audit reaches the tunnel once per report", { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-audit-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [] }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const folder = join(alpha, 'memory', 'local', 'deck-audit');
+  mkdirSync(folder, { recursive: true });
+  const write = (at, verdict) => writeFileSync(join(folder, 'latest.json'), JSON.stringify({
+    checked_at: at, machine: 'DESKTOP-41HPLCN', counts: { WORKING: 1, [verdict]: 1 },
+    decks: [
+      { deck: 'core', verdict: 'WORKING', why: 'answers with data', content: { keys: 3, lists: { agents: 4 } }, fixes: [] },
+      { deck: 'phone', verdict, why: 'answered 500', content: null, fixes: ['retry: still broken'] },
+    ],
+  }));
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  write('2026-10-07T21:50:00+00:00', 'BROKEN');
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 0 empty, 1 broken/);
+  let md = report();
+  assert.match(md, /deck-audit \(Alpha\) {2}-> {2}2 \(1 working, 0 empty, 1 broken\)/);
+  assert.match(md, /WORKING core: answers with data \(agents 4\)/);
+  assert.match(md, /BROKEN {2}phone: answered 500 \(nothing read\) {2}\[retry: still broken\]/);
+
+  r = run();
+  assert.doesNotMatch(r.stdout, /deck audit \(Alpha\)/, 'the same report is not posted twice');
+
+  write('2026-10-07T22:20:00+00:00', 'EMPTY');
+  r = run();
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 1 empty, 0 broken/);
 });

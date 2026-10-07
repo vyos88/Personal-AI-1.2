@@ -17,7 +17,9 @@
  * and the site are restarted (only those two: the music and image bridges are
  * left alone). Each branch tip is tried once. A failure is reported and the
  * next commit on the branch is what gets tried, never the same one every five
- * minutes.
+ * minutes, unless apply-alpha-update.mjs itself has changed since: a fix to
+ * the updater gets one more try at the tip it failed on (2026-10-07: #207
+ * fixed the refusal of cedec9d, which then sat WAITING for a new commit).
  *
  * Capture (--capture, on the one machine that runs Alpha live). When this
  * machine runs exactly the branch tip, the source files edited here, and the
@@ -133,6 +135,11 @@ function readJson(path) {
   try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; }
 }
 
+// Which updater tried a tip: a refusal by an older one is tried again.
+export const UPDATER_VERSION = createHash('sha256')
+  .update(readFileSync(new URL('./apply-alpha-update.mjs', import.meta.url)))
+  .digest('hex').slice(0, 12);
+
 export function syncStatePath(ops, branch) {
   return join(ops, `live-sync-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
 }
@@ -237,7 +244,7 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
     teach(false);
     return { code: EXIT_OK, tip, record };
   }
-  if (state.deliver?.tip === tip && state.deliver.code !== 0) {
+  if (state.deliver?.tip === tip && state.deliver.code !== 0 && state.deliver.updater === UPDATER_VERSION) {
     const how = state.deliver.code === 2 ? 'refused' : 'failed';
     log(`WAITING: ${short(tip)} was tried here and ${how}; the next commit on ${branch} is tried when it comes`);
     teach(false);
@@ -253,7 +260,7 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
   const code = await applyUpdate(args, (line) => lines.push(String(line)));
   // apply-alpha-update's own words, indented so none is mistaken for a state line.
   for (const line of lines) for (const part of line.split('\n')) if (part.trim()) log(`    ${part}`);
-  state.deliver = { tip, code, at: new Date().toISOString() };
+  state.deliver = { tip, code, at: new Date().toISOString(), updater: UPDATER_VERSION };
   const after = readJson(recordPath);
   if (code === 0) log(`DELIVERED: ${short(record.to)}..${short(tip)} of ${branch}`);
   else if (code === 2) log(`REFUSED: ${short(tip)}: a file here differs where the change was made, and nothing was written`);

@@ -32,13 +32,18 @@ function arg(name, fallback) {
   const i = process.argv.indexOf(`--${name}`);
   return i > -1 && i + 1 < process.argv.length ? process.argv[i + 1] : fallback;
 }
-const num = (name, fallback, lo, hi) => Math.max(lo, Math.min(hi, Number(arg(name, fallback)) || fallback));
+const num = (name, fallback, lo, hi) => { const v = Number(arg(name, fallback)); return Math.max(lo, Math.min(hi, Number.isFinite(v) ? v : fallback)); };
 
 const seconds = Math.round(num('seconds', 25, 6, 30));
 const imageWidth = num('image-width', 512, 256, 1024) & ~7;
 const imageHeight = num('image-height', 768, 256, 1024) & ~7;
 const imageSteps = Math.round(num('image-steps', 28, 4, 50));
 const musicTimeoutMs = num('music-timeout-min', 20, 0.05, 60) * 60_000;
+// 2026-10-07: the first run lost 4 of 6 scenes in a few minutes while the
+// Host's ComfyUI was coming back (a 504, then the bridge refusing): more
+// tries, spaced out, ride over a restart instead of giving up.
+const imageAttempts = Math.round(num('image-attempts', 4, 1, 8));
+const retryWaitMs = num('retry-wait-s', 30, 0, 300) * 1000;
 const musicUrl = arg('music', 'http://127.0.0.1:8790').replace(/\/+$/, '');
 const imageUrl = arg('image', 'http://127.0.0.1:7861').replace(/\/+$/, '');
 const videoPython = arg('video-python', '');
@@ -81,7 +86,8 @@ async function waitFor(check, ms) {
 }
 
 async function makeImage(scene, i) {
-  for (let attempt = 1; attempt <= 2; attempt++) {
+  for (let attempt = 1; attempt <= imageAttempts; attempt++) {
+    if (attempt > 1 && retryWaitMs) await sleep(retryWaitMs * (attempt - 1));
     const t0 = Date.now();
     const body = { prompt: `${scene.prompt}, ${STYLE}`, negative_prompt: NEGATIVE, width: imageWidth, height: imageHeight, steps: imageSteps, seed: 7100 + i * 13 + attempt, cfg_scale: 7 };
     let r;

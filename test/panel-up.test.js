@@ -8,10 +8,23 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lanAddress, listPorts, parseModeOutput, parseSerialComm } from '../scripts/panel-up.mjs';
+import {
+  classifyBoard,
+  identifyPorts,
+  lanAddress,
+  listPorts,
+  parseModeOutput,
+  parseSerialComm,
+  pinFromBoard,
+  readPin,
+  verifyPin,
+  writePin,
+} from '../scripts/panel-up.mjs';
 import { createHost } from '../src/host/server.js';
 import { AuthService } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
@@ -140,4 +153,166 @@ test('it uses a coordinator that is already up, and mints the panel a narrow key
   // Both read-only: the fleet pages need agents:read, the receipts page needs
   // tasks:read, and neither can queue anything.
   assert.deepEqual(minted[0].scopes, ['agents:read', 'tasks:read']);
+});
+
+test('a board says which board it is, and the four answers go to four places', () => {
+  // It answered this firmware: this is the panel, whatever the port is called.
+  assert.deepEqual(
+    classifyBoard({
+      ready: true,
+      status: { firmware: 'panel-3', connected: true, ssid: 'BT-house', host: 'http://192.168.1.9:8787', page: 'fleet' },
+    }),
+    {
+      kind: 'panel',
+      detail: 'firmware panel-3, on BT-house, reading http://192.168.1.9:8787, showing fleet',
+    },
+  );
+
+  // Alpha's own deck firmware: same board family, bare-word commands, and it
+  // names itself in every line. Flashing this firmware over it would take
+  // Alpha's deck away, so it is called out rather than treated as a stranger.
+  const deck = classifyBoard({
+    ready: false,
+    spoke: true,
+    heard: '[crowpanel] fw=alpha-1 wifi_set=yes alpha_set=yes',
+  });
+  assert.equal(deck.kind, 'alpha-deck');
+  assert.match(deck.detail, /\[crowpanel\] fw=alpha-1/);
+
+  // Talking, in neither protocol: somebody else's board.
+  assert.deepEqual(classifyBoard({ ready: false, spoke: true, heard: 'ok T:21.5 /0.0' }), {
+    kind: 'other',
+    detail: 'talking, but not this protocol — ok T:21.5 /0.0',
+  });
+
+  // Silent is the one that gets mistaken for "no board": an unflashed board, or
+  // one held in bootloader, looks exactly like an empty adapter.
+  assert.deepEqual(classifyBoard({ ready: false, spoke: false }), {
+    kind: 'silent',
+    detail: 'nothing came back',
+  });
+
+  // A port that cannot be opened at all is an answer too, not a crash.
+  assert.deepEqual(classifyBoard({ error: 'could not open COM24: Access denied' }), {
+    kind: 'unreadable',
+    detail: 'could not open COM24: Access denied',
+  });
+});
+
+test('every port is asked, in turn, and one unopenable port does not end the sweep', async () => {
+  // Worker1's actual shape: four CH340 clones and the panel, and nothing in the
+  // label to tell them apart.
+  const ports = [
+    { address: 'COM4', label: null },
+    { address: 'COM6', label: null },
+    { address: 'COM20', label: 'in use by another program?' },
+    { address: 'COM24', label: null },
+  ];
+  const asked = [];
+  const seen = await identifyPorts(ports, async (address) => {
+    asked.push(address);
+    if (address === 'COM20') throw new Error('could not open COM20: Access is denied');
+    if (address === 'COM24') return { ready: true, status: { firmware: 'panel-3', page: 'work' } };
+    return { ready: false, spoke: false };
+  });
+
+  // In series — five boards rebooting at once on one laptop's USB is not a
+  // diagnosis — and every one of them asked, including the ones after the throw.
+  assert.deepEqual(asked, ['COM4', 'COM6', 'COM20', 'COM24']);
+  assert.deepEqual(
+    seen.map((entry) => [entry.address, entry.kind]),
+    [
+      ['COM4', 'silent'],
+      ['COM6', 'silent'],
+      ['COM20', 'unreadable'],
+      ['COM24', 'panel'],
+    ],
+  );
+  // The label the port list carried is kept: "in use by another program?" is
+  // why COM20 could not be opened, and the two lines belong together.
+  assert.equal(seen[2].label, 'in use by another program?');
+});
+
+test('the pin remembers the board, not the port number', () => {
+  // What a laptop needs to find its panel again after a replug: the MAC first,
+  // because it is the only part that survives both the port renumbering and a
+  // reflash. The COM number is kept as a hint to check, not as the answer.
+  const pin = pinFromBoard(
+    {
+      address: 'COM4',
+      label: null,
+      kind: 'panel',
+      detail: 'firmware panel-4',
+      status: { firmware: 'panel-4', mac: 'a0:b7:65:11:22:33', page: 'fleet' },
+    },
+    { name: 'CrowPanel', now: 1_700_000_000_000 },
+  );
+  assert.deepEqual(pin, {
+    name: 'CrowPanel',
+    port: 'COM4',
+    kind: 'panel',
+    label: null,
+    firmware: 'panel-4',
+    mac: 'A0:B7:65:11:22:33',
+    savedAt: 1_700_000_000_000,
+  });
+  // Nothing a board said about its credentials is written down — there is
+  // nothing secret in a pin, and that is what makes it safe to keep on disk.
+  assert.ok(!JSON.stringify(pin).includes('key'));
+
+  // A port that said nothing is never pinned: a pin on a guess is a guess the
+  // next run believes.
+  assert.equal(pinFromBoard({ address: 'COM6', kind: 'silent' }), null);
+  assert.equal(pinFromBoard({ address: 'COM6', kind: 'unreadable' }), null);
+  assert.equal(pinFromBoard(null), null);
+  // Alpha's own deck is pinnable too — it is a board this machine holds, and
+  // which port it is on is the same question.
+  assert.equal(pinFromBoard({ address: 'COM7', kind: 'alpha-deck', status: {} })?.kind, 'alpha-deck');
+});
+
+test('a pin is checked against the board, and says how strong the check was', () => {
+  const pin = { name: 'CrowPanel', port: 'COM4', kind: 'panel', mac: 'A0:B7:65:11:22:33' };
+
+  // Same MAC: this is the board, whatever the port is called today.
+  assert.deepEqual(
+    verifyPin(pin, { kind: 'panel', status: { mac: 'a0:b7:65:11:22:33' } }),
+    { ok: true, why: 'MAC A0:B7:65:11:22:33' },
+  );
+
+  // A different board answering on the pinned port is the case that matters:
+  // without the MAC check, provisioning would go to somebody else's ESP32.
+  const other = verifyPin(pin, { kind: 'panel', status: { mac: 'aa:bb:cc:dd:ee:ff' } });
+  assert.equal(other.ok, false);
+  assert.match(other.why, /different board: MAC AA:BB:CC:DD:EE:FF, pinned A0:B7/);
+
+  // Nothing there, or something else there: both refuse, with the difference.
+  assert.match(verifyPin(pin, { kind: 'silent' }).why, /nothing answered on COM4/);
+  assert.match(verifyPin(pin, { kind: 'alpha-deck', status: {} }).why, /answers as alpha-deck now, not panel/);
+
+  // The weaker answer is given as what it is rather than dressed up: a board
+  // with no MAC (Alpha's deck, or this firmware before panel-4) can only be
+  // checked by kind and port.
+  const weak = verifyPin({ port: 'COM7', kind: 'alpha-deck', mac: null }, { kind: 'alpha-deck', status: {} });
+  assert.equal(weak.ok, true);
+  assert.match(weak.why, /by kind and port/);
+});
+
+test('a missing or damaged pin file is no pin, never a crash', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'panel-pin-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'panel-board.json');
+
+  assert.equal(await readPin(file), null);
+
+  await writeFile(file, '{ this is not json');
+  assert.equal(await readPin(file), null, 'a damaged file reads as no pin');
+
+  await writeFile(file, JSON.stringify({ name: 'CrowPanel' }));
+  assert.equal(await readPin(file), null, 'a pin with no port is not a pin');
+
+  const pin = { name: 'CrowPanel', port: 'COM4', kind: 'panel', mac: 'A0:B7:65:11:22:33', savedAt: 1 };
+  // The directory does not exist yet on a fresh checkout; writing makes it.
+  const nested = join(dir, 'data', 'panel-board.json');
+  await writePin(pin, nested);
+  assert.deepEqual(await readPin(nested), pin);
 });
