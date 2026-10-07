@@ -77,7 +77,7 @@ function Get-StrayPlan($procs, $holders) {
       foreach ($c in $procs) { if ([int]$c.parent -eq $id -and [int]$c.pid -ne $id) { $todo.Enqueue([int]$c.pid) } }
     }
     $mb = 0; foreach ($id in $tree) { if ($byPid.ContainsKey($id)) { $mb += [int]$byPid[$id].mb } }
-    $entry = [ordered]@{ pid = [int]$r.pid; processes = $tree.Count; mb = $mb; cmd = "$($r.cmd)" }
+    $entry = [ordered]@{ pid = [int]$r.pid; processes = $tree.Count; mb = $mb; cmd = "$($r.cmd)"; pids = @($tree) }
     $isLive = $liveSet.ContainsKey([int]$r.pid) -or @($tree | Where-Object { $liveSet.ContainsKey($_) }).Count
     if ($isLive) { $plan.live += $entry; continue }
     $preview = @($tree | Where-Object { $byPid.ContainsKey($_) -and "$($byPid[$_].cmd)" -match '(?i)\bpreview\b' }).Count
@@ -103,6 +103,15 @@ function Cut([string]$text, [int]$max = 90) {
   $t
 }
 
+# The end of a command line is the part that says what it is: the start is a
+# long node_modules path, and cutting there hid what pid 6508 was running
+# (Worker1, 2026-10-07: "node ...\node_modules\.bin\\..." and nothing more).
+function Tail([string]$text, [int]$max = 160) {
+  $t = ($text -replace '(?i)(--?(token|key|password|secret|api-?key)[= ]+)\S+', '$1...' -replace '\s+', ' ').Trim()
+  if ($t.Length -gt $max) { $t = '...' + $t.Substring($t.Length - $max) }
+  $t
+}
+
 if ($ProcessesJson) {
   $procs = @(Get-Content -LiteralPath $ProcessesJson -Raw | ConvertFrom-Json)
   ConvertTo-Json -InputObject (Get-StrayPlan $procs @($Holders)) -Depth 5 -Compress
@@ -112,11 +121,20 @@ if ($ProcessesJson) {
 $machine = if ($env:COMPUTERNAME) { $env:COMPUTERNAME } else { [Environment]::MachineName }
 Write-Output ("STOP STRAY SITE {0} {1}" -f $machine, (Get-Date).ToString('yyyy-MM-dd HH:mm'))
 $procs = @(Get-CimInstance Win32_Process | ForEach-Object {
-  [pscustomobject]@{ pid = [int]$_.ProcessId; parent = [int]$_.ParentProcessId; name = $_.Name; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSetSize / 1MB) } })
+  [pscustomobject]@{ pid = [int]$_.ProcessId; parent = [int]$_.ParentProcessId; name = $_.Name; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSetSize / 1MB); started = $_.CreationDate } })
 $listeners = @(Get-NetTCPConnection -LocalPort $Port -State Listen | ForEach-Object { [int]$_.OwningProcess } | Select-Object -Unique)
 $plan = Get-StrayPlan $procs $listeners
 foreach ($t in $plan.live) { Write-Output ("live : tree {0} ({1} processes, {2} MB) holds {3}: {4}" -f $t.pid, $t.processes, $t.mb, $Port, (Cut $t.cmd)) }
-foreach ($t in $plan.leave) { Write-Output ("leave: tree {0} ({1} MB) is not a preview server, left alone: {2}" -f $t.pid, $t.mb, (Cut $t.cmd)) }
+foreach ($t in $plan.leave) {
+  Write-Output ("leave: tree {0} ({1} MB) is not a preview server, left alone. What it is:" -f $t.pid, $t.mb)
+  foreach ($id in @($t.pids | Select-Object -First 6)) {
+    $p = $procs | Where-Object { $_.pid -eq $id } | Select-Object -First 1
+    if (-not $p) { continue }
+    $held = @(Get-NetTCPConnection -OwningProcess $id -State Listen | ForEach-Object { $_.LocalPort } | Select-Object -Unique)
+    $since = if ($p.started) { ([datetime]$p.started).ToString('MM-dd HH:mm') } else { '?' }
+    Write-Output ("       pid {0} {1}, started {2}, listening on {3}: {4}" -f $id, $p.name, $since, $(if ($held.Count) { $held -join ', ' } else { 'nothing' }), (Tail $p.cmd))
+  }
+}
 if (-not $plan.ok) { Write-Output "STOPPED NOTHING: $($plan.reason)"; exit 1 }
 if (-not $plan.stop.Count) { Write-Output "nothing to stop: one preview tree, and it is the live one"; exit 0 }
 
