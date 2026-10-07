@@ -373,6 +373,11 @@
       "id": "20261007-56-promo-reel",
       "do": "promo-reel",
       "why": "owner: 'try again' (15:43Z). Host ComfyUI is back (h17, 16:39 local), so the scenes can go to the RTX 3050."
+    },
+    {
+      "id": "20261007-cp3-panel-endpoint",
+      "do": "panel-endpoint",
+      "why": "55 got no STATUS from COM7 in 30 s; #200 reports what the port did send (COM7 only, STATUS only)"
     }
   ],
   "autofix": {
