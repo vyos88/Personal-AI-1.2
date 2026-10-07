@@ -4,6 +4,15 @@
       powershell -ExecutionPolicy Bypass -File .\scripts\install-always-on.ps1 `
         -AlphaRoot C:\alpha -CloudflareTunnel alpha-home
 
+  To stand by for Alpha running on *another* machine -- the case the fleet
+  actually has, one laptop serving Alpha and one running the coordinator --
+  name what to watch and what proves this machine took over:
+
+      ... -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai `
+          -ProbeUrl http://100.69.243.25:8001/health `
+          -LocalUrl http://127.0.0.1:8001/health `
+          -ControlUrl https://github.com -CloudflareTunnel alpha-home
+
   Two scheduled tasks, both running at logon and both restarted if they stop:
 
     alpha-tunnel agent    keep-agent.mjs - takes work from the host, keeps
@@ -28,6 +37,19 @@ param(
 
   # The npm script that starts Alpha, from that root's package.json.
   [string] $AlphaScript = 'dev',
+
+  # What "the host is down" means on this machine: the URL the standby probes.
+  # It matters most on the machine that runs the coordinator. standby-alpha.mjs
+  # defaults this to ALPHA_HOST_URL/healthz -- the coordinator -- and on the
+  # coordinator's own machine that answers from loopback for ever, so a standby
+  # installed there never promotes and the failover silently does not exist.
+  # To stand by for Alpha, point this at Alpha: http://<alpha machine>:8001/health
+  [string] $ProbeUrl,
+
+  # This machine's own health URL for what the standby starts, so a promotion
+  # that started nothing is reported rather than counted as serving. Alpha's
+  # backend answers http://127.0.0.1:8001/health.
+  [string] $LocalUrl,
 
   # The named Cloudflare tunnel to run while this machine is serving. Named
   # only - cloudflared also takes --token, and an argv is readable by every
@@ -95,11 +117,35 @@ if ($AlphaRoot) {
 
   $standby = @((Join-Path $here 'standby-alpha.mjs'), '--root', $AlphaRoot, '--npm-script', $AlphaScript)
   if ($CloudflareTunnel) { $standby += @('--cloudflared', $CloudflareTunnel) }
+  if ($ProbeUrl) { $standby += @('--probe-url', $ProbeUrl) }
+  if ($LocalUrl) { $standby += @('--local-url', $LocalUrl) }
   if ($ControlUrl) { $standby += @('--control-url', $ControlUrl) }
   else {
     Write-Host ''
     Write-Host 'note  : no -ControlUrl. This machine cannot tell "the host is down" from'
     Write-Host '        "I cannot reach the host", so a dropped link will promote it.'
+  }
+
+  if (-not $ProbeUrl) {
+    # Worth checking here rather than leaving it to be discovered by a failover
+    # that did not happen: the default probe is the coordinator, and on the
+    # machine that runs the coordinator that is a health check against itself.
+    $coordinatorHere = $false
+    if (Get-Command Get-NetTCPConnection -ErrorAction SilentlyContinue) {
+      $port = if ($env:ALPHA_HOST_PORT) { [int] $env:ALPHA_HOST_PORT } else { 8787 }
+      $coordinatorHere = [bool] (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue)
+    }
+    Write-Host ''
+    Write-Host 'note  : no -ProbeUrl, so the standby watches the coordinator (ALPHA_HOST_URL/healthz).'
+    if ($coordinatorHere) {
+      Write-Host '        THIS MACHINE IS LISTENING ON THE COORDINATOR PORT, so that probe answers'
+      Write-Host '        from loopback whatever happens elsewhere and this standby will never'
+      Write-Host '        promote. To stand by for Alpha, pass'
+      Write-Host '          -ProbeUrl http://<the machine running Alpha>:8001/health'
+    } else {
+      Write-Host '        To stand by for Alpha rather than for the coordinator, pass'
+      Write-Host '          -ProbeUrl http://<the machine running Alpha>:8001/health'
+    }
   }
 
   Install 'alpha-tunnel standby' $standby

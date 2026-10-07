@@ -361,6 +361,22 @@ same rule with `package.json` as the allowlist — a name it does not define is
 refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
 spawned without a shell.
 
+**A standby watches Alpha, not the coordinator, and that is easy to get
+backwards here.** The names invert the fleet: Alpha runs on Worker1 and the
+coordinator runs on the Host, so the machine that should take Alpha over is the
+one running the coordinator — and `standby-alpha.mjs` defaults `--probe-url` to
+`ALPHA_HOST_URL/healthz`, which on that machine answers from loopback whatever
+happens to Worker1. A standby installed with the default there never promotes,
+and nothing says so: the failover looks installed and does not exist.
+`scripts/install-always-on.ps1` takes `-ProbeUrl` and `-LocalUrl` for this and
+warns when `-ProbeUrl` is omitted on a machine holding the coordinator port
+(`test/install-always-on.test.js` pins both). `-LocalUrl` is the other half: it
+is how a promotion that started nothing gets reported instead of counted as a
+live Alpha. `docs/HOST_DOWN.md` carries the recipe and the two things a staged
+clone still lacks — `.env.local` and `memory\` — because `prepare-alpha-here`
+copies no secrets and no data, so an armed standby there would promote and fail
+to start Alpha.
+
 **The public way in moves with Alpha.** `--cloudflared <tunnel>` runs a named
 Cloudflare tunnel for exactly as long as this machine is promoted, under the
 same supervision as Alpha itself — a tunnel that died is a public address
