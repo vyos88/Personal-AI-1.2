@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -533,4 +533,79 @@ test('the fleet inventory runs read-only and fits the report', { skip }, () => {
   for (const section of ['FLEET INVENTORY', 'TASKS', 'SERVICES', 'PROCESSES', 'DUPLICATES', 'PORTS', 'AGENT MANAGER']) {
     assert.ok(out.some((line) => line.startsWith(section)), section);
   }
+});
+
+test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: true } }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  mkdirSync(join(alpha, 'memory', 'local', 'deck-liveness'), { recursive: true });
+  writeFileSync(join(alpha, 'memory', 'local', 'deck-liveness', 'latest.json'), JSON.stringify({
+    checked_at: '2026-10-07T02:30:00+00:00', not_live: ['CrowPanel feed (/panel/crowpanel/state)'],
+    sources: [{ verdict: 'LIVE' }, { verdict: 'LIVE' }, { verdict: 'SETTING' }],
+  }));
+  mkdirSync(join(ops, 'logs'), { recursive: true });
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const heal = (probes) => writeFileSync(log, `${JSON.stringify({ at: '2026-10-07T02:30:00Z', probes, actions: [], events: [] })}\n`);
+  const ok = { ok: true, status: 200 };
+  const kicks = join(dir, 'kicks');
+  // Stand-ins for the Windows cmdlets: a task that can be started, a backend that answers.
+  const fakes = `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; function Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200 } }; `;
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const live = () => git(remote, 'show', 'status/laptop41-live:reports/live.md');
+  const commits = () => git(remote, 'rev-list', '--count', 'status/laptop41-live').trim();
+
+  heal({ backend: ok, frontend: ok, public: ok, control: ok });
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /live report: Alpha LIVE; self-heal RUNNING/);
+  let md = live();
+  assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
+  assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel feed/);
+  const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
+  assert.equal(json.alpha.verdict, 'LIVE');
+
+  // Nothing changed, and it still reports: that is what tells a quiet machine from a dead reporter.
+  const before = Number(commits());
+  r = run();
+  assert.match(r.stdout, /nothing new to run/);
+  assert.equal(Number(commits()), before + 1);
+
+  // A part that does not answer is named.
+  heal({ backend: ok, frontend: { ok: false, status: 502 }, public: ok, control: ok });
+  run();
+  assert.match(live(), /\| DOWN \| backend 200, site 502, alpha-ai\.uk 200; not answering: site/);
+
+  // Self-heal stopped writing: started again once, not again inside 30 minutes.
+  const old = new Date(Date.now() - 20 * 60 * 1000);
+  utimesSync(log, old, old);
+  r = run();
+  md = live();
+  assert.match(md, /\| Repair agent \(self-heal\) \| STOPPED \| last pass 20 min ago.*started its task again/);
+  assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not running/);
+  run();
+  assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
+  assert.match(live(), /restart already tried at/);
 });
