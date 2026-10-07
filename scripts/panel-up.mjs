@@ -675,6 +675,11 @@ async function main() {
       say(`  node scripts/panel-up.mjs --port ${panels[0].address} --ssid "<your wifi>"`);
     } else if (panels.length > 1) {
       say(`${panels.length} boards answered this firmware: ${panels.map((entry) => entry.address).join(', ')}`);
+    } else if (seen.every((entry) => entry.kind === 'unreadable')) {
+      // Not the same answer as "none of these is the panel", and it sends you
+      // somewhere else: no port could be read at all, so nothing here was asked.
+      say('no port here could be read, so no board was asked. Each one says why above.');
+      say('A port held by a serial monitor or Alpha\'s own provisioning is the usual reason.');
     } else {
       say('no board here is running this firmware.');
     }

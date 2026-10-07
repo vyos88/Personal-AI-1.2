@@ -749,6 +749,18 @@ when a join fails, and `--scan` runs it on its own. Reflashing does not cost a
 board its credentials: the previous firmware's single network is migrated into
 the list on first boot.
 
+**The port is opened as a device, and configured by its plain name.** The first
+real `--identify` sweep on Worker1 failed on every port, and the two halves of
+the failure say why: `could not open COM4: ENOENT ... open
+'C:\services\alpha-tunnel\COM4'` — `fs.open` resolves a bare `COM4` against the
+working directory like any other relative path, so `devicePath()` prefixes
+`\\.\` at *every* number, not only above COM9 as it first did. But
+`mode.com \\.\COM20 BAUD=...` failed in the same run where `mode.com COM4` had
+worked, so `mode` wants the plain name — the opposite way round.
+`portConfigAttempts()` tries the plain name and falls back to the device path,
+because the only evidence against the second spelling is one machine's two held
+ports. arduino-cli keeps the plain name in its argv throughout.
+
 **Serial ports are read from two sources per platform.** On Windows `mode.com`
 lists only ports it can *open*, so a board held by a serial monitor — the usual
 reason a flash fails — is missing from it; the registry's `SERIALCOMM` device

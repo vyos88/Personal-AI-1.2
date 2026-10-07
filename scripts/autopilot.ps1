@@ -39,6 +39,8 @@
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
+    receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
+    alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -264,6 +266,9 @@ function Resolve-Action($a) {
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
     'prepare-alpha-here' { $spec = Ps1 'prepare-alpha-here.ps1' @(); $out.timeoutMin = 90 }
+    # Phase 2: take what Laptop41 sent over Taildrop, check it against its
+    # manifest, put it in place. Refuses while Alpha runs here; starts nothing.
+    'receive-alpha-data' { $spec = Ps1 'receive-alpha-data.ps1' @(); $out.timeoutMin = 30 }
     # The data step of the move: copies memory\ and artifacts\ from an
     # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
     # never a .env file; refuses while anything answers on 8001 here.
@@ -586,7 +591,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -656,6 +661,7 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
 # backend runs, because it signs in with the backend's own token signer.
 $deckKey = if ($state -and $state.deckKey) { [string]$state.deckKey } else { '' }
 $deckAt = if ($state -and $state.deckAt) { [string]$state.deckAt } else { '' }
+$auditAt = if ($state -and $state.auditAt) { [string]$state.auditAt } else { '' }
 $deck = if ($control -and $control.autofix -and $control.autofix.deckLiveness) { $control.autofix.deckLiveness } else { $null }
 if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
   $every = 15
@@ -689,12 +695,41 @@ if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Alpha's own deck-by-deck check (backend deck_audit.py, every 30 min): each
+# new report goes into this report, so the tunnel carries what Alpha found
+# deck by deck and what she fixed. The owner, 2026-10-07: "teach alpha to do
+# it, then report in the tunnel".
+$auditFile = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-audit') 'latest.json'
+if (Test-Path -LiteralPath $auditFile) {
+  try {
+    $audit = Get-Content -LiteralPath $auditFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $at = [string]$audit.checked_at
+    if ($at -and $at -ne $auditAt) {
+      $lines = @()
+      foreach ($row in @($audit.decks)) {
+        $held = @()
+        if ($row.content -and $row.content.lists) { foreach ($p in $row.content.lists.PSObject.Properties) { if ($held.Count -lt 4) { $held += "$($p.Name) $($p.Value)" } } }
+        $what = if ($held.Count) { $held -join ', ' } elseif ($row.content) { "$($row.content.keys) field(s)" } else { 'nothing read' }
+        $fix = if (@($row.fixes).Count) { "  [$(@($row.fixes) -join '; ')]" } else { '' }
+        $lines += ('{0,-7} {1}: {2} ({3}){4}' -f $row.verdict, $row.deck, $row.why, $what, $fix)
+      }
+      $c = $audit.counts
+      $sum = "$([int]$c.WORKING) working, $([int]$c.EMPTY) empty, $([int]$c.BROKEN) broken"
+      $tail = (@("DECK AUDIT by Alpha on $($audit.machine) at ${at}: $sum") + $lines | ForEach-Object { Redact $_ }) -join "`n"
+      $res = if ([int]$c.BROKEN) { "2 ($sum)" } else { "0 ($sum)" }
+      [void]$ran.Add([ordered]@{ id = "auto-deck-audit-$stamp"; do = 'deck-audit (Alpha)'; result = $res; at = (Get-Date).ToString('s'); seconds = 0; tail = $tail })
+      Write-Host "deck audit (Alpha): $sum"
+      $auditAt = $at
+    }
+  } catch { Write-Host "deck audit (Alpha): report unreadable ($($_.Exception.Message))" }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only
