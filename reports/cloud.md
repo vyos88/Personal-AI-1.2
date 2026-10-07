@@ -1,29 +1,17 @@
-Claude (cloud, session "beautiful-noether") BEFORE note, 2026-10-07 21:40 UTC
+Claude (cloud) report, 2026-10-07 21:57 UTC
 
-V connected Desktop Commander, so this session now has a shell on Worker1 (DESKTOP-41HPLCN) and asked it to finish the open work. Starting now, in this order:
-1. The CrowPanel: find the port its console really answers on, without opening COM4, COM6, COM20 or COM24, and give it http://192.168.1.151:8001.
-2. The Worker1 items marked "Needs V" in this report that a shell can do: RAM and C: space, which are read first.
-3. Merges only where V named one.
-Alpha must stay LIVE: no restart without a reason, and no change to interactive-first. Other sessions: please do not restart Alpha's backend or open serial ports on Worker1 until the AFTER note.
+Worker1 (Laptop41) report is fresh (doctor 21:41 UTC). Alpha is live. Chat answered in 3.3 s with 0 s load.
+Better since 20:57: RAM 2.8 of 15.8 GB free (no longer flagged). C: 15.0 GB free (was 8-9). The deck feed is LIVE (heartbeat 1 s old). Live sync is in sync again: #207 skips a change to a test this machine never had, and #209 retries a refused tip.
 
-----
-Claude (cloud) report, 2026-10-07 20:57 UTC
+In progress: since 21:40 UTC another cloud session ("beautiful-noether") has a shell on Worker1 through Desktop Commander, given by V. It is working on, in order, the CrowPanel port, RAM and C: space, then merges V named. Its request stands until its AFTER note: no other session restarts Alpha's backend or opens serial ports on Worker1.
 
-Worker1 (Laptop41) report is fresh (doctor 20:41 UTC). Alpha is live. Chat answered in 4.8 s with 0 s load. RAM 1.4 of 15.8 GB free (flagged again), C: 9.0 GB free.
-NEW: #205 (merged) adds comfyui-off. Worker1's own ComfyUI on 8188 holds about 3.4 GB while the Host makes the pictures, and V said yes to stopping it. It stops ComfyUI and its task, drops the image handlers so pictures go to the Host, and restarts the agent. It has not run yet.
-Live sync REFUSED route-b f1dbc73 at 20:54 UTC: backend/tests/test_assistant_heartbeat.py does not exist on Worker1, where the change lands (the change also touches crowpanel.py and main.py). Nothing was written, and nothing is captured until a session merges it by hand.
+CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it. #208 pins the CrowPanel board, adds -Port to panel-endpoint, and puts panel-identify on the autopilot menu.
+Songs: #206 adds songs-check, which lists every song in Alpha's playlist with its MP3 state, and #211 extends it. On the Host, h21 songs-check found no song receipts (it looked for memory\local\music-singing above the Host's Alpha folder); #211 looks for the Host's copy. h20 prepare-alpha passed again.
+#212: Alpha's deck-by-deck audit now goes into the tunnel report.
 
-Deck feed: interactive-first is off since 17:14 UTC (V's yes, #203). The heartbeat has been stale again since 18:02 UTC, held back by low RAM on Worker1 (NEEDS A PERSON in the doctor).
+Merged since 20:57: #205 (comfyui-off), #206, #207, #208, #209, #211, #212. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
-CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it (54 runs). NEEDS V: check the panel on COM7 is on and booted.
-
-RAM: the biggest process is a python (pid 18408, 4.1 GB at 17:26), then llama-server at 1.9 GB. The "Alpha site x2" duplicate is a 178 MB vite dev server on 5173, not the RAM problem.
-
-Alpha move (#189): Host prepared at 15:49 UTC; nothing switched yet.
-
-Merged since 15:57: #196, #198, #200-#205. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
-
-Needs V: the CrowPanel on COM7; RAM (python 4.1 GB) and C: space on Worker1; a DHCP reservation for Worker1; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
+Needs V: the CrowPanel (in progress); a DHCP reservation for Worker1; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
@@ -36,4 +24,4 @@ Still stands:
 
 The phones publish no status.
 
-Alpha: post in the tunnel per the owner's rule; start no heavy work on Worker1 while RAM is low. Codex: C3 and C5, read-only.
+Alpha: post in the tunnel per the owner's rule; leave Worker1's backend and serial ports alone until the AFTER note. Codex: C3 and C5, read-only.
