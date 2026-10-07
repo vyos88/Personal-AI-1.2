@@ -1,52 +1,52 @@
-laptop41-doctor 20261007-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ fabb389 2026-10-07)
+laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ d00387b 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 17972 python.exe: 
+  port 8001 : pid 7656 python.exe: 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
               in: 
               wrapper: C:\ProgramData\AlphaBoot\run-alpha.cmd
-  port 4173 : pid 20320 node.exe: 
+  port 4173 : pid 15352 node.exe: 
   frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:True
   ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
 
 === 1. Backend (port 8001) ===
   ok: /health answers 200
   ok: chat fix (dictionary 500) is in the live main.py
-  main.py edited 2026-10-07 00:39; backend started 
+  main.py edited 2026-10-07 03:29; backend started 
 
 === 2. Chat ===
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 2.6s (load 0s, 12.2 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 5.3s (load 0s, 10.8 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
-  dist built     2026-10-06 19:14
-  newest source  2026-10-06 19:12  src\musicProxyRoutes.test.js
+  dist built     2026-10-07 03:30
+  newest source  2026-10-07 03:29  src\liveCoordinationLabels.test.js
   ok: build is newer than every source file
   frontend probed at https://127.0.0.1:4173/
-  bundle in dist     /assets/index-CtUvt5WZ.js
-  bundle on :4173   /assets/index-CtUvt5WZ.js
-  bundle public      /assets/index-CtUvt5WZ.js
+  bundle in dist     /assets/index-CUI7olR_.js
+  bundle on :4173   /assets/index-CUI7olR_.js
+  bundle public      /assets/index-CUI7olR_.js
   public headers: Server: cloudflare
   ok: 4173 serves the build in dist
   ok: public site serves the same build as this machine
 
 === 4. Public alpha-ai.uk and the boot tasks ===
   ok: https://alpha-ai.uk/ answers 200
-  task Alpha            Running  last run 2026-10-07 01:29 result 0x00041301 (still running)
-  task Alpha Backend    Running  last run 2026-10-07 02:18 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
+  task Alpha            Running  last run 2026-10-07 03:31 result 0x00041301 (still running)
+  task Alpha Backend    Running  last run 2026-10-07 03:31 result 0x00041301 (still running)
+  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T02:21:40.115Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T02:23:40.081Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T02:25:40.085Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T02:35:40.146Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
+    {"at":"2026-10-07T02:37:40.181Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
+    {"at":"2026-10-07T02:39:40.190Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -72,7 +72,7 @@ laptop41-doctor 20261007-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 5d. Brain topology (neurological deck) ===
   ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
   ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
-  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-LmE7_bjQ.js)
+  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-CfmhMBCx.js)
 
 === 6. CrowPanel ===
     COM4
@@ -97,23 +97,23 @@ laptop41-doctor 20261007-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
-    assistant heartbeat 1680s old (live under 420s); stale since 2026-10-07T01:58:17.065951; panel snapshot 5.58s old
+  PROBLEM: Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.
+    panel snapshot 5.98s old
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (39 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (37 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4 of 15.8 GB RAM free
-  ok: C: 17.2 GB free
-  llama-server                  1,934 MB  pid 14360
-  claude                          661 MB  pid 7832
-  Memory Compression              646 MB  pid 3840
-  MsMpEng                         441 MB  pid 6040
-  chrome                          381 MB  pid 6588
-  msedge                          324 MB  pid 6872
+  ok: 3.7 of 15.8 GB RAM free
+  ok: C: 17 GB free
+  llama-server                  1,933 MB  pid 14360
+  claude                          677 MB  pid 7832
+  Memory Compression              603 MB  pid 3840
+  MsMpEng                         450 MB  pid 6040
+  chrome                          385 MB  pid 6588
+  node                            371 MB  pid 6508
+  msedge                          346 MB  pid 6872
   explorer                        271 MB  pid 10108
-  chrome                          246 MB  pid 12820
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -121,12 +121,12 @@ laptop41-doctor 20261007-032602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 26s
-  - NEEDS A PERSON - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 4 run(s), since 2026-10-07T02:41:24)
-  + fixed since last run: chat model 'llama3.2:3b' took 70.2s to load: the first chat after an idle spell waits that long
+  this pass took 33s
+  - Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.  (open 1 run(s), since 2026-10-07T03:41:34)
+  + fixed since last run: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 4 runs NEEDS A PERSON] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
+  1. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
