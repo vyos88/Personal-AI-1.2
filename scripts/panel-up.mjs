@@ -53,6 +53,14 @@ const PORT = Number.parseInt(process.env.ALPHA_HOST_PORT ?? '8787', 10);
 const VERIFY_MS = 90_000;
 const COORDINATOR_START_MS = 45_000;
 
+// How long one port gets to say what it is. The same window the handler gives a
+// board it is provisioning, deliberately: opening the port reboots every board
+// whose adapter ties DTR to EN, and the sketch spends up to 15 s joining WiFi in
+// `setup()` before its loop reads a byte. A shorter window here would report the
+// panel itself as silent, which is the one answer identification must never get
+// wrong — it would send somebody looking for an unplugged board.
+const IDENTIFY_MS = 30_000;
+
 const USAGE = `
 panel-up — make the panel show live data, from this machine
 
@@ -69,6 +77,9 @@ Options
                    then reads that first and falls back to here
   --no-serve       Do not start a coordinator; fail if none is answering
   --list-ports     Print the serial ports on this machine and stop
+  --identify       Ask every serial port here which board is on it, and stop.
+                   For a machine carrying several — four CH340 clones and the
+                   panel is a real fleet — this is what says which is which
   --scan           Ask the board which WiFi networks it can see, and stop
   --page <n>       Turn the display to a page (fleet, machines, work, receipts,
                    panel, or next) and stop. Add --hold to stop the rotation
@@ -195,6 +206,89 @@ export async function listPorts() {
     .map((address) => ({ address, label: labels.get(address) ?? null }));
 }
 
+/**
+ * What the board on one port turned out to be.
+ *
+ * Worker1 carries five serial bridges — four CH340 clones and the panel — and
+ * `mode.com` cannot tell them apart: every one of them is "USB-SERIAL CH340".
+ * The board itself can, so this reads the answer out of one short conversation
+ * rather than guessing from a label, a VID or a port number. Windows renumbers
+ * COM ports on re-enumeration, so the number is the least durable thing there
+ * is about a board.
+ *
+ * Four answers, and they send a person to four different places:
+ *
+ * - **panel** — it answered this firmware's `status`, so this is the board.
+ * - **alpha-deck** — it is talking, and naming itself `[crowpanel]`: Alpha's
+ *   own deck firmware, same board family, no credential, bare-word
+ *   `STATUS`/`WIFI`/`ALPHA`. `scripts/panel-endpoint.ps1` is what points that
+ *   one; flashing it here would take Alpha's deck away.
+ * - **other** — talking, in neither protocol. Some other project's board.
+ * - **silent** — nothing came back: an unflashed board, one held in bootloader,
+ *   or an adapter with nothing on the far end of it.
+ */
+export function classifyBoard(outcome) {
+  if (outcome?.error) return { kind: 'unreadable', detail: outcome.error };
+
+  if (outcome?.ready) {
+    const status = outcome.status ?? {};
+    const detail = [
+      status.firmware ? `firmware ${status.firmware}` : null,
+      status.connected && status.ssid ? `on ${status.ssid}` : null,
+      status.host ? `reading ${status.host}` : null,
+      status.page ? `showing ${status.page}` : null,
+    ]
+      .filter(Boolean)
+      .join(', ');
+    return { kind: 'panel', detail: detail || 'answers this firmware' };
+  }
+
+  if (outcome?.spoke) {
+    const heard = String(outcome.heard ?? '').trim();
+    // Alpha's deck firmware names itself in every line it prints, which is the
+    // only reason these two can be told apart without a person at the board.
+    if (/\[crowpanel\]/i.test(heard)) {
+      return { kind: 'alpha-deck', detail: `Alpha's deck firmware — ${heard}` };
+    }
+    return {
+      kind: 'other',
+      detail: heard ? `talking, but not this protocol — ${heard}` : 'talking, but not this protocol',
+    };
+  }
+
+  return { kind: 'silent', detail: 'nothing came back' };
+}
+
+/** One port, asked what it is. Sends a `status` query and nothing else. */
+async function probeBoard(address) {
+  // No commands: the readiness probe *is* the question, so nothing is written
+  // to a board whose identity is not yet known but a status query — the same
+  // thing the `Status` action sends, and the narrowest line there is.
+  return panel.converse(address, [], '', { readyTimeoutMs: IDENTIFY_MS });
+}
+
+/**
+ * Every port in turn, with what is on it.
+ *
+ * In series, not in parallel: opening a port reboots the board behind it, and
+ * five boards rebooting at once on one laptop's USB is a brownout rather than a
+ * diagnosis. `probe` is injected so this is testable without hardware.
+ */
+export async function identifyPorts(ports, probe = probeBoard, onResult = null) {
+  const seen = [];
+  for (const entry of ports) {
+    const outcome = await probe(entry.address).catch((error) => ({
+      // A port that cannot even be opened is an answer too — usually a serial
+      // monitor somebody left running — and must not end the sweep.
+      error: error?.message ?? String(error),
+    }));
+    const result = { ...entry, ...classifyBoard(outcome) };
+    seen.push(result);
+    onResult?.(result);
+  }
+  return seen;
+}
+
 const healthy = async (url) => {
   try {
     const { body } = await fetchJson(`${url}/healthz`, { timeoutMs: 3_000 });
@@ -310,6 +404,7 @@ function parseArgs(argv) {
     primary: process.env.ALPHA_PRIMARY_URL ?? null,
     serve: true,
     listPorts: false,
+    identify: false,
     scan: false,
     page: null,
     hold: undefined,
@@ -320,6 +415,7 @@ function parseArgs(argv) {
     else if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--ssid') options.ssids.push(argv[++i] ?? '');
     else if (arg === '--list-ports') options.listPorts = true;
+    else if (arg === '--identify') options.identify = true;
     else if (arg === '--scan') options.scan = true;
     else if (arg === '--page') options.page = argv[++i] ?? '';
     else if (arg === '--hold') options.hold = true;
@@ -356,8 +452,23 @@ async function main() {
       stop('port       : no serial ports here. Is the board plugged into this machine?');
     }
     if (ports.length > 1) {
-      const names = ports.map((entry) => entry.address + (entry.label ? ` (${entry.label})` : ''));
-      stop(`port       : ${ports.length} serial ports — name one with --port\n             ${names.join('\n             ')}`);
+      // Several boards on one laptop is the ordinary case, not an error, and
+      // refusing to guess is right — but the board can be asked. Only one that
+      // answers *this* firmware is used, so a CH340 belonging to another
+      // project is never written to beyond the status query that identified it.
+      say(`port       : ${ports.length} serial ports here — asking each which one is the panel`);
+      const seen = await identifyPorts(ports, probeBoard, (entry) =>
+        say(`             ${entry.address}  ${entry.kind} — ${entry.detail}`),
+      );
+      const panels = seen.filter((entry) => entry.kind === 'panel');
+      if (panels.length === 1) return panels[0].address;
+      stop(
+        `port       : ${
+          panels.length === 0
+            ? 'none of these answered this firmware — a board not flashed with it yet cannot, so'
+            : `${panels.length} of them answered it, so`
+        } name the one you mean with --port`,
+      );
     }
     if (ports[0].label && ports[0].label.includes('in use')) {
       say(`port       : ${ports[0].address} — ${ports[0].label}`);
@@ -378,6 +489,36 @@ async function main() {
       say(`${entry.address}${entry.label ? `   ${entry.label}` : ''}`);
     }
     process.exit(0);
+  }
+
+  // --- read-only: which of these boards is the panel --------------------
+  if (options.identify) {
+    const ports = await listPorts();
+    if (ports.length === 0) stop('no serial ports on this machine. Is the board plugged in?');
+    say(
+      `asking ${ports.length} port(s) what is on them, up to ${IDENTIFY_MS / 1000}s each — ` +
+        'opening a port reboots the board behind it, which is why this is not instant.',
+    );
+    const seen = await identifyPorts(ports, probeBoard, (entry) =>
+      say(`  ${entry.address.padEnd(14)} ${entry.kind.padEnd(10)} ${entry.detail}`),
+    );
+    const panels = seen.filter((entry) => entry.kind === 'panel');
+    const decks = seen.filter((entry) => entry.kind === 'alpha-deck');
+    say('');
+    if (panels.length === 1) {
+      say(`the panel is on ${panels[0].address}. Point it at a coordinator with:`);
+      say(`  node scripts/panel-up.mjs --port ${panels[0].address} --ssid "<your wifi>"`);
+    } else if (panels.length > 1) {
+      say(`${panels.length} boards answered this firmware: ${panels.map((entry) => entry.address).join(', ')}`);
+    } else {
+      say('no board here is running this firmware.');
+    }
+    for (const deck of decks) {
+      // Worth saying either way: it is the board people mean when they say the
+      // panel, and flashing this firmware over it would take Alpha's deck away.
+      say(`${deck.address} is Alpha's own deck — point that one with scripts\\panel-endpoint.ps1, not with this.`);
+    }
+    process.exit(panels.length === 1 ? 0 : 1);
   }
 
   // --- the display, which is the only thing this changes -----------------
@@ -539,7 +680,11 @@ async function main() {
     }
     if (Date.now() >= deadline) {
       stop(
-        `verify     : the panel joined ${ssid} but has not read ${here}. ` +
+        // `provisioned.ssid` is the network the board actually joined, which is
+        // not necessarily the first one asked for — and naming a variable that
+        // is not in scope here threw a ReferenceError over the top of the one
+        // diagnostic this step exists to print.
+        `verify     : the panel joined ${provisioned.ssid} but has not read ${here}. ` +
           'Same network? Is 8787 allowed inbound on this machine?',
       );
     }

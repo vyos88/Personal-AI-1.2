@@ -11,7 +11,14 @@ import { execFile } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { lanAddress, listPorts, parseModeOutput, parseSerialComm } from '../scripts/panel-up.mjs';
+import {
+  classifyBoard,
+  identifyPorts,
+  lanAddress,
+  listPorts,
+  parseModeOutput,
+  parseSerialComm,
+} from '../scripts/panel-up.mjs';
 import { createHost } from '../src/host/server.js';
 import { AuthService } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
@@ -140,4 +147,82 @@ test('it uses a coordinator that is already up, and mints the panel a narrow key
   // Both read-only: the fleet pages need agents:read, the receipts page needs
   // tasks:read, and neither can queue anything.
   assert.deepEqual(minted[0].scopes, ['agents:read', 'tasks:read']);
+});
+
+test('a board says which board it is, and the four answers go to four places', () => {
+  // It answered this firmware: this is the panel, whatever the port is called.
+  assert.deepEqual(
+    classifyBoard({
+      ready: true,
+      status: { firmware: 'panel-3', connected: true, ssid: 'BT-house', host: 'http://192.168.1.9:8787', page: 'fleet' },
+    }),
+    {
+      kind: 'panel',
+      detail: 'firmware panel-3, on BT-house, reading http://192.168.1.9:8787, showing fleet',
+    },
+  );
+
+  // Alpha's own deck firmware: same board family, bare-word commands, and it
+  // names itself in every line. Flashing this firmware over it would take
+  // Alpha's deck away, so it is called out rather than treated as a stranger.
+  const deck = classifyBoard({
+    ready: false,
+    spoke: true,
+    heard: '[crowpanel] fw=alpha-1 wifi_set=yes alpha_set=yes',
+  });
+  assert.equal(deck.kind, 'alpha-deck');
+  assert.match(deck.detail, /\[crowpanel\] fw=alpha-1/);
+
+  // Talking, in neither protocol: somebody else's board.
+  assert.deepEqual(classifyBoard({ ready: false, spoke: true, heard: 'ok T:21.5 /0.0' }), {
+    kind: 'other',
+    detail: 'talking, but not this protocol — ok T:21.5 /0.0',
+  });
+
+  // Silent is the one that gets mistaken for "no board": an unflashed board, or
+  // one held in bootloader, looks exactly like an empty adapter.
+  assert.deepEqual(classifyBoard({ ready: false, spoke: false }), {
+    kind: 'silent',
+    detail: 'nothing came back',
+  });
+
+  // A port that cannot be opened at all is an answer too, not a crash.
+  assert.deepEqual(classifyBoard({ error: 'could not open COM24: Access denied' }), {
+    kind: 'unreadable',
+    detail: 'could not open COM24: Access denied',
+  });
+});
+
+test('every port is asked, in turn, and one unopenable port does not end the sweep', async () => {
+  // Worker1's actual shape: four CH340 clones and the panel, and nothing in the
+  // label to tell them apart.
+  const ports = [
+    { address: 'COM4', label: null },
+    { address: 'COM6', label: null },
+    { address: 'COM20', label: 'in use by another program?' },
+    { address: 'COM24', label: null },
+  ];
+  const asked = [];
+  const seen = await identifyPorts(ports, async (address) => {
+    asked.push(address);
+    if (address === 'COM20') throw new Error('could not open COM20: Access is denied');
+    if (address === 'COM24') return { ready: true, status: { firmware: 'panel-3', page: 'work' } };
+    return { ready: false, spoke: false };
+  });
+
+  // In series — five boards rebooting at once on one laptop's USB is not a
+  // diagnosis — and every one of them asked, including the ones after the throw.
+  assert.deepEqual(asked, ['COM4', 'COM6', 'COM20', 'COM24']);
+  assert.deepEqual(
+    seen.map((entry) => [entry.address, entry.kind]),
+    [
+      ['COM4', 'silent'],
+      ['COM6', 'silent'],
+      ['COM20', 'unreadable'],
+      ['COM24', 'panel'],
+    ],
+  );
+  // The label the port list carried is kept: "in use by another program?" is
+  // why COM20 could not be opened, and the two lines belong together.
+  assert.equal(seen[2].label, 'in use by another program?');
 });
