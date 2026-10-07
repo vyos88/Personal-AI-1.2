@@ -1,8 +1,41 @@
-﻿# laptop41 autopilot 20261007-155345
+﻿# laptop41 autopilot 20261007-155850
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 52f8a2a is current
+checkout 6426118 is current
+
+## 20261007-52-alpha-move-check  alpha-move-check  ->  0   (2026-10-07T15:59:04, 60s)
+```
+ALPHA MOVE CHECK DESKTOP-41HPLCN 2026-10-07 15:59
+MACHINE: RAM 3.4 GB free of 15.8 GB; C: 16.4 GB free; on AC
+  GPU: AMD Radeon (TM) RX 640; Microsoft Remote Display Adapter; Intel(R) UHD Graphics
+  addresses: tailnet 100.69.243.25; LAN 172.26.240.1 (vEthernet (Default Switch)), 192.168.1.151 (Wi-Fi)
+ALPHA COPY:
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: backend, frontend, node_modules, dist; git main @ daf08d0f 10-04 23:54
+  C:\Users\Vyo\Alpha-1.8\software: backend, frontend, node_modules, dist; not a git checkout
+DATA (runtime state; never in git, moves by USB or LAN):
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory: 41850 files, 13.0 GB
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\data: 1 files, 0.0 GB
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\memory: 5 files, 0.0 GB
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\.env.local: present, 44 bytes (contents not read)
+  venv: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe (Python 3.12.10)
+TOOLS:
+  git: git version 2.54.0.windows.1
+  node: v24.16.0
+  python: Python 3.12.10
+  py: Python 3.12.10
+  ollama: ollama version is 0.35.1
+  cloudflared: cloudflared version 2026.7.3 (built 2026-07-22T09:32 UTC)
+  tailscale: 1.102.3
+  ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
+  cloudflared: service Stopped; 1 process(es); config folders hold 2 .yml and 1 .json file(s) (not opened)
+PORTS: 8001 backend=up, 4173 site=up, 8787 coordinator=-, 8790 music bridge=up, 7861 image bridge=up, 11434 ollama=up, 8188 comfyui=up
+TASKS: Alpha=Running, Alpha Backend=Running, Alpha Self-Heal=Ready, Alpha Doctor=Ready, alpha-music bridge=Running, alpha-image bridge=Running, alpha-coordinator=Disabled, alpha-tunnel agent=-, Alpha Autopilot=Running
+AGENT MANAGER: snapshot here, written 10-07 15:59
+MISSING TO RUN ALPHA HERE (2):
+  - under 20 GB free on C: (Alpha, its venv, node_modules and models need room)
+  - .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)
+```
 
 ## 20261007-52-panel-host  panel-host  ->  1   (2026-10-07T15:54:01, 125s)
 ```
@@ -402,12 +435,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-live-sync-20261007-052351  live-sync (standing)  ->  0 (in sync)   (2026-10-07T05:24:08, 23s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)
-CAPTURED: nothing; every source file here matches 7ca5aa7
 ```
 
