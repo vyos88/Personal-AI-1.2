@@ -338,6 +338,19 @@ test('panel-host edits the env file beside Alpha, and takes nothing from the act
   assert.ok(!/10\.9\.9\.9|evil|calc/.test(p.args.join(' ')), 'nothing from the action reaches the script');
 });
 
+test('promo-reel renders into the folder Alpha serves videos from, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-promo-reel-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'promo-reel', name: '..\\evil', outDir: 'C:\\evil' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /promo-reel\.mjs$/);
+  assert.deepEqual(p.args.slice(1, 5), ['--video-script', 'C:\\A\\scripts\\alpha_video_creator.py', '--out-dir', 'C:\\A\\artifacts\\generated\\videos']);
+  assert.ok(!/evil/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
   const remote = join(dir, 'remote.git');
