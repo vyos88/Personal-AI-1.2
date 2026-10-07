@@ -1,8 +1,78 @@
-﻿# laptop41 autopilot 20261007-010845
+﻿# laptop41 autopilot 20261007-012845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 59dbcf8 is current
+checkout b67d16d is current
+
+## auto-bridges-20261007-012845  bridges (standing)  ->  0 (restarted)   (2026-10-07T01:29:06, 0s)
+```
+'alpha-music bridge' task was Ready; last run 10/07/2026 00:33:52, last result 0xC000013A
+  log: subscriptions off: every click generates
+  log: 2026-10-06T21:11:59 the bridge exited (-1); restarting in 10s
+  log: 2026-10-06T21:12:09 starting the music bridge (machines: host,worker1)
+  log: 2026-10-06T21:33:59 starting the music bridge (machines: host,worker1)
+  log: 2026-10-06T21:51:01 starting the music bridge (machines: host,worker1)
+  log: 2026-10-07T00:33:54 starting the music bridge (machines: host,worker1)
+'alpha-music bridge' was not listening on 8790: restarted, it answers now
+'alpha-image bridge' task was Ready; last run 10/06/2026 21:51:11, last result 0xC000013A
+  log: 2026-10-06T21:09:02 starting the image bridge (machines: host,worker1)
+  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
+  log: 2026-10-06T21:34:15 the bridge exited (-1); restarting in 5s
+  log: 2026-10-06T21:34:20 starting the image bridge (machines: host,worker1)
+  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
+  log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
+'alpha-image bridge' was not listening on 7861: restarted, it answers now
+```
+
+## auto-live-sync-20261007-012845  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T01:29:13, 90s)
+```
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: a1440fc..c8ddf95 of claude/frie...(30) (last applied here: a1440fc)
+      applies  M backend/api/crowpanel.py
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 1 file(s)
+      ok: 1 Python file(s) parse
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --skip-build --restart
+      stopped pid 3076, which held port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 16172, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+DELIVERED: a1440fc..c8ddf95 of claude/frie...(30)
+CAPTURED: 6 changed and 1684 new source file(s) from DESKTOP-41HPLCN, pushed as 9d30d2f on claude/frie...(30)
+HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_maintenance_review.py, scripts/handoff_planet_builds.py, scripts/ingest_ecosystem_learning.py, scripts/ingest_international_astronomy.py, scripts/refresh_animal_groups.py, scripts/refresh_workspace_knowledge.py, scripts/retain_space_visual_lesson.py, scripts/run_educational_reviews.py, software/backend/chat_length_control.py, software/backend/fleet_gpu_view.py, software/backend/learning_evidence.py, software/backend/music_singing.py, ...
+    scripts/alpha_maintenance_review.py:372  credential-looking assignment  available_key = 'kokoΓÇª(16)' if profile == 'kokoΓÇª(18)' else 'pipeΓÇª(15)'
+    scripts/handoff_planet_builds.py:54  credential-looking assignment  todo_key='codiΓÇª(27)'+manifest['version']
+    scripts/ingest_ecosystem_learning.py:19  credential-looking assignment  key='ecosΓÇª(19)'+row['id']
+    scripts/ingest_ecosystem_learning.py:34  credential-looking assignment  key='educΓÇª(23)'+row['id']
+    scripts/ingest_ecosystem_learning.py:38  credential-looking assignment  key='educΓÇª(22)'
+    scripts/ingest_international_astronomy.py:23  credential-looking assignment  key = 'astrΓÇª(25)'
+    scripts/ingest_international_astronomy.py:34  credential-looking assignment  key='astrΓÇª(19)' + row['sourΓÇª(9)']
+    scripts/refresh_animal_groups.py:57  credential-looking assignment  key='educΓÇª(23)'+group['id']
+    scripts/refresh_workspace_knowledge.py:44  credential-looking assignment  key = 'alphΓÇª(16)' + row['hubId'] + '_' + row['workΓÇª(11)']
+    scripts/refresh_workspace_knowledge.py:56  credential-looking assignment  key = 'alphΓÇª(18)' + hashlib.sha256(relative.encode()).hexdigest()[:20]
+    scripts/retain_space_visual_lesson.py:14  credential-looking assignment  KEY = 'alphΓÇª(29)'
+    scripts/run_educational_reviews.py:42  credential-looking assignment  key = 'educΓÇª(19)' + output.stem
+    software/backend/chat_length_control.py:31  credential-looking environment variable  _COUNT_TOKEN = ..."(?:\ΓÇª(60)"
+    software/backend/fleet_gpu_view.py:3  alpha-tunnel token  `alphΓÇª(42)` already answers this question. It
+    software/backend/learning_evidence.py:42  credential-looking assignment  key = "learΓÇª(18)" + hashlib.sha256(
+    software/backend/music_singing.py:26  credential-looking environment variable  KEY_FILE = Path(os.environ.get(
+    software/backend/peer_capability_upgrade.py:51  credential-looking environment variable  _VRAM_KEYS = ("usabΓÇª(15)", "vramΓÇª(8)", "usabΓÇª(11)", "vramΓÇª(14)",
+    software/backend/peer_capability_upgrade.py:54  credential-looking environment variable  _GPU_OK_KEYS = ("gpu_ΓÇª(11)", "gpu_ok", "gpu_ΓÇª(13)", "cudaΓÇª(14)")
+    software/backend/process_inventory.py:11  credential-looking environment variable  _SECRET_FLAG = re.compile(r'(?i)ΓÇª(89)')
+    software/backend/process_inventory.py:12  credential-looking environment variable  _SECRET_ASSIGNMENT = re.compile(r'(?i)ΓÇª(89)')
+    software/backend/process_inventory.py:15  credential-looking environment variable  _INLINE_SECRET = ...'(?i)ΓÇª(66)')
+    software/backend/ring_integration.py:17  credential-looking environment variable  TOKEN_URL = "httpΓÇª(34)"
+    software/backend/ring_integration.py:41  credential-looking assignment  credential_type = "oautΓÇª(18)"
+    software/backend/ring_integration.py:43  credential-looking assignment  credential_type = "oautΓÇª(19)"
+    software/backend/tests/test_alpha_peer_review_tool.py:14  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
+    software/backend/tests/test_alpha_peer_trust_tool.py:15  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
+    software/backend/tests/test_alpha_peer_trust_tool.py:16  credential-looking environment variable  FLEET_KEY_ID = "testΓÇª(14)"
+    software/backend/tests/test_alpha_peer_trust_tool.py:98  credential-looking assignment  tmp_path, other, signing_key=FLEET_KEY, signing_key_id="diffΓÇª(19)",
+    software/backend/tests/test_alpha_self_upgrade_evidence.py:22  credential-looking environment variable  KEY_ID = hashlib.sha256(PUBLIC).hexdigest()
+    software/backend/tests/test_alpha_self_upgrade_handoff.py:11  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
+    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.
+```
 
 ## 20261007-wb03-live-test  live-test  ->  0   (2026-10-07T01:08:58, 62s)
 ```
@@ -393,35 +463,5 @@ ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at
 ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
 restarted task 'Alpha Backend' so it reads the new image route
 done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261006-34-apply-route-b  apply-update  ->  1   (2026-10-06T21:34:25, 10s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  already  D backend/tests/test_image_backend_probe.py
-  applies  A backend/tests/test_image_backend_probe_live.py
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 4 file(s)
-  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: SyntaxError: invalid syntax -- putting everything back
-  restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-```
-
-## 20261006-35-live-test  live-test  ->  1   (2026-10-06T21:34:35, 722s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-ok: track 1 made by host in 68s, 511 bytes, plays (WAV)
-PROBLEM: track 2 on worker1: timed out (721s)
-PROBLEM: image bridge does not answer at http://127.0.0.1:7861: fetch failed
-PROBLEM: no images to make a reel from (the image test made none)
-music: 1/2 worked; by machine: host x1
-image: 0/1 worked; by machine: none
-video: 0/1 worked; by machine: none
-(node:14716) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
 ```
 
