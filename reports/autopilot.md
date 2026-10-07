@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-042845
+﻿# laptop41 autopilot 20261007-044346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 683b589 is current
+
+## auto-deck-liveness-20261007-044346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T04:44:20, 6s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 104 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 9 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 5 s old, fresh for 90 s
+DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
+    assistant heartbeat 783 s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 2 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-042845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T04:29:14, 5s)
 ```
@@ -443,17 +463,5 @@ the agent now offers alpha.music
 music bridge machines: host,worker1
 ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
 done: this machine makes music for the Music Creator
-```
-
-## 20261007-48-music-check  live-test  ->  0   (2026-10-07T02:15:35, 65s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-ok: track 1 made by host in 59s, roll...(34).wav 57392 bytes, plays (MP3, 5.1s, 32000 Hz mono)
-ok: track task_yqyapzqknt51jqs8 is in the playlist (/music/recipes), roll...(34).wav
-music: 1/1 worked; by machine: host x1
-playlist: 1/1 worked; by machine: music bridge x1
-(node:5304) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
 ```
 
