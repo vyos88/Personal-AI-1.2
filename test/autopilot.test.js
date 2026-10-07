@@ -53,13 +53,19 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
     { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
+    { id: 'p2', do: 'panel-identify', port: 'COM3' },
     { id: 's1', do: 'stop-stray-site', pid: 12448, port: 8001 },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1', 's1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1', 'p2', 's1']);
   assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
+  // Identification asks every port and takes no port from the payload: a
+  // payload that could name one is a payload that could aim a write at a board
+  // nobody identified, which is the whole point of asking.
+  assert.deepEqual(plan.p2.args.slice(1), ['--identify']);
+  assert.match(plan.p2.args[0], /panel-up\.mjs$/);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);

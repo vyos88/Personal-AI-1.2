@@ -35,6 +35,7 @@
     panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
     interactive-first-off interactive-first-off.mjs: ALPHA_INTERACTIVE_FIRST_MODE=false in Alpha's .env.local, restart the backend  (takes no arguments)
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
+    panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
@@ -214,6 +215,13 @@ function Resolve-Action($a) {
     # own home-network address. Takes nothing from the action: the URL is
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
+    # Which of this machine's serial ports the panel is actually on, asked of
+    # the boards rather than guessed from their labels: Worker1 carries five
+    # bridges and every one of them reads as "USB-SERIAL CH340". Read-only — it
+    # writes one status query per port and nothing else — and takes nothing from
+    # the action, so there is no path for a payload to name a port or a board.
+    # Five ports at up to 30 s each, so the timeout covers the sweep.
+    'panel-identify' { $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'panel-up.mjs'), '--identify') }; $out.timeoutMin = 5 }
     # The backend half of the same fix, and the one to queue first: adds this
     # machine's own home-network address to HOST and ALPHA_TRUSTED_HOSTS in
     # Alpha's .env.local (keeping every address already there, with a backup),
