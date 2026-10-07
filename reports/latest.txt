@@ -1,4 +1,4 @@
-laptop41-doctor 20261007-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 67563f8 2026-10-07)
+laptop41-doctor 20261007-215603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 67563f8 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,8 +20,8 @@ laptop41-doctor 20261007-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 4.8s (load 0s, 7.5 tokens/s): OK.
-  ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
+  ok: chat model 'llama3.2:3b' answered in 3.1s (load 0s, 8.2 tokens/s): OK
+  Ollama unloads 'llama3.2:3b' 15 min after each use (OLLAMA_KEEP_ALIVE not set); the next chat then waits for a reload
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
@@ -40,13 +40,13 @@ laptop41-doctor 20261007-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-07 17:12 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-07 18:14 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T20:35:39.338Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T20:37:39.412Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T20:39:39.415Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T20:51:39.479Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T20:53:39.725Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T20:55:39.470Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -93,26 +93,25 @@ laptop41-doctor 20261007-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   usb  COM4   1a86:7523  6&13504C26&0&2               USB-SERIAL CH340 (COM4)
   self 192.168.1.151   30:c9:ab:54:31:71  Wi-Fi
   lan  192.168.1.1     74:24:9f:59:99:d6  Reachable
-  lan  192.168.1.88    40:c2:ba:34:3e:22  Reachable
+  lan  192.168.1.88    40:c2:ba:34:3e:22  Probe
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
-    assistant heartbeat 1285s old (live under 420s); stale since 2026-10-07T20:05:21.094212; panel snapshot 881.41s old; background lane free; 'workspace-artifacts:quick' waits for it (host-resource-pressure)
+  ok: Alpha's deck feed is live (assistant heartbeat 276s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.1.151
   ok: the panel's way in answers: http://192.168.1.151:8001/health 200 (Wi-Fi)
   PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.4 of 15.8 GB RAM free
+  ok: 1.6 of 15.8 GB RAM free
   ok: C: 9 GB free
-  python                        3,451 MB  pid 18408
-  llama-server                  1,918 MB  pid 18996
-  claude                          492 MB  pid 8028
-  MsMpEng                         450 MB  pid 6040
-  WindowsTerminal                 377 MB  pid 3764
-  chrome                          330 MB  pid 6588
-  explorer                        246 MB  pid 10108
-  claude                          228 MB  pid 12912
+  python                        3,952 MB  pid 18408
+  llama-server                  1,857 MB  pid 18996
+  claude                          496 MB  pid 8028
+  MsMpEng                         475 MB  pid 6040
+  WindowsTerminal                 380 MB  pid 3764
+  chrome                          338 MB  pid 6588
+  explorer                        247 MB  pid 10108
+  python                          233 MB  pid 10660
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -121,17 +120,16 @@ laptop41-doctor 20261007-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === SUMMARY ===
   this pass took 42s
-  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 67 run(s), since 2026-10-07T05:11:33)
-  - only 1.4 of 15.8 GB RAM free  (open 3 run(s), since 2026-10-07T21:11:43)
-  - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 1 run(s), since 2026-10-07T21:41:42)
+  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 68 run(s), since 2026-10-07T05:11:33)
+  + fixed since last run: only 1.4 of 15.8 GB RAM free
+  + fixed since last run: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 67 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
-  2. [open 3 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  3. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
-  4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  7. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  8. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  9. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  1. [open 68 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
