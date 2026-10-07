@@ -367,6 +367,31 @@ test('a broken line is placed among the changes made to its file', () => {
   assert.equal(nearestHunk(patch, 'backend/main.py', 6, log), '2 line(s) from change #1 at lines 1-4');
 });
 
+// 2026-10-07: files whose CRs were doubled on Worker1 (before #158) and
+// captured back to the branch as CR-CR-LF refused every later change: the
+// patch kept the CRs, the scratch copy did not, and no line matched.
+test('a CRLF or CR-CR-LF file still takes a change, and comes back with single CRLF', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  const repo = f.repo.slice('file://'.length);
+  const lines = ['export const a = 1', 'export const b = 2', 'export const c = 3', ''];
+  write(repo, `${SUB}/frontend/src/doubled.js`, lines.join('\r\r\n'));
+  write(repo, `${SUB}/frontend/src/crlf.js`, lines.join('\r\n'));
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'files as live sync captured them');
+  const from = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/src/doubled.js`, lines.join('\r\r\n').replace('b = 2', 'b = 20'));
+  write(repo, `${SUB}/frontend/src/crlf.js`, lines.join('\r\n').replace('c = 3', 'c = 30'));
+  git(repo, 'commit', '-qam', 'a change to each');
+  write(f.live, 'frontend/src/doubled.js', lines.join('\r\r\n'));
+  write(f.live, 'frontend/src/crlf.js', lines.join('\r\n'));
+  const log = quiet();
+  const code = await main(['--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', from, '--ops', f.ops, '--skip-build', '--python', PY, '--apply'], log);
+  assert.equal(code, 0, log.lines.join('\n'));
+  assert.doesNotMatch(log.lines.join('\n'), /conflict/);
+  assert.equal(readFileSync(join(f.live, 'frontend/src/doubled.js'), 'utf8'), lines.join('\r\n').replace('b = 2', 'b = 20'));
+  assert.equal(readFileSync(join(f.live, 'frontend/src/crlf.js'), 'utf8'), lines.join('\r\n').replace('c = 3', 'c = 30'));
+});
+
 test('a branch name that is not one is refused', async () => {
   const f = fixture();
   const out = quiet();
@@ -520,4 +545,44 @@ test('line endings come back as the file had them, whatever git apply wrote', ()
   assert.equal(damaged.text, 'Get-Thing -A $a `\n    -B $b\n');
   writeLive(join(dir, 'damaged.ps1'), damaged.text, damaged);
   assert.equal(readFileSync(join(dir, 'damaged.ps1'), 'utf8'), 'Get-Thing -A $a `\r\n    -B $b\r\n');
+});
+test('a branch file stored with CRLF, or with the old CR-CR-LF, still takes an update', { skip: !PY && 'no python' }, async () => {
+  // Live sync captures Worker1's files as they are, so the live branch holds
+  // CRLF files (and seven with the CR-CR-LF damage from before #158). The
+  // scratch tree is LF; a patch whose lines kept their CRs never matched it,
+  // so every change to such a file was refused as "differs where the change
+  // was made" (Worker1, 2026-10-07: MusicSingingPanel.jsx, CoordinationTunnelPanel.jsx).
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-update-crlf-'));
+  const repo = join(dir, 'alpha');
+  mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'alpha-full');
+  git(repo, 'config', 'user.email', 't@t');
+  git(repo, 'config', 'user.name', 't');
+  git(repo, 'config', 'core.autocrlf', 'false');
+  const panel = ['export const LIMIT = 180', 'export function Panel() {', '  return null', '}', ''].join('\r\n');
+  const damaged = ['export const label = "old"', 'export const other = 1', ''].join('\r\r\n');
+  write(repo, `${SUB}/backend/main.py`, BASE_MAIN);
+  write(repo, `${SUB}/frontend/package.json`, '{"name":"x"}\n');
+  write(repo, `${SUB}/frontend/src/Panel.jsx`, panel);
+  write(repo, `${SUB}/frontend/src/labels.js`, damaged);
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'base');
+  const base = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/src/Panel.jsx`, panel.replace('180', '240'));
+  write(repo, `${SUB}/frontend/src/labels.js`, damaged.replace('"old"', '"new"'));
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'update');
+
+  const live = join(dir, 'live', 'software');
+  write(live, 'backend/main.py', BASE_MAIN);
+  write(live, 'frontend/package.json', '{"name":"x"}\n');
+  write(live, 'frontend/src/Panel.jsx', panel);
+  write(live, 'frontend/src/labels.js', damaged);
+  const log = quiet();
+  const code = await main(['--alpha-root', join(live, '..'), '--repo', `file://${repo}`, '--from', base, '--ops', join(dir, 'ops'),
+    '--skip-build', '--python', PY, '--apply'], log);
+  assert.equal(code, 0, log.lines.join('\n'));
+  assert.equal(readFileSync(join(live, 'frontend/src/Panel.jsx'), 'utf8'), panel.replace('180', '240'));
+  // The damaged file takes the change and comes back as plain CRLF.
+  assert.equal(readFileSync(join(live, 'frontend/src/labels.js'), 'utf8'), 'export const label = "new"\r\nexport const other = 1\r\n');
 });

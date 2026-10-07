@@ -74,11 +74,19 @@ export function parseArgs(argv) {
 }
 
 // What --include-new may bring: source code in the folders a fix touches.
-export const NEW_FILE_ROOTS = ['software/backend', 'software/frontend/src', 'software/windows-worker', 'software/android-worker', 'scripts'];
+export const NEW_FILE_ROOTS = ['software/backend', 'software/frontend/src', 'software/frontend/scripts', 'software/windows-worker', 'software/android-worker', 'scripts'];
+// The frontend imports data as JSON (the encyclopedia, every animal and plant
+// model): on 2026-10-07 the live branch lacked 24 such files, so git could not
+// build the site Worker1 serves. JSON is taken from these folders only, never
+// from the backend, where JSON is runtime state that would change every pass.
+export const NEW_JSON_ROOTS = ['software/frontend/src', 'software/frontend/public'];
+export const NEW_JSON_MAX_BYTES = 2 * 1024 * 1024;
 export const NEW_FILE_EXTENSIONS = new Set(['.py', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.ps1', '.html']);
 export const NEW_FILE_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '__pycache__', '.venv', 'venv', 'env', '.git', 'memory', 'data',
   'logs', 'log', 'backups', 'backup', '.pytest_cache', 'coverage', '.tls', 'uploads', 'output', 'outputs', 'models', 'checkpoints', 'tmp', 'temp', 'cache']);
-const NEW_FILE_SKIP_NAME = /(^\.env)|secret|credential|password|token|private|\.key$|\.pem$|\.bak$|\.orig$/i;
+// `token(?!s)`: a design-tokens stylesheet (styles-tile-tokens.css, imported by
+// main.jsx) is not a credential, and leaving it behind broke the build.
+const NEW_FILE_SKIP_NAME = /(^\.env)|secret|credential|password|token(?!s)|private|\.key$|\.pem$|\.bak$|\.orig$/i;
 export const NEW_FILE_MAX_BYTES = 512 * 1024;
 // Laptop41 had 1745 new source files on 2026-10-06 (scripts\ alone holds
 // hundreds of agent policies); the credential scan still reads every line.
@@ -87,29 +95,37 @@ export const NEW_FILE_MAX_COUNT = 3000;
 /** Source files under `liveRoot` that --include-new may take, as repo-relative paths (software/..., scripts/...). */
 export function newSourceFiles(liveRoot, tracked) {
   const known = new Set(tracked.map((p) => p.slice(BASE.length + 1)));
-  const found = [];
+  const found = new Set();
   const skipped = [];
-  const walk = (dir) => {
+  const walk = (dir, accepts) => {
     let entries;
     try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
     for (const e of entries) {
       const full = join(dir, e.name);
       if (e.isDirectory()) {
-        if (!NEW_FILE_SKIP_DIRS.has(e.name.toLowerCase()) && !e.name.startsWith('.')) walk(full);
+        if (!NEW_FILE_SKIP_DIRS.has(e.name.toLowerCase()) && !e.name.startsWith('.')) walk(full, accepts);
         continue;
       }
       if (!e.isFile()) continue;
       const rel = relative(liveRoot, full).split(sep).join('/');
-      if (known.has(rel)) continue;
+      if (known.has(rel) || found.has(rel)) continue;
       const dot = e.name.lastIndexOf('.');
-      if (dot < 0 || !NEW_FILE_EXTENSIONS.has(e.name.slice(dot).toLowerCase())) continue;
+      const ext = dot < 0 ? '' : e.name.slice(dot).toLowerCase();
+      if (!accepts(ext)) continue;
       if (NEW_FILE_SKIP_NAME.test(e.name)) { skipped.push(`${rel} (named like a secret)`); continue; }
-      if (statSync(full).size > NEW_FILE_MAX_BYTES) { skipped.push(`${rel} (over 512 KB)`); continue; }
-      found.push(rel);
+      const json = ext === '.json';
+      if (statSync(full).size > (json ? NEW_JSON_MAX_BYTES : NEW_FILE_MAX_BYTES)) { skipped.push(`${rel} (over ${json ? '2 MB' : '512 KB'})`); continue; }
+      found.add(rel);
     }
   };
-  for (const root of NEW_FILE_ROOTS) walk(join(liveRoot, ...root.split('/')));
-  return { found: found.sort(), skipped };
+  for (const root of NEW_FILE_ROOTS) walk(join(liveRoot, ...root.split('/')), (ext) => NEW_FILE_EXTENSIONS.has(ext));
+  for (const root of NEW_JSON_ROOTS) walk(join(liveRoot, ...root.split('/')), (ext) => ext === '.json');
+  return { found: [...found].sort(), skipped };
+}
+
+/** Whether a repo-relative path (software/..., scripts/...) is data JSON capture may take. */
+export function isCapturableJson(rel) {
+  return rel.toLowerCase().endsWith('.json') && NEW_JSON_ROOTS.some((root) => rel.startsWith(`${root}/`));
 }
 
 function git(args, { cwd, allowFail = false, input } = {}) {

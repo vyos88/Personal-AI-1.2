@@ -139,7 +139,13 @@ export function buildPatch({ cache, from, to, subdir }) {
   // --no-renames, as for the file list: a rename is a delete and an add, so
   // a renamed file this machine never had is a delete already done plus a new
   // file, not a rename of a missing file (Worker1, jobs 29 and 32).
-  const patch = git(['diff', '--no-color', '--no-ext-diff', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout;
+  // Line endings the same way readLive gives the live copies: the scratch tree
+  // is LF, so a patch whose lines still end in CR (a CRLF file, or one whose
+  // CRs were doubled on Worker1 before #158 and captured back as CR-CR-LF)
+  // matches nothing there and every change to it was refused (2026-10-07: four
+  // frontend files, live sync stuck). writeLive puts each file's own endings
+  // back, a single CRLF for a CRLF file.
+  const patch = toLf(git(['diff', '--no-color', '--no-ext-diff', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout);
   const files = git(['diff', '--name-status', '--no-renames', rel, from, to, '--', subdir], { cwd: cache }).stdout
     .split('\n').filter(Boolean).map((line) => {
       const [status, path] = line.split('\t');
@@ -234,7 +240,12 @@ export function writeLive(file, text, { bom = false, crlf = false } = {}) {
 export function plan({ root, patch, files }) {
   const stage = mkdtempSync(join(tmpdir(), 'alpha-update-'));
   const patchFile = join(stage, '.update.patch');
-  writeFileSync(patchFile, patch);
+  // The scratch tree is LF (readLive), so the patch must be too. Live sync
+  // captures Worker1's files as they are, so the live branch holds CRLF files
+  // (and a few with the old CR-CR-LF), and a patch that kept their CRs could
+  // never match: every change to one was refused as "differs where the change
+  // was made". writeLive puts each file's own line endings back.
+  writeFileSync(patchFile, toLf(patch));
   const tree = join(stage, 'tree');
   const meta = {};
   for (const f of files) {

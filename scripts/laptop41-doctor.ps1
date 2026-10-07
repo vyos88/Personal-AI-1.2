@@ -237,6 +237,15 @@ function Check-DeckFeed {
       OK "Alpha's deck feed is live$age"
     } elseif ($feed.freshness -and $feed.freshness.reason) {
       Problem "Alpha's deck feed is $($feed.status): $($feed.freshness.reason). $($feed.freshness.advice)"
+      # The numbers that tell a stalled loop from an old snapshot: how old the
+      # heartbeat was when the panel state was built, and how old that state is.
+      $f = $feed.freshness
+      $ages = @()
+      if ($null -ne $f.heartbeat_age_s) { $ages += "assistant heartbeat $($f.heartbeat_age_s)s old (live under $($f.threshold_s)s)" }
+      if ($f.stale_since) { $ages += "stale since $(if ($f.stale_since -is [datetime]) { $f.stale_since.ToString('s') } else { $f.stale_since })" }
+      if ($null -ne $feed.snapshot_age_s) { $ages += "panel snapshot $($feed.snapshot_age_s)s old" }
+      if ($f.cycle_step) { $ages += "assistant cycle in step '$($f.cycle_step)' since $(if ($f.cycle_step_since -is [datetime]) { $f.cycle_step_since.ToString('s') } else { $f.cycle_step_since })" }
+      if ($ages.Count) { Note "  $($ages -join '; ')" }
     } else {
       Problem "Alpha's deck feed is $($feed.status), and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
     }

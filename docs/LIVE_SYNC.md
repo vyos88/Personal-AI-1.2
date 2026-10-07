@@ -77,6 +77,8 @@ record, so scripts left behind by a `--skip-scripts` update are not captured.
 What counts as source is the snapshot's `--include-new` rule
 (`snapshot-alpha-live.mjs`):
 
+- the frontend's data JSON (`software/frontend/src`, `software/frontend/public`; up to 2 MB each; never backend JSON, which is runtime state), and `software/frontend/scripts`. On 2026-10-07 the live branch lacked 27 such files and could not build the site;
+
 - the source folders and extensions;
 - nothing in data, build, package, log, model or key folders;
 - nothing over 512 KB;

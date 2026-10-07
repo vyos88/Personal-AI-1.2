@@ -137,6 +137,21 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | V6 | Deck heroes: with the full-size gradient slab removed (2026-10-04), several decks (Hardware, Knowledge, Network, Admin, Automation, Terminal) show a large dark hero with only a headline. Give it the deck's real content, or size it to the text. | no hero more than half empty at 1440x900 |
 | V7 | The collapsed capability rail floats bottom-left on phones and covers content as you scroll. Its position is deliberate (see the comment in `styles-astral-unification.css`); consider hiding it while scrolling, or docking it in the taskbar. | it never covers text a reader is reading |
 
+## Music, live sync and the owner's 2026-10-07 asks (`HANDOFF_2026-10-07_live-sync-gaps-and-song-length.md`)
+
+| ID | Item | Done when |
+|---|---|---|
+| L1 | Song length (chat 3:00 by default, up to 4:00; worker decode cap 260 s; singing panel 2:30/3:00/3:30): redone as bea4f3d on Worker1's real files after the first try was refused. **Check only:** IN SYNC on bea4f3d, then a 3:00 chat song lands in the playlist | the song is in the playlist |
+| F1 | **Fleet recipe, then stop what is not needed** (`HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md`): read `fleet-inventory` on both laptops, stop duplicates and replaced tasks by its rules; Alpha's own agents through its Agent Manager only | `DUPLICATES: none` on both laptops, each stop written down |
+| L2 | Live sync: on REFUSED, name the file and the hunk that did not fit | a refusal in `status/laptop41-autopilot` names the file and line |
+| L3 | Standing check that the live branch builds from git (missing imports or `vite build` in a scratch clone), reported in the autopilot report | it reports 0 missing |
+| L4 | Decide whether code files skip the capture's name rule (9 test and script files named like secrets exist only on Worker1) | they are in git, or the decision is in `LIVE_SYNC.md` |
+| M1 | Live `MusicPlaylist.jsx`: retry on `503 still_fetching`; merge Alpha#76 | a long track plays on the first press |
+| M2 | Live playlist plays the MP3 (`mp3_url`), not the WAV master | the request is for `.mp3` when one exists |
+| A1 | Auto-improve on by default after a restart, inside its budgets (owner: "autoimprove always") | auto-improve status shows enabled after a restart |
+| A2 | Full page audit: an autopilot `visual-audit` job on Worker1 (audit login kept on the machine), or alpha-ai.uk allowed in the cloud network settings | `visual-audit/summary.txt` is reported and its problems are items here |
+| G1 | Songs over 60 s go to the Host's GPU first (Worker1's torch is CPU-only) | a 3:00 song is made on the Host |
+
 ## Alpha's stewards — ST1-ST6 (`HANDOFF_2026-10-05d_stewards.md`)
 
 The fleet that "Alpha Governed Agents" starts on Worker1. Scripts are in `vyos88/Alpha`, `alpha-full`, under `BuildArtifacts/installers/Alpha-Full/scripts/`. Check with `test_alpha_agent_manager.ps1`, which also runs `test_alpha_steward_common.ps1`.
