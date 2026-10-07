@@ -1,8 +1,25 @@
-﻿# laptop41 autopilot 20261007-003844
+﻿# laptop41 autopilot 20261007-010845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout c3c690f is current
+checkout 59dbcf8 is current
+
+## 20261007-wb03-live-test  live-test  ->  0   (2026-10-07T01:08:58, 62s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+music machines: host, worker1
+ok: track 1 made by host in 46s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
+ok: track task_f1n7215l1637s530 is in the playlist (/music/recipes), roll...(34).wav
+image machines: alpha-tunnel (host, worker1)
+ok: image 1 made by host (comfyui) in 8s, 87021 bytes, PNG
+ok: reel made in 6s from 1 image(s) with the generated track, 212868 bytes, MP4
+music: 1/1 worked; by machine: host x1
+playlist: 1/1 worked; by machine: music bridge x1
+image: 1/1 worked; by machine: host x1
+video: 1/1 worked; by machine: this machine x1
+(node:14356) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
 
 ## 20261007-46-apply-route-b  apply-update  ->  0   (2026-10-07T00:39:00, 24s)
 ```
@@ -406,24 +423,5 @@ image: 0/1 worked; by machine: none
 video: 0/1 worked; by machine: none
 (node:14716) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
 (Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-36-snapshot-new  snapshot  ->  1   (2026-10-06T21:46:38, 43s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai
-  1300 file(s) tracked under software\ and scripts\; 529 differ here; 115 not on this machine (left as they are)
-  not taken: software/backend/tests/test_owner_password_is_seed_only.py (named like a secret)
-  not taken: software/backend/tests/test_owner_password_persistence.py (named like a secret)
-  not taken: software/backend/tests/test_secret_scan_rules.py (named like a secret)
-  not taken: software/backend/tests/test_stale_password_consumers.py (named like a secret)
-  not taken: software/frontend/src/styles-tile-tokens.css (named like a secret)
-  not taken: scripts/alpha_private_beta_gate.ps1 (named like a secret)
-  not taken: scripts/alpha_secret_scan.py (named like a secret)
-  not taken: scripts/apply_pending_owner_password.py (named like a secret)
-  not taken: scripts/enter-owner-password-private.ps1 (named like a secret)
-STOP: git add -N -- failed: The following paths are ignored by one of your .gitignore files:
-BuildArtifacts/installers/Alpha-Full/scripts/alpha_code/games/alpha-guess-the-number/builds
-hint: Use -f if you really want to add them.
-hint: Disable this message with "git config set advice.addIgnoredFile false"
 ```
 
