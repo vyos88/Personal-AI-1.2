@@ -310,6 +310,17 @@ test("Alpha's deck feed: stale says why and what clears it", { skip, timeout: 30
   assert.match(out, /lightweight autonomy is off or interactive-first mode is on/);
 });
 
+// 2026-10-07: after a restart Worker1's loop stayed not-started, though the
+// same task ran it before. The three settings that decide it are named with
+// their value and where each came from, so a changed one shows.
+test("Alpha's deck feed: a loop that is not started names the settings that start it", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded',
+    freshness: { stale: true, reason: 'assistant-loop-not-started', advice: 'assistant loop is not running on the host.' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true', ALPHA_INTERACTIVE_FIRST_MODE: 'true', ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED: 'true' }, curlExe: true });
+  assert.match(out, /settings that start the loop: ALPHA_INTERACTIVE_FIRST_MODE=true \(environment \(Process\)\); ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true \(environment \(Process\)\); ALPHA_BACKGROUND_AUTOMATION_ENABLED not set/);
+});
+
 // 2026-10-07: Worker1's feed went heartbeat-stale with no restart in between.
 // Whether the loop stalled or the panel snapshot is old decides the fix.
 test("Alpha's deck feed: a stale heartbeat shows its age and the snapshot's", { skip, timeout: 300_000 }, async () => {
