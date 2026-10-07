@@ -53,11 +53,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
     { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
+    { id: 's1', do: 'stop-stray-site', pid: 12448, port: 8001 },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1', 's1']);
+  assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -767,4 +769,48 @@ test('a pass that updates its checkout finishes with the new code, so it is neve
   assert.match(r.stdout, /running the v2 code/, 'the rest of the pass is the new code');
   assert.equal(reports(), before + 1, 'and it still wrote its live report');
   assert.equal((r.stdout.match(/updated this checkout/g) || []).length, 1, 'it updates once, not in a loop');
+});
+
+// Worker1 kept a second `vite preview` tree (pid 6508) after the Alpha task's
+// restart; stop-stray-site takes it and must never take the tree on 4173.
+test('stop-stray-site stops only a preview tree that does not hold the port', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stray-site-'));
+  const file = join(dir, 'procs.json');
+  const node = (pid, parent, cmd, mb = 50) => ({ pid, parent, name: 'node.exe', cmd, mb });
+  writeFileSync(file, JSON.stringify([
+    { pid: 4, parent: 0, name: 'System', cmd: '', mb: 1 },
+    { pid: 900, parent: 4, name: 'svchost.exe', cmd: 'svchost', mb: 10 },
+    { pid: 100, parent: 900, name: 'cmd.exe', cmd: 'cmd.exe /c "C:\\ProgramData\\AlphaBoot\\run-alpha.cmd"', mb: 3 },
+    node(11396, 100, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    { pid: 20808, parent: 11396, name: 'cmd.exe', cmd: 'cmd.exe /d /s /c vite preview --port 4173', mb: 3 },
+    node(12448, 20808, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview --port 4173', 90),
+    node(17388, 900, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    node(6508, 17388, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview', 60),
+    { pid: 6600, parent: 6508, name: 'esbuild.exe', cmd: 'esbuild --service', mb: 20 },
+    node(7000, 900, '"node" "C:\\B\\frontend\\node_modules\\vite\\bin\\vite.js" --port 5173', 70),
+  ]));
+  const planFor = (...holders) => {
+    const args = [join(import.meta.dirname, '..', 'scripts', 'stop-stray-site.ps1'), '-ProcessesJson', file];
+    if (holders.length) args.push('-Holders', holders.join(','));
+    const r = pwsh(args);
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+
+  const plan = planFor(12448);
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.live.map((t) => t.pid), [20808], 'the tree whose node holds 4173 is live');
+  assert.deepEqual(plan.stop.map((t) => t.pid), [17388], 'the leftover goes, with the npm run preview that waits on it');
+  assert.equal(plan.stop[0].processes, 2);
+  assert.deepEqual(plan.leave.map((t) => t.pid), [7000], 'a vite dev server is left to whoever is using it');
+
+  // Turned around, the rule turns around with it: it is the port, not the pid.
+  assert.deepEqual(planFor(6508).stop.map((t) => t.pid), [11396]);
+
+  for (const [holders, reason] of [[[], /nothing listens/], [[900], /svchost\.exe 900, not a vite process/]]) {
+    const p = planFor(...holders);
+    assert.equal(p.ok, false);
+    assert.match(p.reason, reason);
+    assert.deepEqual(p.stop, [], 'without a live tree to tell it from, nothing is stopped');
+  }
 });
