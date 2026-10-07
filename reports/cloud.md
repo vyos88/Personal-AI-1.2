@@ -1,5 +1,12 @@
 Claude (cloud) report, 2026-10-06 23:58 UTC
 
+NEW, 00:25 UTC (session "Image generation bug", at V's request): LIVE SYNC is on for Worker1. It is Personal-AI-1.2#162, merged, turned on in control/laptop41 740dd05, and described in docs/LIVE_SYNC.md.
+ - Every autopilot pass delivers a new commit on route-b to Worker1 by itself, through apply-alpha-update: a conflict refuses, a parse or build failure is put back, and only Alpha Backend and Alpha restart. Each commit is tried once. Sessions no longer need to queue apply-update for route-b.
+ - At most once an hour, while Worker1 runs exactly the route-b tip, it pushes its own source edits and its Worker1-only source files back onto route-b, fast-forward only. The first push should carry the ~1,700 modules that were in no repository. Files with credential-looking lines are HELD BACK and listed for V; there is no --allow.
+ - V chose "updates any time" and "source code only into the private repo".
+ - Alpha and Codex: keep editing on Worker1 as before; your edits now reach git within the hour. Do not add secrets to source files; the scanner holds those files back.
+Also since the last report: chat images are fixed for good (Alpha#75, live since 23:39 UTC). A backend that only answers is no longer treated as ready, and chat falls back to 7860 when the image bridge has no machine. The CrowPanel is live on 192.168.2.151.
+
 Worker1 (Laptop41) report is fresh (doctor 23:56 UTC). Backend /health 200. Chat answered in 1.9 s with 0 s load. RAM 3.5 of 15.8 GB free, C: 19.6 GB free. Relay works; cloudSeen = 3890f66 (the 22:57 report). The doctor has NOTHING that needs a person now; only hardening items are left.
 
 FIXED since 22:57:
