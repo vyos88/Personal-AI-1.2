@@ -179,3 +179,33 @@ test('--include-new brings new source files only, and scans every line of them',
   assert.match(refused.lines.join('\n'), /software\/backend\/new_client\.py:2 +credential-looking/);
   assert.equal(git(g.remote.replace('file://', ''), 'branch', '--list', 'alpha-from-host*').trim(), '');
 });
+
+// 2026-10-07: the live branch could not build the site Worker1 serves. main.jsx
+// imports styles-tile-tokens.css (left out as "named like a secret"), and the
+// encyclopedia and every animal and plant model are JSON, which was never taken.
+test('--include-new takes the frontend\'s data JSON and design tokens, and no backend JSON', async () => {
+  const { newSourceFiles, isCapturableJson } = await import('../scripts/snapshot-alpha-live.mjs');
+  const f = fixture();
+  write(f.live, 'software/frontend/src/styles-tile-tokens.css', ':root { --tile: 4px; }\n');
+  write(f.live, 'software/frontend/src/owlPrototype.json', '{"name":"owl"}\n');
+  write(f.live, 'software/frontend/public/assets/anatomy/skeleton/manifest.json', '{"parts":[]}\n');
+  write(f.live, 'software/frontend/public/Workers/worker.js', 'x\n');
+  write(f.live, 'software/frontend/scripts/css-rules.mjs', 'export const rules = []\n');
+  write(f.live, 'software/frontend/src/huge.json', `{"x":"${'a'.repeat(3 * 1024 * 1024)}"}\n`);
+  write(f.live, 'software/frontend/src/api_token.json', '{}\n');
+  write(f.live, 'software/backend/runtime_state.json', '{"n":1}\n');
+  const { found, skipped } = newSourceFiles(f.live, []);
+  const mine = new Set(['software/frontend/public/assets/anatomy/skeleton/manifest.json', 'software/frontend/public/Workers/worker.js',
+    'software/frontend/scripts/css-rules.mjs', 'software/frontend/src/owlPrototype.json', 'software/frontend/src/styles-tile-tokens.css',
+    'software/frontend/src/huge.json', 'software/frontend/src/api_token.json', 'software/backend/runtime_state.json']);
+  assert.deepEqual(found.filter((p) => mine.has(p)), [
+    'software/frontend/public/assets/anatomy/skeleton/manifest.json',
+    'software/frontend/scripts/css-rules.mjs',
+    'software/frontend/src/owlPrototype.json',
+    'software/frontend/src/styles-tile-tokens.css',
+  ]);
+  assert.ok(skipped.includes('software/frontend/src/huge.json (over 2 MB)'));
+  assert.ok(skipped.includes('software/frontend/src/api_token.json (named like a secret)'));
+  assert.equal(isCapturableJson('software/frontend/src/encyclopedia.json'), true);
+  assert.equal(isCapturableJson('software/backend/runtime_state.json'), false);
+});

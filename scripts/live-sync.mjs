@@ -71,7 +71,7 @@ import {
   restartWindows, writeState,
 } from './apply-alpha-update.mjs';
 import {
-  NEW_FILE_EXTENSIONS, NEW_FILE_MAX_COUNT, NEW_FILE_SKIP_DIRS, inRepoShape, newSourceFiles, scanAddedLines,
+  NEW_FILE_EXTENSIONS, NEW_FILE_MAX_COUNT, NEW_FILE_SKIP_DIRS, inRepoShape, isCapturableJson, newSourceFiles, scanAddedLines,
 } from './snapshot-alpha-live.mjs';
 
 const BASE = 'BuildArtifacts/installers/Alpha-Full';
@@ -143,6 +143,7 @@ export function capturableTracked(rel) {
   if (parts.slice(0, -1).some((p) => NEW_FILE_SKIP_DIRS.has(p.toLowerCase()) || p.startsWith('.'))) return false;
   const name = parts.at(-1);
   if (TRACKED_NAMES.has(name)) return true;
+  if (isCapturableJson(rel)) return true;
   const dot = name.lastIndexOf('.');
   return dot > 0 && NEW_FILE_EXTENSIONS.has(name.slice(dot).toLowerCase());
 }
