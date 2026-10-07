@@ -119,6 +119,24 @@ export function findSoftwareRoot(start) {
 }
 
 /** A bare, blob-less clone: commits and trees only, file contents on demand. */
+const firstLine = (message) => String(message).split('\n')[0].trim();
+
+/**
+ * Whether a failed fetch says this machine was refused, rather than that it
+ * could not get an answer.
+ *
+ * The remedy used to be printed for every fetch failure, and it is the wrong
+ * one most of the time: Laptop41 fetched this branch at 00:04 on 2026-10-08
+ * and failed at 00:19 with `Empty reply from server`, and the report told its
+ * owner to sign in -- on a machine that had just authenticated fine fifteen
+ * minutes earlier. Only git's own words for a refusal count; its generic
+ * "make sure you have the correct access rights" follows every failure,
+ * including an unreachable one, so it is deliberately not among them.
+ */
+export function looksUnauthorized(message) {
+  return /could not read Username|Authentication failed|Invalid username or password|terminal prompts disabled|returned error: 40[13]|HTTP 40[13]|40[13] Forbidden|Repository not found/i.test(String(message));
+}
+
 export function fetchBranch({ cache, repo, branch }) {
   if (!existsSync(join(cache, 'HEAD'))) {
     mkdirSync(dirname(cache), { recursive: true });
@@ -534,16 +552,30 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     return EXIT_ERROR;
   }
   const cache = join(ops, 'alpha-full-cache.git');
+  let fetchFailed = null;
   try {
     fetchBranch({ cache, repo: opts.repo ?? DEFAULTS.repo, branch });
   } catch (e) {
-    log(`STOP: could not fetch ${branch}: ${e.message}`);
-    log('  Alpha is a private repository: this machine needs git credentials for github.com (sign in once with `git credential-manager` or `gh auth login`).');
+    fetchFailed = e;
+  }
+  // A failed first fetch leaves no cache to ask, and git run inside a directory
+  // that is not there reports itself missing rather than the commit.
+  const cached = existsSync(join(cache, 'HEAD'));
+  const from = cached ? resolveCommit(cache, opts.from ?? recorded?.to ?? DEFAULTS.from) : null;
+  const to = cached ? resolveCommit(cache, opts.to ?? branch) : null;
+  // A fetch is only needed for the commits it brings. When both ends are
+  // already in the cache -- live-sync.mjs fetches the branch itself and then
+  // names the tip with --to, seconds before this runs -- the network was not
+  // needed and a blip in it must not be reported as an update that failed.
+  if (fetchFailed && (!from || !to)) {
+    log(`STOP: could not fetch ${branch}: ${fetchFailed.message}`);
+    log(looksUnauthorized(fetchFailed.message)
+      ? '  Alpha is a private repository: this machine needs git credentials for github.com (sign in once with `git credential-manager` or `gh auth login`).'
+      : '  git was not refused, so this is the repository or the network rather than credentials; a pass that reaches it tries again.');
     return EXIT_ERROR;
   }
-  const from = resolveCommit(cache, opts.from ?? recorded?.to ?? DEFAULTS.from);
-  const to = resolveCommit(cache, opts.to ?? branch);
   if (!from || !to) { log(`STOP: cannot resolve ${!from ? 'the --from commit' : 'the --to commit'} in ${branch}`); return EXIT_ERROR; }
+  if (fetchFailed) log(`  could not fetch ${branch} (${firstLine(fetchFailed.message)}), but ${to.slice(0, 7)} is already in the cache: this update needs nothing from the network`);
   log(`changes: ${from.slice(0, 7)}..${to.slice(0, 7)} of ${branch}${recorded ? ` (last applied here: ${recorded.to.slice(0, 7)})` : ''}`);
 
   const areas = [{ name: 'software', root: softwareRoot, from, ...buildPatch({ cache, from, to, subdir: DEFAULTS.subdir }) }];

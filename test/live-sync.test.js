@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { capturableTracked, main } from '../scripts/live-sync.mjs';
+import { capturableTracked, main, neverTried, syncStatePath } from '../scripts/live-sync.mjs';
 
 const BASE = 'BuildArtifacts/installers/Alpha-Full';
 const SUB = `${BASE}/software`;
@@ -176,6 +176,28 @@ test('the owner\'s approved lines go at once, exactly those lines and no others'
   const third = await run(f, '--capture', '--allow', 'software/backend/provider_keys.py:1,software/backend/other_keys.py:1');
   assert.match(third.out, /^ALLOW WITH: software\/backend\/other_keys\.py:2$/m);
   assert.ok(!git(f.remote, 'ls-tree', '-r', '--name-only', 'live').split('\n').includes(`${SUB}/backend/other_keys.py`));
+});
+
+test('a fetch that never reached the patch is not a tip that was tried', () => {
+  // apply-alpha-update exits 1 both ways, so its words are what tell them apart.
+  assert.equal(neverTried(["STOP: could not fetch alpha-full: fatal: unable to access 'https://github.com/vyos88/Alpha/': Empty reply from server"]), true);
+  assert.equal(neverTried(['changes: a3e1350..5147fef of live', 'STOP: backend/main.py no longer parses, and was put back']), false);
+  assert.equal(neverTried(['READY: 3 file(s) would change']), false);
+  assert.equal(neverTried([]), false);
+});
+
+test('a tip the repository could not be fetched for is tried again next pass', { skip }, async () => {
+  const f = fixture();
+  const tip = commitOnLive(f, { [`${SUB}/backend/main.py`]: MAIN.replace('"old"', '"new"') });
+
+  const gone = await main(['--alpha-root', f.alpha, '--branch', 'live', '--ops', f.ops,
+    '--repo', `file://${join(f.dir, 'nope')}`, '--no-restart', '--machine', 'worker1'], () => {});
+  assert.equal(gone, 1);
+  const state = JSON.parse(readFileSync(syncStatePath(f.ops, 'live'), 'utf8'));
+  assert.equal(state.deliver, undefined, 'nothing about this tip was written down');
+
+  const back = await run(f);
+  assert.match(back.out, new RegExp(`DELIVERED: ${f.base.slice(0, 7)}\\.\\.${tip.slice(0, 7)}`), 'the same tip is tried again');
 });
 
 test('an allow entry that is not path:line is refused', async () => {

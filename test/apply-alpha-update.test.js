@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  main, findSoftwareRoot, nearestHunk, needsPackageInstall, readLive, writeLive, sameAsBranch,
+  main, findSoftwareRoot, looksUnauthorized, nearestHunk, needsPackageInstall, readLive, writeLive, sameAsBranch,
 } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
@@ -174,7 +174,42 @@ test('an unreachable repository stops with what to do, and writes nothing', asyn
   const log = quiet();
   const bad = args(f).map((a) => (a === f.repo ? `file://${join(f.dir, 'nope')}` : a));
   assert.equal(await main(bad, log), 1);
-  assert.match(log.lines.join('\n'), /could not fetch alpha-full[\s\S]*credentials/);
+  const out = log.lines.join('\n');
+  assert.match(out, /could not fetch alpha-full/);
+  assert.match(out, /the repository or the network rather than credentials/);
+  assert.doesNotMatch(out, /gh auth login/, 'a machine that was never refused is not told to sign in');
+});
+
+test('only git\'s own words for a refusal are read as one', () => {
+  for (const refused of [
+    "fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+    'remote: Invalid username or password.\nfatal: Authentication failed',
+    'fatal: unable to access: The requested URL returned error: 403',
+    "remote: Repository not found.\nfatal: repository 'https://github.com/vyos88/Alpha/' not found",
+  ]) assert.equal(looksUnauthorized(refused), true, refused);
+  for (const reachability of [
+    // What Laptop41 actually got, fifteen minutes after a fetch that worked.
+    "fatal: unable to access 'https://github.com/vyos88/Alpha/': Empty reply from server",
+    'fatal: unable to access: Could not resolve host: github.com',
+    'fatal: the remote end hung up unexpectedly\nfatal: early EOF',
+    // git says this after every failure, reachable or not, so it proves nothing.
+    'fatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.',
+  ]) assert.equal(looksUnauthorized(reachability), false, reachability);
+});
+
+test('a commit already in the cache is applied although the fetch fails', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  // One pass that reaches the repository, which is what fills the cache.
+  assert.equal(await main(args(f), quiet()), 0);
+  const tip = git(f.repo.replace('file://', ''), 'rev-parse', 'alpha-full').trim();
+
+  const log = quiet();
+  const offline = args(f, '--apply', '--to', tip).map((a) => (a === f.repo ? `file://${join(f.dir, 'nope')}` : a));
+  assert.equal(await main(offline, log), 0, log.lines.join('\n'));
+  const out = log.lines.join('\n');
+  assert.match(out, new RegExp(`could not fetch alpha-full \\(.*\\), but ${tip.slice(0, 7)} is already in the cache`));
+  assert.doesNotMatch(out, /^STOP:/m, 'nothing stopped: the network was not needed');
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "new"/);
 });
 
 test('the scripts folder beside software is updated too, and rolled back with it', { skip: !PY && 'no python' }, async () => {

@@ -15,9 +15,10 @@
  * that does not apply refuses the whole update, a file that no longer parses
  * or a frontend that no longer builds is put back on the spot, and the backend
  * and the site are restarted (only those two: the music and image bridges are
- * left alone). Each branch tip is tried once. A failure is reported and the
+ * left alone). Each branch tip is tried once: a failure is reported and the
  * next commit on the branch is what gets tried, never the same one every five
- * minutes.
+ * minutes. Only a verdict the patch produced counts as having tried it -- a
+ * fetch that never reached the patch leaves the tip to the next pass.
  *
  * Capture (--capture, on the one machine that runs Alpha live). When this
  * machine runs exactly the branch tip, the source files edited here, and the
@@ -208,6 +209,16 @@ export function deliverKnowledge({ cache, tip, liveRoot, state, log }) {
   return written;
 }
 
+/**
+ * Whether apply-alpha-update's words say it never got as far as the patch.
+ *
+ * Its exit 1 covers both "could not reach the repository" and "the patch was
+ * applied and put back", and only the second is a verdict about this commit.
+ */
+export function neverTried(lines) {
+  return lines.some((line) => String(line).startsWith('STOP: could not fetch'));
+}
+
 async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
   const recordPath = appliedStatePath(ops, branch);
   const record = readJson(recordPath);
@@ -243,7 +254,10 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
     teach(false);
     return { code: EXIT_PERSON, tip, record };
   }
-  const args = ['--alpha-root', dirname(softwareRoot), '--branch', branch, '--ops', ops, '--apply'];
+  // --to names the commit this pass decided on. Without it the child resolves
+  // the branch from the same cache, which is the same answer only while its own
+  // fetch succeeds -- and that fetch is the one that must be allowed to fail.
+  const args = ['--alpha-root', dirname(softwareRoot), '--branch', branch, '--ops', ops, '--to', tip, '--apply'];
   if (opts.repo) args.push('--repo', opts.repo);
   if (opts.restart) args.push('--restart');
   if (opts.skipScripts) args.push('--skip-scripts');
@@ -253,10 +267,17 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
   const code = await applyUpdate(args, (line) => lines.push(String(line)));
   // apply-alpha-update's own words, indented so none is mistaken for a state line.
   for (const line of lines) for (const part of line.split('\n')) if (part.trim()) log(`    ${part}`);
-  state.deliver = { tip, code, at: new Date().toISOString() };
+  // Only a verdict the patch produced is remembered. Trying a tip once is what
+  // stops a bad patch being retried every five minutes; a fetch that never got
+  // as far as the patch is not a bad patch, and recording it skips the commit
+  // until somebody pushes another one -- which is what wedged Laptop41 on
+  // 5147fef for the whole of 2026-10-08 00:19 onwards.
+  const tried = !neverTried(lines);
+  if (tried) state.deliver = { tip, code, at: new Date().toISOString() };
   const after = readJson(recordPath);
   if (code === 0) log(`DELIVERED: ${short(record.to)}..${short(tip)} of ${branch}`);
   else if (code === 2) log(`REFUSED: ${short(tip)}: a file here differs where the change was made, and nothing was written`);
+  else if (!tried) log(`STOP: ${short(tip)} was not tried: ${branch} could not be fetched (above), so the next pass tries it again`);
   else log(`FAILED: ${short(tip)} could not be applied, and what was written was put back (above)`);
   teach(lines.some((line) => line.includes("restarted task 'Alpha Backend'")));
   return { code: code === 0 ? EXIT_OK : EXIT_PERSON, tip, record: after ?? record };
