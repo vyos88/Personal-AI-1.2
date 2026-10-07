@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261007-224350
+﻿# laptop41 autopilot 20261007-224845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout cce15b9 is current
+
+## auto-live-sync-20261007-224845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:49:09, 5s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs ca87445 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches ca87445
+```
+
+## auto-deck-liveness-20261007-224845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T22:49:15, 7s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 95 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 3 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 1 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 9 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-live-sync-20261007-224350  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:44:07, 47s)
 ```
@@ -372,34 +398,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-deck-liveness-20261007-184346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T18:44:29, 13s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 50 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 10 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 0 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 38 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 182 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## 20261007-60-stop-stray-site  stop-stray-site  ->  0   (2026-10-07T18:34:27, 7s)
-```
-STOP STRAY SITE DESKTOP-41HPLCN 2026-10-07 18:34
-live : tree 4332 (2 processes, 39 MB) holds 4173: C:\Windows\system32\cmd.exe /d /s /c vite preview --host 127.0.0.1 --port 4173 --strictPor...
-leave: tree 6508 (178 MB) is not a preview server, left alone. What it is:
-       pid 6508 node.exe, started 10-07 01:32, listening on 5173: "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\..\vite\bin\vite.js" --host 127.0.0.1 --port 5173 --strictPort
-nothing to stop: one preview tree, and it is the live one
 ```
 
