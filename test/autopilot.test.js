@@ -51,12 +51,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'h2', do: 'restart-coordinator', task: 'anything else' },
     { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
     { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
+    { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -75,6 +76,8 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.deepEqual(plan.h2.args, [], 'it restarts alpha-coordinator and nothing a payload names');
   assert.match(plan.i1.args.join(' '), /fleet-inventory\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
   assert.match(plan.i2.args.join(' '), /alpha-move-check\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
+  assert.match(plan.i3.args.at(-1), /prepare-alpha-here\.ps1$/, 'no target, branch or anything else from the payload');
+  assert.equal(plan.i3.timeoutMin, 90);
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -575,6 +578,23 @@ test('the Alpha move check runs read-only, fits the report and names what is mis
   assert.match(r.stdout, /no Alpha copy with backend\\main\.py/);
   assert.match(r.stdout, /PORTS: 8001 backend=-/, 'a port nobody listens on is not up');
   assert.deepEqual(readdirSync(root), [], 'it writes nothing');
+});
+
+test('preparing Alpha refuses a folder that is not a checkout, and a dry run changes nothing', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1');
+  const base = mkdtempSync(join(tmpdir(), 'prep-'));
+  let r = pwsh([script, '-Target', join(base, 'Alpha'), '-DryRun']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /would clone https:\/\/github\.com\/vyos88\/Alpha\.git \(claude\/friendly-wright-jw4ep6-route-b\)/);
+  assert.match(r.stdout, /RESULT: dry run/);
+  assert.deepEqual(readdirSync(base), [], 'a dry run writes nothing');
+
+  mkdirSync(join(base, 'Alpha'));
+  writeFileSync(join(base, 'Alpha', 'keep.txt'), 'mine');
+  r = pwsh([script, '-Target', join(base, 'Alpha')]);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /REFUSED: .* is not a git checkout/);
+  assert.deepEqual(readdirSync(join(base, 'Alpha')), ['keep.txt'], 'nothing was changed');
 });
 
 test('the Alpha move check finds the backend configuration beside software, and never reads it', { skip }, () => {

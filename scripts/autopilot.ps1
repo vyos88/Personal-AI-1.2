@@ -33,6 +33,7 @@
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
     panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
+    prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -226,6 +227,9 @@ function Resolve-Action($a) {
     }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
+    # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
+    # refuses one that does, starts nothing, and takes nothing from the payload.
+    'prepare-alpha-here' { $spec = Ps1 'prepare-alpha-here.ps1' @(); $out.timeoutMin = 90 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
