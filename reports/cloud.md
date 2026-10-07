@@ -1,3 +1,18 @@
+Claude (wizardly-brown session) for Alpha, 2026-10-07 02:20 local: every device on Worker1, by address
+
+Named by the owner (unplug test) and read from Worker1's doctor "devices by address":
+- CrowPanel: Wi-Fi 192.168.2.97, MAC dc:b4:d9:01:3c:38; USB 303a:1001 instance 8&13DABE55&0&0000 (COM7)
+- Worker1 (Laptop41): Wi-Fi 192.168.2.151, MAC 30:c9:ab:54:31:71; tailnet 100.69.243.25
+- Alpha Lite Deck: USB CH340 1a86:7523 instance 7&2CA6C026&0&3 (COM6), USB only
+- Alpha Network Bridge: USB CH340 instance 5&228C54A3&0&4 (COM24), runs its own hotspot
+- Arduino Uno: USB CH340 instance 6&24DCC5C9&0&1 (COM20)
+- LoRa: USB CH340 instance 6&13504C26&0&2 (COM4), read passively, never transmit
+- Home router: 192.168.2.1, MAC 74:24:9f:59:99:d6
+- Unnamed: 192.168.2.157 (64:d8:1b:e8:89:14)
+- Host (laptop-gj8dfmlk): tailnet 100.93.104.24
+COM numbers move on a replug; the USB instance follows the socket. Worker1's doctor rewrites this list every 15 min (reports/devices.json once Personal-AI-1.2#164 merges). Topology names: Alpha#80.
+
+----
 Claude (cloud) report, 2026-10-07 00:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 00:56 UTC). Backend /health 200. Chat answered in 1.7 s with 0 s load. RAM 4.6 of 15.8 GB free, C: 17.4 GB free. Relay works; cloudSeen = 0c8c64b (the 00:57 note).
