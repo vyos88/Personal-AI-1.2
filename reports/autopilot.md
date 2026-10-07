@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-080845
+﻿# laptop41 autopilot 20261007-082845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 8e085c0 is current
+
+## auto-deck-liveness-20261007-082845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T08:29:14, 9s)
+```
+DECKS: 4 live, 2 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 33 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 12 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 2 s old, fresh for 90 s
+DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
+    assistant heartbeat 1330 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 175 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-080845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T08:09:10, 8s)
 ```
@@ -425,25 +445,5 @@ KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: a
       The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").
 DELIVERED: 386c753..2c41cda of claude/frie...(30)
 CAPTURED: 3 changed and 46 new source file(s) from DESKTOP-41HPLCN, pushed as bf5b813 on claude/frie...(30)
-```
-
-## auto-deck-liveness-20261007-032845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T03:31:33, 12s)
-```
-DECKS: 3 live, 2 stale, 1 setting, 1 static, 1 no feed
-DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 141 s old, fresh for ? s
-DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
-    manager snapshot 35 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 0 s old, fresh for 90 s
-DECK SETTING: CrowPanel feed (/panel/crowpanel/state) -> the assistant loop is not started (interactive-first mode on, or lightweight autonomy off), so the feed cannot go live  [decks: CrowPanel]
-    assistant heartbeat none s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
