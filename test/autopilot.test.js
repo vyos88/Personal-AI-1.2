@@ -609,6 +609,26 @@ test('the Alpha move check finds the backend configuration beside software, and 
   assert.doesNotMatch(r.stdout, /SECRET_VALUE|do-not-print/);
 });
 
+test('preparing Alpha finds the software folder where the live branch keeps it, under Alpha-Full', { skip }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'prep-clone-'));
+  const src = join(base, 'src');
+  const app = join(src, 'BuildArtifacts', 'installers', 'Alpha-Full', 'software');
+  mkdirSync(join(app, 'backend'), { recursive: true });
+  mkdirSync(join(app, 'frontend'), { recursive: true });
+  writeFileSync(join(app, 'backend', 'main.py'), '');
+  writeFileSync(join(app, 'frontend', 'package.json'), JSON.stringify({ name: 'f', version: '1.0.0', scripts: { build: "node -e \"require('fs').mkdirSync('dist');require('fs').writeFileSync('dist/index.html','ok')\"" } }));
+  git(base, 'init', '-q', '-b', 'live', src);
+  git(src, 'add', '.');
+  git(src, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'live');
+  const target = join(base, 'Alpha');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1'), '-Target', target, '-Repo', src, '-Branch', 'live', '-Model', 'none:0']);
+  assert.match(r.stdout, /cloned: /, r.stdout);
+  assert.match(r.stdout, /Alpha's software\\ is .*BuildArtifacts.installers.Alpha-Full.software/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no software/);
+  assert.match(r.stdout, /built: dist\\index\.html/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no frontend/);
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');
