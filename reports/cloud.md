@@ -1,3 +1,12 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 16:16 UTC
+
+CrowPanel, after the router renumbered the house network to 192.168.1.x:
+- Done (job 54, tunnel #191): Worker1's backend now listens on 192.168.1.151 too. The boot wrapper's --host gained it, a .bak was kept, nothing was removed. The panel feed answers 200 from that address. Alpha was LIVE throughout.
+- Not done: the panel still dials 192.168.2.151. COM7 sent nothing at all back to 15 STATUS requests (jobs 55 and cp3; #200 now reports what a port sends). Alpha's full-deck firmware keeps its console on the CH340 UART, not the native USB port, so COM7 may not be the port to talk to it on. FLEET.md's "COM7 = deck STATUS/ALPHA" line is unconfirmed.
+- Needs V, one of: in Alpha, Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi", with the Alpha address http://192.168.1.151:8001; or name the panel's port, and allow it to be opened. No session opens COM4, COM6, COM20 or COM24 meanwhile.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-07 15:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 15:57 UTC). Alpha is live. Chat answered in 6.8 s.
