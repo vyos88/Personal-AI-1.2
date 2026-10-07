@@ -499,11 +499,20 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
     if ($env:COMPUTERNAME) { $syncArgs += @('--machine', $env:COMPUTERNAME) }
     if ($sync.capture -eq $true) { $syncArgs += '--capture' }
     if ($sync.skipScripts -eq $true) { $syncArgs += '--skip-scripts' }
+    # The owner's approved credential-scan lines, exactly as the snapshot action takes them.
+    $syncAllow = @()
+    if ($sync.allow) { $syncAllow = @((@($sync.allow) -join ',').Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+    $badAllow = @($syncAllow | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
+    if ($badAllow.Count) { Write-Host "autofix.liveSync.allow entries must be path:line ($($badAllow.Count) are not): none used" }
+    elseif ($syncAllow.Count) { $syncArgs += @('--allow', ($syncAllow -join ',')) }
     $text = (& node @syncArgs 2>&1 | Out-String)
     $code = $LASTEXITCODE
     $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|STOP)' }) -join ' | ')
     if ($key -ne $syncKey) {
-      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 60) -join "`n"
+      # Long enough for every held-back line and the ALLOW WITH line after them.
+      # That line is file paths and line numbers only, and a long file name
+      # masked by Redact could not be copied into autofix.liveSync.allow.
+      $tail = (($text -split "`r?`n") | ForEach-Object { if ($_ -match '^ALLOW WITH: ([A-Za-z0-9_./-]+:\d+)?(,[A-Za-z0-9_./-]+:\d+)*$') { $_ } else { Redact $_ } } | Where-Object { $_.Trim() } | Select-Object -Last 200) -join "`n"
       $result = switch ($code) { 0 { '0 (in sync)' } 2 { '2 (needs a person)' } default { "$code (could not run)" } }
       [void]$ran.Add([ordered]@{ id = "auto-live-sync-$stamp"; do = 'live-sync (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
       Write-Host "live sync: $result"

@@ -117,7 +117,7 @@ here that picks a port by itself refuses to guess there.
 | COM24 | the network bridge (V, 2026-10-07) | never opened by a panel tool |
 | COM20 | the Arduino Uno (V, 2026-10-07) | never opened by a panel tool: opening a port resets an Uno (DTR) |
 | COM7 | the CrowPanel deck (USB Serial Device; on COM7 since the 2026-10-02 briefing) | the deck's `STATUS` / `ALPHA` go here |
-| COM4 | CH340, not yet named | ask V before opening it |
+| COM4 | the LoRa board (V, 2026-10-07) | never opened by a panel tool: Alpha treats LoRa as passive (detect, never transmit) |
 
 Windows renumbers COM ports when a board is re-plugged, so check this table
 against the doctor's section 6 before trusting a number. Pass the deck's port

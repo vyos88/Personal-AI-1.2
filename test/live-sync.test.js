@@ -150,6 +150,40 @@ test('capture pushes what this machine runs, fast-forward, in the repository\'s 
   assert.equal(remoteTip(f), tip, 'nothing new was pushed');
 });
 
+test('the owner\'s approved lines go at once, exactly those lines and no others', { skip }, async () => {
+  const f = fixture();
+  write(f.alpha, 'software/backend/provider_keys.py', 'storage_key = "educational_lesson_store"\n');
+  write(f.alpha, 'software/backend/other_keys.py', 'cache_token = "a_very_long_cache_name_here"\n');
+
+  const first = await run(f, '--capture');
+  assert.equal(first.code, 2, first.out);
+  assert.match(first.out, /^ALLOW WITH: software\/backend\/other_keys\.py:1,software\/backend\/provider_keys\.py:1$/m);
+  const before = remoteTip(f);
+
+  // Within the hour, but the list changed: captured now. Only the approved line goes.
+  const second = await run(f, '--capture', '--allow', 'software/backend/provider_keys.py:1');
+  assert.equal(second.code, 2, second.out);
+  assert.match(second.out, /CAPTURED: 0 changed and 1 new source file\(s\)/);
+  assert.match(second.out, /1 credential-looking line\(s\) cleared by the owner's list go with this capture/);
+  assert.match(second.out, /^ALLOW WITH: software\/backend\/other_keys\.py:1$/m);
+  assert.notEqual(remoteTip(f), before);
+  const files = git(f.remote, 'ls-tree', '-r', '--name-only', 'live').split('\n');
+  assert.ok(files.includes(`${SUB}/backend/provider_keys.py`));
+  assert.ok(!files.includes(`${SUB}/backend/other_keys.py`), 'a line nobody approved stays here');
+
+  // An approval for a line that is not the one found does not clear it.
+  write(f.alpha, 'software/backend/other_keys.py', '# moved\ncache_token = "a_very_long_cache_name_here"\n');
+  const third = await run(f, '--capture', '--allow', 'software/backend/provider_keys.py:1,software/backend/other_keys.py:1');
+  assert.match(third.out, /^ALLOW WITH: software\/backend\/other_keys\.py:2$/m);
+  assert.ok(!git(f.remote, 'ls-tree', '-r', '--name-only', 'live').split('\n').includes(`${SUB}/backend/other_keys.py`));
+});
+
+test('an allow entry that is not path:line is refused', async () => {
+  const lines = [];
+  assert.equal(await main(['--alpha-root', '/nowhere', '--branch', 'live', '--allow', 'software/x.py'], (l) => lines.push(l)), 1);
+  assert.match(lines.join('\n'), /--allow entries must be path:line/);
+});
+
 test('nothing is captured while this machine is behind the branch', { skip }, async () => {
   const f = fixture();
   write(f.alpha, 'software/backend/main.py', MAIN.replace('"old"', '"edited on this machine"'));
