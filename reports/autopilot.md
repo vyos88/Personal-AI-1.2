@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-082845
+﻿# laptop41 autopilot 20261007-104345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 8e085c0 is current
+checkout 4347e3a is current
+
+## auto-deck-liveness-20261007-104345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T10:44:08, 9s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 87 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 11 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 1 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 191 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 167 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-082845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T08:29:14, 9s)
 ```
@@ -411,39 +431,5 @@ AGENT MANAGER: 59 agent(s), snapshot 0 min old
   TIME-AVAILABLE, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME
   -HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALT
   HY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY
-```
-
-## auto-live-sync-20261007-032845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:29:20, 134s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: 386c753..2c41cda of claude/frie...(30) (last applied here: 386c753)
-      applies  M backend/api/crowpanel.py
-      applies  M backend/chat_music_generation.py
-      applies  M backend/main.py
-      applies  M backend/phone_module.py
-      applies  A backend/tests/test_alpha_deck_liveness.py
-      applies  M backend/tests/test_chat_music_generation.py
-      applies  M backend/tests/test_phone_module_startup.py
-      applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-      applies  M frontend/src/components/MusicSingingPanel.jsx
-      applies  M frontend/src/liveCoordinationLabels.js
-      applies  M frontend/src/liveCoordinationLabels.test.js
-      applies  A scripts/alpha_deck_liveness.py
-      applies  M scripts/alpha_public_song_worker.py
-      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-      ok: wrote 13 file(s)
-      ok: 9 Python file(s) parse
-      packages unchanged and installed: building (no npm ci)...
-      ok: frontend built
-    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-      stopped pid 17972, which held port 8001
-      restarted task 'Alpha Backend'
-      stopped pid 20320, which held port 4173
-      restarted task 'Alpha'
-      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-      The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").
-DELIVERED: 386c753..2c41cda of claude/frie...(30)
-CAPTURED: 3 changed and 46 new source file(s) from DESKTOP-41HPLCN, pushed as bf5b813 on claude/frie...(30)
 ```
 
