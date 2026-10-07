@@ -33,7 +33,11 @@ $ErrorActionPreference = 'Continue'
 # software\ on Worker1, so try that first and AlphaRoot itself second.
 if (-not $JobsDir -or -not $AudioDir) {
   $parent = Split-Path $AlphaRoot -Parent
-  foreach ($root in @($parent, $AlphaRoot)) {
+  # The Host's copy (prepare-alpha-here) is a git clone, so its software\ is
+  # under BuildArtifacts\installers\Alpha-Full and its data goes beside it.
+  $profileDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
+  $clone = Join-Path (Join-Path $profileDir 'Downloads') 'VyoS-advance-tech-ai'
+  foreach ($root in @($parent, $AlphaRoot, (Join-Path $clone 'BuildArtifacts\installers\Alpha-Full'), $clone)) {
     if (-not $root) { continue }
     $j = Join-Path $root 'memory\local\music-singing'
     if (Test-Path -LiteralPath $j -PathType Container) {
@@ -49,6 +53,14 @@ if (-not $JobsDir -or -not (Test-Path -LiteralPath $JobsDir -PathType Container)
 }
 Write-Host "songs: $JobsDir"
 Write-Host "audio: $AudioDir"
+# The rest of a copy from another machine, by presence and size only.
+$dataRoot = Split-Path (Split-Path (Split-Path $JobsDir -Parent) -Parent) -Parent
+$memory = Join-Path $dataRoot 'memory'
+$files = @(Get-ChildItem -LiteralPath $memory -Recurse -File -EA SilentlyContinue)
+Write-Host ('memory: {0} files, {1:N1} GB' -f $files.Count, (($files | Measure-Object Length -Sum).Sum / 1GB))
+foreach ($envFile in @((Join-Path $dataRoot '.env.local'), (Join-Path $dataRoot 'software\frontend\.env.local'))) {
+  Write-Host "$(if (Test-Path -LiteralPath $envFile -PathType Leaf) { 'present' } else { 'MISSING' }): $envFile (contents not read)"
+}
 
 function MB($path) { if (Test-Path -LiteralPath $path -PathType Leaf) { '{0:N1} MB' -f ((Get-Item -LiteralPath $path).Length / 1MB) } else { 'none' } }
 function Clean([string]$t, [int]$n) { $t = ($t -replace '[\r\n\t]+', ' ').Trim(); if ($t.Length -gt $n) { $t.Substring(0, $n - 1) + '~' } else { $t } }
