@@ -48,6 +48,13 @@ export const LOAD_THROTTLE_MAX_MS = 60_000;
 // more is saying its cores are worth more than the isolation.
 export const DEFAULT_AGENT_CONCURRENCY = 1;
 
+// Light task types an agent runs even while its slots are full, one at a
+// time, beside the long task holding them. A slice of a finished track is a
+// file read; without this, a laptop generating a song for ten minutes kept
+// every other song it had made from playing (the bridge gave up on each slice
+// after a minute). Only types that cost almost nothing belong here.
+export const EXPRESS_TASK_TYPES = Object.freeze(['alpha.music.audio']);
+
 // How long a stopping agent gives its running tasks to report before it tells
 // the host it is gone. Kept under the entrypoint's 3s force-exit budget.
 export const SHUTDOWN_DRAIN_MS = 2_000;

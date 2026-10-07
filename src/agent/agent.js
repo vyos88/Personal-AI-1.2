@@ -13,6 +13,7 @@ import {
   DEFAULT_MEMORY_RESERVE_BYTES,
   DEFAULT_MAX_LOAD,
   DEFAULT_AGENT_CONCURRENCY,
+  EXPRESS_TASK_TYPES,
   LOAD_BACKOFF_MS,
   LOAD_THROTTLE_MAX_MS,
   SHUTDOWN_DRAIN_MS,
@@ -32,6 +33,11 @@ const PRIMARY_RECHECK_MS = 60_000;
 // Consecutive unanswered heartbeats before the agent warns that it has lost
 // the coordinator. At the host's default 20s beat, a minute of silence.
 export const HEARTBEAT_WARN_AFTER = 3;
+
+// How often the express lane looks to see whether the slots have filled, and
+// how long it waits after a failed poll (the main loop does the reconnecting).
+const EXPRESS_IDLE_CHECK_MS = 500;
+const EXPRESS_RETRY_MS = 2_000;
 
 const log = createLogger('agent');
 
@@ -66,6 +72,10 @@ export class TunnelAgent {
   // behaviour: poll, run it, poll again.
   #inFlight = 0;
   #slotWaiters = [];
+  // The express lane: light work run beside a full set of slots, one task at
+  // a time (see #expressLoop), and what the coordinator said it understands.
+  #expressInFlight = 0;
+  #hostFeatures = new Set();
   #throttledSince = null;
   #readMemory;
   #stoodDown = false;
@@ -94,6 +104,9 @@ export class TunnelAgent {
     memoryReservePercent = 0,
     maxLoad = DEFAULT_MAX_LOAD,
     concurrency = DEFAULT_AGENT_CONCURRENCY,
+    // Types this agent still takes while its slots are full. See
+    // EXPRESS_TASK_TYPES; [] turns the lane off.
+    expressTypes = EXPRESS_TASK_TYPES,
     loadBackoffMs = LOAD_BACKOFF_MS,
     throttleMaxMs = LOAD_THROTTLE_MAX_MS,
     // Injectable so a test can put this machine under a load it does not
@@ -157,6 +170,7 @@ export class TunnelAgent {
     if (this.capabilities.length === 0) {
       throw new Error('agent has no handlers registered, so it has nothing to offer the host');
     }
+    this.expressTypes = expressTypes.filter((type) => this.capabilities.includes(type));
   }
 
   get agentId() {
@@ -208,7 +222,7 @@ export class TunnelAgent {
 
   /** Tasks this agent is running right now. */
   get inFlight() {
-    return this.#inFlight;
+    return this.#inFlight + this.#expressInFlight;
   }
 
   /** Runs until stop() is called. Reconnects on its own across host restarts. */
@@ -225,6 +239,7 @@ export class TunnelAgent {
       maxLoad: this.maxLoad,
     });
 
+    const express = this.#expressLoop();
     let failures = 0;
     while (this.#running) {
       try {
@@ -290,7 +305,46 @@ export class TunnelAgent {
       }
     }
 
+    await express;
     log.info('stopped');
+  }
+
+  /**
+   * Takes light work (EXPRESS_TASK_TYPES) while the regular slots are full,
+   * one task at a time.
+   *
+   * A machine making a song holds its only slot for minutes, and every slice
+   * of every track it made earlier waited behind it until the bridge gave up:
+   * playing a song depended on the laptop that made it being idle. This lane
+   * polls for those types only, and only while the slots are full; with a
+   * free slot the main loop takes them like anything else, so an idle agent
+   * parks one poll, as before. It needs a coordinator that honours `types`
+   * (`poll-types` in its registration answer): an older one would hand this
+   * poll any task at all, and a second song on a 4 GB card is the thing this
+   * must never cause.
+   *
+   * Registration, reconnecting and standing down stay with the main loop;
+   * this one waits while there is no registration and retries quietly.
+   */
+  async #expressLoop() {
+    if (this.expressTypes.length === 0) return;
+    while (this.#running) {
+      const ready = this.#agentId && this.#hostFeatures.has('poll-types') && this.#inFlight >= this.concurrency;
+      try {
+        if (!ready) {
+          await sleep(EXPRESS_IDLE_CHECK_MS, { signal: this.#abort.signal });
+          continue;
+        }
+        await this.#pollOnce({ types: this.expressTypes });
+      } catch {
+        if (!this.#running) return;
+        try {
+          await sleep(EXPRESS_RETRY_MS, { signal: this.#abort.signal });
+        } catch {
+          return; // stopping
+        }
+      }
+    }
   }
 
   async stop({ drainMs = SHUTDOWN_DRAIN_MS } = {}) {
@@ -376,6 +430,7 @@ export class TunnelAgent {
     });
 
     this.#agentId = body.agentId;
+    this.#hostFeatures = new Set(Array.isArray(body.features) ? body.features : []);
     log.info('registered with host', {
       agentId: this.#agentId,
       instanceId: this.instanceId,
@@ -417,22 +472,22 @@ export class TunnelAgent {
    * out is left to the host's lease sweeper, which is exactly what it is for.
    */
   async #drain(drainMs) {
-    if (this.#inFlight === 0 || drainMs <= 0) return;
+    if (this.inFlight === 0 || drainMs <= 0) return;
     log.info('waiting for running tasks to report before disconnecting', {
-      inFlight: this.#inFlight,
+      inFlight: this.inFlight,
       drainMs,
     });
 
     const deadline = Date.now() + drainMs;
-    while (this.#inFlight > 0 && Date.now() < deadline) {
+    while (this.inFlight > 0 && Date.now() < deadline) {
       // Ref'd on purpose: this nap is the whole of what is in flight during a
       // shutdown, and unref'ing it would let the process exit mid-report.
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
 
-    if (this.#inFlight > 0) {
+    if (this.inFlight > 0) {
       log.warn('tasks still running at shutdown; their leases will expire and be retried', {
-        inFlight: this.#inFlight,
+        inFlight: this.inFlight,
       });
     }
   }
@@ -501,7 +556,7 @@ export class TunnelAgent {
     return true;
   }
 
-  async #pollOnce() {
+  async #pollOnce({ types = null } = {}) {
     // The poll carries this machine's current load and memory. It is the most
     // frequent thing the agent says, and it is said at the moment work is
     // being asked for — so the host places against what this machine is like
@@ -512,6 +567,7 @@ export class TunnelAgent {
       loadReportToQuery(new URLSearchParams({ wait: String(this.pollWaitMs) }), this.load()),
       this.memory(),
     );
+    if (types) query.set('types', types.join(','));
     const url = `${this.hostUrl}/agent/${this.#agentId}/tasks/next?${query}`;
     const { status, body } = await fetchJson(url, {
       token: this.token,
@@ -522,6 +578,18 @@ export class TunnelAgent {
     });
 
     if (status === 204 || !body) return; // no work this round
+
+    // The express lane runs its one task inline: it holds no slot, and the
+    // next express poll waits until this one has reported.
+    if (types) {
+      this.#expressInFlight += 1;
+      try {
+        await this.#execute(body);
+      } finally {
+        this.#expressInFlight -= 1;
+      }
+      return;
+    }
 
     // Not awaited: the loop goes straight back to #awaitSlot, which parks
     // until this task frees its slot. At concurrency 1 that is the same
@@ -704,7 +772,7 @@ export class TunnelAgent {
    * valid on the primary.
    */
   async #returnToPrimary() {
-    if (!this.onStandby || this.#inFlight > 0) return false;
+    if (!this.onStandby || this.inFlight > 0) return false;
     if (Date.now() - this.#lastPrimaryCheck < this.primaryRecheckMs) return false;
     this.#lastPrimaryCheck = Date.now();
 
