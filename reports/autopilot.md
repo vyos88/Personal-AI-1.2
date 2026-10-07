@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-183355
+﻿# laptop41 autopilot 20261007-184346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 67563f8 is current
+
+## auto-deck-liveness-20261007-184346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T18:44:29, 13s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 50 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 10 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 0 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 38 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 182 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## 20261007-60-stop-stray-site  stop-stray-site  ->  0   (2026-10-07T18:34:27, 7s)
 ```
@@ -382,19 +402,5 @@ AGENT MANAGER: snapshot here, written 10-07 15:59
 MISSING TO RUN ALPHA HERE (2):
   - under 20 GB free on C: (Alpha, its venv, node_modules and models need room)
   - .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)
-```
-
-## 20261007-52-panel-host  panel-host  ->  1   (2026-10-07T15:54:01, 125s)
-```
-address : 192.168.1.151 (Wi-Fi)
-env     : C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local
-HOST    : 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151   (added 192.168.1.151)
-trusted : 127.0.0.1,localhost,100.69.243.25,100.69.243.25:8001,192.168.2.151,192.168.2.151:8001,desktop-41hplcn.tail3fd6f9.ts.net,desktop-41hplcn.tail879ea7.ts.net,laptop-gj8dfmlk.tail879ea7.ts.net,alpha-ai.uk,www.alpha-ai.uk,192.168.1.151   (added 192.168.1.151)
-env     : written (backup at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local.bak)
-restart : "Alpha Backend"
-restart : stopped pid 20592, which held port 8001
-restart : restarted task 'Alpha Backend'
-restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-feed    : nothing answers on http://192.168.1.151:8001 â€” the backend is not listening on that address. If it did not restart, start it and re-run with --no-restart; a firewall rule for TCP 8001 on the private profile is the other thing that blocks this.
 ```
 
