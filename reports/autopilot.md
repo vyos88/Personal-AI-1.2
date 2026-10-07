@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-153345
+﻿# laptop41 autopilot 20261007-155345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 4347e3a is current
+checkout 52f8a2a is current
+
+## 20261007-52-panel-host  panel-host  ->  1   (2026-10-07T15:54:01, 125s)
+```
+address : 192.168.1.151 (Wi-Fi)
+env     : C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local
+HOST    : 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151   (added 192.168.1.151)
+trusted : 127.0.0.1,localhost,100.69.243.25,100.69.243.25:8001,192.168.2.151,192.168.2.151:8001,desktop-41hplcn.tail3fd6f9.ts.net,desktop-41hplcn.tail879ea7.ts.net,laptop-gj8dfmlk.tail879ea7.ts.net,alpha-ai.uk,www.alpha-ai.uk,192.168.1.151   (added 192.168.1.151)
+env     : written (backup at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local.bak)
+restart : "Alpha Backend"
+restart : stopped pid 20592, which held port 8001
+restart : restarted task 'Alpha Backend'
+restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+feed    : nothing answers on http://192.168.1.151:8001 â€” the backend is not listening on that address. If it did not restart, start it and re-run with --no-restart; a firewall rule for TCP 8001 on the private profile is the other thing that blocks this.
+```
+
+## 20261007-53-panel-endpoint  panel-endpoint  ->  1   (2026-10-07T15:56:06, 4s)
+```
+this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8001
+PROBLEM: the backend does not answer on http://192.168.1.151:8001/health (HTTP 000): it is not listening on 192.168.1.151 yet. Add 192.168.1.151 to HOST and ALPHA_TRUSTED_HOSTS in Alpha's .env.local (scripts\fix-panel-host.mjs) and restart the backend; pointing the deck here now would leave it dark
+```
 
 ## 20261007-51-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T15:34:02, 10s)
 ```
@@ -389,45 +409,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)
 CAPTURED: nothing; every source file here matches 7ca5aa7
-```
-
-## auto-deck-liveness-20261007-051845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:19:19, 13s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 43 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 10 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 0 s old, fresh for 90 s
-DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
-    assistant heartbeat 1002 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 482 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-deck-liveness-20261007-050346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:04:15, 12s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 99 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 18 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 1 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 99 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 475 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
