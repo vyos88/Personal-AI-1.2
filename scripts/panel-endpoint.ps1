@@ -30,12 +30,18 @@
   with the reason. The STATUS line it prints carries no secret (the firmware
   reports wifi_set/alpha_set as yes/no, never the values).
 
+.PARAMETER Port
+  The deck's serial port, e.g. COM4. Skips the pick at step 3, which is what a
+  person standing at the board is for: on 2026-10-07 the Espressif rule chose
+  COM7 on Worker1, COM7 sent nothing at all for 30 s, and the board was on COM4.
+
 .PARAMETER ParseStatus
   Test seam: parse one STATUS line and print it as JSON. Touches nothing.
 #>
 param(
   [int]$BackendPort = 8001,
   [int]$Baud = 115200,
+  [string]$Port,
   [string]$ParseStatus,
   [string]$DescribeHeard
 )
@@ -124,6 +130,17 @@ if ($code -ne '200') {
 Write-Host "ok: backend answers on $base"
 
 # ------------------------------------------------------------ 3. port
+# A port given by hand wins, and is the answer to the case the pick cannot
+# settle: on 2026-10-07 the Espressif rule chose COM7 on Worker1, COM7 sent
+# nothing at all for 30 s, and the owner then confirmed the board was on COM4.
+# A person looking at the board beats any rule about VIDs, so -Port skips the
+# pick entirely rather than arguing with it.
+if ($Port) {
+  if ($Port -notmatch '^COM\d+$') { Fail "-Port must look like COM4, not '$Port'" }
+  $com = $Port
+  Write-Host "deck port: $com (given)"
+}
+else {
 $bridges = @(Get-CimInstance Win32_PnPEntity -EA SilentlyContinue |
              Where-Object { $_.Name -match '\((COM\d+)\)' -and $_.Name -match 'CH340|CH341|CH9102|CP210|USB-SERIAL|USB Serial|UART' })
 if ($bridges.Count -eq 0) { Fail 'no USB serial bridge attached: is the deck plugged into this machine?' }
@@ -135,6 +152,7 @@ if ($bridges.Count -gt 1 -and $native.Count -eq 1) { $bridges = $native }
 if ($bridges.Count -gt 1) { Fail ("more than one USB serial bridge attached ({0}): not guessing which is the deck" -f (($bridges | ForEach-Object { $_.Name }) -join '; ')) }
 $com = [regex]::Match($bridges[0].Name, '\((COM\d+)\)').Groups[1].Value
 Write-Host "deck port: $com ($($bridges[0].Name))"
+}
 
 # ------------------------------------------------------------ 4-5. serial
 $sp = New-Object System.IO.Ports.SerialPort $com, $Baud, 'None', 8, 'One'
