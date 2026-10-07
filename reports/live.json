@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-10-07T22:04:07.4622305+01:00",
+    "at":  "2026-10-07T22:09:21.3326680+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
                  },
     "decks":  {
                   "summary":  "4 live, 1 stale, 1 static, 1 no feed",
-                  "not_live":  "CrowPanel: display (LAN reads), feed (/panel/crowpanel/state)",
-                  "checked_at":  "2026-10-07T20:49:39.574065+00:00"
+                  "not_live":  "CrowPanel: display (LAN reads)",
+                  "checked_at":  "2026-10-07T21:09:19.857849+00:00"
               },
-    "sync":  "WAITING: f1dbc73 was tried here and refused; the next commit on claude/frie...(30) is tried when it comes"
+    "sync":  "REFUSED: cedec9d: a file here differs where the change was made, and nothing was written"
 }
