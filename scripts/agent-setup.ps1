@@ -36,17 +36,17 @@ function Find-Agent([string]$TaskName = 'alpha-tunnel agent', [string]$ServiceNa
   return @{ kind = $null; name = $null; repo = $Fallback }
 }
 
-# Adds $Handlers to ALPHA_EXTRA_HANDLERS and sets $Settings in .env.agent
-# (backed up), and in the service environment when the agent is a service.
-# Returns the merged handler list.
-function Set-AgentHandlers([string]$Repo, [string[]]$Handlers, [hashtable]$Settings, [string[]]$Remove = @(), $Agent = $null) {
+# Adds $Handlers to ALPHA_EXTRA_HANDLERS (and takes $Drop out of it) and sets
+# $Settings in .env.agent (backed up), and in the service environment when the
+# agent is a service. Returns the merged handler list.
+function Set-AgentHandlers([string]$Repo, [string[]]$Handlers, [hashtable]$Settings, [string[]]$Remove = @(), $Agent = $null, [string[]]$Drop = @()) {
   $envFile = Join-Path $Repo '.env.agent'
   $lines = New-Object System.Collections.ArrayList
   if (Test-Path -LiteralPath $envFile) {
     foreach ($l in (Get-Content -LiteralPath $envFile)) { [void]$lines.Add($l) }
     Copy-Item -LiteralPath $envFile -Destination "$envFile.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')" -Force
   }
-  $merged = Merge-HandlerLines $lines $Handlers $Settings $Remove
+  $merged = Merge-HandlerLines $lines $Handlers $Settings $Remove $Drop
   [IO.File]::WriteAllLines($envFile, [string[]]$lines, (New-Object Text.UTF8Encoding($false)))
 
   if ($Agent -and $Agent.kind -eq 'service') {
@@ -57,7 +57,7 @@ function Set-AgentHandlers([string]$Repo, [string[]]$Handlers, [hashtable]$Setti
       foreach ($e in @($extra)) { [void]$list.Add([string]$e) }
       # The same full list in both places: the service's value replaces the
       # file's, so a list of only the new handlers would drop the others.
-      $merged = Merge-HandlerLines $list $merged $Settings $Remove
+      $merged = Merge-HandlerLines $list $merged $Settings $Remove $Drop
       Set-ItemProperty -Path $key -Name AppEnvironmentExtra -Value ([string[]]$list) -Type MultiString
       # And the file gets anything only the service had.
       [void](Merge-HandlerLines $lines $merged @{} @())
@@ -69,14 +69,14 @@ function Set-AgentHandlers([string]$Repo, [string[]]$Handlers, [hashtable]$Setti
 }
 
 # Edits NAME=value lines in place (an ArrayList). Exported for tests.
-function Merge-HandlerLines($lines, [string[]]$Handlers, [hashtable]$Settings, [string[]]$Remove = @()) {
+function Merge-HandlerLines($lines, [string[]]$Handlers, [hashtable]$Settings, [string[]]$Remove = @(), [string[]]$Drop = @()) {
   function Index-Of([string]$name) {
     for ($i = 0; $i -lt $lines.Count; $i++) { if ($lines[$i] -match "^\s*$([regex]::Escape($name))\s*=") { return $i } }
     return -1
   }
   $i = Index-Of 'ALPHA_EXTRA_HANDLERS'
   $have = if ($i -ge 0) { ((($lines[$i] -split '=', 2)[1]).Trim().Trim('"', "'") -split ',') | ForEach-Object { $_.Trim() } | Where-Object { $_ } } else { @() }
-  $merged = @($have)
+  $merged = @($have | Where-Object { $Drop -notcontains $_ })
   foreach ($h in $Handlers) { if ($merged -notcontains $h) { $merged += $h } }
   if ($i -ge 0) { $lines[$i] = "ALPHA_EXTRA_HANDLERS=$($merged -join ',')" } else { [void]$lines.Add("ALPHA_EXTRA_HANDLERS=$($merged -join ',')") }
   foreach ($name in $Settings.Keys) {
