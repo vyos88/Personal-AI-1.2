@@ -24,6 +24,7 @@
     restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
     stop-stray-site  stop-stray-site.ps1: stop a leftover `vite preview` tree that does not hold 4173, never the one that does (takes no arguments)
     comfyui-off      comfyui-off.ps1: stop ComfyUI here and take this machine off image work (alpha-image handlers out, agent restart); pictures go to the other machines (takes no arguments)
+    songs-check      songs-check.ps1: every song in Alpha's playlist, one line each: plays as MP3, WAV only, or cannot play, with totals (reads only; takes no arguments)
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
@@ -255,6 +256,10 @@ function Resolve-Action($a) {
     # pictures. Takes nothing from the action: what is ComfyUI is read off the
     # machine.
     'comfyui-off' { $spec = Ps1 'comfyui-off.ps1' @(); $out.timeoutMin = 4 }
+    # The owner, 2026-10-07: "a total of 85 songs check please all and make
+    # them all mp3". Reads the song receipts and files only; the backend makes
+    # the MP3s (Alpha cedec9d).
+    'songs-check' { $spec = Ps1 'songs-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
