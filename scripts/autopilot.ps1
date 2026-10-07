@@ -459,7 +459,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -485,12 +485,39 @@ if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Live sync (docs/LIVE_SYNC.md): delivers the live branch to this machine and,
+# with "capture": true, pushes what this machine runs back to it. Turned on by
+# autofix.liveSync in actions.json; reported only when its state changes.
+$syncKey = if ($state -and $state.syncKey) { [string]$state.syncKey } else { '' }
+$sync = if ($control -and $control.autofix -and $control.autofix.liveSync -and $control.autofix.liveSync.branch) { $control.autofix.liveSync } else { $null }
+if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
+  $syncBranch = [string]$sync.branch
+  if ($syncBranch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or $syncBranch -match '\.\.') { Write-Host 'autofix.liveSync.branch is not a plain branch name: skipped' }
+  else {
+    $started = Get-Date
+    $syncArgs = @((Join-Path $PSScriptRoot 'live-sync.mjs'), '--alpha-root', $AlphaRoot, '--ops', $OpsDir, '--branch', $syncBranch)
+    if ($env:COMPUTERNAME) { $syncArgs += @('--machine', $env:COMPUTERNAME) }
+    if ($sync.capture -eq $true) { $syncArgs += '--capture' }
+    if ($sync.skipScripts -eq $true) { $syncArgs += '--skip-scripts' }
+    $text = (& node @syncArgs 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|STOP)' }) -join ' | ')
+    if ($key -ne $syncKey) {
+      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 60) -join "`n"
+      $result = switch ($code) { 0 { '0 (in sync)' } 2 { '2 (needs a person)' } default { "$code (could not run)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-live-sync-$stamp"; do = 'live-sync (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "live sync: $result"
+    }
+    $syncKey = $key
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
