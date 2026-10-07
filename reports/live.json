@@ -1,14 +1,14 @@
 ﻿{
-    "at":  "2026-10-07T04:54:14.4434365+01:00",
+    "at":  "2026-10-07T04:59:12.7725921+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  1,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "the rollback copy of the site was not saved: EPERM: operation not permitted, rename \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp\u0027 -\u003e \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good\u0027"
