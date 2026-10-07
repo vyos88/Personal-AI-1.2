@@ -22,6 +22,7 @@
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
     restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
+    stop-stray-site  stop-stray-site.ps1: stop a leftover `vite preview` tree that does not hold 4173, never the one that does (takes no arguments)
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
@@ -226,6 +227,10 @@ function Resolve-Action($a) {
       $out.timeoutMin = 4
     }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
+    # The one stop fleet-inventory's DUPLICATES asks for on Worker1 (HANDOFF
+    # 2026-10-07b section 5). Takes nothing from the action: which tree is live
+    # is read off the port on the machine.
+    'stop-stray-site' { $spec = Ps1 'stop-stray-site.ps1' @(); $out.timeoutMin = 2 }
     'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
