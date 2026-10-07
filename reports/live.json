@@ -1,14 +1,14 @@
 ﻿{
-    "at":  "2026-10-07T20:54:25.7312876+01:00",
+    "at":  "2026-10-07T20:59:34.8862363+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
@@ -16,7 +16,7 @@
     "decks":  {
                   "summary":  "4 live, 1 stale, 1 static, 1 no feed",
                   "not_live":  "CrowPanel: display (LAN reads), feed (/panel/crowpanel/state)",
-                  "checked_at":  "2026-10-07T19:44:31.148379+00:00"
+                  "checked_at":  "2026-10-07T19:59:31.967862+00:00"
               },
     "sync":  "IN SYNC: this machine runs cbd4b34 of claude/frie...(30)"
 }
