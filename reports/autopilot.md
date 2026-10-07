@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-044346
+﻿# laptop41 autopilot 20261007-050346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 683b589 is current
+checkout 2a51e24 is current
+
+## auto-deck-liveness-20261007-050346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:04:15, 12s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 99 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 18 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 1 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 99 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 475 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-044346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T04:44:20, 6s)
 ```
@@ -446,22 +466,5 @@ HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_m
     software/frontend/src/theme/matrixSound.js:19  credential-looking assignment  const STORAGE_KEY = 'alphΓÇª(18)'
     If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:
 ALLOW WITH: scripts/alpha_maintenance_review.py:372,scripts/handoff_planet_builds.py:54,scripts/ingest_ecosystem_learning.py:19,scripts/ingest_ecosystem_learning.py:34,scripts/ingest_ecosystem_learning.py:38,scripts/ingest_international_astronomy.py:23,scripts/ingest_international_astronomy.py:34,scripts/refresh_animal_groups.py:57,scripts/refresh_workspace_knowledge.py:44,scripts/refresh_workspace_knowledge.py:56,scripts/retain_space_visual_lesson.py:14,scripts/run_educational_reviews.py:42,software/backend/chat_length_control.py:31,software/backend/fleet_gpu_view.py:3,software/backend/learning_evidence.py:42,software/backend/music_singing.py:26,software/backend/peer_capability_upgrade.py:51,software/backend/peer_capability_upgrade.py:54,software/backend/process_inventory.py:11,software/backend/process_inventory.py:12,software/backend/process_inventory.py:15,software/backend/ring_integration.py:17,software/backend/ring_integration.py:41,software/backend/ring_integration.py:43,software/backend/tests/test_alpha_peer_review_tool.py:14,software/backend/tests/test_alpha_peer_trust_tool.py:15,software/backend/tests/test_alpha_peer_trust_tool.py:16,software/backend/tests/test_alpha_peer_trust_tool.py:98,software/backend/tests/test_alpha_self_upgrade_evidence.py:22,software/backend/tests/test_alpha_self_upgrade_handoff.py:11,software/backend/tests/test_alpha_self_upgrade_handoff.py:12,software/backend/tests/test_alpha_taildrop_handoff.py:34,software/backend/tests/test_alpha_taildrop_handoff.py:35,software/backend/tests/test_alpha_taildrop_retry_steward.py:33,software/backend/tests/test_alpha_taildrop_retry_steward.py:34,software/backend/tests/test_autonomy_mission_admission.py:148,software/backend/tests/test_autonomy_readiness_evidence_checks.py:194,software/backend/tests/test_blocked_prerequisite_findings.py:36,software/backend/tests/test_fleet_prerequisites.py:58,software/backend/tests/test_fleet_prerequisites.py:66,software/backend/tests/test_fleet_update_control.py:15,software/backend/tests/test_fleet_update_control.py:19,software/backend/tests/test_planet_build_handoff.py:37,software/backend/tests/test_sensitive_data_gate.py:67,software/backend/tests/test_sensitive_data_gate.py:71,software/backend/tests/test_sensitive_data_gate.py:75,software/backend/tests/test_sensitive_data_gate.py:87,software/backend/tests/test_sensitive_data_gate.py:88,software/backend/tests/test_sensitive_data_gate.py:95,software/backend/tests/test_sensitive_data_gate.py:96,software/backend/tests/test_sensitive_data_gate.py:104,software/frontend/src/avatarPresentationSelection.js:1,software/frontend/src/bodyChatFocus.js:2,software/frontend/src/brainOverviewHierarchy.test.js:92,software/frontend/src/chatCommandUnderstanding.js:8,software/frontend/src/chatComposerControls.test.js:111,software/frontend/src/components/BrainNeuralModel.jsx:60,software/frontend/src/components/EducationalMissionPanel.jsx:6,software/frontend/src/components/MusicQuickStart.jsx:47,software/frontend/src/components/MusicSingingPanel.jsx:8,software/frontend/src/components/MusicSingingPanel.jsx:9,software/frontend/src/config/deckRecommendationActions.js:3,software/frontend/src/educationalLearning.js:7,software/frontend/src/educationalLearning.js:8,software/frontend/src/gmailConnectionAlert.js:6,software/frontend/src/softwareTaskFocus.js:22,software/frontend/src/solarSystemLearning.js:1,software/frontend/src/startupGreetings.js:50,software/frontend/src/theme/matrixSound.js:19
-```
-
-## 20261007-47-enable-music  enable-music  ->  0   (2026-10-07T02:14:03, 92s)
-```
-ok: C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
-python: C:\AlphaData\creators-venv\Scripts\python.exe
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-ok: torch and transformers import (2.14.1+cpu 5.19.0 cpu)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-model cache for the agent: C:\Users\Vyo\.cache\huggingface
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file, agent-manager-status
-ok: restarted the alpha-agent service
-the agent now offers alpha.music
-music bridge machines: host,worker1
-ok: music bridge answers on 127.0.0.1:8790 (task 'alpha-music bridge', starts at logon)
-done: this machine makes music for the Music Creator
 ```
 
