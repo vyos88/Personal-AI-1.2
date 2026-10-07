@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261007-022845
+﻿# laptop41 autopilot 20261007-023845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 34d6963 is current
+checkout d7a0d8c is current
+
+## auto-live-sync-20261007-023845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T02:39:03, 7s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 7e76aeb of claude/frie...(30)
+CAPTURED: 1 changed and 43 new source file(s) from DESKTOP-41HPLCN, pushed as 7e76aeb on claude/frie...(30)
+    69 credential-looking line(s) cleared by the owner's list go with this capture
+```
 
 ## auto-live-sync-20261007-022845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T02:29:02, 23s)
 ```
@@ -571,16 +579,6 @@ music machines: host, worker1
 PROBLEM: track 1 on host: timed out while leased (721s)
 music: 0/1 worked; by machine: none
 (node:5792) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-37-image-gpu-check  live-test  ->  0   (2026-10-06T22:14:03, 17s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-image machines: alpha-tunnel (host, worker1)
-ok: image 1 made by host (comfyui) in 16s, 87021 bytes, PNG
-image: 1/1 worked; by machine: host x1
-(node:940) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
 (Use `node --trace-warnings ...` to show where the warning was created)
 ```
 
