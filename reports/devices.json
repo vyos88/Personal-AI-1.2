@@ -1,5 +1,5 @@
 {
-    "at":  "2026-10-07T23:11:24.8804566+01:00",
+    "at":  "2026-10-07T23:26:18.9888555+01:00",
     "host":  "DESKTOP-41HPLCN",
     "usb":  [
                 {
@@ -8,13 +8,6 @@
                     "instance":  "5\u0026228C54A3\u00260\u00264",
                     "deviceId":  "USB\\VID_1A86\u0026PID_7523\\5\u0026228C54A3\u00260\u00264",
                     "name":  "USB-SERIAL CH340 (COM24)"
-                },
-                {
-                    "port":  "COM20",
-                    "vidPid":  "1a86:7523",
-                    "instance":  "6\u002624DCC5C9\u00260\u00261",
-                    "deviceId":  "USB\\VID_1A86\u0026PID_7523\\6\u002624DCC5C9\u00260\u00261",
-                    "name":  "USB-SERIAL CH340 (COM20)"
                 },
                 {
                     "port":  "COM7",
@@ -54,7 +47,7 @@
                 {
                     "ip":  "192.168.2.97",
                     "mac":  "dc:b4:d9:01:3c:38",
-                    "state":  "Stale"
+                    "state":  "Reachable"
                 }
             ]
 }
