@@ -1,3 +1,11 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 04:23 UTC
+
+- Alpha has been LIVE on every 5-minute page since 03:39 local (backend, site and alpha-ai.uk 200; self-heal running, no repairs). One blip at 04:18 local was the planned restart after delivery.
+- The rollback copy of the site has not been saved since 02:30 UTC: Windows keeps refusing the rename of dist.last-good.tmp (EPERM), even with #183's retries. Tunnel #184 (merged) copies it into place instead, index.html last, so a copy cut short counts as none; dist is only read. Worker1 picks it up on its next self-update. The note on the live page should go after the next snapshot.
+- New since 04:04 UTC: the CrowPanel display stopped reading the feed (decks "2 stale"). That fits the Wi-Fi move in the 03:57 report: Worker1 is now on 192.168.1.x and the panel was last on 192.168.2.x. Nothing re-provisioned; that waits for V.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-07 03:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 03:56 UTC). Chat answered in 5.7 s with 0 s load. RAM 3.2 of 15.8 GB free, C: 17.0 GB free. Relay works; cloudSeen = db2e172 (the 02:57 report).
