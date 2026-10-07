@@ -48,3 +48,9 @@ test('no autonomy on is said plainly, and a missing file is a failure', () => {
   assert.equal(missing.status, 1);
   assert.match(missing.stdout, /PROBLEM: no settings file/);
 });
+
+test('it ends by setting exitCode, never process.exit, so Windows does not crash on a closing socket', () => {
+  const source = readFileSync(SCRIPT, 'utf8');
+  assert.doesNotMatch(source, /process\.exit\(/);
+  assert.match(source, /process\.exitCode = code/);
+});

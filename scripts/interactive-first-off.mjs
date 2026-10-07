@@ -110,8 +110,11 @@ async function main(argv) {
 
 const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
-  main(process.argv.slice(2)).then((code) => process.exit(code), (error) => {
+  // exitCode rather than exiting at once: on Windows, exiting while the last /health
+  // fetch's socket is still closing trips a libuv assertion (UV_HANDLE_CLOSING)
+  // and the job ends 0xC0000409 although it worked (Worker1, 2026-10-07).
+  main(process.argv.slice(2)).then((code) => { process.exitCode = code; }, (error) => {
     process.stderr.write(`interactive-first-off: ${error.stack ?? error.message}\n`);
-    process.exit(1);
+    process.exitCode = 1;
   });
 }
