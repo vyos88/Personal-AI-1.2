@@ -334,6 +334,7 @@
     },
     "deckLiveness": {
       "everyMin": 15
-    }
+    },
+    "heartbeat": true
   }
 }
