@@ -1,8 +1,79 @@
-﻿# laptop41 autopilot 20261007-220845
+﻿# laptop41 autopilot 20261007-221349
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout e54805d is current
+checkout a1baa39 is current
+
+## 20261007-66-songs-check  songs-check  ->  1   (2026-10-07T22:14:05, 2s)
+```
+ 42. 2026-09-20  165s Hai la joc, ca suna saxul                        wav 60.4 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 43. 2026-09-20  240s We're gonna rise, we're gonna shift              wav 87.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 44. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 45. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made) [hidden]
+ 46. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 47. 2026-09-20     - Suna seara, vin de sarbatori                     wav none      mp3 none      cannot play: failed
+ 48. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 49. 2026-09-20  165s Acasa nu se uita                                 wav 60.4 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 50. 2026-09-20  170s Tu e?ti capatul lor                              wav 62.3 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 51. 2026-09-20  165s Mai am o curba ?i-am ajuns                       wav 60.4 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 52. 2026-09-20  180s Dunare, pe malul tau                             wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 53. 2026-09-20  165s Mai am o curba ?i-am ajuns                       wav 60.4 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 54. 2026-09-20  180s Pas cu pas                                       wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 55. 2026-09-20  180s La aceea?i fereastra                             wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 56. 2026-09-20  180s Mai ramƒi pƒna la ziua                           wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 57. 2026-09-20  180s Tu ?i eu                                         wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 58. 2026-09-20  165s Inca o data                                      wav 60.4 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 59. 2026-09-20  180s Mai departe, Vio                                 wav 65.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 60. 2026-09-21  180s drum and bass rollers                            wav 65.9 MB   mp3 4.1 MB    plays (MP3)
+ 61. 2026-09-21  240s meneaito                                         wav 87.9 MB   mp3 none      plays (WAV only: MP3 still to be made)
+ 62. 2026-09-21  240s meneaito                                         wav 87.9 MB   mp3 5.5 MB    plays (MP3)
+ 63. 2026-09-22  165s La Calara?i au dat haiducii                      wav 60.4 MB   mp3 3.8 MB    plays (MP3)
+ 64. 2026-09-22  235s La Calara?i au dat haiducii                      wav 86.1 MB   mp3 none      plays (WAV only: MP3 still to be made) [hidden]
+ 65. 2026-09-22     - Proba una, proba doua                            wav none      mp3 none      cannot play: failed
+ 66. 2026-09-23     - Romani in strainatate                            wav none      mp3 none      cannot play: failed
+ 67. 2026-09-23  180s Romani in strainatate                            wav 65.9 MB   mp3 4.1 MB    plays (MP3)
+ 68. 2026-09-23  150s Sƒrba de la rƒu                                  wav 54.9 MB   mp3 5.7 MB    plays (MP3)
+ 69. 2026-09-23  165s Muro Drom                                        wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 70. 2026-09-25     - Romani in strainatate                            wav none      mp3 none      cannot play: generating
+ 71. 2026-10-03   47s Dor de Acasa                                     wav 8.0 MB    mp3 1.8 MB    plays (MP3)
+ 72. 2026-10-03   56s Dor de Acasa - Cƒntat                            wav 9.4 MB    mp3 1.3 MB    plays (MP3)
+ 73. 2026-10-03   44s Acasa Vine cu Mine - House Rap                   wav 8.1 MB    mp3 1.0 MB    plays (MP3)
+ 74. 2026-10-03   48s Came From the Cold                               wav 8.7 MB    mp3 1.1 MB    plays (MP3)
+ 75. 2026-10-03   49s Joaca Hora                                       wav 9.0 MB    mp3 1.1 MB    plays (MP3)
+ 76. 2026-10-03   32s Sub Neonul de la Scara                           wav 5.8 MB    mp3 0.7 MB    plays (MP3)
+ 77. 2026-10-04   31s Spare Key                                        wav 5.7 MB    mp3 1.2 MB    plays (MP3)
+ 78. 2026-10-04   40s Afterhours Glow - House 40s                      wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 79. 2026-10-04   40s Velvet Current - Deep house 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 80. 2026-10-04   39s Concrete Pulse - Techno 40s                      wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 81. 2026-10-04   40s Side Street Signal - Tech house 40s              wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 82. 2026-10-04   39s Mirrorball Morning - Disco 40s                   wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 83. 2026-10-04   39s Neon Satin - Nu disco 40s                        wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 84. 2026-10-04   39s Last Train Swing - UK garage 40s                 wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 85. 2026-10-04   39s Low End Call - Bassline 40s                      wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 86. 2026-10-04   39s Rainforest Radio - Jungle 40s                    wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 87. 2026-10-04   40s Night Runner - Drum and bass 40s                 wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 88. 2026-10-04   39s Out of My Head                                   wav 7.1 MB    mp3 1.5 MB    plays (MP3)
+ 89. 2026-10-04   39s Gold Sparks - EDM trap 40s                       wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 90. 2026-10-04   39s Gravity Room - Dubstep 40s                       wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 91. 2026-10-04   40s Chrome Motion - Electro 40s                      wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 92. 2026-10-04   40s Broken Lines - Breakbeat 40s                     wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 93. 2026-10-04   39s Fractal Dawn - Psytrance 40s                     wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 94. 2026-10-04   40s Open Horizon - Trance 40s                        wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 95. 2026-10-04   40s Overdrive Hearts - Hardcore 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 96. 2026-10-04   40s Steel Sunrise - Hardstyle 40s                    wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 97. 2026-10-05   40s Soft Street Dawn - Amapiano 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 98. 2026-10-05   40s Everywhere Tonight - Eurodance 40s               wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+TOTAL: 98 song(s): 87 can play, 34 of them as MP3, 53 still WAV only; 0 finished but WAV missing; 11 not finished or failed; 0 unreadable
+PROBLEM: no ffmpeg for this account (ALPHA_FFMPEG_PATH or PATH): the MP3s cannot be made until it is installed
+backend MP3 backfill: no summary yet (the backend has not run Alpha cedec9d or later yet)
+```
+
+## auto-live-sync-20261007-221349  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:14:07, 5s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+WAITING: cedec9d was tried here and refused; the next commit on claude/frie...(30) is tried when it comes
+SKIPPED: nothing is captured while this machine is not on cedec9d
+```
 
 ## auto-live-sync-20261007-220845  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:09:05, 11s)
 ```
@@ -367,31 +438,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
 OK: the deck's source draws the links the backend sends and checks them (Region links)
 OK: the site serves the fixed deck (Brai...(25).js)
-```
-
-## auto-live-sync-20261007-171846  live-sync (standing)  ->  0 (in sync)   (2026-10-07T17:19:18, 9s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs cbd4b34 of claude/frie...(30)
-CAPTURED: nothing; every source file here matches cbd4b34
-```
-
-## auto-deck-liveness-20261007-171846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T17:19:27, 15s)
-```
-DECKS: 4 live, 1 stale, 1 setting, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 79 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 2 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 3 s old, fresh for 90 s
-DECK SETTING: CrowPanel feed (/panel/crowpanel/state) -> the assistant loop is not started (interactive-first mode on, or lightweight autonomy off), so the feed cannot go live  [decks: CrowPanel]
-    assistant heartbeat none s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
