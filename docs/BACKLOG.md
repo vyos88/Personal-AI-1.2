@@ -142,7 +142,7 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 | ID | Item | Done when |
 |---|---|---|
 | L1 | Song length (chat 3:00 by default, up to 4:00; worker decode cap 260 s; singing panel 2:30/3:00/3:30): redone as bea4f3d on Worker1's real files after the first try was refused. **Check only:** IN SYNC on bea4f3d, then a 3:00 chat song lands in the playlist | the song is in the playlist |
-| F1 | **Fleet recipe, then stop what is not needed** (`HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md`): read `fleet-inventory` on both laptops, stop duplicates and replaced tasks by its rules; Alpha's own agents through its Agent Manager only | `DUPLICATES: none` on both laptops, each stop written down |
+| F1 | **Fleet recipe, then stop what is not needed**: inventories done (h13, 50); stop list in section 5 of the handoff: Worker1's leftover `vite preview` tree (Claude · Worker1), start `auto-improve` and `assistant-loop` (Alpha). Was: (`HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md`): read `fleet-inventory` on both laptops, stop duplicates and replaced tasks by its rules; Alpha's own agents through its Agent Manager only | `DUPLICATES: none` on both laptops, each stop written down |
 | L2 | Live sync: on REFUSED, name the file and the hunk that did not fit | a refusal in `status/laptop41-autopilot` names the file and line |
 | L3 | Standing check that the live branch builds from git (missing imports or `vite build` in a scratch clone), reported in the autopilot report | it reports 0 missing |
 | L4 | Decide whether code files skip the capture's name rule (9 test and script files named like secrets exist only on Worker1) | they are in git, or the decision is in `LIVE_SYNC.md` |
