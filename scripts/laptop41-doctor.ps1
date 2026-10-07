@@ -178,6 +178,34 @@ function EnvSetting([string]$name) {
 # backend listens on an address the panel can reach, that address is a
 # trusted host, a device actually calls in, and the feed is fresh. Each of
 # those has kept the panel dark once.
+# Every board and home-network device this machine can see, by the identifier
+# that outlives a replug or a new DHCP lease: a USB board by its VID:PID and
+# instance id (COM numbers move on re-enumeration), a Wi-Fi device by its MAC
+# (its IP moves with the lease). Alpha's topology names devices from these
+# lines (frontend/src/config/fleetNames.js). Read-only: the neighbour table is
+# what Windows already holds; nothing is probed or sent.
+function Devices-ByAddress {
+  Note '--- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)'
+  foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) {
+    $com = [regex]::Match([string]$d.Name, '\((COM\d+)\)').Groups[1].Value
+    $vp = [regex]::Match([string]$d.DeviceID, 'VID_([0-9A-F]{4})&PID_([0-9A-F]{4})', 'IgnoreCase')
+    $vidpid = if ($vp.Success) { "$($vp.Groups[1].Value):$($vp.Groups[2].Value)".ToLower() } else { '-' }
+    $inst = ([string]$d.DeviceID).Split('\')[-1]
+    Note ("usb  {0,-6} {1,-10} {2,-28} {3}" -f $com, $vidpid, $inst, $d.Name)
+  }
+  foreach ($a in @(Get-NetAdapter -Physical -EA SilentlyContinue | Where-Object Status -eq 'Up')) {
+    $ip = (Get-NetIPAddress -InterfaceIndex $a.ifIndex -AddressFamily IPv4 -EA SilentlyContinue | Select-Object -First 1).IPAddress
+    Note ("self {0,-15} {1}  {2}" -f $ip, ($a.MacAddress -replace '-', ':').ToLower(), $a.Name)
+  }
+  $seen = @(Get-NetNeighbor -AddressFamily IPv4 -EA SilentlyContinue | Where-Object {
+      $_.IPAddress -match '^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)' -and
+      $_.State -in 'Reachable', 'Stale', 'Delay', 'Probe', 'Permanent' -and
+      $_.LinkLayerAddress -and $_.LinkLayerAddress -notmatch '^(00-00-00-00-00-00|FF-FF-FF-FF-FF-FF)$' -and
+      $_.IPAddress -notmatch '\.255$' } | Sort-Object { [version]$_.IPAddress })
+  foreach ($n in $seen) { Note ("lan  {0,-15} {1}  {2}" -f $n.IPAddress, ($n.LinkLayerAddress -replace '-', ':').ToLower(), $n.State) }
+  if (-not $seen.Count) { Note 'lan  (no home-network neighbours in the table yet)' }
+}
+
 function Check-DeckFeed {
   Note "--- Alpha's deck feed (/panel/crowpanel/public-state)"
   $lan = EnvSetting 'ALPHA_PANEL_LAN_READ'
@@ -678,6 +706,7 @@ function Run-Checks {
   Push-Location $repo
   try { Indent ((& node scripts\panel-up.mjs --list-ports 2>&1 | Plain | Out-String)) } finally { Pop-Location }
   foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) { Note "device: $($d.Name)" }
+  Devices-ByAddress
   Note "the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds"
   Check-DeckFeed
 
