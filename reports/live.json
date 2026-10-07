@@ -1,14 +1,14 @@
 ﻿{
-    "at":  "2026-10-07T22:32:45.6116298+01:00",
+    "at":  "2026-10-07T22:34:17.4958819+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "DOWN",
-                  "detail":  "backend 0, site 200, alpha-ai.uk 200; not answering: backend",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "verdict":  "LIVE",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  1,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
@@ -23,5 +23,5 @@
                                ],
                   "checked_at":  "2026-10-07T21:32:29.479700+00:00"
               },
-    "sync":  "DELIVERED: cbd4b34..cedec9d of claude/frie...(30)"
+    "sync":  "IN SYNC: this machine runs cedec9d of claude/frie...(30)"
 }
