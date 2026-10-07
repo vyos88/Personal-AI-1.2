@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-062845
+﻿# laptop41 autopilot 20261007-080845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 8e085c0 is current
+
+## auto-deck-liveness-20261007-080845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T08:09:10, 8s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 29 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 12 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 1 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 126 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 770 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-062845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T06:29:26, 13s)
 ```
@@ -425,27 +445,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-live-sync-20261007-031345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T03:14:05, 14s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: 386c753..98fcb55 of claude/frie...(30) (last applied here: 386c753)
-      applies  M backend/chat_music_generation.py
-      applies  M backend/phone_module.py
-      applies  A backend/tests/test_alpha_deck_liveness.py
-      applies  M backend/tests/test_chat_music_generation.py
-      applies  M backend/tests/test_phone_module_startup.py
-      conflict M frontend/src/components/CoordinationTunnelPanel.jsx  -- error: patch failed: frontend/src/components/CoordinationTunnelPanel.jsx:1
-      conflict M frontend/src/components/MusicSingingPanel.jsx  -- error: patch failed: frontend/src/components/MusicSingingPanel.jsx:14
-      conflict M frontend/src/liveCoordinationLabels.js  -- error: patch failed: frontend/src/liveCoordinationLabels.js:7
-      conflict M frontend/src/liveCoordinationLabels.test.js  -- error: patch failed: frontend/src/liveCoordinationLabels.test.js:2
-      applies  A scripts/alpha_deck_liveness.py
-      applies  M scripts/alpha_public_song_worker.py
-    REFUSED: 4 file(s) here differ where the change was made. Nothing was written.
-      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
-REFUSED: 98fcb55: a file here differs where the change was made, and nothing was written
-SKIPPED: nothing is captured while this machine is not on 98fcb55
 ```
 
