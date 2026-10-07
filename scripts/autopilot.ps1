@@ -33,6 +33,7 @@
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
     panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
+    interactive-first-off interactive-first-off.mjs: ALPHA_INTERACTIVE_FIRST_MODE=false in Alpha's .env.local, restart the backend  (takes no arguments)
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
@@ -225,6 +226,15 @@ function Resolve-Action($a) {
       $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
       $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'fix-panel-host.mjs'), '--env', $envLocal, '--require-host') }
       $out.timeoutMin = 4
+    }
+    # The owner's yes of 2026-10-07: interactive-first off, so the assistant
+    # loop runs and the CrowPanel feed can go live. One owner setting, to one
+    # value, in the file run_server.py reads (beside -AlphaRoot); nothing from
+    # the action reaches it.
+    'interactive-first-off' {
+      $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
+      $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'interactive-first-off.mjs'), '--env', $envLocal) }
+      $out.timeoutMin = 5
     }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     # The one stop fleet-inventory's DUPLICATES asks for on Worker1 (HANDOFF
