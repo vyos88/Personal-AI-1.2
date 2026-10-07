@@ -48,11 +48,12 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'g3', do: 'brain-topology', fix: true, branch: '../x' },
     { id: 'g4', do: 'brain-topology', fix: true },
     { id: 'h1', do: 'restart-site' },
+    { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -331,4 +332,74 @@ test('down bridges are restarted before queued actions, and do not hold back the
   for (const log of ['alpha-music-bridge.log', 'alpha-image-bridge.log']) assert.ok(text.includes(`log = '${log}'`), log);
   assert.match(text, /Get-ScheduledTaskInfo -TaskName \$b\.task/);
   assert.match(text, /-replace '\(alpha_key_\|sk-\|ghp_\|github_pat_\)\\S\+', '\$1\*\*\*'/, 'keys in a log line are masked');
+});
+
+test('panel-endpoint takes nothing from the action, and reads the deck STATUS line', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'p1', do: 'panel-endpoint', url: 'http://evil:1', port: 'COM9' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.ok(p.args.some((a) => a.endsWith('panel-endpoint.ps1')));
+  assert.ok(!p.args.join(' ').includes('evil') && !p.args.join(' ').includes('COM9'), 'nothing from the action reaches the script');
+
+  const panel = join(import.meta.dirname, '..', 'scripts', 'panel-endpoint.ps1');
+  const line = '[crowpanel] fw=1.4 wifi_ssid=Starlink wifi_set=yes alpha_base=http://192.168.1.250:8001 alpha_set=no touch=ok events=3 alive=false';
+  const parsed = JSON.parse(pwsh([panel, '-ParseStatus', line]).stdout);
+  assert.equal(parsed.alpha_base, 'http://192.168.1.250:8001');
+  assert.equal(parsed.wifi_set, 'yes');
+  assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
+});
+
+test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  // A stand-in for live-sync.mjs: says what it was asked, then a state that
+  // changes once (delivered) and then holds (in sync).
+  writeFileSync(join(work, 'scripts', 'live-sync.mjs'), [
+    "import { existsSync, writeFileSync } from 'node:fs';",
+    "import { join } from 'node:path';",
+    "const a = process.argv.slice(2); const ops = a[a.indexOf('--ops') + 1];",
+    "const paths = new Set(['--alpha-root', '--ops'].map((o) => a[a.indexOf(o) + 1]));",
+    "console.log('args: ' + a.filter((x) => !paths.has(x)).join(' '));",
+    "const seen = join(ops, 'sync-seen');",
+    "if (existsSync(seen)) console.log('IN SYNC: this machine runs abc1234 of claude/x-route-b');",
+    "else { writeFileSync(seen, '1'); console.log('    token=abcd1234efgh5678ijkl9012mnop'); console.log('DELIVERED: 0000000..abc1234 of claude/x-route-b'); }",
+  ].join('\n'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'actions.json'), JSON.stringify({ actions: [], autofix: { liveSync: { branch: 'claude/x-route-b', capture: true } } }));
+  git(work, 'add', 'actions.json');
+  git(work, 'commit', '-qm', 'queue');
+  git(work, 'push', '-q', 'origin', 'control/laptop41');
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+
+  const sw = join(dir, 'software');
+  mkdirSync(sw);
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /live sync: 0 \(in sync\)/);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /auto-live-sync-\S+ {2}live-sync \(standing\) {2}-> {2}0 \(in sync\)/);
+  assert.match(report, /args: --alpha-root --ops --branch claude\/x-route-b --machine DESKTOP-41HPLCN --capture/);
+  assert.match(report, /DELIVERED: 0000000\.\.abc1234/);
+  assert.doesNotMatch(report, /abcd1234efgh/, 'the report is redacted');
+  // A new state is reported once, then nothing more to say.
+  assert.match(pwsh(args, env).stdout, /live sync: 0 \(in sync\)/);
+  assert.match(pwsh(args, env).stdout, /nothing new to run/);
 });

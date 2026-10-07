@@ -201,16 +201,29 @@ export function newFilesPatch({ cache, to, subdir, paths }) {
     ...paths.map((p) => `${subdir}/${p}`)], { cwd: cache }).stdout;
 }
 
-function readLive(file) {
+// Any run of CRs before a newline is one line end. `\r\r\n` is what this file
+// used to write; reading it as one line end lets the next update heal it.
+const toLf = (text) => text.replace(/\r+\n/g, '\n');
+
+export function readLive(file) {
   const raw = readFileSync(file);
   const bom = raw.length >= 3 && raw[0] === 0xef && raw[1] === 0xbb && raw[2] === 0xbf;
   const text = raw.subarray(bom ? 3 : 0).toString('utf8');
-  return { bom, crlf: text.includes('\r\n'), text: text.replace(/\r\n/g, '\n') };
+  return { bom, crlf: text.includes('\r\n'), text: toLf(text) };
 }
 
-function writeLive(file, text, { bom = false, crlf = false } = {}) {
+/**
+ * Writes `text` with the file's own line endings, whatever endings `text`
+ * arrives with. It used to trust that the text was LF, and the patched files
+ * are not: on Windows `git apply` writes CRLF into the scratch tree. So an LF
+ * file came back CRLF, and a CRLF file came back CR-CR-LF, which breaks every
+ * PowerShell backtick continuation (Worker1's alpha_agent_manager.ps1, written
+ * 2026-10-06 11:48: "The term '-ReceiptStatus' is not recognized").
+ */
+export function writeLive(file, text, { bom = false, crlf = false } = {}) {
   mkdirSync(dirname(file), { recursive: true });
-  const body = Buffer.from(crlf ? text.replace(/\n/g, '\r\n') : text, 'utf8');
+  const lf = toLf(text);
+  const body = Buffer.from(crlf ? lf.replace(/\n/g, '\r\n') : lf, 'utf8');
   writeFileSync(file, bom ? Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), body]) : body);
 }
 
@@ -480,7 +493,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   // Each branch keeps its own record. A side branch (a host's live code plus
   // fixes) must never move alpha-full's: the next alpha-full update would then
   // start from the side branch and undo everything only this host has.
-  const statePath = join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
+  const statePath = appliedStatePath(ops, branch);
   const recorded = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
   if (branch !== DEFAULTS.branch && !opts.from && !recorded) {
     log(`STOP: the first update from ${branch} needs --from <the commit this machine matches>; alpha-full's starting point would undo what only this machine has.`);
@@ -661,7 +674,12 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   }
 }
 
-function writeState(statePath, to, scriptsTo = null) {
+/** Where the commit last applied here from `branch` is recorded. live-sync.mjs reads the same file. */
+export function appliedStatePath(ops, branch = DEFAULTS.branch) {
+  return join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
+}
+
+export function writeState(statePath, to, scriptsTo = null) {
   mkdirSync(dirname(statePath), { recursive: true });
   writeFileSync(statePath, JSON.stringify({ to, scripts_to: scriptsTo, at: new Date().toISOString() }, null, 2));
 }

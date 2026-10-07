@@ -1,0 +1,210 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { capturableTracked, main } from '../scripts/live-sync.mjs';
+
+const BASE = 'BuildArtifacts/installers/Alpha-Full';
+const SUB = `${BASE}/software`;
+const PY = (() => {
+  for (const name of ['python3', 'python']) {
+    try { execFileSync(name, ['--version']); return name; } catch { /* next */ }
+  }
+  return null;
+})();
+const skip = !PY && 'no python';
+
+const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'core.autocrlf=false', ...args], { cwd, encoding: 'utf8' });
+
+function write(root, rel, text) {
+  mkdirSync(join(root, rel, '..'), { recursive: true });
+  writeFileSync(join(root, rel), text);
+}
+
+const MAIN = ['import os', '', 'def login():', '    return "old"', '', '', 'def other():', '    return 1', ''].join('\n');
+const STEWARD = ['# steward', '$every = 30', ''].join('\n');
+
+/**
+ * A stand-in for vyos88/Alpha with a live branch, and a machine that runs
+ * exactly that branch's tip: the same files, and a record saying so.
+ */
+function fixture() {
+  const dir = mkdtempSync(join(tmpdir(), 'live-sync-'));
+  const work = join(dir, 'work');
+  mkdirSync(work);
+  git(work, 'init', '-q', '-b', 'live');
+  write(work, `${SUB}/backend/main.py`, MAIN);
+  write(work, `${SUB}/frontend/package.json`, '{"name":"x"}\n');
+  write(work, `${BASE}/scripts/steward.ps1`, STEWARD);
+  write(work, 'Models/notes.txt', 'outside software/ and scripts/\n');
+  git(work, 'add', '-A');
+  git(work, 'commit', '-qm', 'live base');
+  const base = git(work, 'rev-parse', 'HEAD').trim();
+  const remote = join(dir, 'alpha.git');
+  git(dir, 'clone', '-q', '--bare', work, remote);
+  git(work, 'remote', 'add', 'origin', remote);
+
+  const alpha = join(dir, 'live');
+  write(alpha, 'software/backend/main.py', MAIN);
+  write(alpha, 'software/frontend/package.json', '{"name":"x"}\n');
+  write(alpha, 'scripts/steward.ps1', STEWARD);
+  const ops = join(dir, 'ops');
+  write(ops, 'applied-live.json', JSON.stringify({ to: base, scripts_to: base }));
+  return { dir, work, remote, alpha, ops, base };
+}
+
+function commitOnLive(f, files, message = 'a fix on the live branch') {
+  git(f.work, 'fetch', '-q', 'origin', 'live');
+  git(f.work, 'reset', '-q', '--hard', 'origin/live');
+  for (const [rel, text] of Object.entries(files)) write(f.work, rel, text);
+  git(f.work, 'add', '-A');
+  git(f.work, 'commit', '-qm', message);
+  git(f.work, 'push', '-q', 'origin', 'HEAD:live');
+  return git(f.work, 'rev-parse', 'HEAD').trim();
+}
+
+async function run(f, ...extra) {
+  const lines = [];
+  const code = await main(['--alpha-root', f.alpha, '--branch', 'live', '--ops', f.ops, '--repo', `file://${f.remote}`,
+    '--no-restart', '--machine', 'worker1', ...(PY ? ['--python', PY] : []), ...extra], (l) => lines.push(String(l)));
+  return { code, out: lines.join('\n') };
+}
+
+const remoteTip = (f) => git(f.remote, 'rev-parse', 'live').trim();
+const recorded = (f) => JSON.parse(readFileSync(join(f.ops, 'applied-live.json'), 'utf8'));
+
+test('a new commit on the live branch is delivered once, and then it is in sync', { skip }, async () => {
+  const f = fixture();
+  const tip = commitOnLive(f, { [`${SUB}/backend/main.py`]: MAIN.replace('"old"', '"new"') });
+
+  const first = await run(f);
+  assert.equal(first.code, 0, first.out);
+  assert.match(first.out, new RegExp(`DELIVERED: ${f.base.slice(0, 7)}\\.\\.${tip.slice(0, 7)} of live`));
+  assert.match(readFileSync(join(f.alpha, 'software/backend/main.py'), 'utf8'), /return "new"/);
+  assert.equal(recorded(f).to, tip);
+
+  const second = await run(f);
+  assert.equal(second.code, 0);
+  assert.match(second.out, new RegExp(`IN SYNC: this machine runs ${tip.slice(0, 7)} of live`));
+  assert.doesNotMatch(second.out, /changes:/, 'nothing was applied again');
+});
+
+test('a refused delivery is not retried until the branch moves', { skip }, async () => {
+  const f = fixture();
+  write(f.alpha, 'software/backend/main.py', MAIN.replace('"old"', '"edited on this machine"'));
+  const tip = commitOnLive(f, { [`${SUB}/backend/main.py`]: MAIN.replace('"old"', '"new"') });
+
+  const first = await run(f);
+  assert.equal(first.code, 2, first.out);
+  assert.match(first.out, new RegExp(`REFUSED: ${tip.slice(0, 7)}`));
+  assert.match(first.out, /conflict +M backend\/main\.py/, "apply-alpha-update's own words are shown");
+
+  const second = await run(f);
+  assert.equal(second.code, 2);
+  assert.match(second.out, new RegExp(`WAITING: ${tip.slice(0, 7)} was tried here and refused`));
+  assert.doesNotMatch(second.out, /changes:/, 'the same tip is not tried twice');
+
+  const next = commitOnLive(f, { [`${SUB}/frontend/README.md`]: 'more\n' }, 'another commit');
+  const third = await run(f, '--skip-build');
+  assert.match(third.out, new RegExp(`REFUSED: ${next.slice(0, 7)}`), 'a new tip is tried');
+  assert.equal(recorded(f).to, f.base);
+});
+
+test('capture pushes what this machine runs, fast-forward, in the repository\'s shape, and holds back credential-looking files', { skip }, async () => {
+  const f = fixture();
+  // Worker1 writes CRLF and a BOM; the branch keeps LF and no BOM.
+  const edited = MAIN.replace('return 1', 'return 2  # fixed on this machine');
+  write(f.alpha, 'software/backend/main.py', `﻿${edited.replace(/\n/g, '\r\n')}`);
+  write(f.alpha, 'software/backend/gpu_work.py', 'def gpus():\n    return []\n');
+  write(f.alpha, 'software/backend/provider_keys.py', 'openai_api_key = "abcdefghijklmnop1234567890"\n');
+  write(f.alpha, 'software/backend/data/cache.py', 'x = 1\n');
+  write(f.alpha, 'software/frontend/dist/app.js', 'built()\n');
+  write(f.alpha, 'software/backend/notes.txt', 'not source\n');
+
+  const first = await run(f, '--capture');
+  assert.equal(first.code, 2, first.out);
+  assert.match(first.out, /CAPTURED: 1 changed and 1 new source file\(s\) from worker1, pushed as \w{7} on live/);
+  assert.match(first.out, /HELD BACK: 1 file\(s\) with credential-looking lines, not pushed: software\/backend\/provider_keys\.py/);
+  assert.match(first.out, /provider_keys\.py:1 {2}credential-looking assignment/);
+  assert.doesNotMatch(first.out, /abcdefghijklmnop1234567890/, 'a value is never printed whole');
+
+  const tip = remoteTip(f);
+  assert.equal(git(f.remote, 'rev-parse', 'live^').trim(), f.base, 'one commit on top: a fast-forward');
+  assert.equal(git(f.remote, 'log', '-1', '--format=%an', 'live').trim(), 'Alpha host');
+  assert.equal(git(f.remote, 'show', `live:${SUB}/backend/main.py`), edited, 'LF and no BOM, as the branch had it');
+  assert.equal(git(f.remote, 'show', `live:${SUB}/backend/gpu_work.py`), 'def gpus():\n    return []\n');
+  const files = git(f.remote, 'ls-tree', '-r', '--name-only', 'live');
+  for (const absent of ['backend/provider_keys.py', 'backend/data/cache.py', 'frontend/dist/app.js', 'backend/notes.txt']) {
+    assert.ok(!files.split('\n').includes(`${SUB}/${absent}`), `${absent} stays on this machine`);
+  }
+  assert.ok(files.split('\n').includes('Models/notes.txt'), 'what is outside software/ and scripts/ is untouched');
+  assert.equal(recorded(f).to, tip, 'what was pushed is recorded as applied here');
+  assert.equal(recorded(f).scripts_to, tip);
+
+  const second = await run(f, '--capture');
+  assert.match(second.out, new RegExp(`IN SYNC: this machine runs ${tip.slice(0, 7)} of live`));
+  assert.match(second.out, /HELD BACK: 1 file\(s\)/, 'the last capture is reported until the next one is due');
+  assert.equal(remoteTip(f), tip, 'nothing new was pushed');
+});
+
+test('nothing is captured while this machine is behind the branch', { skip }, async () => {
+  const f = fixture();
+  write(f.alpha, 'software/backend/main.py', MAIN.replace('"old"', '"edited on this machine"'));
+  const tip = commitOnLive(f, { [`${SUB}/backend/main.py`]: MAIN.replace('"old"', '"new"') });
+
+  const r = await run(f, '--capture');
+  assert.equal(r.code, 2);
+  assert.match(r.out, /REFUSED/);
+  assert.match(r.out, new RegExp(`SKIPPED: nothing is captured while this machine is not on ${tip.slice(0, 7)}`));
+  assert.equal(remoteTip(f), tip, 'this machine\'s older main.py never went over the fix');
+});
+
+test('scripts are captured only when they were applied up to the same tip', { skip }, async () => {
+  const f = fixture();
+  write(f.ops, 'applied-live.json', JSON.stringify({ to: f.base, scripts_to: null }));
+  write(f.alpha, 'scripts/steward.ps1', STEWARD.replace('30', '60'));
+  write(f.alpha, 'software/backend/gpu_work.py', 'def gpus():\n    return []\n');
+
+  const r = await run(f, '--capture');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SKIPPED: scripts\\ is not captured: its last update here was never/);
+  assert.match(r.out, /CAPTURED: 0 changed and 1 new/);
+  assert.equal(git(f.remote, 'show', `live:${BASE}/scripts/steward.ps1`), STEWARD, 'the scripts were left as the branch has them');
+  assert.equal(recorded(f).scripts_to, null);
+});
+
+test('a refused push is reported and never forced', { skip }, async () => {
+  const f = fixture();
+  const hook = join(f.remote, 'hooks', 'pre-receive');
+  writeFileSync(hook, '#!/bin/sh\necho "someone else pushed first" >&2\nexit 1\n');
+  chmodSync(hook, 0o755);
+  write(f.alpha, 'software/backend/gpu_work.py', 'def gpus():\n    return []\n');
+
+  const r = await run(f, '--capture');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SKIPPED: the push was refused/);
+  assert.equal(remoteTip(f), f.base);
+  assert.equal(recorded(f).to, f.base, 'nothing is recorded as applied that was not pushed');
+  assert.ok(existsSync(join(f.ops, 'live-sync-live.json')));
+});
+
+test('a branch that is not a live branch is refused', async () => {
+  const lines = [];
+  assert.equal(await main(['--alpha-root', '/nowhere', '--branch', 'alpha-full'], (l) => lines.push(l)), 1);
+  assert.equal(await main(['--alpha-root', '/nowhere', '--branch', '../../etc'], (l) => lines.push(l)), 1);
+  assert.match(lines.join('\n'), /installer's branch, not a live one/);
+  assert.match(lines.join('\n'), /plain branch name/);
+});
+
+test('only source, package and requirements files are overlaid, outside data and build folders', () => {
+  assert.equal(capturableTracked('software/backend/main.py'), true);
+  assert.equal(capturableTracked('software/frontend/package-lock.json'), true);
+  assert.equal(capturableTracked('software/backend/requirements.txt'), true);
+  assert.equal(capturableTracked('software/frontend/dist/assets/index.js'), false);
+  assert.equal(capturableTracked('software/backend/memory/state.py'), false);
+  assert.equal(capturableTracked('software/backend/settings.json'), false);
+  assert.equal(capturableTracked('software/backend/.cache/x.py'), false);
+});
