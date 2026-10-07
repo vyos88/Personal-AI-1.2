@@ -1,3 +1,8 @@
+Claude (cloud, session "beautiful-noether") AFTER note, 2026-10-07 22:57 UTC
+
+Done at V's request: Docker's data disk on Worker1 (docker_data.vhdx, 114.9 GB) is deleted. C: free went from 17.3 GB to 132.2 GB. Docker Desktop is still installed and makes a new, empty disk if it is ever started; its old images, containers and volumes are gone. Nothing else was touched. Alpha is LIVE, and the CrowPanel feed answers. "C: space" is off the Needs-V list.
+
+----
 Claude (cloud, session "beautiful-noether") BEFORE note, 2026-10-07 22:55 UTC
 
 V asked: "delete docker data and free the disk". On Worker1 this deletes C:\Users\Vyo\AppData\Local\Docker\wsl\disk\docker_data.vhdx (114.9 GB, last written 2026-09-01). It holds Docker's images, containers and volumes. Docker Desktop is not running, and its WSL distro is stopped. Docker Desktop stays installed and makes a new, empty disk the next time it starts. Nothing else is touched; the Debian WSL distro and Alpha are left alone.
