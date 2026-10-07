@@ -55,7 +55,7 @@ async function run(server, extra = []) {
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   const url = `http://127.0.0.1:${server.address().port}`;
   const out = await new Promise((resolve) => {
-    const p = spawn(process.execPath, [SCRIPT, '--music', url, '--image', url, ...extra]);
+    const p = spawn(process.execPath, [SCRIPT, '--music', url, '--image', url, '--retry-wait-s', '0', ...extra]);
     let text = '';
     p.stdout.on('data', (d) => { text += d; });
     p.stderr.on('data', (d) => { text += d; });
@@ -91,13 +91,32 @@ test('a failed scene is left out with its caption, and no track means a silent r
   const { server } = fakeBridges({ failScenes: [2], noMusic: true });
   const { code, text } = await run(server, ['--video-python', process.execPath, '--video-script', fakeRenderer(), '--out-dir', outDir, '--name', 'r']);
   assert.equal(code, 0, text);
-  assert.match(text, /PROBLEM: scene 2 attempt 2: HTTP 503 no_image_machine/);
+  assert.match(text, /PROBLEM: scene 2 attempt 4: HTTP 503 no_image_machine/);
   assert.match(text, /note: no track, so the reel is silent/);
   const args = JSON.parse(readFileSync(join(outDir, 'r.mp4.args.json'), 'utf8'));
   const captions = JSON.parse(args[args.indexOf('--captions-json') + 1]);
   assert.equal(captions.length, 5);
   assert.ok(!captions.some((c) => /Runs on your own machines/.test(c)));
   assert.ok(!args.includes('--audio'));
+});
+
+test('a scene whose machine is briefly down is tried again until it is made', { timeout: 60_000 }, async () => {
+  const outDir = mkdtempSync(join(tmpdir(), 'videos-'));
+  let calls = 0;
+  const send = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+  const { server } = fakeBridges();
+  const real = server.listeners('request')[0];
+  server.removeAllListeners('request');
+  // The first three image requests fail, as while ComfyUI was restarting.
+  server.on('request', (req, res) => {
+    if (req.url === '/sdapi/v1/txt2img' && ++calls <= 3) { req.resume(); return send(res, 504, { error: 'image_timeout' }); }
+    return real(req, res);
+  });
+  const { code, text } = await run(server, ['--video-python', process.execPath, '--video-script', fakeRenderer(), '--out-dir', outDir, '--name', 'r']);
+  assert.equal(code, 0, text);
+  assert.match(text, /PROBLEM: scene 1 attempt 3: HTTP 504 image_timeout/);
+  assert.match(text, /ok: scene 1 image made by host/);
+  assert.match(text, /from 6 scenes/);
 });
 
 test('too few scenes, or a failing renderer, is a failure with the reason', { timeout: 60_000 }, async () => {
