@@ -1,8 +1,28 @@
-﻿# host autopilot 20261007-163914
+﻿# host autopilot 20261007-164915
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 9e46623 is current
+checkout 721dafd is current
+
+## 20261007-h19-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-07T16:49:21, 184s)
+```
+PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 16:49
+  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
+1. code
+  up to date: 7ca5aa7 10-07 04:20 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
+  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
+2. backend
+  venv ready (Python 3.12.10), requirements from backend\requirements.txt
+3. site
+  built: dist\index.html
+4. chat
+  llama3.2:3b is here
+5. connector (installed only; never started here)
+  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
+RAM: 2.5 GB free of 15.8 GB
+STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
+RESULT: ready for the data copy
+```
 
 ## 20261007-h17-comfyui-back  enable-image  ->  0   (2026-10-07T16:39:19, 53s)
 ```
