@@ -47,6 +47,16 @@
       "id": "20261006-h08-enable-music",
       "do": "enable-music",
       "why": "owner asked: restart the agent onto #156 (alpha.music unloads ComfyUI's models before a track, so MusicGen has the RTX 3050's VRAM); job 40 timed out at 12 min while ComfyUI held 2.6 of 4 GB"
+    },
+    {
+      "id": "20261007-h09-music-mp3",
+      "do": "enable-music",
+      "why": "#159 rollout, owner asked the laptops to finish it unattended: reinstall requirements-music.txt (adds imageio-ffmpeg, so tracks cross the tunnel as MP3) and restart the Host agent onto #159 (express lane for slices, MP3 encoding)"
+    },
+    {
+      "id": "20261007-h10-restart-coordinator",
+      "do": "restart-coordinator",
+      "why": "#159 rollout: the owner pulled #159 on the Host but 'alpha-coordinator' still ran from 2026-10-06 01:08 (owner's Get-ScheduledTaskInfo). Restarting it serves poll-types, so agents open the express lane and playlist songs play while a laptop is making another (#167 adds this job)"
     }
   ],
   "autofix": {
