@@ -39,6 +39,7 @@
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
+    receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -264,6 +265,9 @@ function Resolve-Action($a) {
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
     'prepare-alpha-here' { $spec = Ps1 'prepare-alpha-here.ps1' @(); $out.timeoutMin = 90 }
+    # Phase 2: take what Laptop41 sent over Taildrop, check it against its
+    # manifest, put it in place. Refuses while Alpha runs here; starts nothing.
+    'receive-alpha-data' { $spec = Ps1 'receive-alpha-data.ps1' @(); $out.timeoutMin = 30 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
