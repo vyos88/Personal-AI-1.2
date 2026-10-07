@@ -1,14 +1,14 @@
 ﻿{
-    "at":  "2026-10-07T06:44:07.5027861+01:00",
+    "at":  "2026-10-07T06:49:13.9548522+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
@@ -19,7 +19,7 @@
                                    "CrowPanel feed (/panel/crowpanel/state)",
                                    "CrowPanel display (LAN reads)"
                                ],
-                  "checked_at":  "2026-10-07T05:29:30.847327+00:00"
+                  "checked_at":  "2026-10-07T05:49:09.262228+00:00"
               },
     "sync":  "IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)"
 }
