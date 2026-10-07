@@ -307,6 +307,10 @@
   "autofix": {
     "brainTopology": {
       "branch": "claude/friendly-wright-jw4ep6-route-b"
+    },
+    "liveSync": {
+      "branch": "claude/friendly-wright-jw4ep6-route-b",
+      "capture": true
     }
   }
 }
