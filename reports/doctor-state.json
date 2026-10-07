@@ -1,24 +1,19 @@
 {
     "cloudSeen":  "acd963bd3aed8d986ae602a3261f8b674f9408f0",
-    "lastRun":  "2026-10-07T10:11:34",
+    "lastRun":  "2026-10-07T10:26:31",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.":  {
-                                                                                                                                                                                                                                   "since":  "2026-10-07T10:11:34",
-                                                                                                                                                                                                                                   "runs":  1,
-                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes."
-                                                                                                                                                                                                                               },
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-07T04:56:36",
-                                                                                                                                            "runs":  22,
+                                                                                                                                            "runs":  23,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  21,
+                                                                                                                                                         "runs":  22,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T10:11:34",
+    "lastPost":  "2026-10-07T10:26:31",
     "relay":  "relayed status/cloud acd963b"
 }
