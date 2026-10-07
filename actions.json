@@ -420,6 +420,11 @@
       "id": "20261007-66-songs-check",
       "do": "songs-check",
       "why": "owner 2026-10-07: 85 songs, check all and make them all MP3; first look (before or after Alpha cedec9d's MP3 backfill)"
+    },
+    {
+      "id": "20261007-66-panel-identify",
+      "do": "panel-identify",
+      "why": "owner confirmed the panel is on COM4; cp3-panel-endpoint had COM7 sending nothing at all. This asks each of the five bridges which board it is (panel / alpha-deck / other / silent / unreadable) so the next step is the right one. Read-only, one status query per port, no arguments."
     }
   ],
   "autofix": {
