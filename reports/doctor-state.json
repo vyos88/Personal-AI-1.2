@@ -1,14 +1,14 @@
 {
-    "cloudSeen":  "fe44e4cbdbc6e874c42f1755aa21836c937d4a1e",
-    "lastRun":  "2026-10-07T02:11:25",
+    "cloudSeen":  "8049ad738133415a546c08ed4e972abe068dd790",
+    "lastRun":  "2026-10-07T02:26:25",
     "handoffSeen":  "ede5d0036e3ea63ece1c8aa0770752b8675e695a",
     "open":  {
-                 "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.":  {
-                                                                                                                                                                                                                                   "since":  "2026-10-07T02:11:25",
-                                                                                                                                                                                                                                   "runs":  1,
-                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes."
-                                                                                                                                                                                                                               }
+                 "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.":  {
+                                                                                                                                                                                                                                                   "since":  "2026-10-07T02:26:25",
+                                                                                                                                                                                                                                                   "runs":  1,
+                                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled."
+                                                                                                                                                                                                                                               }
              },
-    "lastPost":  "2026-10-07T02:11:25",
-    "relay":  "relayed status/cloud fe44e4c"
+    "lastPost":  "2026-10-07T02:26:25",
+    "relay":  "relayed status/cloud 8049ad7"
 }
