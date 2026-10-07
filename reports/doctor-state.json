@@ -1,19 +1,24 @@
 {
-    "cloudSeen":  "acd963bd3aed8d986ae602a3261f8b674f9408f0",
-    "lastRun":  "2026-10-07T15:41:26",
+    "cloudSeen":  "839e7165e49494c2414751fbf82c923d727eb649",
+    "lastRun":  "2026-10-07T15:56:34",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-07T04:56:36",
-                                                                                                                                            "runs":  44,
+                                                                                                                                            "runs":  45,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  43,
+                                                                                                                                                         "runs":  44,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
-                                                                                                                                                     }
+                                                                                                                                                     },
+                 "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.":  {
+                                                                                                                                                                                                                                                   "since":  "2026-10-07T15:56:34",
+                                                                                                                                                                                                                                                   "runs":  1,
+                                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled."
+                                                                                                                                                                                                                                               }
              },
-    "lastPost":  "2026-10-07T15:41:26",
-    "relay":  "relayed status/cloud acd963b"
+    "lastPost":  "2026-10-07T15:56:34",
+    "relay":  "relayed status/cloud 839e716"
 }
