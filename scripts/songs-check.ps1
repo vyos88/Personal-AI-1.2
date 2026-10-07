@@ -79,9 +79,11 @@ foreach ($f in @(Get-ChildItem -LiteralPath $JobsDir -Filter '*.json' -File -EA 
   # As written: PowerShell 7 turns ISO dates into DateTime, which sorts and
   # prints differently from 5.1.
   $created = if ($raw -match '"created_at"\s*:\s*"([^"]*)"') { $Matches[1] } else { '' }
+  # Since Alpha 5147fef the WAV is deleted once its MP3 is checked, so a
+  # finished song with only its MP3 is done, not broken.
   $verdict = if ($status -ne 'completed') { "cannot play: $status" }
-    elseif (-not $hasWav) { 'cannot play: WAV missing' }
     elseif ($hasMp3) { 'plays (MP3)' }
+    elseif (-not $hasWav) { 'cannot play: WAV and MP3 missing' }
     else { 'plays (WAV only: MP3 still to be made)' }
   $secs = if ($job.audio -and $job.audio.duration_sec) { '{0,4:N0}s' -f [double]$job.audio.duration_sec } else { '    -' }
   $hidden = if ($job.hidden) { ' [hidden]' } else { '' }
@@ -98,11 +100,11 @@ foreach ($r in $rows) { $i++; Write-Host ('{0,3}. {1}' -f $i, $r.line) }
 
 $finished = @($rows | Where-Object { $_.verdict -like 'plays*' }).Count
 $withMp3 = @($rows | Where-Object { $_.verdict -eq 'plays (MP3)' }).Count
-$noWav = @($rows | Where-Object { $_.verdict -eq 'cannot play: WAV missing' }).Count
-$unfinished = @($rows | Where-Object { $_.verdict -like 'cannot play:*' -and $_.verdict -ne 'cannot play: WAV missing' }).Count
+$noWav = @($rows | Where-Object { $_.verdict -eq 'cannot play: WAV and MP3 missing' }).Count
+$unfinished = @($rows | Where-Object { $_.verdict -like 'cannot play:*' -and $_.verdict -ne 'cannot play: WAV and MP3 missing' }).Count
 $unreadable = @($rows | Where-Object { $_.verdict -eq 'unreadable' }).Count
 Write-Host ''
-Write-Host "TOTAL: $($rows.Count) song(s): $finished can play, $withMp3 of them as MP3, $($finished - $withMp3) still WAV only; $noWav finished but WAV missing; $unfinished not finished or failed; $unreadable unreadable"
+Write-Host "TOTAL: $($rows.Count) song(s): $finished can play, $withMp3 of them as MP3, $($finished - $withMp3) still WAV only; $noWav finished but no audio; $unfinished not finished or failed; $unreadable unreadable"
 
 $ff = [Environment]::GetEnvironmentVariable('ALPHA_FFMPEG_PATH', 'User')
 $ffFound = if ($ff -and (Test-Path -LiteralPath $ff)) { 'ALPHA_FFMPEG_PATH' } elseif (Get-Command ffmpeg -EA SilentlyContinue) { 'ffmpeg on PATH' } else { $null }
@@ -111,7 +113,7 @@ $summary = Join-Path $AudioDir 'mp3-backfill.json'
 if (Test-Path -LiteralPath $summary) {
   try {
     $s = Get-Content -LiteralPath $summary -Raw | ConvertFrom-Json
-    Write-Host "backend MP3 backfill, last pass $($s.at): ffmpeg $($s.ffmpeg), made $($s.converted), failed $($s.failed), waiting $($s.waiting), already $($s.already) of $($s.total)"
+    Write-Host "backend MP3 backfill, last pass $($s.at): ffmpeg $($s.ffmpeg), made $($s.converted), failed $($s.failed), waiting $($s.waiting), already $($s.already) of $($s.total)$(if ($null -ne $s.wav_deleted) { ", WAV deleted $($s.wav_deleted)$(if ($s.wav_kept) { ' (WAVs kept here)' })" })"
     foreach ($x in @($s.failures)) { if ($x) { Write-Host "  failed: $($x.id): $(Clean "$($x.reason)" 160)" } }
   } catch { Write-Host 'backend MP3 backfill: summary unreadable' }
 } else { Write-Host 'backend MP3 backfill: no summary yet (the backend has not run Alpha cedec9d or later yet)' }
