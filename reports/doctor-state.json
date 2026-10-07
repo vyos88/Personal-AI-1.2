@@ -1,14 +1,14 @@
 {
     "cloudSeen":  "8edd4792d55243e5c8875a6aeab7cbe4111a2f22",
-    "lastRun":  "2026-10-07T17:41:43",
+    "lastRun":  "2026-10-07T18:11:41",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  51,
+                                                                                                                                                         "runs":  53,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T17:41:43",
+    "lastPost":  "2026-10-07T18:11:41",
     "relay":  "relayed status/cloud 8edd479"
 }
