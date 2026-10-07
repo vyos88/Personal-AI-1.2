@@ -16,8 +16,12 @@
  *   ALPHA_PANEL_LAN_READ  the deck feed itself. Off, and
  *                         /panel/crowpanel/public-state is a 404
  *
+ * A fourth place can override the first: the boot task's wrapper
+ * (AlphaBoot\run-alpha-backend.cmd) when it passes `--host`, which it does when
+ * repair-alpha-host.ps1 adopted a backend start-local.ps1 had started.
+ *
  * This reads those three, adds this machine's home-network address to the first
- * two and turns the third on, keeping every other line and every address that
+ * two (and to the wrapper's `--host`) and turns the third on, keeping every other line and every address that
  * was already there — a DHCP lease that moved is the usual reason it is wrong,
  * and removing the old one is how the next person loses the tailnet. Then it
  * restarts the backend and checks the feed from the home address, which is the
@@ -44,6 +48,14 @@ import { restartWindows } from './apply-alpha-update.mjs';
 
 const DEFAULT_ALPHA_ROOT = process.env.ALPHA_APP_ROOT ?? 'C:\\AlphaData\\Alpha';
 const DEFAULT_TASK = 'Alpha Backend';
+// The boot task's wrapper (repair-alpha-host.ps1). It is written from the live
+// backend's own command line, and start-local.ps1 always passes --host, so the
+// wrapper carries the address list as it was that day. An explicit --host wins
+// over HOST in .env.local (run_server.py): on 2026-10-07 the file gained the new
+// address, the backend restarted, and came back on the old list.
+const DEFAULT_WRAPPER = process.env.ProgramData
+  ? join(process.env.ProgramData, 'AlphaBoot', 'run-alpha-backend.cmd')
+  : null;
 const DEFAULT_PORT = 8001;
 // The deck firmware polls this every three seconds and holds no credential.
 const FEED_PATH = '/panel/crowpanel/public-state';
@@ -62,6 +74,9 @@ Options
   --port <n>          Backend port. Default: ${DEFAULT_PORT}
   --task <name>       Scheduled task to restart. Default: ${DEFAULT_TASK}
   --no-restart        Edit and check only; do not restart the backend
+  --wrapper <file>    The boot task's wrapper, whose --host wins over HOST.
+                      Default: %ProgramData%\\AlphaBoot\\run-alpha-backend.cmd
+                      when it exists; --wrapper "" leaves it alone
   --require-host      Stop unless the file already sets HOST (the autopilot
                       passes this: then the file is surely the one the
                       backend reads)
@@ -207,6 +222,33 @@ export function planEnv(text, { addresses, lanRead = true } = {}) {
 }
 
 /**
+ * The boot wrapper with this machine's address added to every `--host` list.
+ *
+ * Same rule as HOST: nothing is removed, so loopback and the tailnet stay. A
+ * list holding 0.0.0.0 or :: already covers every address and is left alone.
+ * Without `--host` the backend reads HOST, and the wrapper is not touched.
+ */
+export function planWrapper(text, { addresses } = {}) {
+  const wanted = Array.isArray(addresses) ? addresses.filter(Boolean) : [addresses].filter(Boolean);
+  const added = new Set();
+  const hosts = [];
+  const next = text.replace(/(--host[ =])(?:"([^"]*)"|([^\s"]+))/g, (whole, flag, quoted, bare) => {
+    const list = splitList(quoted ?? bare);
+    if (!list.includes('0.0.0.0') && !list.includes('::')) {
+      for (const address of wanted) {
+        if (!list.includes(address)) {
+          list.push(address);
+          added.add(address);
+        }
+      }
+    }
+    hosts.push(list.join(','));
+    return quoted !== undefined ? `${flag}"${list.join(',')}"` : `${flag}${list.join(',')}`;
+  });
+  return { found: hosts.length > 0, changed: next !== text, text: next, host: hosts[0] ?? null, added: [...added] };
+}
+
+/**
  * Restart the backend the way apply-alpha-update.mjs does, the restart that has
  * worked on the host: /End, stop whatever still holds the port, /Run. /End alone
  * can leave the backend's python serving the old HOST, and Alpha's
@@ -265,6 +307,7 @@ function parseArgs(argv) {
   const options = {
     alphaRoot: DEFAULT_ALPHA_ROOT,
     env: null,
+    wrapper: undefined,
     address: null,
     port: DEFAULT_PORT,
     task: DEFAULT_TASK,
@@ -282,6 +325,7 @@ function parseArgs(argv) {
     else if (arg === '--help' || arg === '-h') options.help = true;
     else if (arg === '--alpha-root') options.alphaRoot = argv[++i] ?? '';
     else if (arg === '--env') options.env = argv[++i] ?? '';
+    else if (arg === '--wrapper') options.wrapper = argv[++i] ?? '';
     else if (arg === '--address') options.address = argv[++i] ?? '';
     else if (arg === '--task') options.task = argv[++i] ?? '';
     else if (arg === '--port') options.port = Number.parseInt(argv[++i] ?? '', 10);
@@ -364,8 +408,19 @@ async function main() {
     say(`note    : ${plan.duplicates.join(', ')} appears more than once; the last line is the one that counts, and that is the one changed`);
   }
 
+  // 2b. the boot wrapper, whose --host wins over the file
+  const wrapperPath = options.wrapper === undefined ? DEFAULT_WRAPPER : options.wrapper || null;
+  let wrapper = null;
+  if (wrapperPath && existsSync(wrapperPath)) {
+    wrapper = planWrapper(await readFile(wrapperPath, 'utf8'), { addresses: [address] });
+    record.steps.wrapper = { path: wrapperPath, found: wrapper.found, host: wrapper.host, added: wrapper.added };
+    if (!wrapper.found) say(`wrapper : ${wrapperPath} passes no --host, so HOST above decides`);
+    else say(`wrapper : --host ${wrapper.host}${wrapper.added.length ? `   (added ${wrapper.added.join(', ')})` : '   (already right)'}`);
+  }
+  const changed = plan.changed || Boolean(wrapper?.changed);
+
   if (options.dryRun) {
-    say(plan.changed ? 'dry run : nothing written' : 'dry run : nothing to change');
+    say(changed ? 'dry run : nothing written' : 'dry run : nothing to change');
     if (options.json) process.stdout.write(`${JSON.stringify(record, null, 2)}\n`);
     return;
   }
@@ -376,11 +431,16 @@ async function main() {
     await writeFile(envPath, plan.text, 'utf8');
     say(`env     : written (backup at ${envPath}.bak)`);
   }
+  if (wrapper?.changed) {
+    await copyFile(wrapperPath, `${wrapperPath}.bak`);
+    await writeFile(wrapperPath, wrapper.text, 'utf8');
+    say(`wrapper : written (backup at ${wrapperPath}.bak)`);
+  }
 
   // 3. the restart, because HOST and ALPHA_TRUSTED_HOSTS are both read at startup
   if (!options.restart) {
     say('restart : skipped — the new HOST only takes effect when the backend restarts');
-  } else if (plan.changed) {
+  } else if (changed) {
     say(`restart : "${options.task}"`);
     const restarted = restartBackend(options.task, options.port);
     for (const line of restarted.lines) say(`restart : ${line}`);
@@ -394,7 +454,7 @@ async function main() {
 
   // 4. the only check that means anything: the request the panel makes
   const base = `http://${address}:${options.port}`;
-  const feed = options.restart && plan.changed ? await waitForFeed(base) : await checkFeed(base);
+  const feed = options.restart && changed ? await waitForFeed(base) : await checkFeed(base);
   record.steps.feed = feed;
 
   if (feed.ok) {
