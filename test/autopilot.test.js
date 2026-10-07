@@ -371,3 +371,63 @@ test('the standing live sync passes its settings on and reports only a change', 
   assert.match(pwsh(args, env).stdout, /live sync: 0 \(in sync\)/);
   assert.match(pwsh(args, env).stdout, /nothing new to run/);
 });
+
+test('the owner\'s live-sync allow list is passed on exactly, and the line to copy is never masked', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-allow-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  // A stand-in for live-sync.mjs: without --allow it holds a file back and
+  // names the line; with it, it captures.
+  const held = 'software/backend/crowpanel_alpha_display_v2_test.py:3';
+  writeFileSync(join(work, 'scripts', 'live-sync.mjs'), [
+    "const a = process.argv.slice(2); const i = a.indexOf('--allow');",
+    "if (i < 0) { console.log('HELD BACK: 1 file(s) with credential-looking lines, not pushed');",
+    `  console.log('    ${held}  token  abcd...'); console.log('ALLOW WITH: ${held}'); process.exit(2); }`,
+    "console.log('CAPTURED: abc1234..def5678 of claude/x-route-b; allowed ' + a[i + 1]);",
+  ].join('\n'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  const control = (liveSync) => {
+    writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { liveSync: { branch: 'claude/x-route-b', ...liveSync } } }));
+    git(ctl, 'add', 'actions.json');
+    git(ctl, 'commit', '-qm', 'control');
+    git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+  };
+  const sw = join(dir, 'software');
+  mkdirSync(sw);
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  control({});
+  let r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /live sync: 2 \(needs a person\)/);
+  // A long file name with a digit is what Redact masks; on this line it stays whole.
+  assert.ok(report().includes(`ALLOW WITH: ${held}`), report());
+
+  // A string or a list, trimmed and joined: exactly what the owner wrote.
+  control({ allow: ' software/a.py:3, software/b.py:9 ' });
+  r = pwsh(args, env);
+  assert.match(r.stdout, /live sync: 0 \(in sync\)/);
+  assert.match(report(), /allowed software\/a\.py:3,software\/b\.py:9$/m);
+  control({ allow: ['software/c.py:1', 'software/d.py:2'] });
+  r = pwsh(args, env);
+  assert.match(report(), /allowed software\/c\.py:1,software\/d\.py:2$/m);
+
+  // One bad entry and none of the list is used: the files stay held back.
+  control({ allow: ['software/c.py:1', 'software/d.py; calc'] });
+  r = pwsh(args, env);
+  assert.match(r.stdout, /autofix\.liveSync\.allow entries must be path:line \(1 are not\): none used/);
+  assert.match(r.stdout, /live sync: 2 \(needs a person\)/);
+});

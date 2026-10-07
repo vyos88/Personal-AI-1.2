@@ -88,7 +88,10 @@ changes. They are turned on in the same `actions.json`:
   tip tried once). With `capture`, when this machine runs the tip, the source
   edited here and the source only it has are pushed back to the branch,
   fast-forward only; files with credential-looking lines are held back and
-  listed. `skipScripts: true` leaves `scripts\` out. See `docs/LIVE_SYNC.md`.
+  listed, ending with an `ALLOW WITH:` line. `allow` (a `path:line,...`
+  string or a list) is the owner's approval of exactly those lines; one
+  malformed entry and none of it is used. `skipScripts: true` leaves
+  `scripts\` out. See `docs/LIVE_SYNC.md`.
 
 ## Trust
 
