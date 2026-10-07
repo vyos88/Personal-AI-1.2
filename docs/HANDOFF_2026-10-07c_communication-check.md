@@ -140,3 +140,24 @@ Post each step in the coordination log.
 > `status/claude-host`. Never stop anything on the "Never stop" list in
 > `HANDOFF_2026-10-07b` section 2. Never re-provision the CrowPanel without
 > the owner. Never put a key or password in git.
+
+## 5. Results of jobs 51 and h14 (14:34 UTC)
+
+Both laptops ran their job within 4 minutes of the queue, so the path from
+the cloud to the laptops works.
+
+- **Host (h14):** `DUPLICATES: none`. The coordinator holds 8787 (node 57984)
+  and ComfyUI holds 8188. Nothing to stop.
+- **Worker1 (51):** `DUPLICATES: Alpha site x2`. Pids 6508 and 20808 are
+  separate trees, and 4173 is held by node 12448. **6508 is the same leftover
+  as at 02:54** and is still running. Claude · Worker1 should take it as in
+  section 4. Every other role runs once.
+- **Alpha's Agent Manager on Worker1, unchanged since 02:54:**
+  - `runtime-daemon:auto-improve` and `runtime-daemon:assistant-loop` are both
+    still `RUNTIME-AVAILABLE`, not running;
+  - the 12 `model:alpha-chat-*` profiles are still `ATTENTION`;
+  - `alpha-coding` is `RUNTIME-PAUSED`.
+
+  So Alpha has not acted on `HANDOFF_2026-10-07b` section 5 yet.
+- **`Alpha Server - Health Guard`** still runs every 5 minutes beside
+  `Alpha Self-Heal` (section 2: keep both?).
