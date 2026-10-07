@@ -22,6 +22,7 @@ import {
   devicePath,
   summarizePorts,
   portConfigArgs,
+  portConfigAttempts,
   redact,
   run,
   validateAction,
@@ -434,6 +435,23 @@ test('a read on the port can always time out', () => {
   assert.ok(win.args.includes('BAUD=115200'));
 });
 
+test('mode.com is asked by the plain name first, and the device path second', () => {
+  // One run on Worker1 had `mode.com COM4 ...` work and `mode.com \\.\COM20 ...`
+  // fail, which is the opposite way round from `fs.open`. So the plain name leads
+  // and the device path is the fallback; neither spelling is assumed to be the
+  // only one that works, because the evidence against the second is two held
+  // ports on one machine.
+  const attempts = portConfigAttempts('COM20', 'win32');
+  assert.deepEqual(attempts.map((a) => a.args[0]), ['COM20', '\\\\.\\COM20']);
+  assert.ok(attempts.every((a) => a.exe === 'mode.com' && a.args.includes('BAUD=115200')));
+  // The first attempt is what portConfigArgs has always returned.
+  assert.deepEqual(attempts[0], portConfigArgs('COM20', 'win32'));
+  // Off Windows there is one way to say it and stty is it.
+  assert.deepEqual(portConfigAttempts('/dev/ttyUSB0', 'linux'), [portConfigArgs('/dev/ttyUSB0', 'linux')]);
+  // A name that is not a COM port has no second spelling to try.
+  assert.equal(portConfigAttempts('\\\\.\\COM20', 'win32').length, 1);
+});
+
 test('credentials wait for the board to come back from the reset opening the port caused', async () => {
   // Two writes into the void: the board is rebooting, exactly as it does when
   // DTR drops on open. Only the third probe finds it.
@@ -605,14 +623,21 @@ test('a port past COM9 is opened by the path Windows actually has for it', () =>
   // opening the bare name fails with ENOENT — "the board is not there" for a
   // board that is plugged in. Windows renumbers ports on re-enumeration, so a
   // few replugs is all it takes to get there.
-  assert.equal(devicePath('COM3', 'win32'), 'COM3');
-  assert.equal(devicePath('COM9', 'win32'), 'COM9');
+  // Every number, not only the ones above COM9: `fs.open('COM4')` resolves
+  // against the working directory like any other relative path, which is how the
+  // first real run on Worker1 failed with
+  // `ENOENT ... open 'C:\\services\\alpha-tunnel\\COM4'` on a board that was
+  // plugged in and sitting on the desk.
+  assert.equal(devicePath('COM3', 'win32'), '\\\\.\\COM3');
+  assert.equal(devicePath('COM9', 'win32'), '\\\\.\\COM9');
   assert.equal(devicePath('COM10', 'win32'), '\\\\.\\COM10');
   assert.equal(devicePath('COM12', 'win32'), '\\\\.\\COM12');
+  // Not a COM name at all: left alone rather than prefixed into nonsense.
+  assert.equal(devicePath('\\\\.\\COM12', 'win32'), '\\\\.\\COM12');
   // Nothing changes off Windows, and nothing changes for arduino-cli's argv.
   assert.equal(devicePath('/dev/ttyUSB0', 'linux'), '/dev/ttyUSB0');
   assert.equal(devicePath('COM12', 'linux'), 'COM12');
-  assert.equal(portConfigArgs('COM12', 'win32').args[0], '\\\\.\\COM12');
+  assert.equal(portConfigArgs('COM12', 'win32').args[0], 'COM12', 'mode.com takes the plain name');
   assert.deepEqual(buildArgs({ action: 'Flash', sketch: '/s', fqbn: 'esp32:esp32:esp32', port: 'COM12' }).slice(3, 5), [
     '--port',
     'COM12',
