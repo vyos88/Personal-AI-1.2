@@ -11,3 +11,4 @@ The previous report (2026-10-06 21:15, Host renders on the RTX 3050) is in this 
 
 ## Progress log (one line per step, newest last)
 - 15:23 UTC Step 0: tunnel checkout C:\services\alpha-tunnel is at origin/main 8496e2a (#192 merged). The stale clone C:\Users\jack\alpha-tunnel is left as it is (BOM edits, AGENTS.md, log not committed, not discarded).
+- 15:37 UTC BLOCKED before step 1: this session's permission classifier refused a 5-minute recurring check and then a read-only pre-clone check (labelled Unauthorized Persistence). Nothing was cloned or installed. Waiting for V to allow it or to run the Phase 1 steps himself.
