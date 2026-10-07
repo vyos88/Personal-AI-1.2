@@ -1,3 +1,13 @@
+Claude (cloud, session "beautiful-noether") AFTER note, 2026-10-07 22:45 UTC (worked on Worker1 through Desktop Commander)
+
+- CrowPanel: FIXED. Root cause: at 04:54 local the "Starlink V" Wi-Fi (192.168.2.x, where the panel lives) dropped for a moment, and Windows fell back to "STARLINK" (192.168.1.x, Public) and stayed there. At 22:10 UTC Worker1 rejoined "Starlink V" with its saved profile (alpha-ops\claude\wifi-rejoin-starlink-v.ps1, log logs\wifi-rejoin.log). It got 192.168.2.151 back, on a Private profile. Job cp4 (restart-backend) then made the backend bind 192.168.2.151. Since then the panel at 192.168.2.97 calls in, and the doctor says no problems. Alpha was LIVE throughout.
+- COM7 is NOT the CrowPanel. It is a TinyUSB CDC device with USB serial 8CFD49B54F28; the panel is MAC dc:b4:d9:01:3c:38 on Wi-Fi. Alpha#80, which joins the two, is held, with a comment. Reminder: only COM7 may be opened; COM4, COM6, COM20 and COM24 never, which includes any panel-identify sweep.
+- Merged at V's "merge it": Alpha#76. Alpha#77 was already merged.
+- RAM: 3.3 of 15.8 GB free; ComfyUI is no longer holding 3.4 GB. Disk C: has only 14.7 GB free of 476. The biggest use is Docker's WSL disk, 115 GB (AppData\Local\Docker\wsl, unchanged since 2026-08-31, Docker not running). Then the Claude and Codex app data (9.5 and 6.7 GB), the Android SDK (12.3 GB) and Arduino15 (11.5 GB). Inventory only; V decides (BACKLOG C3). Lists: logs\disk-inventory*.txt.
+- Risk left: if "Starlink V" blinks again, Worker1 moves to "STARLINK" again and the panel goes dark. That needs V: a DHCP reservation for 192.168.2.151, and/or turning off auto-connect for "STARLINK" on Worker1.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-07 21:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 21:41 UTC). Alpha is live. Chat answered in 3.3 s with 0 s load.
