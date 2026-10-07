@@ -31,8 +31,9 @@
  * named like a secret, and Alpha's .gitignore wins. Every captured line goes
  * through the snapshot's credential scan; a file with a finding is held back
  * and named by file and line, with every value cut to four characters, and
- * the rest go. There is no --allow here: clearing a finding stays the owner's,
- * through a snapshot action with an approved list.
+ * the rest go. Clearing a finding is the owner's alone: --allow takes the
+ * list they approved (autofix.liveSync.allow), exact path:line entries, so a
+ * line that moves or a new finding is held back again.
  *
  * Never: a force push, a change to this checkout, a restart of anything but
  * what apply-alpha-update.mjs restarts.
@@ -41,6 +42,7 @@
  *
  * Other options: --ops <dir>  --repo <url>  --machine <name>
  *   --capture-every-min <n> (default 60)  --skip-scripts  --no-restart
+ *   --allow <path:line,...>  (the owner's approved list; see above)
  *   --python <exe> and --skip-build (passed on to apply-alpha-update.mjs)
  *
  * Its state is in the lines that start IN SYNC, DELIVERED, REFUSED, FAILED,
@@ -70,6 +72,9 @@ const EXIT_OK = 0;
 const EXIT_ERROR = 1;
 const EXIT_PERSON = 2;
 
+// One entry of the owner's list: a path inside Alpha's root and a line number.
+const ALLOW_ID = /^[A-Za-z0-9_./-]+:\d+$/;
+
 export function parseArgs(argv) {
   const opts = { capture: false, restart: true, skipScripts: false, skipBuild: false, captureEveryMin: 60 };
   for (let i = 0; i < argv.length; i++) {
@@ -86,6 +91,11 @@ export function parseArgs(argv) {
     else if (a === '--machine') opts.machine = next();
     else if (a === '--python') opts.python = next();
     else if (a === '--capture') opts.capture = true;
+    else if (a === '--allow') {
+      opts.allow = next().split(',').map((x) => x.trim()).filter(Boolean);
+      const bad = opts.allow.filter((x) => !ALLOW_ID.test(x));
+      if (bad.length) throw new Error(`--allow entries must be path:line (${bad.length} are not)`);
+    }
     else if (a === '--capture-every-min') {
       opts.captureEveryMin = Number(next());
       if (!Number.isFinite(opts.captureEveryMin) || opts.captureEveryMin < 0) throw new Error('--capture-every-min needs a number of minutes');
@@ -188,7 +198,9 @@ function prepareWork({ work, repo, branch }) {
 async function capture({ opts, ops, branch, tip, record, liveRoot, log, state }) {
   const every = opts.captureEveryMin * 60 * 1000;
   const last = state.capture?.at ? Date.parse(state.capture.at) : 0;
-  if (state.capture?.tip === tip && Date.now() - last < every) {
+  // A new owner-approved list is acted on at once, not at the next hour.
+  const allowKey = [...new Set(opts.allow ?? [])].sort().join(',');
+  if (state.capture?.tip === tip && (state.capture.allowKey ?? '') === allowKey && Date.now() - last < every) {
     for (const line of state.capture.summary ?? []) log(line);
     return state.capture.code ?? EXIT_OK;
   }
@@ -252,7 +264,7 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
   // null makes the next pass try again.
   const finish = (code, capturedTip) => {
     for (const line of summary) log(line);
-    state.capture = { tip: capturedTip, at: new Date().toISOString(), summary, code };
+    state.capture = { tip: capturedTip, at: new Date().toISOString(), summary, code, allowKey };
     return code;
   };
   if (!changed.length && !added.length) {
@@ -262,8 +274,14 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
 
   // Hold back every file with a credential-looking line; the rest go.
   const findings = scanAddedLines(git(['diff', '-U0', '--no-color'], { cwd: work }).stdout)
-    .map((f) => ({ ...f, rel: f.file.slice(BASE.length + 1) }));
-  const held = [...new Set(findings.map((f) => f.rel))];
+    .map((f) => ({ ...f, rel: f.file.slice(BASE.length + 1) }))
+    .map((f) => ({ ...f, id: `${f.rel}:${f.line}` }));
+  // The owner's approved list (autofix.liveSync.allow): exactly these lines, by
+  // path and line. A line that moves, or any new one, is held back again.
+  const allowed = new Set(opts.allow ?? []);
+  const cleared = findings.filter((f) => allowed.has(f.id));
+  const open = findings.filter((f) => !allowed.has(f.id));
+  const held = [...new Set(open.map((f) => f.rel))];
   for (const rel of held) {
     const path = `${BASE}/${rel}`;
     if (added.includes(rel)) {
@@ -276,9 +294,16 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
   const sent = { changed: changed.filter((r) => !held.includes(r)), added: added.filter((r) => !held.includes(r)) };
   if (held.length) {
     summary.push(`HELD BACK: ${held.length} file(s) with credential-looking lines, not pushed: ${held.slice(0, 12).join(', ')}${held.length > 12 ? ', ...' : ''}`);
-    for (const f of findings.slice(0, 30)) summary.push(`    ${f.rel}:${f.line}  ${f.label}  ${f.text}`);
-    summary.push('    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.');
+    for (const f of open) summary.push(`    ${f.id}  ${f.label}  ${f.text}`);
+    summary.push('    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:');
+    // One line, last, so it survives the report's tail and can be copied whole.
+    // A path --allow cannot take (a space, a bracket) is named instead of listed.
+    const listable = open.filter((f) => ALLOW_ID.test(f.id));
+    summary.push(`ALLOW WITH: ${listable.map((f) => f.id).join(',')}`);
+    if (listable.length < open.length) summary.push(`    ${open.length - listable.length} line(s) cannot go on the list (rename the file): ${[...new Set(open.filter((f) => !ALLOW_ID.test(f.id)).map((f) => f.rel))].join(', ')}`);
   }
+  const clearedSent = cleared.filter((f) => !held.includes(f.rel));
+  if (clearedSent.length) summary.push(`    ${clearedSent.length} credential-looking line(s) cleared by the owner's list go with this capture`);
   if (!sent.changed.length && !sent.added.length) return finish(held.length ? EXIT_PERSON : EXIT_OK, tip);
 
   const machine = opts.machine ?? hostname();

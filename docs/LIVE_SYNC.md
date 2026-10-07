@@ -66,9 +66,20 @@ credential scan.
 - A file with a finding is **held back**: it is not pushed, and it is listed
   by file, line and kind, with every value cut to its first four characters.
   The rest of the capture goes.
-- There is deliberately no `--allow` here. Clearing a finding is the owner's
-  call, made through a snapshot action carrying the list they approved. If the
-  line holds a real secret, it belongs in `.env.local`, rotated.
+- Clearing a finding is the owner's call, and only theirs. A held-back report
+  ends with one line, `ALLOW WITH: <path:line>,...`, naming every open line.
+  When the owner has read them and says they are not secrets, that list goes
+  into `actions.json`, exactly as printed:
+
+  ```json
+  "liveSync": { "branch": "...", "capture": true, "allow": "software/backend/x.py:3,scripts/y.ps1:12" }
+  ```
+
+  The next pass captures at once rather than at the next hour. Each entry is
+  one line in one file: if the line moves, or a new finding appears in the same
+  file, that file is held back again and asks again. One malformed entry and
+  the autopilot uses none of the list. If a line holds a real secret, it
+  belongs in `.env.local`, rotated, and not on this list.
 
 A capture runs at most once an hour (`--capture-every-min`). A capture pushed by
 this machine is recorded as applied here, so the next pass is simply in sync.
@@ -89,7 +100,7 @@ is in the lines that start with these words:
 | `FAILED` | it was applied, broke a parse or the build, and was put back |
 | `WAITING` | that tip was already tried; the next commit is tried |
 | `CAPTURED` | edits from here were pushed, or there was nothing to push |
-| `HELD BACK` | files with credential-looking lines were not pushed; they need the owner |
+| `HELD BACK` | files with credential-looking lines were not pushed; they need the owner, and `ALLOW WITH:` after it is the list to approve |
 | `SKIPPED` | capture did not run this pass, and why |
 | `STOP` | it could not run |
 
