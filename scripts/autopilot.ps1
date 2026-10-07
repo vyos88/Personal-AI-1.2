@@ -22,15 +22,25 @@
     repair-host      repair-alpha-host.ps1 (keeps its own rollback)
     restart-backend  stop whatever listens on Alpha's backend port, start it again
     restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
+    stop-stray-site  stop-stray-site.ps1: stop a leftover `vite preview` tree that does not hold 4173, never the one that does (takes no arguments)
+    comfyui-off      comfyui-off.ps1: stop ComfyUI here and take this machine off image work (alpha-image handlers out, agent restart); pictures go to the other machines (takes no arguments)
+    songs-check      songs-check.ps1: every song in Alpha's playlist, one line each: plays as MP3, WAV only, or cannot play, with totals (reads only; takes no arguments)
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
     enable-music     enable-music.ps1: MusicGen, alpha-music handlers, agent restart  ("bridge": true, "dryRun": true)
     enable-image     enable-image.ps1: alpha-image handlers, agent restart  ("bridge": true, "installComfy": true, "backend": "a1111"|"comfyui")
     live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
+    promo-reel       promo-reel.mjs: a 25 s reel about Alpha into Alpha's video folder  (takes no arguments)
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
+    panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
+    interactive-first-off interactive-first-off.mjs: ALPHA_INTERACTIVE_FIRST_MODE=false in Alpha's .env.local, restart the backend  (takes no arguments)
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
+    panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
+    prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
+    receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
+    alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -65,7 +75,10 @@ param(
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
-  [string]$Plan
+  [string]$Plan,
+  # Set by a pass that has just updated this checkout and hands the rest of
+  # the pass to the new code; such a run does not update again.
+  [switch]$AfterUpdate
 )
 
 $ErrorActionPreference = 'Continue'
@@ -164,6 +177,19 @@ function Resolve-Action($a) {
       if ($py) { $rest += @('--video-python', $py) }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
+    # The owner's reel about Alpha, made the way the live test makes its reel
+    # (the bridges, then Alpha's renderer with the backend's Python), and saved
+    # in the folder /video/chat-artifact serves, so the Video Creator opens it.
+    # Takes nothing from the action: scenes and captions live in the script.
+    'promo-reel' {
+      $alphaHome = $AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', ''
+      $rest = @((Join-Path $PSScriptRoot 'promo-reel.mjs'), '--video-script', ($alphaHome + '\scripts\alpha_video_creator.py'),
+                '--out-dir', ($alphaHome + '\artifacts\generated\videos'))
+      $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+      $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+      if ($py) { $rest += @('--video-python', $py) }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 60
+    }
     'ollama-pull' {
       $model = [string]$a.model
       if ($model -notmatch '^[a-z0-9][a-z0-9._-]{0,63}(:[a-z0-9._-]{1,63})?$') { $out.reason = 'model must look like name:tag'; return $out }
@@ -193,7 +219,60 @@ function Resolve-Action($a) {
     # own home-network address. Takes nothing from the action: the URL is
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
+    # Which of this machine's serial ports the panel is actually on, asked of
+    # the boards rather than guessed from their labels: Worker1 carries five
+    # bridges and every one of them reads as "USB-SERIAL CH340". Read-only: it
+    # writes one status query per port and nothing else, and takes nothing from
+    # the action, so there is no path for a payload to name a port or a board.
+    # Five ports at up to 30 s each, so the timeout covers the sweep.
+    'panel-identify' { $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'panel-up.mjs'), '--identify') }; $out.timeoutMin = 5 }
+    # The backend half of the same fix, and the one to queue first: adds this
+    # machine's own home-network address to HOST and ALPHA_TRUSTED_HOSTS in
+    # Alpha's .env.local (keeping every address already there, with a backup),
+    # turns the deck feed on, restarts the backend and asks the feed from that
+    # address. Takes nothing from the action: the address is worked out on the
+    # machine and the file is the one beside -AlphaRoot, which run_server.py reads
+    # (--require-host stops it if that file sets no HOST: then it is not the one).
+    'panel-host' {
+      # A string edit, as for live-test's video script, so -Plan works off Windows.
+      $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
+      $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'fix-panel-host.mjs'), '--env', $envLocal, '--require-host') }
+      $out.timeoutMin = 4
+    }
+    # The owner's yes of 2026-10-07: interactive-first off, so the assistant
+    # loop runs and the CrowPanel feed can go live. One owner setting, to one
+    # value, in the file run_server.py reads (beside -AlphaRoot); nothing from
+    # the action reaches it.
+    'interactive-first-off' {
+      $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
+      $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'interactive-first-off.mjs'), '--env', $envLocal) }
+      $out.timeoutMin = 5
+    }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
+    # The one stop fleet-inventory's DUPLICATES asks for on Worker1 (HANDOFF
+    # 2026-10-07b section 5). Takes nothing from the action: which tree is live
+    # is read off the port on the machine.
+    'stop-stray-site' { $spec = Ps1 'stop-stray-site.ps1' @(); $out.timeoutMin = 2 }
+    # The owner's yes of 2026-10-07 (option A): Worker1 was down to about 1 GB
+    # free with its own ComfyUI holding 3.4 GB while the Host makes the
+    # pictures. Takes nothing from the action: what is ComfyUI is read off the
+    # machine.
+    'comfyui-off' { $spec = Ps1 'comfyui-off.ps1' @(); $out.timeoutMin = 4 }
+    # The owner, 2026-10-07: "a total of 85 songs check please all and make
+    # them all mp3". Reads the song receipts and files only; the backend makes
+    # the MP3s (Alpha cedec9d).
+    'songs-check' { $spec = Ps1 'songs-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
+    'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
+    # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
+    # refuses one that does, starts nothing, and takes nothing from the payload.
+    'prepare-alpha-here' { $spec = Ps1 'prepare-alpha-here.ps1' @(); $out.timeoutMin = 90 }
+    # Phase 2: take what Laptop41 sent over Taildrop, check it against its
+    # manifest, put it in place. Refuses while Alpha runs here; starts nothing.
+    'receive-alpha-data' { $spec = Ps1 'receive-alpha-data.ps1' @(); $out.timeoutMin = 30 }
+    # The data step of the move: copies memory\ and artifacts\ from an
+    # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
+    # never a .env file; refuses while anything answers on 8001 here.
+    'alpha-data-in' { $spec = Ps1 'alpha-data-in.ps1' @(); $out.timeoutMin = 60 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
@@ -297,9 +376,28 @@ if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
 }
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
-$update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
-$updateExit = $LASTEXITCODE
-if ($updateExit -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+if ($AfterUpdate) { $update = ''; $updateExit = 0 }
+else {
+  $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
+  $updateExit = $LASTEXITCODE
+}
+if ($updateExit -eq 10) {
+  # The checkout moved under this pass. Stopping here left the pass silent:
+  # on 2026-10-07 main moved every few minutes from 02:15 to 02:30 UTC, and
+  # four passes in a row updated and stopped with no action run and no report
+  # (not even the live report, which exists to say the reporter is alive).
+  # The rest of the pass runs with the new code instead, in a new process,
+  # once: that run does not update again.
+  Write-Host 'updated this checkout; running the rest of this pass with the new code'
+  $forward = @()
+  foreach ($k in $PSBoundParameters.Keys) {
+    $v = $PSBoundParameters[$k]
+    if ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $forward += "-$k" } }
+    else { $forward += @("-$k", [string]$v) }
+  }
+  & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @forward -AfterUpdate
+  exit $LASTEXITCODE
+}
 # A checkout that cannot update is silent otherwise, and every fix sent through
 # this repository then stops reaching the machine. Say why, in every report.
 $head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()
@@ -493,7 +591,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -563,6 +661,7 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
 # backend runs, because it signs in with the backend's own token signer.
 $deckKey = if ($state -and $state.deckKey) { [string]$state.deckKey } else { '' }
 $deckAt = if ($state -and $state.deckAt) { [string]$state.deckAt } else { '' }
+$auditAt = if ($state -and $state.auditAt) { [string]$state.auditAt } else { '' }
 $deck = if ($control -and $control.autofix -and $control.autofix.deckLiveness) { $control.autofix.deckLiveness } else { $null }
 if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
   $every = 15
@@ -596,12 +695,41 @@ if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Alpha's own deck-by-deck check (backend deck_audit.py, every 30 min): each
+# new report goes into this report, so the tunnel carries what Alpha found
+# deck by deck and what she fixed. The owner, 2026-10-07: "teach alpha to do
+# it, then report in the tunnel".
+$auditFile = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-audit') 'latest.json'
+if (Test-Path -LiteralPath $auditFile) {
+  try {
+    $audit = Get-Content -LiteralPath $auditFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    $at = [string]$audit.checked_at
+    if ($at -and $at -ne $auditAt) {
+      $lines = @()
+      foreach ($row in @($audit.decks)) {
+        $held = @()
+        if ($row.content -and $row.content.lists) { foreach ($p in $row.content.lists.PSObject.Properties) { if ($held.Count -lt 4) { $held += "$($p.Name) $($p.Value)" } } }
+        $what = if ($held.Count) { $held -join ', ' } elseif ($row.content) { "$($row.content.keys) field(s)" } else { 'nothing read' }
+        $fix = if (@($row.fixes).Count) { "  [$(@($row.fixes) -join '; ')]" } else { '' }
+        $lines += ('{0,-7} {1}: {2} ({3}){4}' -f $row.verdict, $row.deck, $row.why, $what, $fix)
+      }
+      $c = $audit.counts
+      $sum = "$([int]$c.WORKING) working, $([int]$c.EMPTY) empty, $([int]$c.BROKEN) broken"
+      $tail = (@("DECK AUDIT by Alpha on $($audit.machine) at ${at}: $sum") + $lines | ForEach-Object { Redact $_ }) -join "`n"
+      $res = if ([int]$c.BROKEN) { "2 ($sum)" } else { "0 ($sum)" }
+      [void]$ran.Add([ordered]@{ id = "auto-deck-audit-$stamp"; do = 'deck-audit (Alpha)'; result = $res; at = (Get-Date).ToString('s'); seconds = 0; tail = $tail })
+      Write-Host "deck audit (Alpha): $sum"
+      $auditAt = $at
+    }
+  } catch { Write-Host "deck audit (Alpha): report unreadable ($($_.Exception.Message))" }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only
@@ -643,10 +771,14 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $now = Get-Date
   $sh = Read-SelfHeal
   $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
-  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = '' }
+  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = '' }
   if ($sh) {
     $heal.age_min = $sh.age
-    $heal.repairs = @($sh.last.actions | Where-Object { $_ }).Count
+    # A snapshot is self-heal saving the site's last good build for rollback,
+    # not a repair; a failed one is worth saying, as its own note.
+    $heal.repairs = @($sh.last.actions | Where-Object { $_ -and $_.action -ne 'snapshot' }).Count
+    $badSnap = @($sh.last.actions | Where-Object { $_ -and $_.action -eq 'snapshot' -and $_.code -ne 0 }) | Select-Object -First 1
+    if ($badSnap) { $heal.snapshot = 'the rollback copy of the site was not saved' + $(if ($badSnap.error) { ": $(Redact ([string]$badSnap.error))" } else { ' (no reason logged)' }) }
     $heal.state = if ($sh.age -le 6) { 'RUNNING' } else { 'STOPPED' }
   }
   if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
@@ -681,9 +813,23 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $receipt) {
     try {
       $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
-      $counts = @($r.sources | Group-Object verdict | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
+      # One count per deck, not per check: the CrowPanel has two checks (its
+      # feed and whether a panel reads it) and was counted as two decks. A deck
+      # takes its worst verdict; its checks are named under it when not live.
+      $rank = @{ 'DOWN' = 0; 'ERROR' = 1; 'SETTING' = 2; 'PLACEHOLDER' = 3; 'STALE' = 4; 'DEGRADED' = 5 }
+      $groups = @($r.sources | Group-Object { if ($_.decks) { [string]$_.decks } else { [string]$_.source } })
+      $verdicts = @(); $notLive = @()
+      foreach ($g in $groups) {
+        $bad = @($g.Group | Where-Object { $rank.ContainsKey([string]$_.verdict) } | Sort-Object { $rank[[string]$_.verdict] })
+        if ($bad.Count) {
+          $verdicts += [string]$bad[0].verdict
+          $parts = @($bad | ForEach-Object { $n = [string]$_.source; if ($g.Name -and $n.StartsWith("$($g.Name) ")) { $n.Substring($g.Name.Length + 1) } else { $n } })
+          $notLive += $(if ($g.Group.Count -gt 1 -or $parts[0] -ne $g.Name) { "$($g.Name): $($parts -join ', ')" } else { $g.Name })
+        } else { $verdicts += [string]$g.Group[0].verdict }
+      }
+      $counts = @($verdicts | Group-Object | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
       $decks.summary = $counts -join ', '
-      $decks.not_live = @($r.not_live)
+      $decks.not_live = $(if ($r.sources) { $notLive } else { @($r.not_live) })
       $decks.checked_at = [string]$r.checked_at
     } catch { $decks.summary = 'receipt unreadable' }
   }
@@ -696,7 +842,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
     '| Check | State | Detail |', '|---|---|---|',
     "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
-    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"

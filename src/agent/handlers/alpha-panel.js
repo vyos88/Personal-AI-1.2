@@ -183,26 +183,30 @@ export function validatePort(port) {
 }
 
 /**
- * The name this process has to open the port by.
+ * The name this process has to open the port by: `\\\\.\\COMn`, for every n.
  *
- * COM1 to COM9 are legacy DOS device names and open by name. COM10 and up do
- * not exist in that namespace at all: the only way to reach them is the device
- * path `\\\\.\\COM10`, and opening the bare name fails with ENOENT — which reads
- * as "the board is not there" when it is sitting on the desk, plugged in.
+ * COM10 and up do not exist in the legacy DOS namespace at all, so they can only
+ * be reached that way. The low ports were left bare here on the reasoning that
+ * they are DOS device names and open by name — and that was wrong, as the first
+ * real run of `panel-up --identify` on Worker1 showed:
  *
- * That is not an edge case here. Windows renumbers COM ports on every
- * re-enumeration — the failure `device.inventory` exists to make visible — so a
- * board that has been replugged a few times is *how* a panel ends up on COM12.
+ *     could not open COM4: ENOENT: no such file or directory,
+ *     open 'C:\\services\\alpha-tunnel\\COM4'
  *
- * arduino-cli does not go through the DOS namespace, so its argv keeps the
- * plain name; this is only for the handle this process opens and for
- * `mode.com`. The low ports keep the name they have always worked under.
+ * `fs.open` resolves a bare `COM4` against the working directory like any other
+ * relative path, so it looked for a *file* called COM4 in the checkout. The
+ * prefix is what makes it a device rather than a path, at every number.
+ *
+ * It matters because Windows renumbers COM ports on every re-enumeration — the
+ * failure `device.inventory` exists to make visible — so the panel is on
+ * whatever number it was given this time, high or low.
+ *
+ * arduino-cli does not go through the DOS namespace, so its argv keeps the plain
+ * name. `mode.com` wants the plain name too — see `portConfigAttempts`.
  */
 export function devicePath(port, platform = process.platform) {
   if (platform !== 'win32') return port;
-  const match = /^COM(\d+)$/.exec(port);
-  if (!match || Number(match[1]) < 10) return port;
-  return `\\\\.\\${port}`;
+  return /^COM\d+$/.test(port) ? `\\\\.\\${port}` : port;
 }
 
 /**
@@ -581,6 +585,30 @@ function arduino(args, { signal } = {}) {
 }
 
 /**
+ * How `mode.com` is asked, in the order to try.
+ *
+ * The plain name first, and the device path second, because the two parts of one
+ * run on Worker1 disagreed about which works:
+ *
+ *     mode.com COM4 BAUD=115200 ...          -> fine (the open after it failed)
+ *     mode.com \\\\.\\COM20 BAUD=115200 ...   -> Command failed
+ *
+ * So `mode` takes the plain name even above COM9, while `fs.open` needs the
+ * device path (see `devicePath`) — the opposite way round from what this file
+ * assumed. The second attempt stays because the only evidence against it is one
+ * machine's two held ports, and a retry costs a few milliseconds on a path that
+ * is about to spend thirty seconds listening to a board.
+ */
+export function portConfigAttempts(port, platform = process.platform) {
+  const settings = ['BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off'];
+  if (platform !== 'win32') return [portConfigArgs(port, platform)];
+  const names = [port];
+  const device = devicePath(port, platform);
+  if (device !== port) names.push(device);
+  return names.map((name) => ({ exe: 'mode.com', args: [name, ...settings] }));
+}
+
+/**
  * Sets the line discipline on a serial port.
  *
  * Node's standard library can open a serial device as a file but cannot set its
@@ -591,10 +619,7 @@ function arduino(args, { signal } = {}) {
  */
 export function portConfigArgs(port, platform = process.platform) {
   if (platform === 'win32') {
-    return {
-      exe: 'mode.com',
-      args: [devicePath(port, platform), 'BAUD=115200', 'PARITY=n', 'DATA=8', 'STOP=1', 'to=off', 'xon=off', 'odsr=off', 'octs=off', 'dtr=on', 'rts=on', 'idsr=off'],
-    };
+    return portConfigAttempts(port, platform)[0];
   }
   // `min 0 time 1` has to come after `raw`, which sets `min 1 time 0` — a read
   // that waits for a byte that never arrives. With VMIN 0 and VTIME 1 the read
@@ -605,8 +630,21 @@ export function portConfigArgs(port, platform = process.platform) {
 }
 
 async function configurePort(port, { signal } = {}) {
-  const { exe, args } = portConfigArgs(port);
+  const attempts = portConfigAttempts(port);
+  let last = null;
+  for (const attempt of attempts) {
+    try {
+      return await runPortConfig(port, attempt, { signal });
+    } catch (error) {
+      // A missing `mode.com`/`stty` is not something a second spelling fixes.
+      if (error?.code === 'no_stty') throw error;
+      last = error;
+    }
+  }
+  throw last;
+}
 
+async function runPortConfig(port, { exe, args }, { signal } = {}) {
   return new Promise((resolvePromise, rejectPromise) => {
     execFile(exe, args, { signal, timeout: 10_000, windowsHide: true }, (error, stdout, stderr) => {
       if (error && error.code === 'ENOENT') {
@@ -661,8 +699,14 @@ export function redact(text, password) {
  *
  * Split in two so the conversation can be tested without a board: `converse`
  * owns the port, `converseOver` owns the protocol.
+ *
+ * Exported because identifying a board is the same conversation with no
+ * commands in it: `scripts/panel-up.mjs --identify` asks each port of a machine
+ * carrying several boards which one answers this firmware, and a second copy of
+ * the open-configure-close rules is a second place for them to drift.
  */
-async function converse(port, commands, secret, { signal, log } = {}) {
+export async function converse(port, commands, secret, options = {}) {
+  const { signal } = options;
   await configurePort(port, { signal });
 
   const handle = await open(devicePath(port), 'r+').catch((error) => {
@@ -673,7 +717,7 @@ async function converse(port, commands, secret, { signal, log } = {}) {
   });
 
   try {
-    return await converseOver(handle, commands, secret, { signal, log });
+    return await converseOver(handle, commands, secret, options);
   } finally {
     // Closing is also what releases a read still sitting on the port: on
     // Windows there is no termios knob for a read timeout, so an outstanding

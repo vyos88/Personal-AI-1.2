@@ -6,7 +6,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  main, findSoftwareRoot, looksUnauthorized, nearestHunk, needsPackageInstall, readLive, writeLive, sameAsBranch,
+  main, findSoftwareRoot, isTestPath, looksUnauthorized, nearestHunk, needsPackageInstall, readLive, writeLive,
+  sameAsBranch,
 } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
@@ -620,4 +621,50 @@ test('a branch file stored with CRLF, or with the old CR-CR-LF, still takes an u
   assert.equal(readFileSync(join(live, 'frontend/src/Panel.jsx'), 'utf8'), panel.replace('180', '240'));
   // The damaged file takes the change and comes back as plain CRLF.
   assert.equal(readFileSync(join(live, 'frontend/src/labels.js'), 'utf8'), 'export const label = "new"\r\nexport const other = 1\r\n');
+});
+
+// Worker1, 2026-10-07: the live branch changed backend/tests/test_assistant_
+// heartbeat.py, which the live tree never had, and the whole update (a backend
+// fix and the playlist's MP3 fix) was refused for it.
+test('a change to a test this machine does not have is skipped, not refused', async () => {
+  assert.ok(isTestPath('backend/tests/test_x.py') && isTestPath('backend/test_y.py') && isTestPath('frontend/src/a.test.js'));
+  assert.ok(!isTestPath('backend/main.py') && !isTestPath('frontend/src/latest.js') && !isTestPath('backend/contest.py'));
+
+  const dir = mkdtempSync(join(tmpdir(), 'alpha-update-test-'));
+  const repo = join(dir, 'alpha');
+  mkdirSync(repo);
+  git(repo, 'init', '-q', '-b', 'alpha-full');
+  git(repo, 'config', 'user.email', 't@t');
+  git(repo, 'config', 'user.name', 't');
+  write(repo, `${SUB}/frontend/src/a.css`, '.a{color:red}\n');
+  write(repo, `${SUB}/backend/tests/test_beat.py`, 'def test_a():\n    assert 1\n');
+  write(repo, `${SUB}/backend/gone.py`, 'x = 1\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'base');
+  const base = git(repo, 'rev-parse', 'HEAD').trim();
+  write(repo, `${SUB}/frontend/src/a.css`, '.a{color:green}\n');
+  write(repo, `${SUB}/backend/tests/test_beat.py`, 'def test_a():\n    assert 2\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'update');
+  const live = join(dir, 'live', 'software');
+  write(live, 'frontend/src/a.css', '.a{color:red}\n');
+  write(live, 'backend/main.py', 'x = 0\n');
+  write(live, 'frontend/package.json', '{"name":"x"}\n');
+  const f = { dir, repo: `file://${repo}`, base, live, ops: join(dir, 'ops') };
+
+  const log = quiet();
+  assert.equal(await main(args(f, '--apply'), log), 0, log.lines.join('\n'));
+  const out = log.lines.join('\n');
+  assert.match(out, /skipped +M backend\/tests\/test_beat\.py +\(a test this machine does not have\)/);
+  assert.equal(readFileSync(join(live, 'frontend/src/a.css'), 'utf8'), '.a{color:green}\n');
+  assert.equal(existsSync(join(live, 'backend/tests/test_beat.py')), false, 'a skipped test is not written');
+
+  // Code that is missing still refuses.
+  write(repo, `${SUB}/backend/gone.py`, 'x = 2\n');
+  git(repo, 'add', '-A');
+  git(repo, 'commit', '-qm', 'code');
+  const again = quiet();
+  const rest = args(f, '--apply').filter((a, i, all) => a !== '--from' && all[i - 1] !== '--from');
+  assert.notEqual(await main(rest, again), 0);
+  assert.match(again.lines.join('\n'), /conflict M backend\/gone\.py/);
 });

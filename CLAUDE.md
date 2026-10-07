@@ -675,6 +675,54 @@ the wall must not hold a credential that could queue work. It picks the port by
 the CH340 bridge and refuses to guess between two candidates, because flashing
 the wrong board is not something the next command can undo.
 
+**Which board is the panel is asked of the boards, not of the port names.**
+Worker1 carries five bridges — four CH340 clones and the panel — and every one
+of them is "USB-SERIAL CH340" to `mode.com`, while Windows renumbers COM ports
+on re-enumeration, so the number is the least durable fact there is about a
+board. `panel-up.mjs --identify` opens each port in turn and classifies what
+answers: **panel** (this firmware's `status` came back), **alpha-deck** (talking
+and naming itself `[crowpanel]` — Alpha's own deck firmware, which
+`scripts/panel-endpoint.ps1` points and this must never flash over),
+**other**, **silent** or **unreadable**. Four rules:
+
+- **The only thing written is the status query** the readiness probe already
+  sends. A board whose identity is unknown is never handed a command, which is
+  the same rule as refusing to guess which board to flash.
+- **One port at a time.** Opening a port reboots the board behind it, and five
+  boards rebooting at once on one laptop's USB is a brownout, not a diagnosis.
+- **A port gets the handler's own 30 s**, because the sketch spends up to 15 s
+  joining WiFi in `setup()` before its loop reads a byte. A shorter window
+  reports the panel as silent, which sends somebody looking for an unplugged
+  board.
+- **It feeds `pickPort()`.** With several ports and no `--port`, panel-up
+  identifies instead of giving up, and uses the one board that answered *this*
+  firmware. None answering is not a port it can choose — a board not yet
+  flashed with this firmware cannot answer — so it says so and asks for
+  `--port`.
+
+**The board is remembered by what it says, not by the port it was on.**
+`panel-up.mjs --pin [port]` writes `data/panel-board.json` (machine-local,
+gitignored — which USB socket a laptop's panel is in is not a fleet fact, and
+there is nothing secret in it). It keeps the board's own answer: `kind`,
+`firmware` and its **MAC**, which `panel-4` added to the `status` reply because
+it is the only identifier that survives both a re-enumeration and a reflash.
+Four rules:
+
+- **The port is a hint that gets checked.** `pickPort()` asks the pinned port
+  first and `verifyPin()` compares MACs; equal means this is the board, whatever
+  the port is called today. Trusting the number is the `device.inventory`
+  failure with a file behind it.
+- **A different MAC on the pinned port is a different board**, so the sweep runs
+  and the pin moves to where the panel actually is. That case is not
+  hypothetical: provisioning the wrong ESP32 is what pinning a bare number
+  eventually does.
+- **A board with no MAC is pinned by kind and port, and told so.** Alpha's deck
+  firmware reports none and neither did `panel-3`; `verifyPin` returns the weak
+  answer as a weak answer rather than dressing it up.
+- **Nothing silent is ever pinned.** `pinFromBoard()` takes only `panel` or
+  `alpha-deck` — a pin made from a port that said nothing is a guess the next
+  run believes.
+
 **The panel knows several networks, and picks by signal rather than by order.**
 It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
 handler so an operator hears "at most four" instead of silently losing the
@@ -700,6 +748,18 @@ is not what the laptop beside it hears. `panel-up.mjs` runs it automatically
 when a join fails, and `--scan` runs it on its own. Reflashing does not cost a
 board its credentials: the previous firmware's single network is migrated into
 the list on first boot.
+
+**The port is opened as a device, and configured by its plain name.** The first
+real `--identify` sweep on Worker1 failed on every port, and the two halves of
+the failure say why: `could not open COM4: ENOENT ... open
+'C:\services\alpha-tunnel\COM4'` — `fs.open` resolves a bare `COM4` against the
+working directory like any other relative path, so `devicePath()` prefixes
+`\\.\` at *every* number, not only above COM9 as it first did. But
+`mode.com \\.\COM20 BAUD=...` failed in the same run where `mode.com COM4` had
+worked, so `mode` wants the plain name — the opposite way round.
+`portConfigAttempts()` tries the plain name and falls back to the device path,
+because the only evidence against the second spelling is one machine's two held
+ports. arduino-cli keeps the plain name in its argv throughout.
 
 **Serial ports are read from two sources per platform.** On Windows `mode.com`
 lists only ports it can *open*, so a board held by a serial monitor — the usual
@@ -752,9 +812,17 @@ address, which is the only check that means anything. Three rules it follows:
   reaching the backend through it.
 - **A missing `ALPHA_TRUSTED_HOSTS` is not invented.** Absent means the default
   decides; writing one would quietly narrow a backend nobody asked to narrow.
-- **The duplicate that counts is the one rewritten.** dotenv takes the last
-  line, so changing an earlier one looks right in the file and does nothing —
-  the failure a reader cannot see.
+- **Every duplicate is rewritten, and the value read is the first.**
+  `run_server.py` loads the file first-line-wins, as `laptop41-doctor.ps1`'s
+  `EnvSetting` does — not dotenv's last-line rule. Reporting the last is
+  reporting a value the backend never sees, and editing only one copy leaves a
+  file that disagrees with itself, so the first is read and all of them written.
+- **The file is looked for where this backend keeps it**, in `EnvSetting`'s own
+  order: `backend/.env.local`, the root, the directory above, then the `.env` of
+  each. One guessed path is what stopped a hand-run at
+  "no file at ...\app\.env.local" on a machine whose Alpha has no `app`
+  directory; a named `--env` that is missing and a search that found nothing are
+  reported differently, because one is a typo and the other a wrong root.
 
 **Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
 `hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no

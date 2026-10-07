@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -50,12 +51,28 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'h1', do: 'restart-site' },
     { id: 'h2', do: 'restart-coordinator', task: 'anything else' },
     { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
+    { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
+    { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
+    { id: 'i4', do: 'receive-alpha-data', inbox: 'C:\\Windows' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
+    { id: 'p2', do: 'panel-identify', port: 'COM3' },
+    { id: 's1', do: 'stop-stray-site', pid: 12448, port: 8001 },
+    { id: 's2', do: 'comfyui-off', pid: 4, dir: 'C:\\Windows' },
+    { id: 's3', do: 'songs-check', root: 'C:\\Windows' },
+    { id: 's4', do: 'alpha-data-in', from: 'C:\\Windows', to: 'C:\\' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'p1', 'p2', 's1', 's2', 's3', 's4']);
+  assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
+  assert.match(plan.s2.args.at(-1), /comfyui-off\.ps1$/, 'nothing from the payload: what is ComfyUI is read off the machine');
+  assert.deepEqual(plan.s3.args.slice(-3).map(String), [plan.s3.args.at(-3), '-AlphaRoot', 'C:\\A\\software'], 'only the autopilot\'s own AlphaRoot, nothing from the payload');
+  // Identification asks every port and takes no port from the payload: a
+  // payload that could name one is a payload that could aim a write at a board
+  // nobody identified, which is the whole point of asking.
+  assert.deepEqual(plan.p2.args.slice(1), ['--identify']);
+  assert.match(plan.p2.args[0], /panel-up\.mjs$/);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -73,6 +90,12 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.equal(plan.h2.internal, 'restart-coordinator');
   assert.deepEqual(plan.h2.args, [], 'it restarts alpha-coordinator and nothing a payload names');
   assert.match(plan.i1.args.join(' '), /fleet-inventory\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
+  assert.match(plan.i2.args.join(' '), /alpha-move-check\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
+  assert.match(plan.s4.args.at(-1), /alpha-data-in\.ps1$/, 'no source or target from the payload');
+  assert.equal(plan.s4.timeoutMin, 60);
+  assert.match(plan.i3.args.at(-1), /prepare-alpha-here\.ps1$/, 'no target, branch or anything else from the payload');
+  assert.equal(plan.i3.timeoutMin, 90);
+  assert.match(plan.i4.args.at(-1), /receive-alpha-data\.ps1$/, 'no inbox or target from the payload');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -323,6 +346,56 @@ test('panel-endpoint takes nothing from the action, and reads the deck STATUS li
   assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
 });
 
+test('panel-endpoint says what a port that never answered STATUS did send', { skip }, () => {
+  const panel = join(import.meta.dirname, '..', 'scripts', 'panel-endpoint.ps1');
+  const heard = (text) => pwsh([panel, '-DescribeHeard', text]).stdout.trim();
+  assert.match(heard(''), /^nothing at all came back: the board is silent on this port/);
+  assert.match(heard('abc'), /^3 byte\(s\) came back but never a whole line/);
+  const other = heard('rst:0x1 (POWERON_RESET)\\n{"ok":true,"wifi":"Home","pass":"hunter2"}\\nwifi password=hunter2 key: abc\\n');
+  assert.match(other, /^it is talking, but not as Alpha's deck firmware\. It said: 'rst:0x1 \(POWERON_RESET\)'/);
+  assert.ok(!other.includes('hunter2') && !other.includes('abc'), `nothing credential-shaped is repeated: ${other}`);
+  assert.match(heard('boot\\n[crowpanel] fw=1.4 wifi_ssid=Starlink alpha_base=http://192.168.1.151:8001\\n'), /^status: \[crowpanel\] fw=1\.4/);
+});
+
+test('panel-host edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-host-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'panel-host', address: '10.9.9.9', env: 'C:\\evil\\.env', task: 'calc' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /fix-panel-host\.mjs$/);
+  assert.deepEqual(p.args.slice(1), ['--env', 'C:\\A\\.env.local', '--require-host'], "run_server.py's own file, and only if it sets HOST");
+  assert.ok(!/10\.9\.9\.9|evil|calc/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
+test('promo-reel renders into the folder Alpha serves videos from, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-promo-reel-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'promo-reel', name: '..\\evil', outDir: 'C:\\evil' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /promo-reel\.mjs$/);
+  assert.deepEqual(p.args.slice(1, 5), ['--video-script', 'C:\\A\\scripts\\alpha_video_creator.py', '--out-dir', 'C:\\A\\artifacts\\generated\\videos']);
+  assert.ok(!/evil/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
+test('interactive-first-off edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-ifo-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'interactive-first-off', env: 'C:\\evil\\.env', value: 'true' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /interactive-first-off\.mjs$/);
+  assert.deepEqual(p.args.slice(1), ['--env', 'C:\\A\\.env.local']);
+  assert.ok(!/evil|true/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
   const remote = join(dir, 'remote.git');
@@ -535,6 +608,131 @@ test('the fleet inventory runs read-only and fits the report', { skip }, () => {
   }
 });
 
+test('the Alpha move check runs read-only, fits the report and names what is missing', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'move-'));
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'alpha-move-check.ps1'), '-AlphaRoot', join(root, 'software')]);
+  assert.equal(r.status, 0, r.stderr);
+  const out = r.stdout.trim().split(/\r?\n/);
+  assert.ok(out.length <= 60, `${out.length} lines; the autopilot keeps 60`);
+  for (const section of ['ALPHA MOVE CHECK', 'MACHINE', 'ALPHA COPY', 'TOOLS', 'PORTS', 'AGENT MANAGER', 'MISSING TO RUN ALPHA HERE']) {
+    assert.ok(out.some((line) => line.startsWith(section)), section);
+  }
+  assert.match(r.stdout, /no Alpha copy with backend\\main\.py/);
+  assert.match(r.stdout, /PORTS: 8001 backend=-/, 'a port nobody listens on is not up');
+  assert.deepEqual(readdirSync(root), [], 'it writes nothing');
+});
+
+test('preparing Alpha refuses a folder that is not a checkout, and a dry run changes nothing', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1');
+  const base = mkdtempSync(join(tmpdir(), 'prep-'));
+  let r = pwsh([script, '-Target', join(base, 'Alpha'), '-DryRun']);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /would clone https:\/\/github\.com\/vyos88\/Alpha\.git \(claude\/friendly-wright-jw4ep6-route-b\)/);
+  assert.match(r.stdout, /RESULT: dry run/);
+  assert.deepEqual(readdirSync(base), [], 'a dry run writes nothing');
+
+  mkdirSync(join(base, 'Alpha'));
+  writeFileSync(join(base, 'Alpha', 'keep.txt'), 'mine');
+  r = pwsh([script, '-Target', join(base, 'Alpha')]);
+  assert.equal(r.status, 1);
+  assert.match(r.stdout, /REFUSED: .* is not a git checkout/);
+  assert.deepEqual(readdirSync(join(base, 'Alpha')), ['keep.txt'], 'nothing was changed');
+});
+
+test('the Alpha move check finds the backend configuration beside software, and never reads it', { skip }, () => {
+  const top = mkdtempSync(join(tmpdir(), 'move-top-'));
+  mkdirSync(join(top, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(top, 'software', 'backend', 'main.py'), '');
+  writeFileSync(join(top, '.env.local'), 'SECRET_VALUE=do-not-print\n');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'alpha-move-check.ps1'), '-AlphaRoot', join(top, 'software')]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\.env\.local: present, 26 bytes \(contents not read\)/);
+  assert.doesNotMatch(r.stdout, /the backend's \.env\.local/, 'present beside software\\ is present');
+  assert.doesNotMatch(r.stdout, /SECRET_VALUE|do-not-print/);
+});
+
+test('receiving Alpha data checks every file, puts it in place and never shows the configuration', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1').replace('prepare-alpha-here', 'receive-alpha-data');
+  const base = mkdtempSync(join(tmpdir(), 'recv-'));
+  const home = join(base, 'Alpha', 'BuildArtifacts', 'installers', 'Alpha-Full');
+  mkdirSync(join(home, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(home, 'software', 'backend', 'main.py'), '');
+  mkdirSync(join(home, 'memory'));
+  writeFileSync(join(home, 'memory', 'from-git.txt'), 'old');
+  const src = join(base, 'src');
+  mkdirSync(join(src, 'memory', 'local'), { recursive: true });
+  writeFileSync(join(src, 'memory', 'local', 'state.json'), '{"ok":true}');
+  const inbox = join(base, 'inbox');
+  mkdirSync(inbox);
+  execFileSync('tar', ['-cf', join(inbox, 'memory-1.tar'), '-C', src, 'memory']);
+  writeFileSync(join(inbox, 'env.local'), 'API_TOKEN=do-not-print\n');
+  const sha = (f) => createHash('sha256').update(readFileSync(join(inbox, f))).digest('hex');
+  const size = (f) => readFileSync(join(inbox, f)).length;
+  const manifest = (files) => writeFileSync(join(inbox, 'alpha-move-manifest.json'), JSON.stringify({ files }));
+  const good = [
+    { name: 'memory-1.tar', kind: 'memory', sha256: sha('memory-1.tar'), bytes: size('memory-1.tar') },
+    { name: 'env.local', kind: 'env-local', sha256: sha('env.local'), bytes: size('env.local') },
+  ];
+  const run = () => pwsh([script, '-Target', join(base, 'Alpha'), '-Inbox', inbox, '-NoFetch']);
+
+  // One wrong hash: nothing changes.
+  manifest([good[0], { ...good[1], sha256: '0'.repeat(64) }]);
+  let r = run();
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /MISMATCH: env\.local/);
+  assert.deepEqual(readdirSync(join(home, 'memory')), ['from-git.txt']);
+  assert.ok(!readdirSync(home).includes('.env.local'));
+
+  manifest(good);
+  r = run();
+  assert.equal(r.status, 0, r.stdout);
+  assert.equal(readFileSync(join(home, 'memory', 'local', 'state.json'), 'utf8'), '{"ok":true}');
+  assert.ok(readdirSync(home).some((n) => n.startsWith('memory.prev-')), 'the old memory is kept, not deleted');
+  assert.equal(readFileSync(join(home, '.env.local'), 'utf8'), 'API_TOKEN=do-not-print\n');
+  assert.doesNotMatch(r.stdout, /do-not-print/);
+  assert.deepEqual(readdirSync(inbox), [], 'no second copy of a secret left behind');
+});
+
+test('receiving Alpha data refuses an archive that reaches outside memory', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'receive-alpha-data.ps1');
+  const base = mkdtempSync(join(tmpdir(), 'recv-bad-'));
+  const home = join(base, 'Alpha');
+  mkdirSync(join(home, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(home, 'software', 'backend', 'main.py'), '');
+  const src = join(base, 'src');
+  mkdirSync(join(src, 'software'), { recursive: true });
+  writeFileSync(join(src, 'software', 'evil.py'), 'x');
+  const inbox = join(base, 'inbox');
+  mkdirSync(inbox);
+  execFileSync('tar', ['-cf', join(inbox, 'memory-1.tar'), '-C', src, 'software']);
+  const buf = readFileSync(join(inbox, 'memory-1.tar'));
+  writeFileSync(join(inbox, 'alpha-move-manifest.json'), JSON.stringify({ files: [{ name: 'memory-1.tar', kind: 'memory', bytes: buf.length, sha256: createHash('sha256').update(buf).digest('hex') }] }));
+  const r = pwsh([script, '-Target', home, '-Inbox', inbox, '-NoFetch']);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /holds paths outside memory/);
+  assert.ok(!readdirSync(join(home, 'software')).includes('evil.py'));
+});
+
+test('preparing Alpha finds the software folder where the live branch keeps it, under Alpha-Full', { skip }, () => {
+  const base = mkdtempSync(join(tmpdir(), 'prep-clone-'));
+  const src = join(base, 'src');
+  const app = join(src, 'BuildArtifacts', 'installers', 'Alpha-Full', 'software');
+  mkdirSync(join(app, 'backend'), { recursive: true });
+  mkdirSync(join(app, 'frontend'), { recursive: true });
+  writeFileSync(join(app, 'backend', 'main.py'), '');
+  writeFileSync(join(app, 'frontend', 'package.json'), JSON.stringify({ name: 'f', version: '1.0.0', scripts: { build: "node -e \"require('fs').mkdirSync('dist');require('fs').writeFileSync('dist/index.html','ok')\"" } }));
+  git(base, 'init', '-q', '-b', 'live', src);
+  git(src, 'add', '.');
+  git(src, '-c', 'user.email=t@t', '-c', 'user.name=t', 'commit', '-qm', 'live');
+  const target = join(base, 'Alpha');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1'), '-Target', target, '-Repo', src, '-Branch', 'live', '-Model', 'none:0']);
+  assert.match(r.stdout, /cloned: /, r.stdout);
+  assert.match(r.stdout, /Alpha's software\\ is .*BuildArtifacts.installers.Alpha-Full.software/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no software/);
+  assert.match(r.stdout, /built: dist\\index\.html/);
+  assert.doesNotMatch(r.stdout, /NOT READY: no frontend/);
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');
@@ -561,7 +759,10 @@ test('the live report is written every pass, and a stopped self-heal is started 
   mkdirSync(join(alpha, 'memory', 'local', 'deck-liveness'), { recursive: true });
   writeFileSync(join(alpha, 'memory', 'local', 'deck-liveness', 'latest.json'), JSON.stringify({
     checked_at: '2026-10-07T02:30:00+00:00', not_live: ['CrowPanel feed (/panel/crowpanel/state)'],
-    sources: [{ verdict: 'LIVE' }, { verdict: 'LIVE' }, { verdict: 'SETTING' }],
+    // Two checks of one deck (the CrowPanel) are one deck, at its worst verdict.
+    sources: [{ source: 'hubs pulse', decks: 'alpha, terminal', verdict: 'LIVE' }, { source: 'site', decks: 'every deck page', verdict: 'LIVE' },
+      { source: 'CrowPanel feed (/panel/crowpanel/state)', decks: 'CrowPanel', verdict: 'SETTING' },
+      { source: 'CrowPanel display (LAN reads)', decks: 'CrowPanel', verdict: 'STALE' }],
   }));
   mkdirSync(join(ops, 'logs'), { recursive: true });
   const log = join(ops, 'logs', 'selfheal.jsonl');
@@ -583,7 +784,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   let md = live();
   assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
-  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel feed/);
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
 
@@ -592,6 +793,11 @@ test('the live report is written every pass, and a stopped self-heal is started 
   r = run();
   assert.match(r.stdout, /nothing new to run/);
   assert.equal(Number(commits()), before + 1);
+
+  // Saving the rollback copy is not a repair; when it fails, the reason is shown.
+  writeFileSync(log, `${JSON.stringify({ at: '2026-10-07T02:30:00Z', probes: { backend: ok, frontend: ok, public: ok, control: ok }, actions: [{ component: 'frontend', action: 'snapshot', code: 1, error: 'EPERM: operation not permitted, rename' }], events: [] })}\n`);
+  run();
+  assert.match(live(), /last pass 0 min ago, 0 repair\(s\) in it; the rollback copy of the site was not saved: EPERM: operation not permitted, rename/);
 
   // A part that does not answer is named.
   heal({ backend: ok, frontend: { ok: false, status: 502 }, public: ok, control: ok });
@@ -608,4 +814,150 @@ test('the live report is written every pass, and a stopped self-heal is started 
   run();
   assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
   assert.match(live(), /restart already tried at/);
+});
+
+test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-update-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const dev = join(dir, 'dev');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', '-u', 'origin', 'main');
+  git(dir, 'clone', '-q', '-b', 'main', remote, dev);
+  git(dev, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(dev, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(dev, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: true } }));
+  git(dev, 'add', 'actions.json');
+  git(dev, 'commit', '-qm', 'control');
+  git(dev, 'push', '-q', 'origin', 'control/laptop41');
+  git(dev, 'checkout', '-q', '-f', 'main');
+  git(dev, 'clean', '-qfd');
+
+  const ops = join(dir, 'ops');
+  mkdirSync(join(dir, 'alpha', 'software'), { recursive: true });
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', ops, '-AlphaRoot', join(dir, 'alpha', 'software')];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+  let r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const reports = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41-live').trim());
+  const before = reports();
+
+  // Main moves while the machine is between passes: the next pass updates.
+  const script = readFileSync(join(dev, 'scripts', 'autopilot.ps1'), 'utf8');
+  writeFileSync(join(dev, 'scripts', 'autopilot.ps1'), script.replace("$ErrorActionPreference = 'Continue'", "$ErrorActionPreference = 'Continue'\nWrite-Host 'running the v2 code'"));
+  git(dev, 'commit', '-qam', 'v2');
+  git(dev, 'push', '-q', 'origin', 'main');
+
+  r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /updated this checkout; running the rest of this pass with the new code/);
+  assert.match(r.stdout, /running the v2 code/, 'the rest of the pass is the new code');
+  assert.equal(reports(), before + 1, 'and it still wrote its live report');
+  assert.equal((r.stdout.match(/updated this checkout/g) || []).length, 1, 'it updates once, not in a loop');
+});
+
+// Worker1 kept a second `vite preview` tree (pid 6508) after the Alpha task's
+// restart; stop-stray-site takes it and must never take the tree on 4173.
+test('stop-stray-site stops only a preview tree that does not hold the port', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'stray-site-'));
+  const file = join(dir, 'procs.json');
+  const node = (pid, parent, cmd, mb = 50) => ({ pid, parent, name: 'node.exe', cmd, mb });
+  writeFileSync(file, JSON.stringify([
+    { pid: 4, parent: 0, name: 'System', cmd: '', mb: 1 },
+    { pid: 900, parent: 4, name: 'svchost.exe', cmd: 'svchost', mb: 10 },
+    { pid: 100, parent: 900, name: 'cmd.exe', cmd: 'cmd.exe /c "C:\\ProgramData\\AlphaBoot\\run-alpha.cmd"', mb: 3 },
+    node(11396, 100, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    { pid: 20808, parent: 11396, name: 'cmd.exe', cmd: 'cmd.exe /d /s /c vite preview --port 4173', mb: 3 },
+    node(12448, 20808, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview --port 4173', 90),
+    node(17388, 900, '"node" "C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js" run preview'),
+    node(6508, 17388, '"node" "C:\\A\\frontend\\node_modules\\vite\\bin\\vite.js" preview', 60),
+    { pid: 6600, parent: 6508, name: 'esbuild.exe', cmd: 'esbuild --service', mb: 20 },
+    node(7000, 900, '"node" "C:\\B\\frontend\\node_modules\\vite\\bin\\vite.js" --port 5173', 70),
+  ]));
+  const planFor = (...holders) => {
+    const args = [join(import.meta.dirname, '..', 'scripts', 'stop-stray-site.ps1'), '-ProcessesJson', file];
+    if (holders.length) args.push('-Holders', holders.join(','));
+    const r = pwsh(args);
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+
+  const plan = planFor(12448);
+  assert.equal(plan.ok, true);
+  assert.deepEqual(plan.live.map((t) => t.pid), [20808], 'the tree whose node holds 4173 is live');
+  assert.deepEqual(plan.stop.map((t) => t.pid), [17388], 'the leftover goes, with the npm run preview that waits on it');
+  assert.equal(plan.stop[0].processes, 2);
+  assert.deepEqual(plan.leave.map((t) => t.pid), [7000], 'a vite dev server is left to whoever is using it');
+
+  // Turned around, the rule turns around with it: it is the port, not the pid.
+  assert.deepEqual(planFor(6508).stop.map((t) => t.pid), [11396]);
+
+  for (const [holders, reason] of [[[], /nothing listens/], [[900], /svchost\.exe 900, not a vite process/]]) {
+    const p = planFor(...holders);
+    assert.equal(p.ok, false);
+    assert.match(p.reason, reason);
+    assert.deepEqual(p.stop, [], 'without a live tree to tell it from, nothing is stopped');
+  }
+});
+
+// The owner, 2026-10-07: Alpha checks her decks one by one and reports in the
+// tunnel. Each new deck-audit report goes into the autopilot report once.
+test("Alpha's deck audit reaches the tunnel once per report", { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-audit-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [] }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const folder = join(alpha, 'memory', 'local', 'deck-audit');
+  mkdirSync(folder, { recursive: true });
+  const write = (at, verdict) => writeFileSync(join(folder, 'latest.json'), JSON.stringify({
+    checked_at: at, machine: 'DESKTOP-41HPLCN', counts: { WORKING: 1, [verdict]: 1 },
+    decks: [
+      { deck: 'core', verdict: 'WORKING', why: 'answers with data', content: { keys: 3, lists: { agents: 4 } }, fixes: [] },
+      { deck: 'phone', verdict, why: 'answered 500', content: null, fixes: ['retry: still broken'] },
+    ],
+  }));
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  write('2026-10-07T21:50:00+00:00', 'BROKEN');
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 0 empty, 1 broken/);
+  let md = report();
+  assert.match(md, /deck-audit \(Alpha\) {2}-> {2}2 \(1 working, 0 empty, 1 broken\)/);
+  assert.match(md, /WORKING core: answers with data \(agents 4\)/);
+  assert.match(md, /BROKEN {2}phone: answered 500 \(nothing read\) {2}\[retry: still broken\]/);
+
+  r = run();
+  assert.doesNotMatch(r.stdout, /deck audit \(Alpha\)/, 'the same report is not posted twice');
+
+  write('2026-10-07T22:20:00+00:00', 'EMPTY');
+  r = run();
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 1 empty, 0 broken/);
 });

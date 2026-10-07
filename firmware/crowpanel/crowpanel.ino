@@ -84,7 +84,7 @@
 
 // Printed on the panel page and reported by `status`, so "which firmware is on
 // that board" is answerable from the wire instead of from memory.
-static const char* PANEL_FIRMWARE = "panel-3";
+static const char* PANEL_FIRMWARE = "panel-4";
 
 // How often to ask the coordinator for a fresh report. The host holds this in
 // memory and answers instantly, but a panel polling every second would add a
@@ -941,6 +941,12 @@ static void handleCommand(const String& line) {
     JsonDocument out;
     out["ok"] = true;
     out["firmware"] = PANEL_FIRMWARE;
+    // The one identifier that is this board rather than this cable: a COM
+    // number changes on every re-enumeration and a reflash takes the firmware
+    // with it, but the radio's MAC outlives both. It is what lets a laptop
+    // remember which of its five serial bridges is the panel. Not a secret --
+    // anything on the WiFi sees it in every frame the board sends.
+    out["mac"] = WiFi.macAddress();
     out["connected"] = WiFi.status() == WL_CONNECTED;
     out["ssid"] = joinedSsid;
     if (WiFi.status() == WL_CONNECTED) {

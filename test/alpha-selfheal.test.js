@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import https from 'node:https';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,6 +21,8 @@ import {
   emptyState,
   loadConfig,
   probeAll,
+  retryTransient,
+  copyIndexLast,
   rollbackDist,
   runPass,
   snapshotLastGood,
@@ -344,4 +346,100 @@ test('a control URL that is down does not make a healthy Alpha failing', async (
     assert.equal(out.exitCode, 0);
   }
   assert.deepEqual(calls, []);
+});
+
+test('a rollback snapshot that fails says why in the log, and is tried again', async (t) => {
+  const dir = tempDir(t);
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'state', 'selfheal.jsonl'), backend: { url: 'http://x/' }, frontend: { url: 'http://x/' } };
+  const healthy = async () => ({ backend: ok, frontend: { ...ok, fingerprint: 'build-7' }, public: { skipped: true } });
+  let tries = 0;
+  const executor = {
+    snapshot: async () => {
+      tries++;
+      throw new Error("EPERM: operation not permitted, rename 'dist.last-good.tmp' -> 'dist.last-good'");
+    },
+  };
+  for (const now of [0, 2 * MIN, 4 * MIN, 6 * MIN]) await runPass({ config: cfg, probe: healthy, executor, now });
+  const lines = readFileSync(cfg.logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const snaps = lines.flatMap((l) => l.actions).filter((a) => a.action === 'snapshot');
+  assert.equal(snaps.length, 2, 'not taken, so asked for again on the next pass');
+  assert.equal(tries, 2);
+  assert.equal(snaps[0].code, 1);
+  assert.match(snaps[0].error, /EPERM: operation not permitted, rename/);
+  assert.ok(lines.every((l) => l.events.length === 0), 'a snapshot is not a repair and posts nothing');
+});
+
+test('a snapshot whose rename Windows refuses for a moment is retried, and gets through', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-2');
+  let calls = 0;
+  const waits = [];
+  // EPERM twice, as a scanner holding the fresh copy would give, then through.
+  const rename = (from, to) => {
+    calls++;
+    if (calls <= 2) throw Object.assign(new Error(`EPERM: operation not permitted, rename '${from}' -> '${to}'`), { code: 'EPERM' });
+    return renameSync(from, to);
+  };
+  snapshotLastGood(fe, { rename, sleep: (ms) => waits.push(ms) });
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [250, 500]);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'index.html'), 'utf8'), /build-2/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good.tmp')));
+});
+
+test('a rename Windows refuses past every retry falls back to a copy, and dist is left alone', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-3');
+  writeDist(fe, 'dist.last-good', 'build-1');
+  writeFileSync(join(fe, 'dist.last-good', 'assets', 'old.js'), 'gone');
+  let calls = 0;
+  const waits = [];
+  // What Worker1 still gave at 04:14 UTC with the retries in place.
+  const rename = (from, to) => {
+    calls++;
+    throw Object.assign(new Error(`EPERM: operation not permitted, rename '${from}' -> '${to}'`), { code: 'EPERM' });
+  };
+  const result = snapshotLastGood(fe, { rename, sleep: (ms) => waits.push(ms) });
+  assert.equal(calls, 6, 'every retry is spent before falling back');
+  assert.equal(waits.length, 5);
+  assert.equal(result.copied, true);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'index.html'), 'utf8'), /build-3/);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'assets', 'app.js'), 'utf8'), /build-3/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good', 'assets', 'old.js')), 'nothing from the older build survives');
+  assert.match(readFileSync(join(fe, 'dist', 'index.html'), 'utf8'), /build-3/, 'dist is only read');
+  assert.ok(!existsSync(join(fe, 'dist.last-good.tmp')), 'the spare copy is cleared when Windows lets it go');
+});
+
+test('a rename refused for any other reason is not papered over with a copy', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-4');
+  const rename = () => { throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }); };
+  assert.throws(() => snapshotLastGood(fe, { rename, sleep: () => {} }), /ENOSPC/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good', 'index.html')));
+});
+
+test('the fallback copy writes index.html last, so a copy cut short is no snapshot', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-5');
+  copyIndexLast(join(fe, 'dist'), join(fe, 'dist.last-good'));
+  assert.deepEqual(readdirSync(join(fe, 'dist.last-good'), { recursive: true }).sort(), ['assets', join('assets', 'app.js'), 'index.html'].sort());
+  // Cut short at the last step: an index.html that cannot be copied.
+  const torn = join(fe, 'torn');
+  writeDist(torn, 'dist', 'build-6');
+  rmSync(join(torn, 'dist', 'index.html'));
+  mkdirSync(join(torn, 'dist', 'index.html'));
+  assert.throws(() => copyIndexLast(join(torn, 'dist'), join(torn, 'dist.last-good')));
+  assert.ok(existsSync(join(torn, 'dist.last-good', 'assets', 'app.js')), 'everything else landed first');
+  assert.throws(() => rollbackDist(torn, { now: 1 }), /no last-good snapshot/, 'and it reads as none');
+});
+
+test('a rename that stays refused is thrown with its own reason; other errors are not retried', () => {
+  const eperm = () => { throw Object.assign(new Error('EPERM: operation not permitted, rename'), { code: 'EPERM' }); };
+  let waits = 0;
+  assert.throws(() => retryTransient(eperm, { attempts: 4, sleep: () => waits++ }), /EPERM/);
+  assert.equal(waits, 3);
+  let tries = 0;
+  const missing = () => { tries++; throw Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' }); };
+  assert.throws(() => retryTransient(missing, { sleep: () => {} }), /ENOENT/);
+  assert.equal(tries, 1);
 });

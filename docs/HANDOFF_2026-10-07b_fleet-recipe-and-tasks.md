@@ -91,3 +91,65 @@ From `HANDOFF_2026-10-07_live-sync-gaps-and-song-length.md`; they are also in
 | G1 | Claude · Host | songs over 60 s go to the Host's GPU first |
 
 Claim an item before starting it (BACKLOG, "How to take an item").
+
+## 4. What the first inventories showed (02:29 UTC, jobs h11 and 49)
+
+**Host (LAPTOP-GJ8DFMLK)**
+
+- **Running and needed:**
+  - `alpha-coordinator` (8787);
+  - `alpha-tunnel agent` (keep-agent and agent);
+  - `Alpha Autopilot`;
+  - `Alpha peer report`;
+  - `Alpha records standby` and `Alpha records from Worker1` (the Worker1-down standby, `HANDOFF_2026-10-05g`);
+  - `Alpha compute worker keep-alive` with `alpha_windows_supervisor.py` and `alpha_windows_worker.py`: Alpha's own worker, **Agent Manager's call**.
+- **Down: ComfyUI.** Nothing listens on 8188. The task last ended 0xC000013A (closed) at 2026-10-06 21:39, so the Host's RTX 3050 makes no images. Queued: `20261007-h12-comfyui-back` (`enable-image`, as h07 did).
+- **Already disabled; leave as they are, the owner may delete:**
+  - `Alpha Host - Agent Manager`, `Alpha Host - Health Guard`, `Alpha Host - Start at Logon`;
+  - `Alpha Tunnel Worker`, `Alpha Fleet Render Maintenance`.
+- **Heavy, but the owner's:** Codex (22 processes, 1.3 GB) and Claude (17 processes, 1.5 GB) desktop apps on a 16 GB machine that also runs the coordinator and ComfyUI. Close them when not in use. Sessions must not.
+- `tunnel agent x2` was a misreading: the records standby is started with the agent's entry point as an argument. The script now classifies by the file a process runs.
+
+**Worker1 (DESKTOP-41HPLCN)**
+
+- **Running and needed:**
+  - `Alpha`, `Alpha Backend`, `Alpha Autopilot`, `Alpha Self-Heal`, `Alpha Doctor`, `Alpha peer report`;
+  - the `alpha-agent` service;
+  - cloudflared, the music and image bridges, ComfyUI (8188), A1111 (7860), Ollama.
+- **DUPLICATES reported:** `alpha_fleet_transport.py`, `alpha_comfyui_bridge.py`, ComfyUI `main.py`, `run_server.py` x2 each, `Alpha site` x3. Each `x2` is a venv `python.exe` with its child, and the site is `cmd` → `npm` → `node`. The script now counts process trees (a child of the same role is not a copy). **Re-run queued as `20261007-50-fleet-inventory`. Stop nothing on the old line.**
+- **Alpha's Agent Manager: 59 agents:**
+  - 20+ RUNTIME-HEALTHY, 3 RUNTIME-AVAILABLE, 1 RECEIPT-FRESH, 1 SUPERVISING;
+  - **12 ATTENTION**, 1 RUNTIME-PAUSED;
+  - about 18 RUNTIME-DISABLED, 3 MIRROR-ONLY.
+
+  The names did not read (the snapshot names agents under another key; fixed). **Alpha:** the 12 ATTENTION agents are yours to look at first: restart, fix, or disable through the manager, and say which in your coordination log.
+- `Alpha Server - Health Guard` runs every 5 minutes beside `Alpha Self-Heal`. **Alpha / Claude · Worker1:** say whether both are needed. If the guard only repeats self-heal's probes, disable it (do not delete).
+
+**Stop list so far:** nothing is clearly safe to stop until the tree-aware re-run (`50`, `h13`) reports. Then stop exactly what its `DUPLICATES` line names, under the rules in section 2.
+
+## 5. The stop list (tree-aware re-runs at 02:54 UTC, jobs h13 and 50)
+
+**Host: nothing to stop.** `DUPLICATES: none`. ComfyUI is back (job h12): `ComfyUI answers on 127.0.0.1:8188`, CUDA torch 2.11, and the agent offers `alpha.image` again.
+
+**Worker1: one thing to stop.** `DUPLICATES: Alpha site x2`: two separate `vite preview` process trees (pids 6508 and 13780 at 02:54 UTC). Port 4173 is held by the tree the `Alpha` task started at 02:31, after its restart. 6508 was already there before that restart (02:29 run: 10616, 20320, 6508), so it is the leftover.
+
+- **Claude · Worker1:**
+  1. Find the `vite preview` tree that does **not** hold 4173:
+     `Get-NetTCPConnection -LocalPort 4173 -State Listen`, then compare its owning process's ancestry with each `node ... vite` process.
+  2. Stop that tree: `taskkill /T /F /PID <it>`.
+  3. Check that `https://127.0.0.1:4173` still answers.
+  4. Re-run `fleet-inventory` and write the result in `status/claude-laptop41`.
+- **Never** stop the tree that holds 4173.
+
+**Alpha (Agent Manager), not a stop: a start.** The manager's view:
+
+- **The 12 ATTENTION agents are chat-model profiles** (`model:alpha-chat-...`). Say what each needs, or retire the ones no chat route uses.
+- **`runtime-daemon:auto-improve` is `RUNTIME-AVAILABLE`, not running.** The owner asked for auto-improve always (BACKLOG A1). Start it through the manager inside its budgets, and make that the default after a restart.
+- **`runtime-daemon:assistant-loop` is `RUNTIME-AVAILABLE` too.** That is why the deck feed reads heartbeat-stale (doctor, section 6). Start it.
+- `autoprogress` is available; `autonomous-thoughts` is disabled. Leave both as they are unless the owner says otherwise.
+
+**Noted, not stopped:**
+
+- `alpha-music bridge` task: last result `0x800710E0`, but the bridge answers on 8790 (node 18620). The task's own start was refused while an earlier bridge held the port. Harmless.
+- Worker1 has 28 disabled tasks (stewards, old fleet transport, hourly governed improvement) and the Host has 5. They are already off; the owner may delete them.
+- The Codex and Claude desktop apps on both laptops (about 1.3-1.8 GB each) are the owner's. Sessions leave them alone.

@@ -252,6 +252,16 @@ export function writeLive(file, text, { bom = false, crlf = false } = {}) {
 }
 
 /**
+ * A test, not code Alpha runs: under a tests/ or __tests__/ folder, a Python
+ * test_*.py, or a JS *.test.* / *.spec.* file.
+ */
+export function isTestPath(path) {
+  return /(^|\/)(tests?|__tests__)\//.test(path)
+    || /(^|\/)test_[^/]*\.py$/.test(path)
+    || /\.(test|spec)\.[cm]?[jt]sx?$/.test(path);
+}
+
+/**
  * Copies the live files the patch touches into a scratch tree, LF-normalised,
  * and asks git file by file: does it apply, is it already applied, or neither.
  */
@@ -282,6 +292,13 @@ export function plan({ root, patch, files }) {
     { cwd: tree, allowFail: true },
   );
   const rows = files.map((f) => {
+    // A change to a test this machine never had: nothing here runs it, so it
+    // is left out rather than refusing the whole update (Worker1, 2026-10-07:
+    // backend/tests/test_assistant_heartbeat.py held back a backend fix and
+    // the playlist's MP3 fix). A change to code that is missing still refuses.
+    if (f.status === 'M' && !meta[f.path].existed && isTestPath(f.path)) {
+      return { ...f, state: 'skipped', note: 'a test this machine does not have' };
+    }
     if (check(f.path, false).status === 0) return { ...f, state: 'applies' };
     if (check(f.path, true).status === 0) return { ...f, state: 'already' };
     const why = check(f.path, false).stderr.trim().split('\n')[0];

@@ -39,8 +39,10 @@ Say ("FLEET INVENTORY {0} {1}" -f $machine, (Get-Date).ToString('yyyy-MM-dd HH:m
 # ---------------------------------------------------------------- tasks
 $interesting = '(?i)alpha|comfy|cloudflare|ollama|claude|codex|steward|agent|music|image|peer|doctor|autopilot|self-?heal|standby|watchdog|coordinator|tunnel|vyos|panel|deck'
 if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
-  $tasks = @(Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft*' -and $_.TaskName -match $interesting } | Sort-Object TaskName)
-  Say ("TASKS ({0}): name | state | last run | result | next | runs" -f $tasks.Count)
+  $all = @(Get-ScheduledTask | Where-Object { $_.TaskPath -notlike '\Microsoft*' -and $_.TaskName -match $interesting } | Sort-Object TaskName)
+  $tasks = @($all | Where-Object { "$($_.State)" -ne 'Disabled' })
+  $off = @($all | Where-Object { "$($_.State)" -eq 'Disabled' })
+  Say ("TASKS ({0} enabled, {1} disabled): name | state | last run | result | next | runs" -f $tasks.Count, $off.Count)
   $shown = 0
   foreach ($t in $tasks) {
     if ($shown -ge 22) { Say ("  ... {0} more task(s)" -f ($tasks.Count - $shown)); break }
@@ -52,6 +54,7 @@ if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
     Say ("  {0} | {1} | {2} | 0x{3:X} | {4} | {5}" -f $t.TaskName, $t.State, $last, [int64]$info.LastTaskResult, $next, $runs)
     $shown++
   }
+  if ($off.Count) { Say (Cut ('  disabled: ' + (($off | ForEach-Object { $_.TaskName -replace '^Alpha ', '' }) -join ', ')) 400) }
 } else { Say 'TASKS: Get-ScheduledTask is not available here' }
 
 # ---------------------------------------------------------------- services
@@ -63,11 +66,11 @@ if ($services.Count) {
 # ---------------------------------------------------------------- processes
 $roles = @(
   @{ role = 'coordinator';        match = 'src[\\/]host[\\/]index\.js';         single = $true },
+  @{ role = 'standby';            match = 'standby-alpha\.mjs';                 single = $false },
   @{ role = 'tunnel agent';       match = 'src[\\/]agent[\\/]index\.js';        single = $true },
   @{ role = 'agent keeper';       match = 'keep-agent\.mjs';                    single = $true },
   @{ role = 'music bridge';       match = 'music-bridge\.mjs';                  single = $true },
   @{ role = 'image bridge';       match = 'image-bridge\.mjs';                  single = $true },
-  @{ role = 'standby';            match = 'standby-alpha\.mjs';                 single = $true },
   @{ role = 'watchdog';           match = 'watchdog\.mjs';                      single = $true },
   @{ role = 'self-heal';          match = 'alpha-selfheal\.mjs';                single = $true },
   @{ role = 'Alpha backend';      match = 'backend[\\/]main\.py|uvicorn.*main:app'; single = $true },
@@ -82,17 +85,21 @@ $roles = @(
 $procs = @()
 if (Get-Command Get-CimInstance -EA SilentlyContinue) {
   $procs = @(Get-CimInstance Win32_Process -EA SilentlyContinue | ForEach-Object {
-    [pscustomobject]@{ pid = $_.ProcessId; name = $_.Name; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSetSize / 1MB) } })
+    [pscustomobject]@{ pid = $_.ProcessId; parent = $_.ParentProcessId; name = $_.Name; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSetSize / 1MB) } })
 } else {
   $procs = @(Get-Process | ForEach-Object {
-    [pscustomobject]@{ pid = $_.Id; name = $_.ProcessName; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSet64 / 1MB) } })
+    [pscustomobject]@{ pid = $_.Id; parent = $null; name = $_.ProcessName; cmd = "$($_.CommandLine)"; mb = [math]::Round($_.WorkingSet64 / 1MB) } })
 }
 $groups = [ordered]@{}
 foreach ($p in $procs) {
   if ($p.pid -eq $PID) { continue }
-  $hay = "$($p.name) $($p.cmd)"
+  # The script a node or python process runs decides its role; its other
+  # arguments can name another script (the records standby is started with
+  # the agent's entry point as an argument, and read as a second agent).
+  $script = if ($p.cmd -match '(?i)([^\s"]+\.(m?js|cjs|py))\b') { $Matches[1] } else { '' }
   $role = $null
-  foreach ($r in $roles) { if ($hay -match $r.match) { $role = $r.role; break } }
+  if ($script) { foreach ($r in $roles) { if ($script -match $r.match) { $role = $r.role; break } } }
+  if (-not $role) { $hay = "$($p.name) $($p.cmd)"; foreach ($r in $roles) { if ($hay -match $r.match) { $role = $r.role; break } } }
   if (-not $role -and $p.name -match '(?i)^(powershell|pwsh)(\.exe)?$' -and $p.cmd -match '(?i)-File\s+"?([^" ]+\.ps1)') { $role = 'ps: ' + (Split-Path -Leaf $Matches[1]) }
   if (-not $role -and $p.name -match '(?i)^pythonw?(\.exe)?$' -and $p.cmd -match '(?i)([A-Za-z0-9_.-]+\.py)') { $role = 'py: ' + $Matches[1] }
   if (-not $role -and $p.name -match '(?i)^node(\.exe)?$' -and $p.cmd -match '(?i)([A-Za-z0-9_.-]+\.(m?js|cjs))') { $role = 'node: ' + $Matches[1] }
@@ -104,13 +111,18 @@ Say ("PROCESSES ({0} roles): role xN | MB | pids | command" -f $groups.Count)
 $shown = 0
 $dupes = New-Object System.Collections.ArrayList
 foreach ($role in $groups.Keys) {
-  $list = $groups[$role]
+  # One copy is one process tree: a venv's python.exe starts the real one as
+  # its child, and `cmd /c vite preview` runs node under cmd. Counting every
+  # process reported each of those as a duplicate on Worker1 (2026-10-07).
+  $ids = @($groups[$role] | ForEach-Object { $_.pid })
+  $list = @($groups[$role] | Where-Object { -not ($ids -contains $_.parent) })
+  if (-not $list.Count) { $list = @($groups[$role]) }
   $single = ($roles | Where-Object { $_.role -eq $role } | Select-Object -First 1).single
   if ($null -eq $single) { $single = $role -match '^(ps|py): ' }
   if ($single -and $list.Count -gt 1) { [void]$dupes.Add("$role x$($list.Count)") }
   if ($shown -ge 20) { continue }
-  $mb = ($list | Measure-Object -Property mb -Sum).Sum
   $pids = (($list | Select-Object -First 4 | ForEach-Object { $_.pid }) -join ',')
+  $mb = ($groups[$role] | Measure-Object -Property mb -Sum).Sum
   Say ("  {0} x{1} | {2} MB | {3} | {4}" -f $role, $list.Count, $mb, $pids, (Cut $list[0].cmd 80))
   $shown++
 }
@@ -136,7 +148,8 @@ if (Test-Path -LiteralPath $snapshot) {
     $agents = @()
     foreach ($key in 'agents', 'workers', 'processes') { if ($j.$key) { $agents = @($j.$key); break } }
     $states = $agents | ForEach-Object {
-      $n = @($_.name, $_.id, $_.agent) | Where-Object { $_ } | Select-Object -First 1
+      $n = @($_.name, $_.id, $_.agent, $_.agent_id, $_.agentId, $_.key, $_.label, $_.title, $_.display_name, $_.displayName, $_.slug) | Where-Object { $_ } | Select-Object -First 1
+      if (-not $n) { $n = @($_.PSObject.Properties | Where-Object { $_.Value -is [string] -and $_.Value -and $_.Name -notmatch '(?i)state|status' } | ForEach-Object { $_.Value }) | Select-Object -First 1 }
       $s = @($_.state, $_.status) | Where-Object { $_ } | Select-Object -First 1
       "$n=$s"
     }

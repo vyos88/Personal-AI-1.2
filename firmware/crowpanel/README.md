@@ -200,6 +200,33 @@ provision  : something on COM3 is talking but not in this protocol — if this
              STATUS/WIFI/ALPHA commands instead. It said: ...
 ```
 
+## Which board is the panel, and remembering it
+
+A laptop can carry several serial bridges — Worker1 carries five, four of them
+identical CH340 clones — and Windows renumbers COM ports on re-enumeration, so
+the board that was COM7 yesterday is COM4 today and whatever had the old number
+saved stops finding it. Two commands answer that, and neither guesses:
+
+```
+node scripts/panel-up.mjs --identify      # ask each port which board is on it
+node scripts/panel-up.mjs --pin COM4      # remember that one as this machine's panel
+```
+
+`--identify` opens each port in turn and reports `panel` (this firmware
+answered), `alpha-deck` (Alpha's own, above), `other`, `silent`, or `unreadable`
+(something else holds the port). It writes one `status` query per port and
+nothing else.
+
+`--pin` writes `data/panel-board.json` — machine-local and gitignored, because
+which USB socket a laptop's panel is in is a fact about that laptop. It records
+what the board *said*: its firmware and, from `panel-4`, its **MAC**, which is
+the only identifier that survives both a replug and a reflash. The port is kept
+as a hint. Later runs ask the pinned port first and check the answer: same MAC
+means this is the board; a different MAC means a different board and the sweep
+runs again, re-pinning where it finds it. A board with no MAC to check — Alpha's
+deck firmware, or this one before `panel-4` — is pinned by kind and port, and
+the output says so rather than implying proof it does not have.
+
 ## Pages
 
 One screen cannot hold a fleet, so five rotate every eight seconds. Each page is

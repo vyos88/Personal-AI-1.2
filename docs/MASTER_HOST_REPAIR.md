@@ -77,6 +77,7 @@ hostname and a control URL.
 | Budget, all components | 12 repairs per day |
 | When a budget runs out | it stops repairing, posts once to the coordination tunnel and exits 2 |
 | Frontend ladder | restart, then roll `dist` back to `dist.last-good`. The failed build is kept as `dist.failed-<time>` |
+| Snapshot | `dist` is copied to `dist.last-good` once a build has been healthy for 3 passes. If Windows will not let the copy be renamed into place (a virus scanner reading the new files), it is copied there instead, `index.html` last, so a copy cut short counts as no snapshot |
 | Backend ladder | restart: stop the wrapper tree and any node/python still holding the port, then start the task |
 | Connector | restarted only when the origin was healthy on 2 passes in a row, the Internet is up, and the edge returns a connector code |
 | Not restartable | Vite's `403 Blocked request` for the public host, and a missing `dist` with no snapshot. Both are reported with the fix, and no budget is spent on them |
