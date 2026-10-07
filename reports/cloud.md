@@ -1,21 +1,14 @@
-Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 04:23 UTC
+Claude (cloud) report, 2026-10-07 08:57 UTC
 
-- Alpha has been LIVE on every 5-minute page since 03:39 local (backend, site and alpha-ai.uk 200; self-heal running, no repairs). One blip at 04:18 local was the planned restart after delivery.
-- The rollback copy of the site has not been saved since 02:30 UTC: Windows keeps refusing the rename of dist.last-good.tmp (EPERM), even with #183's retries. Tunnel #184 (merged) copies it into place instead, index.html last, so a copy cut short counts as none; dist is only read. Worker1 picks it up on its next self-update. The note on the live page should go after the next snapshot.
-- New since 04:04 UTC: the CrowPanel display stopped reading the feed (decks "2 stale"). That fits the Wi-Fi move in the 03:57 report: Worker1 is now on 192.168.1.x and the panel was last on 192.168.2.x. Nothing re-provisioned; that waits for V.
-Alpha: nothing to run.
+Worker1 (Laptop41) report is fresh (doctor 08:56 UTC). Chat answered in 5.0 s with 0 s load. RAM 3.7 of 15.8 GB free, C: 16.7 GB free. Relay works.
 
-----
-Claude (cloud) report, 2026-10-07 03:57 UTC
+STILL OPEN, NEEDS V (21 doctor runs, since 03:56 UTC): Worker1 is on Wi-Fi 192.168.1.151 now (it was 192.168.2.151). The backend listens only on the old address, so no home-network device reaches it and the CrowPanel shows nothing.
+If the move is meant to stay: add 192.168.1.151 to HOST in .env.local (scripts/fix-panel-host.mjs does it) and restart the backend. Then point the panel at http://192.168.1.151:8001: the autopilot's panel-endpoint action does it over USB, and since #185 it finds the CrowPanel by its own USB ID (303A) among the five boards. If the panel is not on the 192.168.1.x network, re-provision its Wi-Fi as well. A DHCP reservation stops the address moving. If the laptop joined the other network by accident, rejoin 192.168.2.x instead. Do not re-provision the panel without V.
 
-Worker1 (Laptop41) report is fresh (doctor 03:56 UTC). Chat answered in 5.7 s with 0 s load. RAM 3.2 of 15.8 GB free, C: 17.0 GB free. Relay works; cloudSeen = db2e172 (the 02:57 report).
+Deck feed: the assistant-loop heartbeat comes and goes (stale at 07:41, fine at 06:56). Other decks are live, and Alpha is live on the 5-minute page.
+Live sync: in sync. Host: ComfyUI on the RTX 3050 since 02:54 UTC; music (#159) live on both machines.
 
-NEW, NEEDS V: Worker1 is on a different Wi-Fi network. Its address is now 192.168.1.151 (router 192.168.1.1); it was 192.168.2.151. The backend still listens on the old address only, so the CrowPanel (192.168.2.97, last seen on the old network) cannot reach it. If the move is meant to stay: add 192.168.1.151 to HOST in .env.local (scripts/fix-panel-host.mjs does it), restart the backend, and re-provision the panel with that network and ALPHA http://192.168.1.151:8001. A DHCP reservation stops the address moving. If the laptop joined the other network by accident, rejoin the 192.168.2.x one. Do not re-provision the panel without V.
-
-Decks (03:44 UTC): 5 live (hubs, command, devices, CrowPanel display, site), 1 stale (the CrowPanel FEED: the assistant-loop heartbeat is stale; the doctor now names who holds the background lane, #182), 3 static by design, the Alpha Lite Deck has no feed.
-Live sync: in sync (03:23 UTC). Host: ComfyUI back on the RTX 3050 since 02:54 UTC; music (#159) live on both machines.
-
-Merged since 02:57: #180 (self-heal says why an action failed), #181 (fleet stop list), #182, #183 (self-heal snapshot retries). Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
+Merged since 03:57: #184 (self-heal snapshot copy fallback), #185 (panel-endpoint picks the CrowPanel by USB ID). Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
 Needs V: the Wi-Fi move above; the assistant loop for the CrowPanel feed; whether COM24 is the ELEGOO bridge; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; review Alpha#68, #73; store the coordinator admin key on Worker1. The bridges close with 0xC000013A (console close).
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
