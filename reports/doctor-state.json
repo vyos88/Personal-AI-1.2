@@ -1,29 +1,24 @@
 {
     "cloudSeen":  "8178f7508b4911617b88949b2b936d6817bb2d78",
-    "lastRun":  "2026-10-07T16:26:48",
+    "lastRun":  "2026-10-07T16:41:51",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-10-07T16:13:31",
-                                                     "runs":  2,
-                                                     "text":  "only 0.9 of 15.8 GB RAM free"
+                                                     "runs":  3,
+                                                     "text":  "only 1.4 of 15.8 GB RAM free"
                                                  },
                  "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
                                                                                                                                             "since":  "2026-10-07T04:56:36",
-                                                                                                                                            "runs":  47,
+                                                                                                                                            "runs":  48,
                                                                                                                                             "text":  "the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it"
                                                                                                                                         },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  46,
+                                                                                                                                                         "runs":  47,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
-                                                                                                                                                     },
-                 "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.":  {
-                                                                                                                                                                                                                                                   "since":  "2026-10-07T15:56:34",
-                                                                                                                                                                                                                                                   "runs":  3,
-                                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled."
-                                                                                                                                                                                                                                               }
+                                                                                                                                                     }
              },
-    "lastPost":  "2026-10-07T16:26:48",
+    "lastPost":  "2026-10-07T16:41:51",
     "relay":  "relayed status/cloud 8178f75"
 }
