@@ -39,5 +39,7 @@ test('every song gets a line and a verdict, and the totals add up', { skip, time
   assert.match(out, /unreadable receipt/);
   assert.match(out, /TOTAL: 5 song\(s\): 2 can play, 1 of them as MP3, 1 still WAV only; 1 finished but WAV missing; 1 not finished or failed; 1 unreadable/);
   assert.match(out, /backend MP3 backfill, last pass now: ffmpeg True, made 1/);
+  assert.match(out, /memory: 5 files/);
+  assert.match(out, /MISSING: .*\.env\.local \(contents not read\)/);
   assert.doesNotMatch(out, /never printed|VyoS/);
 });
