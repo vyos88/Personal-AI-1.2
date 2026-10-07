@@ -1,8 +1,22 @@
-﻿# laptop41 autopilot 20261007-194846
+﻿# laptop41 autopilot 20261007-215345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 67563f8 is current
+
+## auto-live-sync-20261007-215345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T21:54:29, 17s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: cbd4b34..f1dbc73 of claude/frie...(30) (last applied here: cbd4b34)
+      applies  M backend/api/crowpanel.py
+      applies  M backend/main.py
+      conflict M backend/tests/test_assistant_heartbeat.py  -- error: backend/tests/test_assistant_heartbeat.py: No such file or directory
+    REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
+      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
+REFUSED: f1dbc73: a file here differs where the change was made, and nothing was written
+SKIPPED: nothing is captured while this machine is not on f1dbc73
+```
 
 ## auto-deck-liveness-20261007-194846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:49:29, 14s)
 ```
@@ -336,65 +350,5 @@ this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8
 ok: backend answers on http://192.168.1.151:8001
 deck port: COM7 (USB Serial Device (COM7))
 PROBLEM: the deck on COM7 did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting
-```
-
-## 20261007-53-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T16:46:24, 30s)
-```
-FLEET INVENTORY DESKTOP-41HPLCN 2026-10-07 16:46
-TASKS (9 enabled, 28 disabled): name | state | last run | result | next | runs
-  Alpha | Running | 10-07 04:19 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
-  Alpha Autopilot | Running | 10-07 16:43 | 0x41301 | 10-07 16:48 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  Alpha Backend | Running | 10-07 16:44 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha-backend.cmd"
-  Alpha Doctor | Ready | 10-07 16:41 | 0x0 | 10-07 16:56 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  Alpha peer report | Ready | 10-07 16:44 | 0x0 | 10-07 16:47 | powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\AlphaData\a...
-  Alpha Self-Heal | Ready | 10-07 16:45 | 0x0 | 10-07 16:47 | node.exe "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --confi...
-  Alpha Server - Health Guard | Ready | 10-07 16:44 | 0x0 | 10-07 16:49 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  alpha-image bridge | Running | 10-07 01:29 | 0x41301 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  alpha-music bridge | Running | 10-07 02:15 | 0x800710E0 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
- disabled: Client - Follow Host Updates, Fleet Render Maintenance, Fleet Transport Receiver, Hourly Governed Improvement, Server - Start at Logon, Steward - agent-officer, Steward - api-improvement, Steward - chat-improvement, Steward - cloudflare-commander, Steward - deck-improvement, Steward - evolution, Steward - fleet-verify, Steward - fullscreen-caretaker, Steward - gmail-triage, Steward - in...
-SERVICES: alpha-agent=Running/Automatic; cloudflared=Stopped/Automatic
-PROCESSES (26 roles): role xN | MB | pids | command
-  codex x1 | 28 MB | 9324 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.930.4958.0_x64__2p2nqsd0c76g0\app\...
-  cloudflared x1 | 35 MB | 11956 | "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --metrics 127.0.0.1:...
-  ps: alpha_generation_monitor.ps1 x1 | 18 MB | 9088 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  py: alpha_fleet_transport.py x1 | 16 MB | 9520 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" "C:\Users...
-  ps: alpha_runtime_always_on.ps1 x1 | 47 MB | 17272 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  py: alpha_comfyui_bridge.py x1 | 8 MB | 16876 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" C:\Users\...
-  ps: alpha_coordination_tunnel.ps1 x1 | 58 MB | 9824 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  ps: alpha-desktop-tray.ps1 x1 | 114 MB | 1196 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -...
-  llama-server x2 | 334 MB | 7428,18996 | C:\Users\Vyo\AppData\Local\Programs\Ollama\lib\ollama\llama-server.exe --model E...
-  ollama x1 | 82 MB | 15680 | "C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama app.exe" 
-  py: main.py x1 | 3392 MB | 15724 | "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127....
-  claude x1 | 1385 MB | 6188 | "C:\Program Files\WindowsApps\Claude_2.26454.0.0_x64__pzs8sxrjxfjjc\app\claude.e...
-  node: npx-cli.js x1 | 45 MB | 6612 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
-  node: index.js x1 | 61 MB | 12668 | "node" "C:\Users\Vyo\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules\...
-  ps: alpha_runtime_watchdog.ps1 x1 | 50 MB | 18664 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  ps: start-music-bridge.ps1 x1 | 3 MB | 10936 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  ps: start-image-bridge.ps1 x1 | 3 MB | 18340 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  image bridge x1 | 35 MB | 9636 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge...
-  node: npm-cli.js x2 | 1 MB | 11396,17388 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
-  Alpha site x2 | 199 MB | 6508,20808 | "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modul...
-  ... 6 more role(s)
-DUPLICATES: Alpha site x2 (each of these should run once)
-PORTS: 8001=python(22732) 4173=node(12448) 8787=- 8790=node(18620) 7861=node(9636) 7860=python(16160) 8188=python(18408) 11434=ollama(19292) 8080=-
-AGENT MANAGER: 59 agent(s), snapshot 0 min old
-  alpha-runtime-caretaker=RUNTIME-DISABLED, alpha-fullscreen-caretaker=RUNTIME-DISABLED, manager=SUPERVISING, alpha-local=RUNTIME-PAUSED, alpha-coding=R
-  UNTIME-PAUSED, alpha-design-steward=RUNTIME-DISABLED, alpha-api-steward=RUNTIME-DISABLED, alpha-chat-improver=RUNTIME-DISABLED, alpha-voice-steward=RU
-  NTIME-DISABLED, alpha-music-steward=RUNTIME-DISABLED, alpha-fleet-verifier=RUNTIME-DISABLED, alpha-spatial-signal-steward=RUNTIME-DISABLED, alpha-evol
-  ution-steward=RUNTIME-DISABLED, alpha-interface-style-steward=RUNTIME-DISABLED, alpha-cloudflare-commander=RUNTIME-DISABLED, alpha-gmail-steward=RUNTI
-  ME-DISABLED, alpha-package-steward=RUNTIME-DISABLED, alpha-surface-health-steward=RUNTIME-DISABLED, alpha-agent-officer=RUNTIME-DISABLED, codex-mirror
-  =MIRROR-ONLY, claude-mirror=MIRROR-ONLY, chatgpt-mirror=MIRROR-ONLY, model:alph...(40), model:alph...(27)
-  d54=ATTENTION, model:alph...(36), model:alph...(33), model:alph...(41), m
-  odel:alph...(41), model:alph...(37), model:alph...(34), model:alpha-cha
-  t-di...(30), model:alph...(39), model:alph...(35), model:alpha-chat-qc-c63eb759
-  =ATTENTION, runtime-daemon:assistant-loop=RUNTIME-AVAILABLE, runtime-daemon:autonomous-thoughts=RUNTIME-DISABLED, runtime-daemon:autoprogress=RUNTIME-
-  AVAILABLE, runtime-daemon:auto-improve=RUNTIME-AVAILABLE, runtime-daemon:workflow-schedules=RUNTIME-HEALTHY, runtime-daemon:memory-maintenance=RUNTIME
-  -WARMING, runtime-daemon:autonomy-run-worker=RUNTIME-PAUSED, runtime-daemon:background-supervisor=RUNTIME-WARMING, runtime-task:alpha:agent-scheduler=
-  RUNTIME-HEALTHY, runtime-task:alpha:atlas-integrity-probe=RUNTIME-HEALTHY, runtime-task:alpha:auto-learning=RUNTIME-HEALTHY, runtime-task:alpha:autono
-  my-run-worker=RUNTIME-HEALTHY, runtime-task:alpha:autosave=RUNTIME-HEALTHY, runtime-task:alpha:background-supervisor=RUNTIME-HEALTHY, runtime-task:alp
-  ha:calibration-resolution=RUNTIME-HEALTHY, runtime-task:alpha:dual-consciousness-poll=RUNTIME-HEALTHY, runtime-task:alpha:gmail-auto-sync=RUNTIME-HEAL
-  THY, runtime-task:alpha:gmail-self-test=RUNTIME-HEALTHY, runtime-task:alpha:memory-maintenance=RUNTIME-HEALTHY, runtime-task:alpha:ollama-keepalive=RU
-  NTIME-HEALTHY, runtime-task:alpha:tunnel-owner-replies=RUNTIME-HEALTHY, runtime-task:alpha:tunnel-work-observations=RUNTIME-HEALTHY, runtime-task:alph
-  a:usb-monitor=RUNTIME-HEALTHY, runtime-task:alpha:visu...(38), runtime-task:alpha:workflow-scheduler=RUNTIME-HEALTHY
 ```
 
