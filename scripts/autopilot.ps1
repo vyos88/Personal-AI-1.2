@@ -65,7 +65,10 @@ param(
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
-  [string]$Plan
+  [string]$Plan,
+  # Set by a pass that has just updated this checkout and hands the rest of
+  # the pass to the new code; such a run does not update again.
+  [switch]$AfterUpdate
 )
 
 $ErrorActionPreference = 'Continue'
@@ -297,9 +300,28 @@ if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
 }
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
-$update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
-$updateExit = $LASTEXITCODE
-if ($updateExit -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+if ($AfterUpdate) { $update = ''; $updateExit = 0 }
+else {
+  $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
+  $updateExit = $LASTEXITCODE
+}
+if ($updateExit -eq 10) {
+  # The checkout moved under this pass. Stopping here left the pass silent:
+  # on 2026-10-07 main moved every few minutes from 02:15 to 02:30 UTC, and
+  # four passes in a row updated and stopped with no action run and no report
+  # (not even the live report, which exists to say the reporter is alive).
+  # The rest of the pass runs with the new code instead, in a new process,
+  # once: that run does not update again.
+  Write-Host 'updated this checkout; running the rest of this pass with the new code'
+  $forward = @()
+  foreach ($k in $PSBoundParameters.Keys) {
+    $v = $PSBoundParameters[$k]
+    if ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $forward += "-$k" } }
+    else { $forward += @("-$k", [string]$v) }
+  }
+  & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @forward -AfterUpdate
+  exit $LASTEXITCODE
+}
 # A checkout that cannot update is silent otherwise, and every fix sent through
 # this repository then stops reaching the machine. Say why, in every report.
 $head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()

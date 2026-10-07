@@ -609,3 +609,49 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
   assert.match(live(), /restart already tried at/);
 });
+
+test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-update-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const dev = join(dir, 'dev');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', '-u', 'origin', 'main');
+  git(dir, 'clone', '-q', '-b', 'main', remote, dev);
+  git(dev, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(dev, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(dev, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: true } }));
+  git(dev, 'add', 'actions.json');
+  git(dev, 'commit', '-qm', 'control');
+  git(dev, 'push', '-q', 'origin', 'control/laptop41');
+  git(dev, 'checkout', '-q', '-f', 'main');
+  git(dev, 'clean', '-qfd');
+
+  const ops = join(dir, 'ops');
+  mkdirSync(join(dir, 'alpha', 'software'), { recursive: true });
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', ops, '-AlphaRoot', join(dir, 'alpha', 'software')];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+  let r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const reports = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41-live').trim());
+  const before = reports();
+
+  // Main moves while the machine is between passes: the next pass updates.
+  const script = readFileSync(join(dev, 'scripts', 'autopilot.ps1'), 'utf8');
+  writeFileSync(join(dev, 'scripts', 'autopilot.ps1'), script.replace("$ErrorActionPreference = 'Continue'", "$ErrorActionPreference = 'Continue'\nWrite-Host 'running the v2 code'"));
+  git(dev, 'commit', '-qam', 'v2');
+  git(dev, 'push', '-q', 'origin', 'main');
+
+  r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /updated this checkout; running the rest of this pass with the new code/);
+  assert.match(r.stdout, /running the v2 code/, 'the rest of the pass is the new code');
+  assert.equal(reports(), before + 1, 'and it still wrote its live report');
+  assert.equal((r.stdout.match(/updated this checkout/g) || []).length, 1, 'it updates once, not in a loop');
+});
