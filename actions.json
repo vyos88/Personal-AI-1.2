@@ -415,6 +415,11 @@
       "id": "20261007-65-doctor",
       "do": "doctor",
       "why": "owner asked to test chat: the doctor's chat-model answer and /chat check, plus free memory and the deck feed after A and B"
+    },
+    {
+      "id": "20261007-66-songs-check",
+      "do": "songs-check",
+      "why": "owner 2026-10-07: 85 songs, check all and make them all MP3; first look (before or after Alpha cedec9d's MP3 backfill)"
     }
   ],
   "autofix": {
