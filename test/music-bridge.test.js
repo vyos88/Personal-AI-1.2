@@ -350,7 +350,8 @@ test('click to WAV to playback: bridge, coordinator, agent and the real generato
   const stale = join(cacheDir, 'task_old-older.wav');
   await writeFile(stale, 'RIFF');
   await utimes(stale, new Date(0), new Date(0));
-  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box', cacheDir, pollMs: 20, cacheMaxTracks: 1 });
+  // The original WAV, byte for byte: MP3 has its own test (music-playback.test.js).
+  const bridge = await startBridge(t, host.url, { targetAgent: 'music-box', cacheDir, pollMs: 20, cacheMaxTracks: 1, compress: false });
   await mkdir(join(root, 'output'));
   const handlers = new HandlerRegistry([]);
   assert.equal(handlers.add(music).registered, true);

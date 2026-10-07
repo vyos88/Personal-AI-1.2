@@ -6,3 +6,7 @@
 torch>=2.1
 transformers>=4.31
 numpy
+# ffmpeg for alpha.music.audio, which sends tracks to the player as MP3 (a
+# tenth of the WAV's size). Skipped when ALPHA_MUSIC_FFMPEG names another
+# ffmpeg or one is on PATH; without any, tracks are sent as WAV, as before.
+imageio-ffmpeg
