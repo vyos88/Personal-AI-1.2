@@ -383,15 +383,36 @@ export function rollbackDist(frontendDir, { now = Date.now(), keep = DEFAULTS.ke
   return { restored: dist, keptFailedBuild: kept };
 }
 
+// Windows refuses to rename or remove a folder while anything holds a file in
+// it open, and a folder that has just been copied is exactly what a virus
+// scanner is reading. Worker1 failed every snapshot from 2026-10-07 02:30 UTC
+// with "EPERM: operation not permitted, rename 'dist.last-good.tmp' ->
+// 'dist.last-good'". Such holds last moments, so a few short retries get
+// through them; anything else is thrown at once.
+const TRANSIENT_FS = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY']);
+const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+const FS_RETRY = { maxRetries: 5, retryDelay: 200 };
+
+export function retryTransient(fn, { attempts = 6, delayMs = 250, sleep = sleepSync } = {}) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return fn();
+    } catch (error) {
+      if (!TRANSIENT_FS.has(error.code) || attempt >= attempts) throw error;
+      sleep(delayMs * attempt);
+    }
+  }
+}
+
 /** Copy dist to dist.last-good through a temp dir, so a torn copy never replaces a good one. */
-export function snapshotLastGood(frontendDir) {
+export function snapshotLastGood(frontendDir, { rename = renameSync, attempts, delayMs, sleep } = {}) {
   const dist = join(frontendDir, 'dist');
   const lastGood = join(frontendDir, 'dist.last-good');
   const tmp = `${lastGood}.tmp`;
-  rmSync(tmp, { recursive: true, force: true });
+  rmSync(tmp, { recursive: true, force: true, ...FS_RETRY });
   cpSync(dist, tmp, { recursive: true, preserveTimestamps: true });
-  rmSync(lastGood, { recursive: true, force: true });
-  renameSync(tmp, lastGood);
+  rmSync(lastGood, { recursive: true, force: true, ...FS_RETRY });
+  retryTransient(() => rename(tmp, lastGood), { attempts, delayMs, sleep });
   return { snapshot: lastGood };
 }
 
