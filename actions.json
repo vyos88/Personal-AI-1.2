@@ -388,6 +388,11 @@
       "id": "20261007-59-fleet-inventory",
       "do": "fleet-inventory",
       "why": "after 58: DUPLICATES should read none; read-only"
+    },
+    {
+      "id": "20261007-60-interactive-first-off",
+      "do": "interactive-first-off",
+      "why": "owner yes 2026-10-07: let the assistant loop run so the CrowPanel feed goes live (Personal-AI-1.2#203)"
     }
   ],
   "autofix": {
