@@ -327,8 +327,10 @@ test("Alpha's deck feed: a stale heartbeat shows its age and the snapshot's", { 
   const { out } = await doctorAgainst(deckFeed(200, {
     status: 'degraded', snapshot_age_s: 4.2,
     freshness: { stale: true, reason: 'heartbeat-stale', advice: 'feed stale', heartbeat_age_s: 900, threshold_s: 420, stale_since: '2026-10-07T01:26:00',
-      cycle_step: 'serial-port-scan', cycle_step_since: '2026-10-07T01:28:00' },
+      cycle_step: 'serial-port-scan', cycle_step_since: '2026-10-07T01:28:00',
+      lane_active_task: 'auto-improve', lane_waiting_task: 'assistant-monitor', lane_waiting_reason: 'host-resource-pressure' },
   }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /background lane held by 'auto-improve'; 'assistant-monitor' waits for it \(host-resource-pressure\)/);
   assert.match(out, /PROBLEM: Alpha's deck feed is degraded: heartbeat-stale/);
   assert.match(out, /assistant heartbeat 900s old \(live under 420s\); stale since 2026-10-07T01:26:00; panel snapshot 4\.2s old; assistant cycle in step 'serial-port-scan' since 2026-10-07T01:28:00/);
 });

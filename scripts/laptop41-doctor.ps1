@@ -245,6 +245,13 @@ function Check-DeckFeed {
       if ($f.stale_since) { $ages += "stale since $(if ($f.stale_since -is [datetime]) { $f.stale_since.ToString('s') } else { $f.stale_since })" }
       if ($null -ne $feed.snapshot_age_s) { $ages += "panel snapshot $($feed.snapshot_age_s)s old" }
       if ($f.cycle_step) { $ages += "assistant cycle in step '$($f.cycle_step)' since $(if ($f.cycle_step_since -is [datetime]) { $f.cycle_step_since.ToString('s') } else { $f.cycle_step_since })" }
+      # A cycle that never gets the shared background lane never reaches a
+      # step; the lane's holder and its waiter say what it waits on.
+      if ($f.lane_active_task -or $f.lane_waiting_task) {
+        $lane = if ($f.lane_active_task) { "background lane held by '$($f.lane_active_task)'" } else { 'background lane free' }
+        if ($f.lane_waiting_task) { $lane += "; '$($f.lane_waiting_task)' waits for it$(if ($f.lane_waiting_reason) { " ($($f.lane_waiting_reason))" })" }
+        $ages += $lane
+      }
       if ($ages.Count) { Note "  $($ages -join '; ')" }
       # The loop starts only with background or lightweight autonomy on and
       # interactive-first off. Name each setting, its value and where it came
