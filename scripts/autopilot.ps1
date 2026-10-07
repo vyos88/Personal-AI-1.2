@@ -197,6 +197,7 @@ function Resolve-Action($a) {
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
+    'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
