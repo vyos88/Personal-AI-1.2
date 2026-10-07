@@ -361,6 +361,11 @@
       "id": "20261007-53-fleet-inventory",
       "do": "fleet-inventory",
       "why": "doctor 15:26 UTC: 0.9 GB RAM free, a new python process at 3.4 GB, C: down from 16.4 to 7.2 GB, and the live report silent since 15:00. Which process, and is it a copy? read-only"
+    },
+    {
+      "id": "20261007-56-promo-reel",
+      "do": "promo-reel",
+      "why": "owner: 'try again' (15:43Z). Host ComfyUI is back (h17, 16:39 local), so the scenes can go to the RTX 3050."
     }
   ],
   "autofix": {
