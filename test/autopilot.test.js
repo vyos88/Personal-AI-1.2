@@ -317,3 +317,54 @@ test('panel-endpoint takes nothing from the action, and reads the deck STATUS li
   assert.equal(parsed.wifi_set, 'yes');
   assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
 });
+
+test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  // A stand-in for live-sync.mjs: says what it was asked, then a state that
+  // changes once (delivered) and then holds (in sync).
+  writeFileSync(join(work, 'scripts', 'live-sync.mjs'), [
+    "import { existsSync, writeFileSync } from 'node:fs';",
+    "import { join } from 'node:path';",
+    "const a = process.argv.slice(2); const ops = a[a.indexOf('--ops') + 1];",
+    "const paths = new Set(['--alpha-root', '--ops'].map((o) => a[a.indexOf(o) + 1]));",
+    "console.log('args: ' + a.filter((x) => !paths.has(x)).join(' '));",
+    "const seen = join(ops, 'sync-seen');",
+    "if (existsSync(seen)) console.log('IN SYNC: this machine runs abc1234 of claude/x-route-b');",
+    "else { writeFileSync(seen, '1'); console.log('    token=abcd1234efgh5678ijkl9012mnop'); console.log('DELIVERED: 0000000..abc1234 of claude/x-route-b'); }",
+  ].join('\n'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'actions.json'), JSON.stringify({ actions: [], autofix: { liveSync: { branch: 'claude/x-route-b', capture: true } } }));
+  git(work, 'add', 'actions.json');
+  git(work, 'commit', '-qm', 'queue');
+  git(work, 'push', '-q', 'origin', 'control/laptop41');
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+
+  const sw = join(dir, 'software');
+  mkdirSync(sw);
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /live sync: 0 \(in sync\)/);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /auto-live-sync-\S+ {2}live-sync \(standing\) {2}-> {2}0 \(in sync\)/);
+  assert.match(report, /args: --alpha-root --ops --branch claude\/x-route-b --machine DESKTOP-41HPLCN --capture/);
+  assert.match(report, /DELIVERED: 0000000\.\.abc1234/);
+  assert.doesNotMatch(report, /abcd1234efgh/, 'the report is redacted');
+  // A new state is reported once, then nothing more to say.
+  assert.match(pwsh(args, env).stdout, /live sync: 0 \(in sync\)/);
+  assert.match(pwsh(args, env).stdout, /nothing new to run/);
+});

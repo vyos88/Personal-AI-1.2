@@ -493,7 +493,7 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   // Each branch keeps its own record. A side branch (a host's live code plus
   // fixes) must never move alpha-full's: the next alpha-full update would then
   // start from the side branch and undo everything only this host has.
-  const statePath = join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
+  const statePath = appliedStatePath(ops, branch);
   const recorded = existsSync(statePath) ? JSON.parse(readFileSync(statePath, 'utf8')) : null;
   if (branch !== DEFAULTS.branch && !opts.from && !recorded) {
     log(`STOP: the first update from ${branch} needs --from <the commit this machine matches>; alpha-full's starting point would undo what only this machine has.`);
@@ -674,7 +674,12 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
   }
 }
 
-function writeState(statePath, to, scriptsTo = null) {
+/** Where the commit last applied here from `branch` is recorded. live-sync.mjs reads the same file. */
+export function appliedStatePath(ops, branch = DEFAULTS.branch) {
+  return join(ops, branch === DEFAULTS.branch ? 'alpha-full-applied.json' : `applied-${branch.replace(/[^A-Za-z0-9._-]/g, '_')}.json`);
+}
+
+export function writeState(statePath, to, scriptsTo = null) {
   mkdirSync(dirname(statePath), { recursive: true });
   writeFileSync(statePath, JSON.stringify({ to, scripts_to: scriptsTo, at: new Date().toISOString() }, null, 2));
 }
