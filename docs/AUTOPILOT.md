@@ -82,6 +82,13 @@ changes. They are turned on in the same `actions.json`:
   is reported, not repeated every five minutes. A stale build alone is left to
   the doctor (section 5d says which). A machine with no Alpha skips it.
 
+- `liveSync` (`{ "branch": "<live branch>", "capture": true }`): every pass,
+  the live branch is delivered to this machine (`apply-alpha-update.mjs`, each
+  tip tried once). With `capture`, when this machine runs the tip, the source
+  edited here and the source only it has are pushed back to the branch,
+  fast-forward only; files with credential-looking lines are held back and
+  listed. `skipScripts: true` leaves `scripts\` out. See `docs/LIVE_SYNC.md`.
+
 ## Trust
 
 The task runs as the owner, elevated, while the owner is logged on. Anyone
