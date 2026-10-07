@@ -84,6 +84,11 @@
       "id": "20261007-h15-alpha-move-check",
       "do": "alpha-move-check",
       "why": "what the Host lacks to run Alpha (owner's decision 2026-10-07; read-only). HANDOFF_2026-10-07d Phase 0"
+    },
+    {
+      "id": "20261007-h16-alpha-move-check",
+      "do": "alpha-move-check",
+      "why": "did the Host session clone of Alpha route-b land before it hit its usage limit? read-only (HANDOFF_2026-10-07d Phase 1)"
     }
   ],
   "autofix": {
