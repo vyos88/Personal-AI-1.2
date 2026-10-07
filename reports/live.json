@@ -1,24 +1,24 @@
 ﻿{
-    "at":  "2026-10-07T04:24:20.6624907+01:00",
+    "at":  "2026-10-07T04:29:20.1102800+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
-                     "snapshot":  ""
+                     "snapshot":  "the rollback copy of the site was not saved: EPERM: operation not permitted, rename \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp\u0027 -\u003e \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good\u0027"
                  },
     "decks":  {
-                  "summary":  "5 live, 1 stale, 1 static, 1 no feed",
+                  "summary":  "5 live, 1 setting, 1 static, 1 no feed",
                   "not_live":  [
                                    "CrowPanel feed (/panel/crowpanel/state)"
                                ],
-                  "checked_at":  "2026-10-07T03:14:16.255394+00:00"
+                  "checked_at":  "2026-10-07T03:29:18.439551+00:00"
               },
     "sync":  "IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)"
 }
