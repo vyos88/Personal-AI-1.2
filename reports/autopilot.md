@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261008-001844
+﻿# laptop41 autopilot 20261008-002345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4987134 is current
+
+## auto-live-sync-20261008-002345  live-sync (standing)  ->  2 (needs a person)   (2026-10-08T00:24:13, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+WAITING: 5147fef was tried here and failed; the next commit on claude/frie...(30) is tried when it comes
+SKIPPED: nothing is captured while this machine is not on 5147fef
+```
 
 ## auto-live-sync-20261008-001844  live-sync (standing)  ->  2 (needs a person)   (2026-10-08T00:19:01, 6s)
 ```
@@ -371,16 +378,5 @@ OK: the site serves the fixed deck (BrainNeuralModel-wpwtdqSp.js)
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs cedec9d of claude/frie...(30)
 CAPTURED: nothing; every source file here matches cedec9d
-```
-
-## 20261007-66-panel-identify  panel-identify  ->  1   (2026-10-07T22:29:06, 0s)
-```
-asking 5 port(s) what is on them, up to 30s each â€” opening a port reboots the board behind it, which is why this is not instant.
-  COM4           unreadable could not open COM4: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM4'
-  COM6           unreadable could not open COM6: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM6'
-  COM7           unreadable could not open COM7: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM7'
-  COM20          unreadable could not configure COM20: Command failed: mode.com \\.\COM20 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
-  COM24          unreadable could not configure COM24: Command failed: mode.com \\.\COM24 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
-no board here is running this firmware.
 ```
 
