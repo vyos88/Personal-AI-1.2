@@ -1,4 +1,4 @@
-laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ d00387b 2026-10-07)
+laptop41-doctor 20261007-041102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ d4799c2 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 5.3s (load 0s, 10.8 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 5.3s (load 0s, 8.6 tokens/s): OK.
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -44,9 +44,9 @@ laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T02:35:40.146Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
-    {"at":"2026-10-07T02:37:40.181Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
-    {"at":"2026-10-07T02:39:40.190Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
+    {"at":"2026-10-07T03:05:39.281Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
+    {"at":"2026-10-07T03:07:39.254Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1}],"events":[]}
+    {"at":"2026-10-07T03:09:39.261Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1,"error":"EPERM: operation not permitted, rename 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp' -> 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good'"}],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -63,11 +63,11 @@ laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 5b. Music Creator ===
   ok: music bridge answers on 127.0.0.1:8790
   ok: the site routes /music to the bridge (port 4173)
-  ok: machines that make music (the music bridge's view): host, worker1
+  ok: machines that make music (the music bridge's view): worker1, host
 
 === 5c. Image creator ===
   ok: image bridge answers on 127.0.0.1:7861
-  ok: machines that make images (the image bridge's view): host, worker1
+  ok: machines that make images (the image bridge's view): worker1, host
 
 === 5d. Brain topology (neurological deck) ===
   ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
@@ -97,22 +97,22 @@ laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.
-    panel snapshot 5.98s old
+  PROBLEM: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
+    assistant heartbeat 687s old (live under 420s); stale since 2026-10-07T02:59:53.374605; panel snapshot 7.12s old
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
   ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (37 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.7 of 15.8 GB RAM free
+  ok: 3.5 of 15.8 GB RAM free
   ok: C: 17 GB free
-  llama-server                  1,933 MB  pid 14360
-  claude                          677 MB  pid 7832
-  Memory Compression              603 MB  pid 3840
-  MsMpEng                         450 MB  pid 6040
-  chrome                          385 MB  pid 6588
-  node                            371 MB  pid 6508
-  msedge                          346 MB  pid 6872
+  llama-server                  1,934 MB  pid 14360
+  claude                          676 MB  pid 7832
+  Memory Compression              485 MB  pid 3840
+  MsMpEng                         423 MB  pid 6040
+  chrome                          382 MB  pid 6588
+  node                            361 MB  pid 6508
+  msedge                          354 MB  pid 6872
   explorer                        271 MB  pid 10108
 
 === 8. Image generation ===
@@ -122,8 +122,8 @@ laptop41-doctor 20261007-034102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === SUMMARY ===
   this pass took 33s
-  - Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.  (open 1 run(s), since 2026-10-07T03:41:34)
-  + fixed since last run: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
+  - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 1 run(s), since 2026-10-07T04:11:33)
+  + fixed since last run: Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
