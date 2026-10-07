@@ -1,8 +1,33 @@
-﻿# host autopilot 20261007-164915
+﻿# host autopilot 20261007-224414
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 721dafd is current
+checkout cce15b9 is current
+
+## 20261007-h20-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-07T22:44:18, 59s)
+```
+PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 22:44
+  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
+1. code
+  up to date: ca87445 10-07 21:39 Alpha checks her decks one by one, fixes what is safe, and reports in the tunnel
+  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
+2. backend
+  venv ready (Python 3.12.10), requirements from backend\requirements.txt
+3. site
+  built: dist\index.html
+4. chat
+  llama3.2:3b is here
+5. connector (installed only; never started here)
+  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
+RAM: 1.8 GB free of 15.8 GB
+STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
+RESULT: ready for the data copy
+```
+
+## 20261007-h21-songs-check  songs-check  ->  1   (2026-10-07T22:45:17, 0s)
+```
+PROBLEM: no song receipts found (looked for memory\local\music-singing above C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software)
+```
 
 ## 20261007-h19-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-07T16:49:21, 184s)
 ```
@@ -363,19 +388,5 @@ image backend: comfyui
 ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
 ok: restarted the agent through task 'alpha-tunnel agent'
 the agent now offers alpha.image
-```
-
-## 20261006-h01-enable-music  enable-music  ->  0   (2026-10-06T18:18:11, 235s)
-```
-python: C:\Users\jack\AppData\Local\Programs\Python\Python312\python.exe
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-ok: torch and transformers import (2.14.1+cpu 5.19.0)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-backed up .env.agent to .env.agent.bak-20261006-182158
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio
-stopped 2 agent process(es)
-ok: agent restarted by 'alpha-tunnel agent'; it now offers alpha.music
-done: this machine makes music for the Music Creator
 ```
 
