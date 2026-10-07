@@ -1,8 +1,124 @@
-﻿# laptop41 autopilot 20261007-031345
+﻿# laptop41 autopilot 20261007-032845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 97e5841 is current
+checkout fabb389 is current
+
+## 20261007-49-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T03:29:07, 13s)
+```
+FLEET INVENTORY DESKTOP-41HPLCN 2026-10-07 03:29
+TASKS (37): name | state | last run | result | next | runs
+  Alpha | Running | 10-07 01:29 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
+  Alpha Autopilot | Running | 10-07 03:28 | 0x41301 | 10-07 03:33 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Backend | Running | 10-07 02:18 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha-backend.cmd"
+  Alpha Client - Follow Host Updates | Disabled | 09-29 03:23 | 0x1 | 10-07 03:38 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Doctor | Ready | 10-07 03:26 | 0x0 | 10-07 03:41 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Fleet Render Maintenance | Disabled | 10-02 17:49 | 0x0 | 10-07 03:29 | powershell.exe -NoProfile -NonInteractive -WindowStyle Hidden -Executi...
+  Alpha Fleet Transport Receiver | Disabled | 09-29 01:47 | 0x41306 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Hourly Governed Improvement | Disabled | 09-29 02:53 | 0x1 | 10-07 03:53 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha peer report | Ready | 10-07 03:26 | 0x0 | 10-07 03:29 | powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\AlphaData\a...
+  Alpha Self-Heal | Ready | 10-07 03:27 | 0x0 | 10-07 03:29 | node.exe "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --confi...
+  Alpha Server - Health Guard | Ready | 10-07 03:24 | 0x0 | 10-07 03:29 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Server - Start at Logon | Disabled | 09-22 20:08 | 0x41306 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Steward - agent-officer | Disabled | 10-02 03:33 | 0x0 | 10-07 03:33 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - api-improvement | Disabled | 09-30 19:49 | 0x0 | 10-07 03:49 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - chat-improvement | Disabled | 09-30 20:34 | 0x1 | 10-07 03:30 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - cloudflare-commander | Disabled | 10-02 03:34 | 0x0 | 10-07 03:29 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - deck-improvement | Disabled | 09-30 20:19 | 0x0 | 10-07 03:49 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - evolution | Disabled | 09-30 20:34 | 0x1 | 10-07 03:30 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - fleet-verify | Disabled | 10-02 03:33 | 0x0 | 10-07 03:33 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - fullscreen-caretaker | Disabled | 09-30 20:34 | 0x1 | 10-07 03:34 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - gmail-triage | Disabled | 09-30 20:35 | 0x41306 | 10-07 03:29 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  Alpha Steward - interface-style | Disabled | 09-30 20:34 | 0x0 | 10-07 03:30 | wscript.exe "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts\run_h...
+  ... 15 more task(s)
+SERVICES: alpha-agent=Running/Automatic; cloudflared=Stopped/Automatic
+PROCESSES (25 roles): role xN | MB | pids | command
+  codex x1 | 28 MB | 9324 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.930.4958.0_x64__2p2nqsd0c76g0\app\...
+  cloudflared x1 | 33 MB | 11956 | "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --metrics 127.0.0.1:...
+  ps: alpha_generation_monitor.ps1 x1 | 17 MB | 9088 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  py: alpha_fleet_transport.py x2 | 12 MB | 9520,13452 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" "C:\Users...
+  ps: alpha_runtime_always_on.ps1 x1 | 65 MB | 17272 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  py: alpha_comfyui_bridge.py x2 | 8 MB | 16876,16160 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" C:\Users\...
+  ps: alpha_coordination_tunnel.ps1 x1 | 78 MB | 9824 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  ps: alpha-desktop-tray.ps1 x1 | 109 MB | 1196 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -...
+  llama-server x2 | 1389 MB | 7428,14360 | C:\Users\Vyo\AppData\Local\Programs\Ollama\lib\ollama\llama-server.exe --model E...
+  ollama x2 | 85 MB | 15680,19292 | "C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama app.exe" 
+  py: main.py x2 | 12 MB | 15724,18408 | "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127....
+  claude x10 | 1678 MB | 6188,16560,18932,18184 | "C:\Program Files\WindowsApps\Claude_2.26454.0.0_x64__pzs8sxrjxfjjc\app\claude.e...
+  node: npx-cli.js x1 | 45 MB | 6612 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
+  node: index.js x1 | 60 MB | 12668 | "node" "C:\Users\Vyo\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules\...
+  ps: alpha_runtime_watchdog.ps1 x1 | 39 MB | 18664 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  ps: start-music-bridge.ps1 x1 | 3 MB | 10936 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  ps: start-image-bridge.ps1 x1 | 3 MB | 18340 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  image bridge x1 | 13 MB | 9636 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge...
+  node: npm-cli.js x2 | 0 MB | 19116,11396 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
+  Alpha site x3 | 112 MB | 10616,20320,6508 | C:\Windows\system32\cmd.exe /d /s /c vite preview --host 127.0.0.1 --port 4173 -...
+  ... 5 more role(s)
+DUPLICATES: py: alpha_fleet_transport.py x2; py: alpha_comfyui_bridge.py x2; py: main.py x2; Alpha site x3; py: run_server.py x2 (each of these should run once)
+PORTS: 8001=python(17972) 4173=node(20320) 8787=- 8790=node(18620) 7861=node(9636) 7860=python(16160) 8188=python(18408) 11434=ollama(19292) 8080=-
+AGENT MANAGER: 59 agent(s), snapshot 0 min old
+  =RUNTIME-DISABLED, =RUNTIME-DISABLED, =SUPERVISING, =RECEIPT-FRESH, =RUNTIME-PAUSED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME
+  -DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =RUNTI
+  ME-DISABLED, =RUNTIME-DISABLED, =RUNTIME-DISABLED, =MIRROR-ONLY, =MIRROR-ONLY, =MIRROR-ONLY, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTIO
+  N, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTION, =ATTENTION, =RUNTIME-AVAILABLE, =RUNTIME-DISABLED, =RUNTIME-AVAILABLE, =RUN
+  TIME-AVAILABLE, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME
+  -HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALT
+  HY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY, =RUNTIME-HEALTHY
+```
+
+## auto-live-sync-20261007-032845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:29:20, 134s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: 386c753..2c41cda of claude/frie...(30) (last applied here: 386c753)
+      applies  M backend/api/crowpanel.py
+      applies  M backend/chat_music_generation.py
+      applies  M backend/main.py
+      applies  M backend/phone_module.py
+      applies  A backend/tests/test_alpha_deck_liveness.py
+      applies  M backend/tests/test_chat_music_generation.py
+      applies  M backend/tests/test_phone_module_startup.py
+      applies  M frontend/src/components/CoordinationTunnelPanel.jsx
+      applies  M frontend/src/components/MusicSingingPanel.jsx
+      applies  M frontend/src/liveCoordinationLabels.js
+      applies  M frontend/src/liveCoordinationLabels.test.js
+      applies  A scripts/alpha_deck_liveness.py
+      applies  M scripts/alpha_public_song_worker.py
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 13 file(s)
+      ok: 9 Python file(s) parse
+      packages unchanged and installed: building (no npm ci)...
+      ok: frontend built
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+      stopped pid 17972, which held port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 20320, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+      The stewards load their scripts when they start: restart them too (close the agent windows, then open "Alpha Governed Agents").
+DELIVERED: 386c753..2c41cda of claude/frie...(30)
+CAPTURED: 3 changed and 46 new source file(s) from DESKTOP-41HPLCN, pushed as bf5b813 on claude/frie...(30)
+```
+
+## auto-deck-liveness-20261007-032845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T03:31:33, 12s)
+```
+DECKS: 3 live, 2 stale, 1 setting, 1 static, 1 no feed
+DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 141 s old, fresh for ? s
+DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
+    manager snapshot 35 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 0 s old, fresh for 90 s
+DECK SETTING: CrowPanel feed (/panel/crowpanel/state) -> the assistant loop is not started (interactive-first mode on, or lightweight autonomy off), so the feed cannot go live  [decks: CrowPanel]
+    assistant heartbeat none s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 0 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-live-sync-20261007-031345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T03:14:05, 14s)
 ```
@@ -486,46 +602,5 @@ pushed to status/laptop41 - tell Claude 'doctor pushed'
   log: 2026-10-06T21:33:59 starting the music bridge (machines: host,worker1)
   log: 2026-10-06T21:51:01 starting the music bridge (machines: host,worker1)
 'alpha-music bridge' was not listening on 8790: restarted, it answers now
-```
-
-## 20261006-42-skill-music  live-test  ->  1   (2026-10-06T23:54:01, 724s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-ok: track 1 made by host in 648s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
-PROBLEM: track 2 on worker1: timed out while leased (721s)
-ok: track task_9kf8jdweyz9lxhpf is in the playlist (/music/recipes), roll...(34).wav
-music: 1/2 worked; by machine: host x1
-playlist: 1/1 worked; by machine: music bridge x1
-(node:5992) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-43-skill-image  live-test  ->  0   (2026-10-07T00:06:09, 13s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-image machines: alpha-tunnel (host, worker1)
-ok: image 1 made by host (comfyui) in 9s, 87021 bytes, PNG
-ok: image 2 made by host (comfyui) in 5s, 111100 bytes, PNG
-image: 2/2 worked; by machine: host x2
-(node:21816) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-44-skill-video  live-test  ->  0   (2026-10-07T00:06:25, 106s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-ok: track 1 made by host in 38s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
-ok: track task_fbp3czshb6xgvq8o is in the playlist (/music/recipes), roll...(34).wav
-image machines: alpha-tunnel (host, worker1)
-ok: image 1 made by host (comfyui) in 8s, 87021 bytes, PNG
-ok: reel made in 53s from 1 image(s) with the generated track, 212868 bytes, MP4
-music: 1/1 worked; by machine: host x1
-playlist: 1/1 worked; by machine: music bridge x1
-image: 1/1 worked; by machine: host x1
-video: 1/1 worked; by machine: this machine x1
-(node:896) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
 ```
 
