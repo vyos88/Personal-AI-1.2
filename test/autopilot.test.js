@@ -603,7 +603,10 @@ test('the live report is written every pass, and a stopped self-heal is started 
   mkdirSync(join(alpha, 'memory', 'local', 'deck-liveness'), { recursive: true });
   writeFileSync(join(alpha, 'memory', 'local', 'deck-liveness', 'latest.json'), JSON.stringify({
     checked_at: '2026-10-07T02:30:00+00:00', not_live: ['CrowPanel feed (/panel/crowpanel/state)'],
-    sources: [{ verdict: 'LIVE' }, { verdict: 'LIVE' }, { verdict: 'SETTING' }],
+    // Two checks of one deck (the CrowPanel) are one deck, at its worst verdict.
+    sources: [{ source: 'hubs pulse', decks: 'alpha, terminal', verdict: 'LIVE' }, { source: 'site', decks: 'every deck page', verdict: 'LIVE' },
+      { source: 'CrowPanel feed (/panel/crowpanel/state)', decks: 'CrowPanel', verdict: 'SETTING' },
+      { source: 'CrowPanel display (LAN reads)', decks: 'CrowPanel', verdict: 'STALE' }],
   }));
   mkdirSync(join(ops, 'logs'), { recursive: true });
   const log = join(ops, 'logs', 'selfheal.jsonl');
@@ -625,7 +628,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   let md = live();
   assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
-  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel feed/);
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
 
