@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-225849
+﻿# laptop41 autopilot 20261007-230845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout d66c482 is current
+
+## auto-deck-liveness-20261007-230845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T23:09:11, 8s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 91 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 12 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 0 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 2 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 774 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## 20261007-67-songs-check  songs-check  ->  0   (2026-10-07T22:59:06, 18s)
 ```
@@ -428,25 +448,5 @@ KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: a
       Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
 REFUSED: f1dbc73: a file here differs where the change was made, and nothing was written
 SKIPPED: nothing is captured while this machine is not on f1dbc73
-```
-
-## auto-deck-liveness-20261007-194846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:49:29, 14s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 101 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 18 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 4 s old, fresh for 90 s
-DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
-    assistant heartbeat 1113 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 481 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
