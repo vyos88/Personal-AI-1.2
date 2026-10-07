@@ -126,6 +126,16 @@
       "id": "20261007-h23-prepare-alpha",
       "do": "prepare-alpha-here",
       "why": "owner ~23:00Z: decks differ between machines; bring the Host's clone to the same live tip as Worker1 (b5a3bbc deck fixes, cfb5371 auto-learning fix) and rebuild the site"
+    },
+    {
+      "id": "20261008-h24-alpha-data-in",
+      "do": "alpha-data-in",
+      "why": "owner ~23:55Z: Alpha on Worker1 stopped on purpose, take over on the Host; copy memory\\ and artifacts\\ from the WD drive (D:\\alpha-move-20261007) into Alpha-Full beside software\\ (adds only, no .env files)"
+    },
+    {
+      "id": "20261008-h25-songs-check",
+      "do": "songs-check",
+      "why": "confirm songs and memory arrived after h24"
     }
   ],
   "autofix": {
