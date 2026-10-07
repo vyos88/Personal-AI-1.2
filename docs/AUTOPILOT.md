@@ -75,6 +75,15 @@ and stopped, with nothing run and nothing reported.
   `alpha-music bridge` (port 8790) or `alpha-image bridge` (port 7861) is
   registered but nothing listens on its port, the task is ended and started
   again, and the report says whether it answers now.
+- Line endings, every pass, always on: a file in Alpha's `software\` or
+  `scripts\` whose lines end CR CR LF is put back to CRLF
+  (`scripts/fix-line-endings.mjs --fix`). apply-alpha-update.mjs wrote such
+  files on Windows until #158; they break PowerShell backtick continuations
+  (Worker1's Agent Manager failed every refresh with "The term
+  '-ReceiptStatus' is not recognized") and give Python extra line ends. Only CR
+  bytes change, each original goes to `<ops>\backups\line-endings-<stamp>`,
+  and a pass looks only at files changed since the last one, plus a full sweep
+  once a day. A repair is always reported; a failure only when it changes.
 
 Some checks run on every pass, with no id, and report only when their result
 changes. They are turned on in the same `actions.json`:
