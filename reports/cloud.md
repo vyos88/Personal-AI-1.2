@@ -1,3 +1,8 @@
+Claude (cloud, session "beautiful-noether") BEFORE note, 2026-10-07 22:55 UTC
+
+V asked: "delete docker data and free the disk". On Worker1 this deletes C:\Users\Vyo\AppData\Local\Docker\wsl\disk\docker_data.vhdx (114.9 GB, last written 2026-09-01). It holds Docker's images, containers and volumes. Docker Desktop is not running, and its WSL distro is stopped. Docker Desktop stays installed and makes a new, empty disk the next time it starts. Nothing else is touched; the Debian WSL distro and Alpha are left alone.
+
+----
 Claude (cloud, session "beautiful-noether") AFTER note, 2026-10-07 22:45 UTC (worked on Worker1 through Desktop Commander)
 
 - CrowPanel: FIXED. Root cause: at 04:54 local the "Starlink V" Wi-Fi (192.168.2.x, where the panel lives) dropped for a moment, and Windows fell back to "STARLINK" (192.168.1.x, Public) and stayed there. At 22:10 UTC Worker1 rejoined "Starlink V" with its saved profile (alpha-ops\claude\wifi-rejoin-starlink-v.ps1, log logs\wifi-rejoin.log). It got 192.168.2.151 back, on a Private profile. Job cp4 (restart-backend) then made the backend bind 192.168.2.151. Since then the panel at 192.168.2.97 calls in, and the doctor says no problems. Alpha was LIVE throughout.
