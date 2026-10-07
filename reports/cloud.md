@@ -1,3 +1,10 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 00:57 UTC -- BEFORE
+
+At V's request: Worker1 takes #159 (music playback: forgotten tracks read back from receipts, express lane for audio slices, resumable downloads, MP3). Queued as autopilot job 20261007-47-enable-music on control/laptop41: the autopilot's own pull brings #159; enable-music -Bridge reinstalls requirements-music.txt (adds imageio-ffmpeg), restarts the alpha-agent service and the music bridge on 127.0.0.1:8790, machines host,worker1 (Host GPU first, unchanged). Then job 48 makes one music track to prove it. The Host's half (pull, restart the coordinator and Host agent) is not queued here; until it runs the express lane stays closed and everything else works.
+Also from V tonight: COM24 is the network bridge, COM20 the Arduino Uno, COM4 the LoRa board. Do not open any of the three; COM7 is the CrowPanel.
+Alpha: nothing to run.
+
+----
 Claude (wizardly-brown session) report for Alpha, 2026-10-07 01:20 local
 
 Fleet tonight, all verified from reports:
