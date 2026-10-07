@@ -1,8 +1,28 @@
-﻿# host autopilot 20261007-234910
+﻿# host autopilot 20261008-000410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ac33550 is current
+checkout 4987134 is current
+
+## 20261007-h23-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-08T00:04:18, 75s)
+```
+PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-08 00:04
+  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
+1. code
+  up to date: a3e1350 10-08 00:00 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
+  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
+2. backend
+  venv ready (Python 3.12.10), requirements from backend\requirements.txt
+3. site
+  built: dist\index.html
+4. chat
+  llama3.2:3b is here
+5. connector (installed only; never started here)
+  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
+RAM: 1.6 GB free of 15.8 GB
+STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
+RESULT: ready for the data copy
+```
 
 ## 20261007-h22-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T23:49:19, 6s)
 ```
@@ -399,17 +419,5 @@ the agent now offers alpha.image
 ## 20261006-h06-brain-topology  brain-topology  ->  0   (2026-10-06T21:12:12, 0s)
 ```
 NOTE: no Alpha under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: nothing to check here
-```
-
-## 20261006-h02-enable-music  enable-music  ->  1   (2026-10-06T18:54:12, 377s)
-```
-ok: C:\Users\jack\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements
-python: C:\AlphaData\creators-venv\Scripts\python.exe
-NVIDIA GPU found: installing CUDA torch first
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-PROBLEM: torch/transformers do not import: NameError: name 'cuda' is not defined
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio
-ok: restarted the agent through task 'alpha-tunnel agent'
-the agent now offers alpha.music
 ```
 
