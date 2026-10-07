@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFeed, homeAddresses, planEnv, readKey, restartBackend, waitForFeed } from '../scripts/fix-panel-host.mjs';
+import { checkFeed, homeAddresses, planEnv, planWrapper, readKey, restartBackend, waitForFeed } from '../scripts/fix-panel-host.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(ROOT, 'scripts', 'fix-panel-host.mjs');
@@ -289,3 +289,55 @@ test('after a restart the feed is asked until it answers, and no longer than the
   assert.equal(never.ok, false);
   assert.equal(tries, 1, 'past the deadline it stops asking');
 });
+
+// What repair-alpha-host.ps1 writes, with the --host start-local.ps1 passed on
+// the day it adopted the backend. Worker1's still said 192.168.2.151 after the
+// router renumbered the house network to 192.168.1.x.
+const WRAPPER = [
+  '@echo off',
+  'rem Written by repair-alpha-host.ps1. Re-run it instead of editing.',
+  'cd /d "C:\\Alpha\\software\\backend"',
+  ':loop',
+  '"C:\\Alpha\\.venv\\Scripts\\python.exe" C:\\Alpha\\software\\backend\\run_server.py --host 127.0.0.1,100.69.243.25,192.168.2.151 --port 8001 >> "C:\\ProgramData\\AlphaBoot\\alpha-backend.log" 2>&1',
+  'goto loop',
+  '',
+].join('\r\n');
+
+test("the boot wrapper's --host gains the address, and keeps every other one", () => {
+  const plan = planWrapper(WRAPPER, { addresses: ['192.168.1.151'] });
+  assert.equal(plan.found, true);
+  assert.equal(plan.changed, true);
+  assert.deepEqual(plan.added, ['192.168.1.151']);
+  assert.equal(plan.host, '127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151');
+  assert.equal(plan.text, WRAPPER.replace('192.168.2.151 --port', '192.168.2.151,192.168.1.151 --port'), 'only the list changes; line ends kept');
+  assert.equal(planWrapper(plan.text, { addresses: ['192.168.1.151'] }).changed, false, 'running it twice changes nothing');
+
+  const quoted = planWrapper('run_server.py --host "127.0.0.1, 100.69.243.25" --port 8001', { addresses: ['192.168.1.151'] });
+  assert.equal(quoted.text, 'run_server.py --host "127.0.0.1,100.69.243.25,192.168.1.151" --port 8001');
+  assert.equal(planWrapper('run_server.py --host=0.0.0.0 --port 8001', { addresses: ['192.168.1.151'] }).changed, false, 'every address is already served');
+  const none = planWrapper('run_server.py --port 8001', { addresses: ['192.168.1.151'] });
+  assert.equal(none.found, false, 'no --host: HOST decides, and the wrapper is left alone');
+  assert.equal(none.changed, false);
+});
+
+test('a dry run names the wrapper change even when the env file is already right', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'fix-panel-host-'));
+  const envPath = join(dir, '.env.local');
+  const wrapperPath = join(dir, 'run-alpha-backend.cmd');
+  await writeFile(envPath, 'HOST=127.0.0.1,100.69.243.25,192.168.1.151\nALPHA_PANEL_LAN_READ=true\n');
+  await writeFile(wrapperPath, WRAPPER);
+  const out = await new Promise((resolvePromise) => {
+    execFile(
+      process.execPath,
+      [SCRIPT, '--env', envPath, '--wrapper', wrapperPath, '--address', '192.168.1.151', '--require-host', '--dry-run'],
+      { cwd: ROOT, timeout: 30_000 },
+      (error, stdout) => resolvePromise({ code: error?.code ?? 0, stdout }),
+    );
+  });
+  assert.equal(out.code, 0);
+  assert.match(out.stdout, /HOST    : .*\(already right\)/);
+  assert.match(out.stdout, /wrapper : --host 127\.0\.0\.1,100\.69\.243\.25,192\.168\.2\.151,192\.168\.1\.151 {3}\(added 192\.168\.1\.151\)/);
+  assert.match(out.stdout, /dry run : nothing written/, 'the wrapper alone is a change worth a restart');
+  assert.equal(await readFile(wrapperPath, 'utf8'), WRAPPER);
+});
+
