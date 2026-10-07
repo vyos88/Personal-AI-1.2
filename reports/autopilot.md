@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261007-051845
+﻿# laptop41 autopilot 20261007-052351
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 2a51e24 is current
+checkout 304a4d9 is current
+
+## auto-live-sync-20261007-052351  live-sync (standing)  ->  0 (in sync)   (2026-10-07T05:24:08, 23s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches 7ca5aa7
+```
 
 ## auto-deck-liveness-20261007-051845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T05:19:19, 13s)
 ```
@@ -397,14 +404,6 @@ SKIPPED: nothing is captured while this machine is not on 48bdf61
 ```
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 7e76aeb of claude/frie...(30)
-CAPTURED: 1 changed and 43 new source file(s) from DESKTOP-41HPLCN, pushed as 7e76aeb on claude/frie...(30)
-    69 credential-looking line(s) cleared by the owner's list go with this capture
-```
-
-## auto-live-sync-20261007-022845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T02:29:02, 23s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 0123942 of claude/frie...(30)
 CAPTURED: 1 changed and 43 new source file(s) from DESKTOP-41HPLCN, pushed as 7e76aeb on claude/frie...(30)
     69 credential-looking line(s) cleared by the owner's list go with this capture
 ```
