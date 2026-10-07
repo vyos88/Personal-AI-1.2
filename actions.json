@@ -430,6 +430,11 @@
       "id": "20261007-67-songs-check",
       "do": "songs-check",
       "why": "after Alpha ca87445 (MP3 backfill running since ~22:50 local): how many of the songs play as MP3 now"
+    },
+    {
+      "id": "20261007-cp4-restart-backend",
+      "do": "restart-backend",
+      "why": "Worker1 rejoined 'Starlink V' (192.168.2.151, the CrowPanel's network) at 22:10 UTC; the backend still binds the old 192.168.1.151 and Desktop Commander (not elevated) cannot stop it. The boot wrapper's --host already lists 192.168.2.151."
     }
   ],
   "autofix": {
