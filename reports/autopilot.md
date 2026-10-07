@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-035352
+﻿# laptop41 autopilot 20261007-041345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout d5681df is current
+checkout d4799c2 is current
+
+## auto-deck-liveness-20261007-041345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T04:14:13, 5s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 111 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 4 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 0 s old, fresh for 90 s
+DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
+    assistant heartbeat 863 s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 2 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## 20261007-50-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T03:54:13, 16s)
 ```
@@ -533,55 +553,5 @@ HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_m
   log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
   log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
 'alpha-image bridge' was not listening on 7861: restarted, it answers now
-```
-
-## auto-live-sync-20261007-012845  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T01:29:13, 90s)
-```
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: a1440fc..c8ddf95 of claude/frie...(30) (last applied here: a1440fc)
-      applies  M backend/api/crowpanel.py
-      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-      ok: wrote 1 file(s)
-      ok: 1 Python file(s) parse
-    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --skip-build --restart
-      stopped pid 3076, which held port 8001
-      restarted task 'Alpha Backend'
-      stopped pid 16172, which held port 4173
-      restarted task 'Alpha'
-      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-DELIVERED: a1440fc..c8ddf95 of claude/frie...(30)
-CAPTURED: 6 changed and 1684 new source file(s) from DESKTOP-41HPLCN, pushed as 9d30d2f on claude/frie...(30)
-HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_maintenance_review.py, scripts/handoff_planet_builds.py, scripts/ingest_ecosystem_learning.py, scripts/ingest_international_astronomy.py, scripts/refresh_animal_groups.py, scripts/refresh_workspace_knowledge.py, scripts/retain_space_visual_lesson.py, scripts/run_educational_reviews.py, software/backend/chat_length_control.py, software/backend/fleet_gpu_view.py, software/backend/learning_evidence.py, software/backend/music_singing.py, ...
-    scripts/alpha_maintenance_review.py:372  credential-looking assignment  available_key = 'kokoΓÇª(16)' if profile == 'kokoΓÇª(18)' else 'pipeΓÇª(15)'
-    scripts/handoff_planet_builds.py:54  credential-looking assignment  todo_key='codiΓÇª(27)'+manifest['version']
-    scripts/ingest_ecosystem_learning.py:19  credential-looking assignment  key='ecosΓÇª(19)'+row['id']
-    scripts/ingest_ecosystem_learning.py:34  credential-looking assignment  key='educΓÇª(23)'+row['id']
-    scripts/ingest_ecosystem_learning.py:38  credential-looking assignment  key='educΓÇª(22)'
-    scripts/ingest_international_astronomy.py:23  credential-looking assignment  key = 'astrΓÇª(25)'
-    scripts/ingest_international_astronomy.py:34  credential-looking assignment  key='astrΓÇª(19)' + row['sourΓÇª(9)']
-    scripts/refresh_animal_groups.py:57  credential-looking assignment  key='educΓÇª(23)'+group['id']
-    scripts/refresh_workspace_knowledge.py:44  credential-looking assignment  key = 'alphΓÇª(16)' + row['hubId'] + '_' + row['workΓÇª(11)']
-    scripts/refresh_workspace_knowledge.py:56  credential-looking assignment  key = 'alphΓÇª(18)' + hashlib.sha256(relative.encode()).hexdigest()[:20]
-    scripts/retain_space_visual_lesson.py:14  credential-looking assignment  KEY = 'alphΓÇª(29)'
-    scripts/run_educational_reviews.py:42  credential-looking assignment  key = 'educΓÇª(19)' + output.stem
-    software/backend/chat_length_control.py:31  credential-looking environment variable  _COUNT_TOKEN = ..."(?:\ΓÇª(60)"
-    software/backend/fleet_gpu_view.py:3  alpha-tunnel token  `alphΓÇª(42)` already answers this question. It
-    software/backend/learning_evidence.py:42  credential-looking assignment  key = "learΓÇª(18)" + hashlib.sha256(
-    software/backend/music_singing.py:26  credential-looking environment variable  KEY_FILE = Path(os.environ.get(
-    software/backend/peer_capability_upgrade.py:51  credential-looking environment variable  _VRAM_KEYS = ("usabΓÇª(15)", "vramΓÇª(8)", "usabΓÇª(11)", "vramΓÇª(14)",
-    software/backend/peer_capability_upgrade.py:54  credential-looking environment variable  _GPU_OK_KEYS = ("gpu_ΓÇª(11)", "gpu_ok", "gpu_ΓÇª(13)", "cudaΓÇª(14)")
-    software/backend/process_inventory.py:11  credential-looking environment variable  _SECRET_FLAG = re.compile(r'(?i)ΓÇª(89)')
-    software/backend/process_inventory.py:12  credential-looking environment variable  _SECRET_ASSIGNMENT = re.compile(r'(?i)ΓÇª(89)')
-    software/backend/process_inventory.py:15  credential-looking environment variable  _INLINE_SECRET = ...'(?i)ΓÇª(66)')
-    software/backend/ring_integration.py:17  credential-looking environment variable  TOKEN_URL = "httpΓÇª(34)"
-    software/backend/ring_integration.py:41  credential-looking assignment  credential_type = "oautΓÇª(18)"
-    software/backend/ring_integration.py:43  credential-looking assignment  credential_type = "oautΓÇª(19)"
-    software/backend/tests/test_alpha_peer_review_tool.py:14  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
-    software/backend/tests/test_alpha_peer_trust_tool.py:15  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
-    software/backend/tests/test_alpha_peer_trust_tool.py:16  credential-looking environment variable  FLEET_KEY_ID = "testΓÇª(14)"
-    software/backend/tests/test_alpha_peer_trust_tool.py:98  credential-looking assignment  tmp_path, other, signing_key=FLEET_KEY, signing_key_id="diffΓÇª(19)",
-    software/backend/tests/test_alpha_self_upgrade_evidence.py:22  credential-looking environment variable  KEY_ID = hashlib.sha256(PUBLIC).hexdigest()
-    software/backend/tests/test_alpha_self_upgrade_handoff.py:11  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
-    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.
 ```
 
