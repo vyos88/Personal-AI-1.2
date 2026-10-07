@@ -367,6 +367,19 @@ test('promo-reel renders into the folder Alpha serves videos from, and takes not
   assert.ok(!/evil/.test(p.args.join(' ')), 'nothing from the action reaches the script');
 });
 
+test('interactive-first-off edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-ifo-'));
+  const file = join(dir, 'actions.json');
+  writeFileSync(file, JSON.stringify({ actions: [{ id: 'q1', do: 'interactive-first-off', env: 'C:\\evil\\.env', value: 'true' }] }));
+  const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
+  assert.equal(r.status, 0, r.stderr);
+  const [p] = JSON.parse(r.stdout);
+  assert.equal(p.ok, true);
+  assert.match(p.args[0], /interactive-first-off\.mjs$/);
+  assert.deepEqual(p.args.slice(1), ['--env', 'C:\\A\\.env.local']);
+  assert.ok(!/evil|true/.test(p.args.join(' ')), 'nothing from the action reaches the script');
+});
+
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
   const remote = join(dir, 'remote.git');
