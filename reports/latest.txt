@@ -1,4 +1,4 @@
-laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 39e456e 2026-10-07)
+laptop41-doctor 20261007-174103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ ae977f3 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 5.6s (load 0s, 7.9 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 3s (load 0s, 6.8 tokens/s): OK.
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,13 +40,13 @@ laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-07 17:12 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-07 17:12 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T16:21:39.447Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T16:23:39.476Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T16:25:39.446Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T16:35:39.473Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T16:37:39.465Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T16:39:39.523Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -79,7 +79,7 @@ laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
     COM6
     COM7
     COM20
-    COM24   in use by another program?
+    COM24
   device: USB-SERIAL CH340 (COM24)
   device: USB-SERIAL CH340 (COM20)
   device: USB Serial Device (COM7)
@@ -96,24 +96,22 @@ laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.1.88    40:c2:ba:34:3e:22  Reachable
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.
-    panel snapshot 765.89s old; background lane held by 'auto-learning'
-    settings that start the loop: ALPHA_INTERACTIVE_FIRST_MODE=true (environment (Process)); ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true (C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local); ALPHA_BACKGROUND_AUTOMATION_ENABLED not set
+  ok: Alpha's deck feed is live (assistant heartbeat 100s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.1.151
   ok: the panel's way in answers: http://192.168.1.151:8001/health 200 (Wi-Fi)
   PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.6 of 15.8 GB RAM free
+  ok: 2.1 of 15.8 GB RAM free
   ok: C: 8.6 GB free
-  python                        2,807 MB  pid 18408
-  llama-server                  1,889 MB  pid 18996
-  claude                          617 MB  pid 7832
-  Memory Compression              465 MB  pid 3840
-  MsMpEng                         452 MB  pid 6040
-  chrome                          337 MB  pid 6588
-  WindowsTerminal                 256 MB  pid 3764
-  explorer                        223 MB  pid 10108
+  python                        3,577 MB  pid 18408
+  llama-server                  1,935 MB  pid 18996
+  claude                          642 MB  pid 7832
+  MsMpEng                         443 MB  pid 6040
+  chrome                          338 MB  pid 6588
+  WindowsTerminal                 258 MB  pid 3764
+  explorer                        222 MB  pid 10108
+  dwm                             216 MB  pid 1964
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -121,18 +119,16 @@ laptop41-doctor 20261007-172603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 48s
-  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 50 run(s), since 2026-10-07T05:11:33)
-  - Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.  (open 1 run(s), since 2026-10-07T17:26:49)
-  + fixed since last run: the build is older than the source: the site shows the old Alpha until dist is rebuilt
+  this pass took 42s
+  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 51 run(s), since 2026-10-07T05:11:33)
+  + fixed since last run: Alpha's deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 50 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
-  2. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
-  3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [open 51 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.

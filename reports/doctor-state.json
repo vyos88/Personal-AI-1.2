@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "8edd4792d55243e5c8875a6aeab7cbe4111a2f22",
-    "lastRun":  "2026-10-07T17:26:49",
+    "lastRun":  "2026-10-07T17:41:43",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled.":  {
-                                                                                                                                                                                                                                                   "since":  "2026-10-07T17:26:49",
-                                                                                                                                                                                                                                                   "runs":  1,
-                                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: assistant-loop-not-started. assistant loop is not running on the host (lightweight autonomy is off or interactive-first mode is on), so the panel cannot go live until it is enabled."
-                                                                                                                                                                                                                                               },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  50,
+                                                                                                                                                         "runs":  51,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T17:26:49",
+    "lastPost":  "2026-10-07T17:41:43",
     "relay":  "relayed status/cloud 8edd479"
 }
