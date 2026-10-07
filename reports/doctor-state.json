@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "5e227a764a4dcaaff5d985bd8f1be3e7bcfcd4ad",
-    "lastRun":  "2026-10-08T00:26:39",
+    "lastRun":  "2026-10-08T00:41:45",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
                  "Ollama does not answer at http://#.#.#.#:#":  {
                                                                     "since":  "2026-10-08T00:11:24",
-                                                                    "runs":  2,
+                                                                    "runs":  3,
                                                                     "text":  "Ollama does not answer at http://127.0.0.1:11434"
-                                                                },
-                 "Alpha\u0027s deck feed answered #":  {
-                                                           "since":  "2026-10-08T00:26:39",
-                                                           "runs":  1,
-                                                           "text":  "Alpha\u0027s deck feed answered 000"
-                                                       }
+                                                                }
              },
-    "lastPost":  "2026-10-08T00:26:39",
+    "lastPost":  "2026-10-08T00:41:45",
     "relay":  "relayed status/cloud 5e227a7"
 }
