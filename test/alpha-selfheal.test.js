@@ -12,7 +12,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import https from 'node:https';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,6 +21,7 @@ import {
   emptyState,
   loadConfig,
   probeAll,
+  retryTransient,
   rollbackDist,
   runPass,
   snapshotLastGood,
@@ -365,4 +366,33 @@ test('a rollback snapshot that fails says why in the log, and is tried again', a
   assert.equal(snaps[0].code, 1);
   assert.match(snaps[0].error, /EPERM: operation not permitted, rename/);
   assert.ok(lines.every((l) => l.events.length === 0), 'a snapshot is not a repair and posts nothing');
+});
+
+test('a snapshot whose rename Windows refuses for a moment is retried, and gets through', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-2');
+  let calls = 0;
+  const waits = [];
+  // EPERM twice, as a scanner holding the fresh copy would give, then through.
+  const rename = (from, to) => {
+    calls++;
+    if (calls <= 2) throw Object.assign(new Error(`EPERM: operation not permitted, rename '${from}' -> '${to}'`), { code: 'EPERM' });
+    return renameSync(from, to);
+  };
+  snapshotLastGood(fe, { rename, sleep: (ms) => waits.push(ms) });
+  assert.equal(calls, 3);
+  assert.deepEqual(waits, [250, 500]);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'index.html'), 'utf8'), /build-2/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good.tmp')));
+});
+
+test('a rename that stays refused is thrown with its own reason; other errors are not retried', () => {
+  const eperm = () => { throw Object.assign(new Error('EPERM: operation not permitted, rename'), { code: 'EPERM' }); };
+  let waits = 0;
+  assert.throws(() => retryTransient(eperm, { attempts: 4, sleep: () => waits++ }), /EPERM/);
+  assert.equal(waits, 3);
+  let tries = 0;
+  const missing = () => { tries++; throw Object.assign(new Error('ENOENT: no such file'), { code: 'ENOENT' }); };
+  assert.throws(() => retryTransient(missing, { sleep: () => {} }), /ENOENT/);
+  assert.equal(tries, 1);
 });
