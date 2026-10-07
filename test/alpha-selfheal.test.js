@@ -22,6 +22,7 @@ import {
   loadConfig,
   probeAll,
   retryTransient,
+  copyIndexLast,
   rollbackDist,
   runPass,
   snapshotLastGood,
@@ -384,6 +385,52 @@ test('a snapshot whose rename Windows refuses for a moment is retried, and gets 
   assert.deepEqual(waits, [250, 500]);
   assert.match(readFileSync(join(fe, 'dist.last-good', 'index.html'), 'utf8'), /build-2/);
   assert.ok(!existsSync(join(fe, 'dist.last-good.tmp')));
+});
+
+test('a rename Windows refuses past every retry falls back to a copy, and dist is left alone', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-3');
+  writeDist(fe, 'dist.last-good', 'build-1');
+  writeFileSync(join(fe, 'dist.last-good', 'assets', 'old.js'), 'gone');
+  let calls = 0;
+  const waits = [];
+  // What Worker1 still gave at 04:14 UTC with the retries in place.
+  const rename = (from, to) => {
+    calls++;
+    throw Object.assign(new Error(`EPERM: operation not permitted, rename '${from}' -> '${to}'`), { code: 'EPERM' });
+  };
+  const result = snapshotLastGood(fe, { rename, sleep: (ms) => waits.push(ms) });
+  assert.equal(calls, 6, 'every retry is spent before falling back');
+  assert.equal(waits.length, 5);
+  assert.equal(result.copied, true);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'index.html'), 'utf8'), /build-3/);
+  assert.match(readFileSync(join(fe, 'dist.last-good', 'assets', 'app.js'), 'utf8'), /build-3/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good', 'assets', 'old.js')), 'nothing from the older build survives');
+  assert.match(readFileSync(join(fe, 'dist', 'index.html'), 'utf8'), /build-3/, 'dist is only read');
+  assert.ok(!existsSync(join(fe, 'dist.last-good.tmp')), 'the spare copy is cleared when Windows lets it go');
+});
+
+test('a rename refused for any other reason is not papered over with a copy', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-4');
+  const rename = () => { throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' }); };
+  assert.throws(() => snapshotLastGood(fe, { rename, sleep: () => {} }), /ENOSPC/);
+  assert.ok(!existsSync(join(fe, 'dist.last-good', 'index.html')));
+});
+
+test('the fallback copy writes index.html last, so a copy cut short is no snapshot', (t) => {
+  const fe = tempDir(t);
+  writeDist(fe, 'dist', 'build-5');
+  copyIndexLast(join(fe, 'dist'), join(fe, 'dist.last-good'));
+  assert.deepEqual(readdirSync(join(fe, 'dist.last-good'), { recursive: true }).sort(), ['assets', join('assets', 'app.js'), 'index.html'].sort());
+  // Cut short at the last step: an index.html that cannot be copied.
+  const torn = join(fe, 'torn');
+  writeDist(torn, 'dist', 'build-6');
+  rmSync(join(torn, 'dist', 'index.html'));
+  mkdirSync(join(torn, 'dist', 'index.html'));
+  assert.throws(() => copyIndexLast(join(torn, 'dist'), join(torn, 'dist.last-good')));
+  assert.ok(existsSync(join(torn, 'dist.last-good', 'assets', 'app.js')), 'everything else landed first');
+  assert.throws(() => rollbackDist(torn, { now: 1 }), /no last-good snapshot/, 'and it reads as none');
 });
 
 test('a rename that stays refused is thrown with its own reason; other errors are not retried', () => {
