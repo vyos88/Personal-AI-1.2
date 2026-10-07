@@ -275,6 +275,14 @@ test('the real generator accepts the handler\'s argv and writes a WAV of the ask
   const sidecar = JSON.parse(await readFile(result.outputs[0].path, 'utf8'));
   assert.deepEqual(sidecar.recipe, result.recipe);
   assert.match(sidecar.prompt, /Neo-Soul .*85 BPM, in F minor, instrumental/);
+
+  // What ran it, from the generator's own sidecar rather than from its stdout,
+  // which a trimmed result drops. On a real machine this reads
+  // "facebook/musicgen-small on cuda" or "on cpu" -- the difference between a
+  // track in 40s and one that outruns its lease (Worker1, 2026-10-06).
+  assert.equal(result.stats.engine, sidecar.engine);
+  assert.equal(result.stats.engine, 'dry-run (click track)');
+  assert.equal(result.stats.generatedInMs, result.generatedInMs);
 });
 
 test('the real generator refuses vocals even if the machine claims it can sing', async (t) => {

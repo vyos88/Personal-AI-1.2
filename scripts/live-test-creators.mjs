@@ -125,7 +125,11 @@ async function testMusic() {
     const bytes = full.ok ? Buffer.from(await full.arrayBuffer()) : Buffer.alloc(0);
     const info = inspectWav(bytes);
     const verdict = full.ok ? judgeTrack(info, musicSeconds) : { ok: false, reason: `the bridge would not play it (HTTP ${full.status})` };
-    say(`${verdict.ok ? 'ok' : 'PROBLEM'}: track ${job.i + 1} made by ${machine} in ${secs}s, ${track?.name ?? 'no audio file listed'} ${bytes.length || track?.bytes || '?'} bytes, ` +
+    // What ran it, when the bridge knows: one machine taking twenty times as
+    // long as another is a question about its device, not about the track, and
+    // the report used to give the seconds with nothing to read them against.
+    const on = done.engine ? ` (${done.engine})` : '';
+    say(`${verdict.ok ? 'ok' : 'PROBLEM'}: track ${job.i + 1} made by ${machine}${on} in ${secs}s, ${track?.name ?? 'no audio file listed'} ${bytes.length || track?.bytes || '?'} bytes, ` +
       (verdict.ok ? `plays (WAV, ${describeWav(info)})` : verdict.reason));
     if (verdict.ok && !made.track) { made.track = join(work, `track-${job.id}.wav`); writeFileSync(made.track, bytes); }
     if (verdict.ok) made.tracks.push(job.id);

@@ -34,7 +34,8 @@ import { describeAgent, parsePool, pickMachine } from './pick.js';
  *
  * The two read-only routes keep that shape. `/music/recipes` reads the
  * coordinator's ledger with `type=alpha.music` and passes on the recipe, the
- * outcome, the machine's name, output names and sizes and the times — never
+ * outcome, the machine's name, what generated the audio, output names and
+ * sizes and the times — never
  * paths, errors' internals or anything another task type left there. It needs
  * no scope beyond tasks:read, which the key already holds. `/music/fleet` reads
  * `/agents`, which needs agents:read; a key without it gets a 502
@@ -142,6 +143,11 @@ export function describeTask(task) {
       ? result.outputs.map((output) => ({ name: output.name, bytes: output.bytes }))
       : [],
     generatedInMs: result?.generatedInMs ?? null,
+    // What made it -- "facebook/musicgen-small on cuda", or on cpu. A track
+    // that takes twenty times as long on one machine is answered by this and
+    // by nothing else the bridge can see; `stats` is where it survives a
+    // trimmed result.
+    engine: result?.stats?.engine ?? null,
     // Whether the panel can offer a player: the track has to exist, and the
     // bridge has to know which machine holds it, which only a targeted task
     // says (see `agent` below).
@@ -171,6 +177,7 @@ export function describeReceipt(receipt) {
     outputs: Array.isArray(receipt.outputs)
       ? receipt.outputs.map((output) => ({ name: output?.name ?? null, bytes: output?.bytes ?? null }))
       : [],
+    engine: receipt.stats?.engine ?? null,
     createdAt: receipt.createdAt ?? null,
     finishedAt: receipt.finishedAt ?? null,
     durationMs: receipt.durationMs ?? null,

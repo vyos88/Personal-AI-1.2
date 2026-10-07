@@ -824,6 +824,13 @@ Unlike `alpha.render`, the generator contract is defined *here*
 `scripts/generate_music.py` (MusicGen via `transformers`, imported lazily).
 A test runs the handler against the real script in its `ALPHA_MUSIC_DRY_RUN`
 mode, so the two cannot drift apart; if either changes, change both together.
+The sidecar's `engine` field is part of that contract: the handler reads it
+into `stats`, which is one of the three keys a trimmed result keeps, so the
+ledger, `/music/tasks/:id`, `/music/recipes` and the live test all say what
+made each track. It used to travel only in the generator's stdout, which
+`summarizeResult` drops -- so when Worker1 timed out at 721s twice on
+2026-10-06 while the Host made a track in 38s, nothing durable said whether
+either of them had run MusicGen on a GPU or on a CPU.
 The script refuses `--vocals` itself too, and every failure path exits
 non-zero, because a clean exit is what the handler reads as success.
 
