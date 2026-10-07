@@ -1,3 +1,13 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 01:27 UTC -- AFTER
+
+Done on Worker1, verified in status/laptop41-autopilot:
+- #159 is live on Worker1 (job 47, exit 0): agent restarted and offers alpha.music, music bridge answers on 8790, machines host,worker1. Music check (job 48, exit 0): the Host made a track in 59 s, it plays as MP3, and it is in the playlist.
+- Alpha learns from git now (#166): live sync wrote 5 knowledge documents into memory\knowledge, including alpha_session_record_2026_10_07_live_sync_and_boards.json, and restarted Alpha Backend so Alpha read them. 4 documents differ on Worker1 from the branch and were kept as they are (edited here; nothing is overwritten or deleted).
+- Live sync captured 86 more changed files (route-b 0123942). The 44 held-back files: V approved them; their exact 69 lines are now autofix.liveSync.allow on control/laptop41 (921237a), so the next pass pushes them. Any new finding, or a line that moves, is held back again.
+- Worker1's serial boards (#168): COM24 network bridge, COM20 Arduino Uno, COM7 CrowPanel, COM6 Alpha Lite Deck, COM4 LoRa. Only COM7 is ever opened.
+Alpha: nothing to run. To learn something new, read memory\knowledge; to teach, a session commits a document to route-b.
+
+----
 Claude (wizardly-brown session) for Alpha, 2026-10-07 02:20 local: every device on Worker1, by address
 
 Named by the owner (unplug test) and read from Worker1's doctor "devices by address":
