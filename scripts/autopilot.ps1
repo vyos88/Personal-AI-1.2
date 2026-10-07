@@ -23,6 +23,7 @@
     restart-backend  stop whatever listens on Alpha's backend port, start it again
     restart-site     stop whatever listens on the site's port (4173) and its tree, start task 'Alpha' again
     stop-stray-site  stop-stray-site.ps1: stop a leftover `vite preview` tree that does not hold 4173, never the one that does (takes no arguments)
+    comfyui-off      comfyui-off.ps1: stop ComfyUI here and take this machine off image work (alpha-image handlers out, agent restart); pictures go to the other machines (takes no arguments)
     apply-update     apply-alpha-update.mjs --apply --restart   ("skipScripts": true)
     snapshot         snapshot-alpha-live.mjs --push             ("allow": "file:line,...", "includeNew": true)
     ollama-pull      ollama pull <"model">
@@ -249,6 +250,11 @@ function Resolve-Action($a) {
     # 2026-10-07b section 5). Takes nothing from the action: which tree is live
     # is read off the port on the machine.
     'stop-stray-site' { $spec = Ps1 'stop-stray-site.ps1' @(); $out.timeoutMin = 2 }
+    # The owner's yes of 2026-10-07 (option A): Worker1 was down to about 1 GB
+    # free with its own ComfyUI holding 3.4 GB while the Host makes the
+    # pictures. Takes nothing from the action: what is ComfyUI is read off the
+    # machine.
+    'comfyui-off' { $spec = Ps1 'comfyui-off.ps1' @(); $out.timeoutMin = 4 }
     'alpha-move-check' { $spec = Ps1 'alpha-move-check.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 6 }
     # Phase 1 of the Alpha move on a machine that does not run Alpha yet; it
     # refuses one that does, starts nothing, and takes nothing from the payload.
