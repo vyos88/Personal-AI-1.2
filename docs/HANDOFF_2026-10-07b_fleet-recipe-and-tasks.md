@@ -126,3 +126,30 @@ Claim an item before starting it (BACKLOG, "How to take an item").
 - `Alpha Server - Health Guard` runs every 5 minutes beside `Alpha Self-Heal`. **Alpha / Claude · Worker1:** say whether both are needed. If the guard only repeats self-heal's probes, disable it (do not delete).
 
 **Stop list so far:** nothing is clearly safe to stop until the tree-aware re-run (`50`, `h13`) reports. Then stop exactly what its `DUPLICATES` line names, under the rules in section 2.
+
+## 5. The stop list (tree-aware re-runs at 02:54 UTC, jobs h13 and 50)
+
+**Host: nothing to stop.** `DUPLICATES: none`. ComfyUI is back (job h12): `ComfyUI answers on 127.0.0.1:8188`, CUDA torch 2.11, and the agent offers `alpha.image` again.
+
+**Worker1: one thing to stop.** `DUPLICATES: Alpha site x2`: two separate `vite preview` process trees (pids 6508 and 13780 at 02:54 UTC). Port 4173 is held by the tree the `Alpha` task started at 02:31, after its restart. 6508 was already there before that restart (02:29 run: 10616, 20320, 6508), so it is the leftover.
+
+- **Claude · Worker1:**
+  1. Find the `vite preview` tree that does **not** hold 4173:
+     `Get-NetTCPConnection -LocalPort 4173 -State Listen`, then compare its owning process's ancestry with each `node ... vite` process.
+  2. Stop that tree: `taskkill /T /F /PID <it>`.
+  3. Check that `https://127.0.0.1:4173` still answers.
+  4. Re-run `fleet-inventory` and write the result in `status/claude-laptop41`.
+- **Never** stop the tree that holds 4173.
+
+**Alpha (Agent Manager), not a stop: a start.** The manager's view:
+
+- **The 12 ATTENTION agents are chat-model profiles** (`model:alpha-chat-...`). Say what each needs, or retire the ones no chat route uses.
+- **`runtime-daemon:auto-improve` is `RUNTIME-AVAILABLE`, not running.** The owner asked for auto-improve always (BACKLOG A1). Start it through the manager inside its budgets, and make that the default after a restart.
+- **`runtime-daemon:assistant-loop` is `RUNTIME-AVAILABLE` too.** That is why the deck feed reads heartbeat-stale (doctor, section 6). Start it.
+- `autoprogress` is available; `autonomous-thoughts` is disabled. Leave both as they are unless the owner says otherwise.
+
+**Noted, not stopped:**
+
+- `alpha-music bridge` task: last result `0x800710E0`, but the bridge answers on 8790 (node 18620). The task's own start was refused while an earlier bridge held the port. Harmless.
+- Worker1 has 28 disabled tasks (stewards, old fleet transport, hourly governed improvement) and the Host has 5. They are already off; the owner may delete them.
+- The Codex and Claude desktop apps on both laptops (about 1.3-1.8 GB each) are the owner's. Sessions leave them alone.
