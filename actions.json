@@ -121,6 +121,11 @@
       "id": "20261007-h22-fleet-inventory",
       "do": "fleet-inventory",
       "why": "owner 2026-10-07 ~23:00Z: decks look different on the Host; read-only list of what Alpha runs here (site/backend ports, tasks) to compare with Worker1 (ca87445, site built 22:31)"
+    },
+    {
+      "id": "20261007-h23-prepare-alpha",
+      "do": "prepare-alpha-here",
+      "why": "owner ~23:00Z: decks differ between machines; bring the Host's clone to the same live tip as Worker1 (b5a3bbc deck fixes, cfb5371 auto-learning fix) and rebuild the site"
     }
   ],
   "autofix": {
