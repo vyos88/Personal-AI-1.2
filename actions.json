@@ -106,6 +106,16 @@
       "id": "20261007-h19-prepare-alpha",
       "do": "prepare-alpha-here",
       "why": "re-run with #197: h18 cloned 7ca5aa7 fine but looked for software\\ at the top instead of BuildArtifacts\\installers\\Alpha-Full; chat model and cloudflared are already done"
+    },
+    {
+      "id": "20261007-h20-prepare-alpha",
+      "do": "prepare-alpha-here",
+      "why": "owner 2026-10-07 ~21:30Z: move Alpha to the Host now; bring the Host's clone to the live branch tip (playlist MP3 fix cedec9d, deck audit ca87445) and rebuild the site"
+    },
+    {
+      "id": "20261007-h21-songs-check",
+      "do": "songs-check",
+      "why": "owner: songs must work on the Host too; confirms the USB copy (memory, songs, .env.local presence) once it lands; re-queued after the copy"
     }
   ],
   "autofix": {
