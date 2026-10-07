@@ -1,14 +1,19 @@
 {
-    "cloudSeen":  "3f8094fd61c92e11f065daa1c6187d003ccba605",
-    "lastRun":  "2026-10-07T22:41:47",
+    "cloudSeen":  "6ec52584344230aa1cb25a058dd98c9050955a6d",
+    "lastRun":  "2026-10-07T23:11:30",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
+                 "the backend listens on no home-network address (this machine has #.#.#.# on Wi-Fi): the deck panel cannot reach it":  {
+                                                                                                                                            "since":  "2026-10-07T23:11:30",
+                                                                                                                                            "runs":  1,
+                                                                                                                                            "text":  "the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it"
+                                                                                                                                        },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  72,
+                                                                                                                                                         "runs":  74,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T22:26:24",
-    "relay":  "relayed status/cloud 3f8094f"
+    "lastPost":  "2026-10-07T23:11:30",
+    "relay":  "relayed status/cloud 6ec5258"
 }
