@@ -1,8 +1,23 @@
-﻿# laptop41 autopilot 20261007-173846
+﻿# laptop41 autopilot 20261007-181354
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ae977f3 is current
+checkout 3304a44 is current
+
+## 20261007-60-interactive-first-off  interactive-first-off  ->  -1073740791   (2026-10-07T18:14:24, 41s)
+```
+file    : C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local
+before  : ALPHA_INTERACTIVE_FIRST_MODE=true
+loop    : ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true
+loop    : ALPHA_BACKGROUND_AUTOMATION_ENABLED=not set
+after   : ALPHA_INTERACTIVE_FIRST_MODE=false (backup at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local.bak-interactive-first)
+restart : stopped pid 10052, which held port 8001
+restart : restarted task 'Alpha Backend'
+restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+ok      : backend answers on 127.0.0.1:8001/health
+done    : the assistant loop starts with the backend; the next deck check should show the CrowPanel feed live within a few minutes
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 94
+```
 
 ## 20261007-58-stop-stray-site  stop-stray-site  ->  0   (2026-10-07T17:39:20, 5s)
 ```
@@ -419,25 +434,5 @@ AGENT MANAGER: 59 agent(s), snapshot 0 min old
   THY, runtime-task:alpha:gmail-self-test=RUNTIME-HEALTHY, runtime-task:alpha:memory-maintenance=RUNTIME-HEALTHY, runtime-task:alpha:ollama-keepalive=RU
   NTIME-HEALTHY, runtime-task:alpha:tunnel-owner-replies=RUNTIME-HEALTHY, runtime-task:alpha:tunnel-work-observations=RUNTIME-HEALTHY, runtime-task:alph
   a:usb-monitor=RUNTIME-HEALTHY, runtime-task:alpha:visu...(38), runtime-task:alpha:workflow-scheduler=RUNTIME-HEALTHY
-```
-
-## auto-deck-liveness-20261007-141345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T14:14:11, 8s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 90 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 13 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 4 s old, fresh for 90 s
-DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
-    assistant heartbeat 1606 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 173 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
