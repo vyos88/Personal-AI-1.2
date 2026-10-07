@@ -111,6 +111,17 @@ changes. They are turned on in the same `actions.json`:
   - The receipt is in `memory\local\deck-liveness\latest.json`, where Alpha
     can read it. A change of verdict is reported; ages alone are not.
 
+- `heartbeat` (`true`): every pass, whether or not anything changed, writes
+  `reports/live.md` (and `live.json`) to `status/<channel>-live`.
+  - Alpha's state is read from self-heal's own last probes (backend, site,
+    alpha-ai.uk), so nothing is probed twice.
+  - It also shows the repair agent's last pass, the decks' last verdicts and
+    live sync's state.
+  - If self-heal has not written its log for 6 minutes, its task is started
+    again, at most once every 30 minutes. While it is stopped, only the
+    backend is checked directly. The heartbeat never repairs Alpha itself:
+    two repairers would fight over the same processes.
+
 ## Trust
 
 The task runs as the owner, elevated, while the owner is logged on. Anyone

@@ -602,6 +602,108 @@ $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
 @{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+# 3c. The live report (autofix.heartbeat): every pass, whatever else did or
+# did not happen, one short page on status/<channel>-live says whether Alpha is
+# live. The owner asked for a report every 5 minutes, and a report written only
+# on change cannot tell "nothing changed" from "the reporter died".
+# - Alpha: self-heal's own last probes (backend, site, alpha-ai.uk), which run
+#   every 2 minutes; nothing is probed twice.
+# - The repair agent: if self-heal has not written its log for 6 minutes, its
+#   task is started again, at most once every 30 minutes. It is never
+#   duplicated here: two repairers would fight over the same processes.
+# - Decks: the deck check's last receipt. Live sync: its last state.
+function Read-SelfHeal {
+  $log = Join-Path $OpsDir 'logs\selfheal.jsonl'
+  if (-not (Test-Path -LiteralPath $log)) { return $null }
+  $age = [int]((Get-Date) - (Get-Item -LiteralPath $log).LastWriteTime).TotalMinutes
+  $last = $null
+  try { $last = (Get-Content -LiteralPath $log -Tail 1 -EA Stop) | ConvertFrom-Json } catch { }
+  return [pscustomobject]@{ age = $age; last = $last }
+}
+function Publish-Live([string]$md, [string]$json, [string]$headline) {
+  $liveBranch = "status/$Channel-live"
+  $tmpRoot = Join-Path $OpsDir 'tmp'
+  New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
+  $lwt = Join-Path $tmpRoot "live-$stamp"
+  git -C $repo fetch -q origin $liveBranch 2>&1 | Out-Null
+  $lbase = if ($LASTEXITCODE -eq 0) { 'FETCH_HEAD' } else { 'HEAD' }
+  git -C $repo worktree add --detach $lwt $lbase 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) { Write-Host 'live report: could not create a worktree'; return }
+  New-Item -ItemType Directory -Force -Path (Join-Path $lwt 'reports') | Out-Null
+  Set-Content -LiteralPath (Join-Path $lwt 'reports\live.md') -Value $md -Encoding UTF8
+  Set-Content -LiteralPath (Join-Path $lwt 'reports\live.json') -Value $json -Encoding UTF8
+  git -C $lwt add reports 2>&1 | Out-Null
+  git -C $lwt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel).invalid" commit -q -m "$Channel live ${stamp}: $headline" 2>&1 | Out-Null
+  git -C $lwt push -q origin "HEAD:refs/heads/$liveBranch" 2>&1 | Out-Null
+  $ok = ($LASTEXITCODE -eq 0)
+  git -C $repo worktree remove --force $lwt 2>&1 | Out-Null
+  Write-Host $(if ($ok) { "live report: $headline" } else { 'live report: push failed' })
+}
+if ($control -and $control.autofix -and $control.autofix.heartbeat) {
+  $now = Get-Date
+  $sh = Read-SelfHeal
+  $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
+  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = '' }
+  if ($sh) {
+    $heal.age_min = $sh.age
+    $heal.repairs = @($sh.last.actions | Where-Object { $_ }).Count
+    $heal.state = if ($sh.age -le 6) { 'RUNNING' } else { 'STOPPED' }
+  }
+  if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
+    $parts = [ordered]@{ backend = $sh.last.probes.backend; site = $sh.last.probes.frontend; 'alpha-ai.uk' = $sh.last.probes.public }
+    $down = @($parts.Keys | Where-Object { -not ($parts[$_] -and $parts[$_].ok -eq $true) })
+    $alpha.verdict = if ($down.Count) { 'DOWN' } else { 'LIVE' }
+    $alpha.detail = (($parts.Keys | ForEach-Object { "$_ $(if ($parts[$_]) { $parts[$_].status } else { '?' })" }) -join ', ') + $(if ($down.Count) { "; not answering: $($down -join ', ')" } else { '' })
+    $alpha.checked_by = "self-heal, $($sh.age) min ago"
+  } else {
+    # Self-heal is not watching, so look at the backend directly (only that).
+    $code = $null
+    try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
+    $alpha.verdict = if ($code -eq 200) { 'BACKEND UP' } else { 'DOWN' }
+    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is not running"
+    $alpha.checked_by = 'this pass'
+  }
+  if ($heal.state -eq 'STOPPED') {
+    $kickFile = Join-Path $dir 'selfheal-restart.txt'
+    $lastKick = [datetime]::MinValue
+    if (Test-Path -LiteralPath $kickFile) { [void][datetime]::TryParse((Get-Content -LiteralPath $kickFile -Raw).Trim(), [ref]$lastKick) }
+    if (($now - $lastKick).TotalMinutes -ge 30) {
+      Set-Content -LiteralPath $kickFile -Value $now.ToString('s')
+      try { Start-ScheduledTask -TaskName 'Alpha Self-Heal' -EA Stop; $heal.restarted = 'started its task again' }
+      catch {
+        & schtasks.exe /Run /TN 'Alpha Self-Heal' 2>&1 | Out-Null
+        $heal.restarted = $(if ($LASTEXITCODE -eq 0) { 'started its task again (schtasks)' } else { 'could not start its task: run scripts\repair-alpha-host.ps1 as Administrator' })
+      }
+    } else { $heal.restarted = "restart already tried at $($lastKick.ToString('HH:mm'))" }
+  }
+  $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
+  $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
+  if (Test-Path -LiteralPath $receipt) {
+    try {
+      $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+      $counts = @($r.sources | Group-Object verdict | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
+      $decks.summary = $counts -join ', '
+      $decks.not_live = @($r.not_live)
+      $decks.checked_at = [string]$r.checked_at
+    } catch { $decks.summary = 'receipt unreadable' }
+  }
+  $syncState = (($syncKey -replace '^\d+ ', '') -split ' \| ' | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|STOP)' } | Select-Object -First 1)
+  if (-not $syncState) { $syncState = $(if ($sync) { 'no state yet' } else { 'off' }) }
+  $syncState = Redact $syncState
+  $headline = "Alpha $($alpha.verdict); self-heal $($heal.state)"
+  $md = @(
+    "# Alpha is $($alpha.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
+    'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
+    '| Check | State | Detail |', '|---|---|---|',
+    "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
+    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+    "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
+    "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
+  ) -join "`n"
+  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  Publish-Live $md $json $headline
+}
+
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
