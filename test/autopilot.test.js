@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -52,12 +53,13 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
     { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
     { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
+    { id: 'i4', do: 'receive-alpha-data', inbox: 'C:\\Windows' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -78,6 +80,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.match(plan.i2.args.join(' '), /alpha-move-check\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
   assert.match(plan.i3.args.at(-1), /prepare-alpha-here\.ps1$/, 'no target, branch or anything else from the payload');
   assert.equal(plan.i3.timeoutMin, 90);
+  assert.match(plan.i4.args.at(-1), /receive-alpha-data\.ps1$/, 'no inbox or target from the payload');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -607,6 +610,68 @@ test('the Alpha move check finds the backend configuration beside software, and 
   assert.match(r.stdout, /\.env\.local: present, 26 bytes \(contents not read\)/);
   assert.doesNotMatch(r.stdout, /the backend's \.env\.local/, 'present beside software\\ is present');
   assert.doesNotMatch(r.stdout, /SECRET_VALUE|do-not-print/);
+});
+
+test('receiving Alpha data checks every file, puts it in place and never shows the configuration', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'prepare-alpha-here.ps1').replace('prepare-alpha-here', 'receive-alpha-data');
+  const base = mkdtempSync(join(tmpdir(), 'recv-'));
+  const home = join(base, 'Alpha', 'BuildArtifacts', 'installers', 'Alpha-Full');
+  mkdirSync(join(home, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(home, 'software', 'backend', 'main.py'), '');
+  mkdirSync(join(home, 'memory'));
+  writeFileSync(join(home, 'memory', 'from-git.txt'), 'old');
+  const src = join(base, 'src');
+  mkdirSync(join(src, 'memory', 'local'), { recursive: true });
+  writeFileSync(join(src, 'memory', 'local', 'state.json'), '{"ok":true}');
+  const inbox = join(base, 'inbox');
+  mkdirSync(inbox);
+  execFileSync('tar', ['-cf', join(inbox, 'memory-1.tar'), '-C', src, 'memory']);
+  writeFileSync(join(inbox, 'env.local'), 'API_TOKEN=do-not-print\n');
+  const sha = (f) => createHash('sha256').update(readFileSync(join(inbox, f))).digest('hex');
+  const size = (f) => readFileSync(join(inbox, f)).length;
+  const manifest = (files) => writeFileSync(join(inbox, 'alpha-move-manifest.json'), JSON.stringify({ files }));
+  const good = [
+    { name: 'memory-1.tar', kind: 'memory', sha256: sha('memory-1.tar'), bytes: size('memory-1.tar') },
+    { name: 'env.local', kind: 'env-local', sha256: sha('env.local'), bytes: size('env.local') },
+  ];
+  const run = () => pwsh([script, '-Target', join(base, 'Alpha'), '-Inbox', inbox, '-NoFetch']);
+
+  // One wrong hash: nothing changes.
+  manifest([good[0], { ...good[1], sha256: '0'.repeat(64) }]);
+  let r = run();
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /MISMATCH: env\.local/);
+  assert.deepEqual(readdirSync(join(home, 'memory')), ['from-git.txt']);
+  assert.ok(!readdirSync(home).includes('.env.local'));
+
+  manifest(good);
+  r = run();
+  assert.equal(r.status, 0, r.stdout);
+  assert.equal(readFileSync(join(home, 'memory', 'local', 'state.json'), 'utf8'), '{"ok":true}');
+  assert.ok(readdirSync(home).some((n) => n.startsWith('memory.prev-')), 'the old memory is kept, not deleted');
+  assert.equal(readFileSync(join(home, '.env.local'), 'utf8'), 'API_TOKEN=do-not-print\n');
+  assert.doesNotMatch(r.stdout, /do-not-print/);
+  assert.deepEqual(readdirSync(inbox), [], 'no second copy of a secret left behind');
+});
+
+test('receiving Alpha data refuses an archive that reaches outside memory', { skip }, () => {
+  const script = join(import.meta.dirname, '..', 'scripts', 'receive-alpha-data.ps1');
+  const base = mkdtempSync(join(tmpdir(), 'recv-bad-'));
+  const home = join(base, 'Alpha');
+  mkdirSync(join(home, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(home, 'software', 'backend', 'main.py'), '');
+  const src = join(base, 'src');
+  mkdirSync(join(src, 'software'), { recursive: true });
+  writeFileSync(join(src, 'software', 'evil.py'), 'x');
+  const inbox = join(base, 'inbox');
+  mkdirSync(inbox);
+  execFileSync('tar', ['-cf', join(inbox, 'memory-1.tar'), '-C', src, 'software']);
+  const buf = readFileSync(join(inbox, 'memory-1.tar'));
+  writeFileSync(join(inbox, 'alpha-move-manifest.json'), JSON.stringify({ files: [{ name: 'memory-1.tar', kind: 'memory', bytes: buf.length, sha256: createHash('sha256').update(buf).digest('hex') }] }));
+  const r = pwsh([script, '-Target', home, '-Inbox', inbox, '-NoFetch']);
+  assert.equal(r.status, 1, r.stdout);
+  assert.match(r.stdout, /holds paths outside memory/);
+  assert.ok(!readdirSync(join(home, 'software')).includes('evil.py'));
 });
 
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
