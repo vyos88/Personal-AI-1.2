@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-191346
+﻿# laptop41 autopilot 20261007-193346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 67563f8 is current
+
+## auto-deck-liveness-20261007-193346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:34:28, 14s)
+```
+DECKS: 4 live, 1 degraded, 1 stale, 1 static, 1 no feed
+DECK DEGRADED: deck evidence (/hubs/pulse) -> failing hubs: kol-kos  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    21/22 hub checks ok, report 40 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 6 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 4 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 211 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 479 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-191346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T19:14:31, 15s)
 ```
@@ -372,22 +392,5 @@ ok: scene 6 image made by host (comfyui) in 18s, 670898 bytes
 ok: reel rendered in 65s from 5 scenes with its own track, 8427059 bytes, MP4
 saved: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\artifacts\generated\videos\alph...(30).mp4
 done: in Alpha, open the Video Creator, "Open a saved Alpha video", type alph...(30).mp4, then "Download MP4" to post it
-```
-
-## 20261007-54-promo-reel  promo-reel  ->  1   (2026-10-07T16:04:09, 2279s)
-```
-making alph...(30).mp4: 6 scenes, 25s, 608x1080, high quality
-PROBLEM: scene 1 attempt 1: HTTP 504 image_timeout host did not send the image within 60s. Is it offering alpha.image.file?
-ok: 25s synthwave track made by host in 118s, 272852 bytes (MP3)
-PROBLEM: scene 1 attempt 2: HTTP 0  fetch failed
-PROBLEM: scene 2 attempt 1: HTTP 0  fetch failed
-PROBLEM: scene 2 attempt 2: HTTP 0  fetch failed
-PROBLEM: scene 3 attempt 1: HTTP 0  fetch failed
-PROBLEM: scene 3 attempt 2: HTTP 0  fetch failed
-PROBLEM: scene 4 attempt 1: HTTP 0  fetch failed
-PROBLEM: scene 4 attempt 2: HTTP 0  fetch failed
-ok: scene 5 image made by host (comfyui) in 35s, 828721 bytes
-ok: scene 6 image made by host (comfyui) in 18s, 670898 bytes
-PROBLEM: only 2 of 6 scenes made, too few for a reel
 ```
 
