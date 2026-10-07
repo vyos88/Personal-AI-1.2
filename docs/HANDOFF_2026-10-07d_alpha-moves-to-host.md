@@ -170,6 +170,20 @@ Claude · Worker1 does this, after Phase 2 passes.
   - Until that step is automated, it is a person's step: V or Claude · Host.
 - **Disabled, not deleted:** `Alpha`, `Alpha Backend` and `Alpha Self-Heal`
   as start-at-boot tasks on Laptop41. The standby owns starting them now.
+- **Two more things on Laptop41 bring Alpha back by themselves**, and Phase 2
+  step 1 must stop them too, or a second Alpha is running within minutes:
+  - the `Alpha Server - Health Guard` task, which runs every 5 minutes (job 51's
+    inventory);
+  - Alpha's own `alpha_runtime_always_on.ps1` and `alpha_runtime_watchdog.ps1`,
+    which run as processes on Laptop41. They are Alpha's, so stop them through
+    the Agent Manager, the same as the manager itself.
+
+  While Laptop41 is standby, the autopilot's 5-minute live report will read
+  Alpha DOWN there. That is correct until the report learns the standby's
+  role.
+- **The CrowPanel's address.** `fix-panel-host.mjs` (the `panel-host` job,
+  #188 and #191) adds the machine's home-network address in both places that
+  decide it: `HOST` in `.env.local`, and the boot wrapper's `--host`.
 - `worker1` stays a full worker throughout: the work is shared.
 - **CrowPanel:** V points it at the Host's LAN address. The CrowPanel is not
   on the tailnet.
