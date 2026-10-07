@@ -1,8 +1,38 @@
-﻿# laptop41 autopilot 20261008-000845
+﻿# laptop41 autopilot 20261008-001844
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4987134 is current
+
+## auto-live-sync-20261008-001844  live-sync (standing)  ->  2 (needs a person)   (2026-10-08T00:19:01, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access 'https://github.com/vyos88/Alpha/': Empty reply from server
+      Alpha is a private repository: this machine needs git credentials for github.com (sign in once with `git credential-manager` or `gh auth login`).
+FAILED: 5147fef could not be applied, and what was written was put back (above)
+SKIPPED: nothing is captured while this machine is not on 5147fef
+```
+
+## auto-deck-liveness-20261008-001844  deck-liveness (standing)  ->  0 (every deck live)   (2026-10-08T00:19:08, 4s)
+```
+DECKS: 6 live, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 86 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 6 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 5 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 13 s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 0 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-audit-20261008-000845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T00:09:13, 0s)
 ```
@@ -352,51 +382,5 @@ asking 5 port(s) what is on them, up to 30s each â€” opening a port reboots
   COM20          unreadable could not configure COM20: Command failed: mode.com \\.\COM20 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
   COM24          unreadable could not configure COM24: Command failed: mode.com \\.\COM24 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
 no board here is running this firmware.
-```
-
-## auto-live-sync-20261007-222849  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:29:06, 196s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: cbd4b34..cedec9d of claude/frie...(30) (last applied here: cbd4b34)
-      applies  M backend/api/crowpanel.py
-      applies  M backend/main.py
-      applies  M backend/music_singing.py
-      skipped  M backend/tests/test_assistant_heartbeat.py  (a test this machine does not have)
-      applies  M backend/tests/test_singing_mp3.py
-      applies  M frontend/src/musicAudioLoader.js
-      applies  M frontend/src/musicAudioLoader.test.js
-      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-      ok: wrote 6 file(s)
-      ok: 4 Python file(s) parse
-      packages unchanged and installed: building (no npm ci)...
-      ok: frontend built
-    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-      stopped pid 10660, which held port 8001
-      restarted task 'Alpha Backend'
-      stopped pid 20972, which held port 4173
-      restarted task 'Alpha'
-      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-DELIVERED: cbd4b34..cedec9d of claude/frie...(30)
-CAPTURED: nothing; every source file here matches cedec9d
-```
-
-## auto-deck-liveness-20261007-222849  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T22:32:23, 22s)
-```
-DECKS: 2 live, 4 stale, 1 static, 1 no feed
-DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 152 s old, fresh for ? s
-DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
-    manager snapshot 13 s old
-DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 77 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 1 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
