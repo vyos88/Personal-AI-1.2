@@ -1,8 +1,29 @@
-﻿# laptop41 autopilot 20261007-223345
+﻿# laptop41 autopilot 20261007-224350
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout bcd5e47 is current
+checkout cce15b9 is current
+
+## auto-live-sync-20261007-224350  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:44:07, 47s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: cedec9d..ca87445 of claude/frie...(30) (last applied here: cedec9d)
+      applies  A backend/deck_audit.py
+      applies  M backend/main.py
+      applies  A backend/tests/test_deck_audit.py
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 3 file(s)
+      ok: 3 Python file(s) parse
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --skip-build --restart
+      stopped pid 17648, which held port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 7852, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+DELIVERED: cedec9d..ca87445 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches ca87445
+```
 
 ## auto-brain-topology-20261007-223345  brain-topology (standing)  ->  0 (deck ok)   (2026-10-07T22:34:10, 1s)
 ```
@@ -380,24 +401,5 @@ live : tree 4332 (2 processes, 39 MB) holds 4173: C:\Windows\system32\cmd.exe /d
 leave: tree 6508 (178 MB) is not a preview server, left alone. What it is:
        pid 6508 node.exe, started 10-07 01:32, listening on 5173: "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\..\vite\bin\vite.js" --host 127.0.0.1 --port 5173 --strictPort
 nothing to stop: one preview tree, and it is the live one
-```
-
-## auto-deck-liveness-20261007-182353  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T18:24:31, 12s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 51 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 1 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 0 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 40 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
