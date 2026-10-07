@@ -10,7 +10,7 @@
  *      button needs), and lists the machines each bridge can use;
  *   2. queues --count tracks one after another, a few seconds apart, so the
  *      second sees the first one in hand and goes to the other machine;
- *      waits for each, and reads the first bytes of its audio (a real WAV);
+ *      waits for each, and reads its audio (a real WAV, or MP3 from #159);
  *   3. does the same for --count images through the image bridge's
  *      AUTOMATIC1111 API, and checks each answer is a PNG;
  *   4. makes a short reel (1080x1920-shaped, 6 s) from those images with the
@@ -32,7 +32,7 @@ import { existsSync, mkdtempSync, openSync, readSync, closeSync, statSync, write
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { audioOutput, describeWav, inspectWav, judgeTrack } from './wav-check.mjs';
+import { audioOutput, describeAudio, inspectAudio, judgeTrack } from './wav-check.mjs';
 
 const arg = (name, fallback) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -123,15 +123,16 @@ async function testMusic() {
     const track = audioOutput(done.outputs);
     const full = await fetch(`${musicUrl}/music/tasks/${job.id}/audio`);
     const bytes = full.ok ? Buffer.from(await full.arrayBuffer()) : Buffer.alloc(0);
-    const info = inspectWav(bytes);
+    // WAV, or MP3 when the music machine has ffmpeg (alpha-tunnel #159).
+    const info = inspectAudio(bytes);
     const verdict = full.ok ? judgeTrack(info, musicSeconds) : { ok: false, reason: `the bridge would not play it (HTTP ${full.status})` };
     // What ran it, when the bridge knows: one machine taking twenty times as
     // long as another is a question about its device, not about the track, and
     // the report used to give the seconds with nothing to read them against.
     const on = done.engine ? ` (${done.engine})` : '';
     say(`${verdict.ok ? 'ok' : 'PROBLEM'}: track ${job.i + 1} made by ${machine}${on} in ${secs}s, ${track?.name ?? 'no audio file listed'} ${bytes.length || track?.bytes || '?'} bytes, ` +
-      (verdict.ok ? `plays (WAV, ${describeWav(info)})` : verdict.reason));
-    if (verdict.ok && !made.track) { made.track = join(work, `track-${job.id}.wav`); writeFileSync(made.track, bytes); }
+      (verdict.ok ? `plays (${describeAudio(info)})` : verdict.reason));
+    if (verdict.ok && !made.track) { made.track = join(work, `track-${job.id}.${info.format}`); writeFileSync(made.track, bytes); }
     if (verdict.ok) made.tracks.push(job.id);
     results.push({ kind: 'music', ok: verdict.ok, machine });
   }

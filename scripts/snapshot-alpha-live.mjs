@@ -76,7 +76,7 @@ export function parseArgs(argv) {
 // What --include-new may bring: source code in the folders a fix touches.
 export const NEW_FILE_ROOTS = ['software/backend', 'software/frontend/src', 'software/windows-worker', 'software/android-worker', 'scripts'];
 export const NEW_FILE_EXTENSIONS = new Set(['.py', '.js', '.jsx', '.mjs', '.cjs', '.ts', '.tsx', '.css', '.ps1', '.html']);
-const NEW_FILE_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '__pycache__', '.venv', 'venv', 'env', '.git', 'memory', 'data',
+export const NEW_FILE_SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '__pycache__', '.venv', 'venv', 'env', '.git', 'memory', 'data',
   'logs', 'log', 'backups', 'backup', '.pytest_cache', 'coverage', '.tls', 'uploads', 'output', 'outputs', 'models', 'checkpoints', 'tmp', 'temp', 'cache']);
 const NEW_FILE_SKIP_NAME = /(^\.env)|secret|credential|password|token|private|\.key$|\.pem$|\.bak$|\.orig$/i;
 export const NEW_FILE_MAX_BYTES = 512 * 1024;

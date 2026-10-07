@@ -41,6 +41,7 @@ reported.
 | `doctor` | `laptop41-doctor.ps1 -Watch -Push` |
 | `repair-host` | `repair-alpha-host.ps1`, with its own rollback |
 | `restart-backend` | Stops whatever listens on the backend port, then starts it again: the `Alpha Backend` task if it exists, otherwise `scripts\start-local.ps1`. |
+| `restart-coordinator` | On the Host: stops the scheduled task `alpha-coordinator` and whatever holds its port (8787, or `ALPHA_HOST_PORT`), starts the task again from the current checkout, and fails unless `/healthz` answers. A `git pull` alone leaves the coordinator on its old code. The queue survives (`data/tasks.json`) and agents re-register by themselves. Takes no arguments |
 | `restart-site` | Stops whatever holds the site's port (4173) with its process tree and starts task `Alpha` again, then asks `/music/healthz` through the site. `Stop-ScheduledTask` alone left the old preview server serving its old `vite.config.js` |
 | `apply-update` | `apply-alpha-update.mjs --apply --restart`; add `"skipScripts": true` to leave `scripts\` alone |
 | `snapshot` | `snapshot-alpha-live.mjs --push`; `"allow": "file:line,..."` must list only lines a person has reviewed; `"includeNew": true` also brings source files only this machine has (source folders and extensions, each under 512 KB, credential-scanned like the rest) |
@@ -81,6 +82,17 @@ changes. They are turned on in the same `actions.json`:
   It tries once per version of the deck's source, so a fix that does not take
   is reported, not repeated every five minutes. A stale build alone is left to
   the doctor (section 5d says which). A machine with no Alpha skips it.
+
+- `liveSync` (`{ "branch": "<live branch>", "capture": true }`): every pass,
+  the live branch is delivered to this machine (`apply-alpha-update.mjs`, each
+  tip tried once), and its `memory/knowledge` documents are written where
+  Alpha reads them, with a backend restart when one is new. With `capture`, when this machine runs the tip, the source
+  edited here and the source only it has are pushed back to the branch,
+  fast-forward only; files with credential-looking lines are held back and
+  listed, ending with an `ALLOW WITH:` line. `allow` (a `path:line,...`
+  string or a list) is the owner's approval of exactly those lines; one
+  malformed entry and none of it is used. `skipScripts: true` leaves
+  `scripts\` out. See `docs/LIVE_SYNC.md`.
 
 ## Trust
 

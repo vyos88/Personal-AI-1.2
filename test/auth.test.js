@@ -131,7 +131,7 @@ test('an invite can be created, previewed, and redeemed exactly once', async (t)
     body: { token: created.token },
   });
   assert.equal(preview.email, 'newcomer@example.com');
-  assert.deepEqual(preview.scopes, ['agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
+  assert.deepEqual(preview.scopes, ['agents:control', 'agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
 
   const { body: redeemed } = await call(host.url, '/invites/redeem', {
     method: 'POST',
@@ -844,7 +844,7 @@ test('a narrow key issued under an admin user is still narrow', async (t) => {
 
   const { body: me } = await call(host.url, '/me', { token: laptop.token });
   assert.ok(!me.scopes.includes('admin'), 'laptop key must not carry admin');
-  assert.deepEqual(me.scopes, ['agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
+  assert.deepEqual(me.scopes, ['agents:control', 'agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
 
   // It can do the operator things.
   const { status: queued } = await call(host.url, '/tasks', {

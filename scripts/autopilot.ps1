@@ -30,6 +30,7 @@
     live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
+    panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -88,6 +89,7 @@ function Resolve-Action($a) {
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
     'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
+    'restart-coordinator' { $out.internal = 'restart-coordinator'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
@@ -187,6 +189,10 @@ function Resolve-Action($a) {
       }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 45
     }
+    # Points the CrowPanel deck plugged into this machine at this machine's
+    # own home-network address. Takes nothing from the action: the URL is
+    # worked out on the machine, and a Wi-Fi passphrase never travels here.
+    'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
@@ -402,6 +408,38 @@ foreach ($a in $queued) {
       [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
     }
     $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
+  } elseif ($p.internal -eq 'restart-coordinator') {
+    # The coordinator runs as the scheduled task 'alpha-coordinator' on the
+    # Host. A git pull does not reach it: the 2026-10-07 pull of #159 left it
+    # on the old code (LastRunTime 2026-10-06) until something restarted it.
+    # The queue survives (data/tasks.json); agents re-register by themselves.
+    $port = 8787
+    $n = 0; if ($env:ALPHA_HOST_PORT -and [int]::TryParse($env:ALPHA_HOST_PORT, [ref]$n)) { $port = $n }
+    $lines = New-Object System.Collections.ArrayList
+    if (-not (Get-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue)) {
+      $code = 1; $text = "no scheduled task 'alpha-coordinator' on $env:COMPUTERNAME: the coordinator does not run here"
+    } else {
+      Stop-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue
+      $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+      foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+      if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+      Start-Sleep -Seconds 3
+      Start-ScheduledTask -TaskName 'alpha-coordinator'
+      [void]$lines.Add("started task 'alpha-coordinator' from checkout $((git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim())")
+      $deadline = (Get-Date).AddSeconds(150)
+      while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+      $listen = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
+      if ($listen) {
+        $addr = if ($listen.LocalAddress -in @('0.0.0.0', '::')) { '127.0.0.1' } else { $listen.LocalAddress }
+        $health = (& curl.exe -s --max-time 10 "http://${addr}:$port/healthz" 2>$null | Out-String).Trim()
+        [void]$lines.Add("coordinator listening on ${addr}:$port; healthz: $(if ($health) { $health.Substring(0, [math]::Min(120, $health.Length)) } else { 'no answer' })")
+        $code = $(if ($health -match '"ok"\s*:\s*true') { 0 } else { 1 })
+      } else {
+        [void]$lines.Add("coordinator NOT listening on $port after 150s")
+        $code = 1
+      }
+      $text = $lines -join "`n"
+    }
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
@@ -454,7 +492,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -480,12 +518,48 @@ if ($brainBranch -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Live sync (docs/LIVE_SYNC.md): delivers the live branch to this machine and,
+# with "capture": true, pushes what this machine runs back to it. Turned on by
+# autofix.liveSync in actions.json; reported only when its state changes.
+$syncKey = if ($state -and $state.syncKey) { [string]$state.syncKey } else { '' }
+$sync = if ($control -and $control.autofix -and $control.autofix.liveSync -and $control.autofix.liveSync.branch) { $control.autofix.liveSync } else { $null }
+if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
+  $syncBranch = [string]$sync.branch
+  if ($syncBranch -notmatch '^[A-Za-z0-9][A-Za-z0-9._/-]{0,199}$' -or $syncBranch -match '\.\.') { Write-Host 'autofix.liveSync.branch is not a plain branch name: skipped' }
+  else {
+    $started = Get-Date
+    $syncArgs = @((Join-Path $PSScriptRoot 'live-sync.mjs'), '--alpha-root', $AlphaRoot, '--ops', $OpsDir, '--branch', $syncBranch)
+    if ($env:COMPUTERNAME) { $syncArgs += @('--machine', $env:COMPUTERNAME) }
+    if ($sync.capture -eq $true) { $syncArgs += '--capture' }
+    if ($sync.skipScripts -eq $true) { $syncArgs += '--skip-scripts' }
+    # The owner's approved credential-scan lines, exactly as the snapshot action takes them.
+    $syncAllow = @()
+    if ($sync.allow) { $syncAllow = @((@($sync.allow) -join ',').Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+    $badAllow = @($syncAllow | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
+    if ($badAllow.Count) { Write-Host "autofix.liveSync.allow entries must be path:line ($($badAllow.Count) are not): none used" }
+    elseif ($syncAllow.Count) { $syncArgs += @('--allow', ($syncAllow -join ',')) }
+    $text = (& node @syncArgs 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|KNOWLEDGE|STOP)' }) -join ' | ')
+    if ($key -ne $syncKey) {
+      # Long enough for every held-back line and the ALLOW WITH line after them.
+      # That line is file paths and line numbers only, and a long file name
+      # masked by Redact could not be copied into autofix.liveSync.allow.
+      $tail = (($text -split "`r?`n") | ForEach-Object { if ($_ -match '^ALLOW WITH: ([A-Za-z0-9_./-]+:\d+)?(,[A-Za-z0-9_./-]+:\d+)*$') { $_ } else { Redact $_ } } | Where-Object { $_.Trim() } | Select-Object -Last 200) -join "`n"
+      $result = switch ($code) { 0 { '0 (in sync)' } 2 { '2 (needs a person)' } default { "$code (could not run)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-live-sync-$stamp"; do = 'live-sync (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "live sync: $result"
+    }
+    $syncKey = $key
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.

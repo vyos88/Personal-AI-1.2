@@ -27,6 +27,9 @@ const log = createLogger('host:server');
 
 const MAX_BODY_BYTES = 1_000_000;
 
+/** Handed to every agent at registration; see the register route. */
+export const HOST_FEATURES = Object.freeze(['poll-types']);
+
 // `registry` is destructured before `queue` on purpose: the default queue is
 // built with the registry as its admission controller, which is what makes
 // memory-aware placement work without the caller having to wire it up.
@@ -472,6 +475,10 @@ async function handle(req, res, ctx) {
         version: ALPHA_VERSION,
         heartbeatIntervalMs: ctx.heartbeatIntervalMs ?? 20_000,
         maxPollWaitMs: MAX_POLL_WAIT_MS,
+        // What this coordinator understands beyond the protocol version, so a
+        // newer agent only uses it where it exists. `poll-types`: a poll may
+        // carry `types=a,b` to ask for some of its capabilities only.
+        features: HOST_FEATURES,
       });
     }
 
@@ -548,9 +555,14 @@ async function handle(req, res, ctx) {
         // poll would park for a connection that no longer exists.
         if (req.destroyed || res.destroyed || req.socket?.destroyed) controller.abort();
 
+        // `types` narrows the poll to some of what the agent registered, never
+        // past it: the agent's express lane asks only for the light work it
+        // runs beside a long task (see the agent's #expressLoop).
+        const types = url.searchParams.get('types');
+        const wanted = types === null ? null : new Set(types.split(',').map((type) => type.trim()));
         const task = await ctx.queue.lease({
           agentId,
-          capabilities: agent.capabilities,
+          capabilities: wanted ? agent.capabilities.filter((type) => wanted.has(type)) : agent.capabilities,
           waitMs,
           signal: controller.signal,
         });
@@ -699,6 +711,44 @@ async function handle(req, res, ctx) {
         200,
         ctx.receipts.summary({ since: Number.isFinite(sinceRaw) ? sinceRaw : null }),
       );
+    }
+
+    // Pause and resume machines by name. A paused machine finishes what it is
+    // running and is offered nothing new; cancelling a task is the separate,
+    // existing way to stop work in flight. Held in memory like the registry
+    // itself, so a coordinator restart lifts every pause.
+    if (method === 'GET' && url.pathname === '/agents/pauses') {
+      require(SCOPES.AGENTS_READ);
+      return sendJson(res, 200, { pauses: ctx.registry.pauses() });
+    }
+
+    if (method === 'POST' && (url.pathname === '/agents/pause' || url.pathname === '/agents/resume')) {
+      require(SCOPES.AGENTS_CONTROL);
+      const body = await readJson(req);
+      const name = body?.name;
+      if (typeof name !== 'string' || name.trim() === '' || name.length > 128) {
+        return sendJson(res, 400, { error: 'invalid_name', message: '"name" must be the agent name, 1-128 characters' });
+      }
+      const by = { label: principal.label, admin: hasScope(principal.scopes, SCOPES.ADMIN) };
+      if (url.pathname === '/agents/pause') {
+        const reason = body?.reason;
+        if (reason !== undefined && typeof reason !== 'string') {
+          return sendJson(res, 400, { error: 'invalid_reason', message: '"reason" must be a string' });
+        }
+        const pause = ctx.registry.pause(name, { reason, by });
+        log.info('agent paused', { name, by: by.label, creatorHold: pause.creatorHold });
+        return sendJson(res, 200, { pause });
+      }
+      try {
+        const lifted = ctx.registry.resume(name, { by });
+        if (!lifted) return sendJson(res, 404, { error: 'not_paused' });
+        const dispatched = ctx.queue.redispatch();
+        log.info('agent resumed', { name, by: by.label, dispatched });
+        return sendJson(res, 200, { resumed: name, dispatched });
+      } catch (error) {
+        if (error.code === 'creator_hold') return sendJson(res, 403, { error: 'creator_hold', message: error.message });
+        throw error;
+      }
     }
 
     if (method === 'GET' && url.pathname === '/agents') {

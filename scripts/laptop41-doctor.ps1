@@ -178,6 +178,44 @@ function EnvSetting([string]$name) {
 # backend listens on an address the panel can reach, that address is a
 # trusted host, a device actually calls in, and the feed is fresh. Each of
 # those has kept the panel dark once.
+# Every board and home-network device this machine can see, by the identifier
+# that outlives a replug or a new DHCP lease: a USB board by its VID:PID and
+# instance id (COM numbers move on re-enumeration), a Wi-Fi device by its MAC
+# (its IP moves with the lease). Alpha's topology names devices from these
+# lines (frontend/src/config/fleetNames.js). Read-only: the neighbour table is
+# what Windows already holds; nothing is probed or sent.
+function Devices-ByAddress {
+  Note '--- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)'
+  $script:devicesFound = [ordered]@{ at = (Get-Date).ToString('o'); host = $env:COMPUTERNAME; usb = @(); self = @(); lan = @() }
+  foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) {
+    $com = [regex]::Match([string]$d.Name, '\((COM\d+)\)').Groups[1].Value
+    $vp = [regex]::Match([string]$d.DeviceID, 'VID_([0-9A-F]{4})&PID_([0-9A-F]{4})', 'IgnoreCase')
+    $vidpid = if ($vp.Success) { "$($vp.Groups[1].Value):$($vp.Groups[2].Value)".ToLower() } else { '-' }
+    $inst = ([string]$d.DeviceID).Split('\')[-1]
+    Note ("usb  {0,-6} {1,-10} {2,-28} {3}" -f $com, $vidpid, $inst, $d.Name)
+    $script:devicesFound.usb += [ordered]@{ port = $com; vidPid = $vidpid; instance = $inst; deviceId = [string]$d.DeviceID; name = [string]$d.Name }
+  }
+  foreach ($a in @(Get-NetAdapter -Physical -EA SilentlyContinue | Where-Object Status -eq 'Up')) {
+    $ip = (Get-NetIPAddress -InterfaceIndex $a.ifIndex -AddressFamily IPv4 -EA SilentlyContinue | Select-Object -First 1).IPAddress
+    Note ("self {0,-15} {1}  {2}" -f $ip, ($a.MacAddress -replace '-', ':').ToLower(), $a.Name)
+    $script:devicesFound.self += [ordered]@{ ip = $ip; mac = ($a.MacAddress -replace '-', ':').ToLower(); adapter = [string]$a.Name }
+  }
+  $seen = @(Get-NetNeighbor -AddressFamily IPv4 -EA SilentlyContinue | Where-Object {
+      $_.IPAddress -match '^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)' -and
+      $_.State -in 'Reachable', 'Stale', 'Delay', 'Probe', 'Permanent' -and
+      $_.LinkLayerAddress -and $_.LinkLayerAddress -notmatch '^(00-00-00-00-00-00|FF-FF-FF-FF-FF-FF)$' -and
+      $_.IPAddress -notmatch '\.255$' } | Sort-Object { [version]$_.IPAddress })
+  foreach ($n in $seen) {
+    Note ("lan  {0,-15} {1}  {2}" -f $n.IPAddress, ($n.LinkLayerAddress -replace '-', ':').ToLower(), $n.State)
+    $script:devicesFound.lan += [ordered]@{ ip = [string]$n.IPAddress; mac = ($n.LinkLayerAddress -replace '-', ':').ToLower(); state = [string]$n.State }
+  }
+  if (-not $seen.Count) { Note 'lan  (no home-network neighbours in the table yet)' }
+  # The same list as data, for Alpha and the cloud sessions to read without
+  # parsing the report: alpha-ops\devices.json here, reports/devices.json on
+  # status/laptop41.
+  try { $script:devicesFound | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $OpsDir 'devices.json') -Encoding ASCII } catch {}
+}
+
 function Check-DeckFeed {
   Note "--- Alpha's deck feed (/panel/crowpanel/public-state)"
   $lan = EnvSetting 'ALPHA_PANEL_LAN_READ'
@@ -545,6 +583,17 @@ function Run-Checks {
       OK "self-heal is running (its log was written $(SelfHealAge) min ago); task $t is not visible to this account"
     }
     elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
+    elseif ($t -eq 'Alpha Self-Heal' -and (Test-Path (Join-Path $OpsDir 'selfheal.json'))) {
+      # The repair registers it as SYSTEM, and a SYSTEM task is hidden from a
+      # non-elevated Get-ScheduledTask, which is how the scheduled doctor runs.
+      # Its log is the evidence this user can read.
+      $shLog = Join-Path $OpsDir 'logs\selfheal.jsonl'
+      if (Test-Path $shLog) {
+        $age = [int]((Get-Date) - (Get-Item $shLog).LastWriteTime).TotalMinutes
+        if ($age -le 10) { OK "self-heal runs (task is SYSTEM, not visible here; its log was written $age min ago)" }
+        else { Problem "self-heal is installed but its log is $age min old: check the task's last result as Administrator (3 = config unreadable)" }
+      } else { Problem 'self-heal is installed but has never written its log: check the task as Administrator (last result 3 = config unreadable)' }
+    }
     else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
   $cfs = Get-Service -Name cloudflared -EA SilentlyContinue
@@ -667,6 +716,7 @@ function Run-Checks {
   Push-Location $repo
   try { Indent ((& node scripts\panel-up.mjs --list-ports 2>&1 | Plain | Out-String)) } finally { Pop-Location }
   foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) { Note "device: $($d.Name)" }
+  Devices-ByAddress
   Note "the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds"
   Check-DeckFeed
 
@@ -787,7 +837,10 @@ if ($InstallSchedule) {
 }
 
 $script:startedAt = Get-Date
-Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo)"
+# Which doctor wrote this report: a schedule left on an old checkout reports
+# yesterday's advice, and nothing else in the report would say so.
+$doctorRev = (git -C $repo log -1 --format='%h %cs' 2>$null | Plain | Out-String).Trim()
+Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo @ $doctorRev)"
 Run-Checks
 
 if ($Fix) {
@@ -851,7 +904,7 @@ $escalate = @($open.Values | Where-Object { $_.runs -ge $EscalateAfterRuns })
 # climbs. What is left of the nine is standing hardening, dropped once done.
 $rules = @(
   @{ m = 'does not exist$';                                                                     r = 'The Alpha root is missing: point the doctor (and its schedule) at the copy that is actually running, e.g. -AlphaRoot C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, then -InstallSchedule again with the same -AlphaRoot.' },
-  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel (PR #46 is merged), then run scripts\repair-alpha-host.ps1 as Administrator: boot task for the backend, frontend build + task, self-heal every 2 min.' },
+  @{ m = 'Self-Heal is not registered|Backend is not registered|repair-alpha-host';          r = 'git pull in C:\services\alpha-tunnel, then run scripts\repair-alpha-host.ps1 -AlphaRoot <the copy that is running> as Administrator (-ReportOnly first): boot task for the backend, frontend build + task, self-heal every 2 min.' },
   @{ m = 'no main\.py defining chat|more than one backend main\.py';                           r = 'The backend on 8001 runs from outside the Alpha root: read its command line in section 0 and re-run with -AlphaRoot <that folder>, so the boot task and the chat fix target the code that is actually running.' },
   @{ m = 'music bridge is not running';                                                         r = 'Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).' },
   @{ m = "the site sends /music to Alpha's backend";                                            r = "Route the Music Creator to the bridge: apply-update the live branch (vite.config.js sends /music/generate, /healthz, /tasks to musicBridgeProxy)." },
@@ -888,7 +941,7 @@ $rules = @(
 $standing = @(
   @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
-  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel; PR #46 is merged), then -InstallSchedule again from there and remove C:\AlphaData\doctor.' },
+  @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },
   @{ done = { Test-Path (Join-Path $OpsDir 'backups') };                               r = 'Back up C:\AlphaData\alpha-ops and the coordinator data\auth.json to another disk; they are the only copy of the repair history and the credentials.' },
   @{ done = { $false };                                                                r = 'Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.' },
@@ -1047,6 +1100,8 @@ if ($Push -or ($Watch -and ($due -or $relayChanged))) {
     New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
     Copy-Item $report (Join-Path $wt 'reports\latest.txt') -Force
     Copy-Item $statePath (Join-Path $wt 'reports\doctor-state.json') -Force
+    $dev = Join-Path $OpsDir 'devices.json'
+    if (Test-Path $dev) { Copy-Item $dev (Join-Path $wt 'reports\devices.json') -Force }
     git -C $wt add reports 2>&1 | Plain | Out-Null
     git -C $wt -c user.name=laptop41-doctor -c user.email=doctor@laptop41.invalid commit -q -m "laptop41 doctor ${stamp}: $($open.Count) open" 2>&1 | Plain | Out-Null
     git -C $wt push origin "HEAD:refs/heads/$branch" 2>&1 | Plain | ForEach-Object { Write-Host "  $_" }

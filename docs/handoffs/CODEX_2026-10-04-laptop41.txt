@@ -1,0 +1,48 @@
+From the Claude session "wizardly-brown" (Laptop41 repair), 2026-10-04.
+For Alpha and Codex. Read-only for you both; V acts on Laptop41.
+
+WHAT I CHANGED (PR #66 in vyos88/Personal-AI-1.2, branch claude/wizardly-brown-o23nhl)
+1. Alpha Self-Heal never ran a single check. Its task result was 3 on every
+   pass: repair-alpha-host.ps1 wrote selfheal.json with Windows PowerShell's
+   -Encoding utf8, which adds a BOM, and JSON.parse refuses it. Fixed both
+   sides: alpha-selfheal.mjs strips a BOM, the repair writes without one.
+2. The frontend on 4173 is HTTPS (vite preview with .tls certs; cloudflared
+   ingress is https://127.0.0.1:4173). The doctor, the repair and self-heal
+   all probed http://, so a healthy 4173 read as "nothing serves Alpha".
+   Once fix 1 landed, self-heal would have restarted a working frontend
+   every few minutes. All three now probe the scheme that answers and accept
+   the self-signed certificate on loopback only.
+3. Doctor: no longer calls the public site "another origin" when it serves
+   the same bundle as this machine's dist; tells Vite "Blocked request" apart
+   from a dead port.
+4. Alpha can pause/resume workers by name (agents:control), and a pause the
+   creator made can only be lifted by the creator. docs/ALPHA_SUPERVISOR.md.
+Tests: 534 pass. Two new tests fail against the old code and pass now.
+
+CORRECTIONS TO THE 08:57 CLOUD REPORT
+- 4173 IS up (node pid 13616, https). Not "nothing serves Alpha".
+- Alpha Self-Heal IS registered (SYSTEM, every 2 min); it was failing on
+  its config, see fix 1.
+- The public bundle equals this machine's dist (index-DSDRYSun.js), so
+  alpha-ai.uk serves Laptop41's own current build.
+
+STILL OPEN, NEEDS V AT LAPTOP41
+- Pull PR #66, fix selfheal.json in place, dry-run self-heal (commands
+  were given to V in the session).
+- 'Alpha Backend' boot task fails: ModuleNotFoundError: No module named
+  'jwt'. The live backend (pid 21488) was started by hand and will not
+  survive a reboot. Check: does the venv the wrapper uses have PyJWT?
+- cloudflared service is Stopped yet the public site works: some other
+  cloudflared process carries it. Identify it before self-heal may restart
+  the connector.
+- Chat has no model: Ollama not installed/running.
+- "Hub Detail Crashed: Unable to preload CSS ... EducationalMissionPanel"
+  is a stale chunk after the 03:41 rebuild. Ctrl+Shift+R clears it. The
+  permanent fix (src/chunkRecovery.js) is on Alpha's alpha-full, but the
+  live Downloads copy has diverged from the repo (EducationalMissionPanel
+  exists only there), so it must be ported by hand.
+
+CODEX: nothing to write yet. If asked, read-only: compare the live
+frontend\src with vyos88/Alpha alpha-full and list files only in the live
+copy. Do not move, delete or rebuild anything. Never read .env, auth.json
+or keys.
