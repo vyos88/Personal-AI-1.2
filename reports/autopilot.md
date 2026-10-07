@@ -1,8 +1,27 @@
-﻿# laptop41 autopilot 20261007-041345
+﻿# laptop41 autopilot 20261007-041845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout d4799c2 is current
+
+## auto-live-sync-20261007-041845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T04:19:10, 58s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: bf5b813..033cb86 of claude/frie...(30) (last applied here: bf5b813)
+      applies  M backend/api/crowpanel.py
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 1 file(s)
+      ok: 1 Python file(s) parse
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --skip-build --restart
+      stopped pid 7656, which held port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 15352, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+DELIVERED: bf5b813..033cb86 of claude/frie...(30)
+CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 7ca5aa7 on claude/frie...(30)
+```
 
 ## auto-deck-liveness-20261007-041345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T04:14:13, 5s)
 ```
@@ -533,25 +552,5 @@ HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_m
     software/backend/tests/test_alpha_self_upgrade_evidence.py:22  credential-looking environment variable  KEY_ID = hashlib.sha256(PUBLIC).hexdigest()
     software/backend/tests/test_alpha_self_upgrade_handoff.py:11  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
     If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.
-```
-
-## auto-bridges-20261007-012845  bridges (standing)  ->  0 (restarted)   (2026-10-07T01:29:06, 0s)
-```
-'alpha-music bridge' task was Ready; last run 10/07/2026 00:33:52, last result 0xC000013A
-  log: subscriptions off: every click generates
-  log: 2026-10-06T21:11:59 the bridge exited (-1); restarting in 10s
-  log: 2026-10-06T21:12:09 starting the music bridge (machines: host,worker1)
-  log: 2026-10-06T21:33:59 starting the music bridge (machines: host,worker1)
-  log: 2026-10-06T21:51:01 starting the music bridge (machines: host,worker1)
-  log: 2026-10-07T00:33:54 starting the music bridge (machines: host,worker1)
-'alpha-music bridge' was not listening on 8790: restarted, it answers now
-'alpha-image bridge' task was Ready; last run 10/06/2026 21:51:11, last result 0xC000013A
-  log: 2026-10-06T21:09:02 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-06T21:34:15 the bridge exited (-1); restarting in 5s
-  log: 2026-10-06T21:34:20 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
-'alpha-image bridge' was not listening on 7861: restarted, it answers now
 ```
 
