@@ -1,3 +1,11 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 02:33 UTC
+
+- Live sync was stuck on Worker1 from 02:54 local: every update touching a CRLF file was refused as "differs where the change was made" (MusicSingingPanel.jsx, CoordinationTunnelPanel.jsx, liveCoordinationLabels.js). It was not a local edit: the update tool compared LF files with a patch that kept its CRs. Fixed in tunnel #174 with a test. The song-length change reverted in f219f4b can go back in once it delivers. Alpha#83 (seven files with doubled CRs, text unchanged) goes in after Worker1 pulls #174.
+- New, at V's request: a live report every 5 minutes on status/laptop41-live (reports/live.md): Alpha live (backend, site, alpha-ai.uk, from self-heal's own probes), the repair agent's last pass, decks, live sync. If self-heal stops writing its log for 6 minutes, the autopilot starts its task again (at most every 30 minutes). Tunnel #176.
+- At 03:26 local the doctor saw Alpha live (backend, site and alpha-ai.uk 200; self-heal running, no repairs needed). Open: the deck feed heartbeat is stale, and the chat model took 70 s to load after idle.
+Alpha: nothing to run.
+
+----
 Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 02:20 UTC
 
 New tonight, at V's request ("continuous check over all decks so they have live data"):
