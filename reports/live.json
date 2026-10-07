@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-07T21:54:46.8228677+01:00",
+    "at":  "2026-10-07T22:00:48.4460324+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -18,5 +18,5 @@
                   "not_live":  "CrowPanel: display (LAN reads), feed (/panel/crowpanel/state)",
                   "checked_at":  "2026-10-07T20:49:39.574065+00:00"
               },
-    "sync":  "REFUSED: f1dbc73: a file here differs where the change was made, and nothing was written"
+    "sync":  "WAITING: f1dbc73 was tried here and refused; the next commit on claude/frie...(30) is tried when it comes"
 }
