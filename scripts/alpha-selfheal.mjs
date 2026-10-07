@@ -387,8 +387,11 @@ export function rollbackDist(frontendDir, { now = Date.now(), keep = DEFAULTS.ke
 // it open, and a folder that has just been copied is exactly what a virus
 // scanner is reading. Worker1 failed every snapshot from 2026-10-07 02:30 UTC
 // with "EPERM: operation not permitted, rename 'dist.last-good.tmp' ->
-// 'dist.last-good'". Such holds last moments, so a few short retries get
-// through them; anything else is thrown at once.
+// 'dist.last-good'". Such holds usually last moments, so a few short retries
+// get through them; anything else is thrown at once. Worker1's outlasted the
+// retries too (still refused at 04:14 UTC with them in place), so a rename
+// that stays refused falls back to copying: a scanner only reads, and reading
+// the folder is all a copy needs.
 const TRANSIENT_FS = new Set(['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY']);
 const sleepSync = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const FS_RETRY = { maxRetries: 5, retryDelay: 200 };
@@ -404,6 +407,17 @@ export function retryTransient(fn, { attempts = 6, delayMs = 250, sleep = sleepS
   }
 }
 
+/**
+ * Copy `from` to `to` with index.html last. A snapshot counts only when its
+ * index.html is there (rollbackDist, hasLastGood), so a copy cut off part way
+ * reads as no snapshot rather than as a good one with files missing.
+ */
+export function copyIndexLast(from, to) {
+  const index = join(from, 'index.html');
+  cpSync(from, to, { recursive: true, preserveTimestamps: true, filter: (src) => src !== index });
+  cpSync(index, join(to, 'index.html'), { preserveTimestamps: true });
+}
+
 /** Copy dist to dist.last-good through a temp dir, so a torn copy never replaces a good one. */
 export function snapshotLastGood(frontendDir, { rename = renameSync, attempts, delayMs, sleep } = {}) {
   const dist = join(frontendDir, 'dist');
@@ -412,8 +426,22 @@ export function snapshotLastGood(frontendDir, { rename = renameSync, attempts, d
   rmSync(tmp, { recursive: true, force: true, ...FS_RETRY });
   cpSync(dist, tmp, { recursive: true, preserveTimestamps: true });
   rmSync(lastGood, { recursive: true, force: true, ...FS_RETRY });
-  retryTransient(() => rename(tmp, lastGood), { attempts, delayMs, sleep });
-  return { snapshot: lastGood };
+  try {
+    retryTransient(() => rename(tmp, lastGood), { attempts, delayMs, sleep });
+    return { snapshot: lastGood };
+  } catch (error) {
+    if (!TRANSIENT_FS.has(error.code)) throw error;
+  }
+  // The rename is still refused. Copy what is already in tmp instead; dist is
+  // only read, never moved. tmp is a spare copy once this lands, and if
+  // Windows will not let it go yet, the next snapshot clears it first.
+  retryTransient(() => copyIndexLast(tmp, lastGood), { attempts, delayMs, sleep });
+  try {
+    rmSync(tmp, { recursive: true, force: true, ...FS_RETRY });
+  } catch {
+    // Left for the next snapshot; the copy above is what counts.
+  }
+  return { snapshot: lastGood, copied: true };
 }
 
 function run(file, args, { env, timeoutMs = 120_000 } = {}) {
