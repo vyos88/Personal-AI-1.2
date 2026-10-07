@@ -393,6 +393,11 @@
       "id": "20261007-60-interactive-first-off",
       "do": "interactive-first-off",
       "why": "owner yes 2026-10-07: let the assistant loop run so the CrowPanel feed goes live (Personal-AI-1.2#203)"
+    },
+    {
+      "id": "20261007-60-stop-stray-site",
+      "do": "stop-stray-site",
+      "why": "re-run with #202: job 58 left pid 6508 alone (not a preview server); the report now says what it runs, since when, and its ports"
     }
   ],
   "autofix": {
