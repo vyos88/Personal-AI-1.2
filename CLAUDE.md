@@ -752,9 +752,17 @@ address, which is the only check that means anything. Three rules it follows:
   reaching the backend through it.
 - **A missing `ALPHA_TRUSTED_HOSTS` is not invented.** Absent means the default
   decides; writing one would quietly narrow a backend nobody asked to narrow.
-- **The duplicate that counts is the one rewritten.** dotenv takes the last
-  line, so changing an earlier one looks right in the file and does nothing —
-  the failure a reader cannot see.
+- **Every duplicate is rewritten, and the value read is the first.**
+  `run_server.py` loads the file first-line-wins, as `laptop41-doctor.ps1`'s
+  `EnvSetting` does — not dotenv's last-line rule. Reporting the last is
+  reporting a value the backend never sees, and editing only one copy leaves a
+  file that disagrees with itself, so the first is read and all of them written.
+- **The file is looked for where this backend keeps it**, in `EnvSetting`'s own
+  order: `backend/.env.local`, the root, the directory above, then the `.env` of
+  each. One guessed path is what stopped a hand-run at
+  "no file at ...\app\.env.local" on a machine whose Alpha has no `app`
+  directory; a named `--env` that is missing and a search that found nothing are
+  reported differently, because one is a typo and the other a wrong root.
 
 **Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
 `hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no

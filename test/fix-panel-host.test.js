@@ -17,7 +17,17 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFeed, homeAddresses, planEnv, planWrapper, readKey, restartBackend, waitForFeed } from '../scripts/fix-panel-host.mjs';
+import {
+  checkFeed,
+  envCandidates,
+  findEnvFile,
+  homeAddresses,
+  planEnv,
+  planWrapper,
+  readKey,
+  restartBackend,
+  waitForFeed,
+} from '../scripts/fix-panel-host.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(ROOT, 'scripts', 'fix-panel-host.mjs');
@@ -52,11 +62,12 @@ test('the address offered to the panel is one the panel can dial', () => {
   assert.deepEqual(homeAddresses({ 'Loopback': [{ family: 4, internal: true, address: '127.0.0.1' }] }), []);
 });
 
-test('the value a key has is the last one, because that is the one read', () => {
-  // dotenv takes the last. A reader of the file can be sure a setting is right
-  // and be wrong, which is why this is tested rather than assumed.
+test('the value a key has is the first one, because that is the one read', () => {
+  // run_server.py loads the file first-line-wins, and laptop41-doctor.ps1 reads
+  // it the same way. Taking the last — dotenv's rule — would report a value the
+  // backend never sees, so a reader of the file is confident and wrong.
   const lines = ['HOST=127.0.0.1', '# comment', 'HOST=127.0.0.1,100.1.2.3'];
-  assert.deepEqual(readKey(lines, 'HOST'), { value: '127.0.0.1,100.1.2.3', count: 2 });
+  assert.deepEqual(readKey(lines, 'HOST'), { value: '127.0.0.1', count: 2 });
   assert.deepEqual(readKey(lines, 'MISSING'), { value: null, count: 0 });
   assert.deepEqual(readKey(['ALPHA_PANEL_LAN_READ="true"'], 'ALPHA_PANEL_LAN_READ'), {
     value: 'true',
@@ -108,13 +119,52 @@ test('a backend that trusts everything is not narrowed, and a missing key is not
   assert.equal(wildcard.trusted, '*');
 });
 
-test('the duplicate that counts is the one rewritten', () => {
+test('every duplicate is rewritten, so the file cannot disagree with itself', () => {
+  // Which copy the backend reads depends on the loader — first for
+  // run_server.py, last under dotenv — and a file left half-updated is one that
+  // looks right to whichever reader happens to agree with the editor.
   const text = 'HOST=127.0.0.1\nALPHA_PANEL_LAN_READ=false\nALPHA_PANEL_LAN_READ=false\n';
   const plan = planEnv(text, { addresses: ['192.168.2.151'] });
   assert.deepEqual(plan.duplicates, ['lan']);
-  // The first stays false, the last — the one dotenv reads — is true.
   const lines = plan.text.split('\n').filter((line) => line.startsWith('ALPHA_PANEL_LAN_READ'));
-  assert.deepEqual(lines, ['ALPHA_PANEL_LAN_READ=false', 'ALPHA_PANEL_LAN_READ=true']);
+  assert.deepEqual(lines, ['ALPHA_PANEL_LAN_READ=true', 'ALPHA_PANEL_LAN_READ=true']);
+
+  // Two HOST lines that disagree: the merge starts from the one the backend
+  // reads, and both end up carrying the address.
+  const twoHosts = planEnv('HOST=127.0.0.1\nHOST=100.1.2.3\n', { addresses: ['192.168.1.151'] });
+  assert.equal(twoHosts.host, '127.0.0.1,192.168.1.151');
+  assert.deepEqual(
+    twoHosts.text.split('\n').filter((line) => line.startsWith('HOST')),
+    ['HOST=127.0.0.1,192.168.1.151', 'HOST=127.0.0.1,192.168.1.151'],
+  );
+});
+
+test('the settings file is looked for where this backend keeps it', () => {
+  // The order laptop41-doctor.ps1's EnvSetting uses. A single guessed path is
+  // what made a hand-run stop at "no file at ...\\app\\.env.local" on a machine
+  // whose Alpha has no app directory.
+  const candidates = envCandidates('/alpha/software');
+  assert.deepEqual(candidates, [
+    '/alpha/software/backend/.env.local',
+    '/alpha/software/.env.local',
+    '/alpha/.env.local',
+    '/alpha/software/backend/.env',
+    '/alpha/software/.env',
+    '/alpha/.env',
+  ]);
+
+  // backend/.env.local wins when both are there.
+  const both = findEnvFile('/alpha/software', (path) =>
+    path === '/alpha/software/backend/.env.local' || path === '/alpha/software/.env.local');
+  assert.equal(both.path, '/alpha/software/backend/.env.local');
+
+  // And it falls through the list rather than stopping at the first miss.
+  assert.equal(findEnvFile('/alpha/software', (path) => path === '/alpha/.env').path, '/alpha/.env');
+
+  const none = findEnvFile('/alpha/software', () => false);
+  assert.equal(none.path, null);
+  // What was tried is reported, so a wrong --alpha-root is visible.
+  assert.equal(none.tried.length, 6);
 });
 
 test('a Windows file keeps its line endings', () => {
@@ -241,6 +291,19 @@ test('no file, or no home address, is said plainly rather than guessed at', asyn
   });
   assert.equal(missing.code, 1);
   assert.match(missing.stdout, /no file at .*\.env\.local/);
+  // And with no --env, the list it searched is printed, so a wrong --alpha-root
+  // is visible rather than looking like a missing file.
+  const searched = await new Promise((resolvePromise) => {
+    execFile(
+      process.execPath,
+      [SCRIPT, '--alpha-root', join(tmpdir(), 'no-alpha-here'), '--address', '192.168.1.2', '--no-restart'],
+      { cwd: ROOT, timeout: 30_000 },
+      (error, stdout) => resolvePromise({ code: error?.code ?? 0, stdout }),
+    );
+  });
+  assert.equal(searched.code, 1);
+  assert.match(searched.stdout, /no settings file under/);
+  assert.match(searched.stdout, /backend[\\/]\.env\.local/);
 });
 
 test('with --require-host, a file that sets no HOST is left alone', async () => {
