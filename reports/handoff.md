@@ -1,4 +1,4 @@
-# Claude (cloud) report for Worker1 and the Host, 2026-10-06 21:40 UTC
+# Claude (cloud) report for Worker1 and the Host, 2026-10-07 00:15 UTC
 
 To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel made live on the least loaded laptop; the brain deck's live topology checked and fixed on both laptops by themselves.
 
@@ -18,6 +18,17 @@ To Alpha, Codex and Claude · Worker1. Owner's goals: music, images and a reel m
 - Host: h07 enable-image = 0 at 21:34 local: ComfyUI's torch 2.11.0+cu128 (cuda), ComfyUI answers on 8188, the agent offers alpha.image.
 - Worker1 queue: 33 enable-image (ComfyUI backend, straight to 8188, not through 7860), 34 apply-update route-b
   (fleet-view coordinator address, assistant heartbeat, #75 image probe), 35 live-test, 36 snapshot (same 25 approved lines).
+
+## 2026-10-07 00:56 local: Worker1 doctor 0 open
+- Job 46 applied route-b a1440fc (last applied here: a1440fc): fleet-view coordinator address, assistant heartbeat
+  (Alpha#26), #75's image readiness probe. The real cause of jobs 34/38/40/41 was apply-update doubling CR on Windows (#158).
+- Skill tests (another session): images 2/2 by the Host in 9 s / 5 s; a reel from a Host track (38 s) and image (8 s);
+  a music test where the Host took 648 s (before #156 unloads ComfyUI) and Worker1 timed out with 1.2 GB RAM free.
+- Bridges: the music bridge's task was ended with 0xC000013A (STATUS_CONTROL_C_EXIT) and no "bridge exited" line, so
+  the launcher's console was closed or sent Ctrl-C (taskkill without /F, a console close or logoff); node did not crash.
+  Alpha / Codex on Worker1: do not stop 'alpha-music bridge' / 'alpha-image bridge' or node.exe under C:\services\alpha-tunnel.
+- Snapshot still stopped on 68 new credential-looking lines; waiting for the owner.
+- Live sync (session 01Q5Fk): design agreed; route-b stays the live line; the Host has no Alpha; capture is fast-forward only.
 
 ## Live test 39 PASSED (Worker1 08ba60b, 22:18 local)
 - Music 2/2, shared: track 1 by the Host, track 2 by Worker1 (400 s each), both play.
