@@ -57,6 +57,11 @@
       "id": "20261007-h10-restart-coordinator",
       "do": "restart-coordinator",
       "why": "#159 rollout: the owner pulled #159 on the Host but 'alpha-coordinator' still ran from 2026-10-06 01:08 (owner's Get-ScheduledTaskInfo). Restarting it serves poll-types, so agents open the express lane and playlist songs play while a laptop is making another (#167 adds this job)"
+    },
+    {
+      "id": "20261007-h11-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "owner asked (2026-10-07): one recipe of every agent and worker, then stop the ones not needed. Read-only list for Claude and Alpha to decide from (HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md, BACKLOG F1)"
     }
   ],
   "autofix": {
