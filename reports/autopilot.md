@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261007-105846
+﻿# laptop41 autopilot 20261007-111845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4347e3a is current
+
+## auto-deck-liveness-20261007-111845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T11:19:10, 9s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 28 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 16 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 6 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 417 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 471 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-liveness-20261007-105846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T10:59:13, 8s)
 ```
@@ -382,12 +402,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
 OK: the deck's source draws the links the backend sends and checks them (Region links)
 OK: the site serves the fixed deck (BrainNeuralModel-CfmhMBCx.js)
-```
-
-## auto-live-sync-20261007-033845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:39:11, 6s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs bf5b813 of claude/frie...(30)
-CAPTURED: 3 changed and 46 new source file(s) from DESKTOP-41HPLCN, pushed as bf5b813 on claude/frie...(30)
 ```
 
