@@ -2,6 +2,18 @@
 
 ## The RAM crisis flagged last check has a known cause — and a fix
 
+> **Correction (17:45 UTC, after jobs 58 and 59 ran on Worker1):** the stray
+> tree is not what ate the RAM, and it is not a preview server.
+> `stop-stray-site` (job 58) found one preview tree, the live one on 4173,
+> and left pid 6508 alone because its command does not say `preview` (31 MB).
+> `fleet-inventory` (job 59) puts the RAM in **ComfyUI on Worker1**
+> (`C:\Users\Vyo\ComfyUI`, port 8188): **3,473 MB**, on a laptop with no
+> NVIDIA GPU that also runs the A1111 generator on 7860. Whether Worker1
+> should run either is the owner's call (`HANDOFF_2026-10-07b`: the Host's
+> RTX 3050 does images). What 6508 actually runs is the next
+> `stop-stray-site` report: it now prints the end of each command line, its
+> start time and its ports. The text below is kept as written.
+
 PR #198's description explains it directly: since 02:54 UTC, a **leftover
 `vite preview` process tree** (left running from before the "Alpha" task
 last restarted at 02:31) has been running alongside the real site, and
