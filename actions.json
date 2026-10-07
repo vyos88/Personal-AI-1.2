@@ -296,6 +296,12 @@
       "id": "20261007-wb01-doctor-wifi",
       "do": "doctor",
       "why": "verify the backend now listens on the new Wi-Fi address 192.168.2.151 after .env.local and run-alpha-backend.cmd were updated (wizardly-brown session); the CrowPanel needs it"
+    },
+    {
+      "id": "20261007-wb03-live-test",
+      "do": "live-test",
+      "count": 1,
+      "why": "owner renamed the Host's Windows account (former Jack's laptop); prove music and images still come back from Host through the tunnel"
     }
   ],
   "autofix": {
