@@ -5,7 +5,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileS
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { capturableTracked, main } from '../scripts/live-sync.mjs';
+import { capturableTracked, main, syncStatePath, UPDATER_VERSION } from '../scripts/live-sync.mjs';
 
 const BASE = 'BuildArtifacts/installers/Alpha-Full';
 const SUB = `${BASE}/software`;
@@ -106,6 +106,15 @@ test('a refused delivery is not retried until the branch moves', { skip }, async
   assert.equal(second.code, 2);
   assert.match(second.out, new RegExp(`WAITING: ${tip.slice(0, 7)} was tried here and refused`));
   assert.doesNotMatch(second.out, /changes:/, 'the same tip is not tried twice');
+
+  // A refusal by an older updater gets one more try at the same tip.
+  const statePath = syncStatePath(f.ops, 'live');
+  const st = JSON.parse(readFileSync(statePath, 'utf8'));
+  assert.equal(st.deliver.updater, UPDATER_VERSION);
+  writeFileSync(statePath, JSON.stringify({ ...st, deliver: { ...st.deliver, updater: 'older' } }));
+  const retried = await run(f);
+  assert.match(retried.out, new RegExp(`REFUSED: ${tip.slice(0, 7)}`), 'the same tip is tried again by a new updater');
+  assert.match((await run(f)).out, /WAITING/, 'and then waits again');
 
   const next = commitOnLive(f, { [`${SUB}/frontend/README.md`]: 'more\n' }, 'another commit');
   const third = await run(f, '--skip-build');
