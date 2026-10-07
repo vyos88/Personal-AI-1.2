@@ -218,8 +218,8 @@ function Resolve-Action($a) {
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
     # Which of this machine's serial ports the panel is actually on, asked of
     # the boards rather than guessed from their labels: Worker1 carries five
-    # bridges and every one of them reads as "USB-SERIAL CH340". Read-only — it
-    # writes one status query per port and nothing else — and takes nothing from
+    # bridges and every one of them reads as "USB-SERIAL CH340". Read-only: it
+    # writes one status query per port and nothing else, and takes nothing from
     # the action, so there is no path for a payload to name a port or a board.
     # Five ports at up to 30 s each, so the timeout covers the sweep.
     'panel-identify' { $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'panel-up.mjs'), '--identify') }; $out.timeoutMin = 5 }
