@@ -20,6 +20,11 @@ __pycache__/
 # on every device.inventory task, and self-update/alpha.update treat any
 # untracked file as a dirty tree -- so without these one inventory, or one run
 # of a fix script, silently stops that machine updating.
+# `curl -o NUL` is how the PowerShell scripts throw a response body away. On
+# Windows NUL is the null device and nothing is written; off Windows -- a cloud
+# container running the suites with pwsh installed -- it is an ordinary file, and
+# an untracked file is a dirty tree, which is what stops self-update pulling.
+/NUL
 /scripts/usb-inventory.json
 /scripts/usb-inventory.txt
 /scripts/*-log.txt
