@@ -1,4 +1,4 @@
-laptop41-doctor 20261007-051102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 2a51e24 2026-10-07)
+laptop41-doctor 20261007-052602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 304a4d9 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261007-051102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 4.4s (load 0s, 11.2 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 4.9s (load 0s, 9.4 tokens/s): OK.
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -44,9 +44,9 @@ laptop41-doctor 20261007-051102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T04:05:39.503Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1,"error":"EPERM: operation not permitted, rename 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp' -> 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good'"}],"events":[]}
-    {"at":"2026-10-07T04:07:39.537Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1,"error":"EPERM: operation not permitted, rename 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp' -> 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good'"}],"events":[]}
-    {"at":"2026-10-07T04:09:39.500Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1,"error":"EPERM: operation not permitted, rename 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp' -> 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good'"}],"events":[]}
+    {"at":"2026-10-07T04:21:39.634Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":1,"error":"EPERM: operation not permitted, rename 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp' -> 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good'"}],"events":[]}
+    {"at":"2026-10-07T04:23:39.612Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791340254988:9073","code":0}],"events":[]}
+    {"at":"2026-10-07T04:25:39.590Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -97,21 +97,21 @@ laptop41-doctor 20261007-051102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
   PROBLEM: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
-    assistant heartbeat 1511s old (live under 420s); stale since 2026-10-07T03:31:20.202909; panel snapshot 885.56s old; background lane held by 'auto-learning'
+    assistant heartbeat 528s old (live under 420s); stale since 2026-10-07T04:02:40.669820; panel snapshot 885.81s old; background lane held by 'auto-learning'
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   not listening on 192.168.1.151 (Wi-Fi)
   PROBLEM: the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it
   PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.3 of 15.8 GB RAM free
+  ok: 3.2 of 15.8 GB RAM free
   ok: C: 16.9 GB free
   llama-server                  1,933 MB  pid 14360
-  claude                          678 MB  pid 7832
-  Memory Compression              480 MB  pid 3840
-  MsMpEng                         435 MB  pid 6040
-  chrome                          377 MB  pid 6588
-  node                            376 MB  pid 6508
+  claude                          688 MB  pid 7832
+  Memory Compression              551 MB  pid 3840
+  MsMpEng                         429 MB  pid 6040
+  chrome                          376 MB  pid 6588
+  node                            365 MB  pid 6508
   msedge                          365 MB  pid 6872
   explorer                        322 MB  pid 10108
 
@@ -121,15 +121,15 @@ laptop41-doctor 20261007-051102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 32s
-  - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 3 run(s), since 2026-10-07T04:41:35)
-  - the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it  (open 2 run(s), since 2026-10-07T04:56:36)
-  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 1 run(s), since 2026-10-07T05:11:33)
+  this pass took 26s
+  - NEEDS A PERSON - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 4 run(s), since 2026-10-07T04:41:35)
+  - the backend listens on no home-network address (this machine has 192.168.1.151 on Wi-Fi): the deck panel cannot reach it  (open 3 run(s), since 2026-10-07T04:56:36)
+  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 2 run(s), since 2026-10-07T05:11:33)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 3 runs] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
-  2. [open 2 runs] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
-  3. [new] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  1. [open 4 runs NEEDS A PERSON] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
+  2. [open 3 runs] Add the home-network address section 6 names to HOST in .env.local (comma-separated; keep 127.0.0.1 and the tailnet address), restart the backend, and give the panel http://<that address>:8001. A DHCP reservation for this machine stops the address moving.
+  3. [open 2 runs] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
   4. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
