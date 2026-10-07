@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "04b54ca76186db5ff0aa02f3eb70dc6804df3034",
-    "lastRun":  "2026-10-07T22:00:30",
+    "lastRun":  "2026-10-07T22:26:24",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.":  {
-                                                                                                                                                                                                                                   "since":  "2026-10-07T22:00:30",
-                                                                                                                                                                                                                                   "runs":  1,
-                                                                                                                                                                                                                                   "text":  "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes."
-                                                                                                                                                                                                                               },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  69,
+                                                                                                                                                         "runs":  71,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T22:00:30",
+    "lastPost":  "2026-10-07T22:26:24",
     "relay":  "relayed status/cloud 04b54ca"
 }
