@@ -1,8 +1,22 @@
-﻿# laptop41 autopilot 20261007-032845
+﻿# laptop41 autopilot 20261007-033845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout fabb389 is current
+checkout d00387b is current
+
+## auto-brain-topology-20261007-033845  brain-topology (standing)  ->  0 (deck ok)   (2026-10-07T03:39:11, 0s)
+```
+OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+OK: the deck's source draws the links the backend sends and checks them (Region links)
+OK: the site serves the fixed deck (BrainNeuralModel-CfmhMBCx.js)
+```
+
+## auto-live-sync-20261007-033845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:39:11, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs bf5b813 of claude/frie...(30)
+CAPTURED: 3 changed and 46 new source file(s) from DESKTOP-41HPLCN, pushed as bf5b813 on claude/frie...(30)
+```
 
 ## 20261007-49-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T03:29:07, 13s)
 ```
@@ -526,81 +540,5 @@ DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\a
   stopped pid 6028, which held port 4173
   restarted task 'Alpha'
   Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-```
-
-## 20261007-wb01-doctor-wifi  doctor  ->  0   (2026-10-07T00:39:24, 73s)
-```
-=== 5c. Image creator ===
-  ok: image bridge answers on 127.0.0.1:7861
-  ok: machines that make images (the image bridge's view): host, worker1
-=== 5d. Brain topology (neurological deck) ===
-  ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
-  ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
-  ok: brain deck: the site serves the fixed deck (Brai...(25).js)
-=== 6. CrowPanel ===
-    COM4
-    COM7
-    COM20
-    COM24
-  device: USB-SERIAL CH340 (COM24)
-  device: USB-SERIAL CH340 (COM20)
-  device: USB Serial Device (COM7)
-  device: USB-SERIAL CH340 (COM4)
-  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
-  --- Alpha's deck feed (/panel/crowpanel/public-state)
-  PROBLEM: Alpha's deck feed answered 000
-  backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
-  ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (20 connections)
-=== 7. Memory, disk, heaviest processes ===
-  ok: 3.4 of 15.8 GB RAM free
-  ok: C: 19.6 GB free
-  llama-server                  1,932 MB  pid 4080
-  claude                          621 MB  pid 7832
-  MsMpEng                         421 MB  pid 6040
-  chrome                          386 MB  pid 6588
-  Memory Compression              334 MB  pid 3840
-  python                          301 MB  pid 3076
-  explorer                        269 MB  pid 10108
-  claude                          222 MB  pid 6188
-=== 8. Image generation ===
-  IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
-  port 7861 : pid 12084 node.exe: "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge.mjs
-  ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
-=== SUMMARY ===
-  this pass took 61s
-  - Alpha's deck feed answered 000  (open 1 run(s), since 2026-10-07T00:40:24)
-  - /chat without a login answers HTTP 0, expected 401 (route missing or failing)  (open 1 run(s), since 2026-10-07T00:40:24)
-  - backend /ready does not answer (HTTP 0)  (open 1 run(s), since 2026-10-07T00:40:24)
-  - backend /health answered 000  (open 1 run(s), since 2026-10-07T00:40:24)
-  + fixed since last run: the backend listens on no home-network address (this machine has 192.168.2.151 on Wi-Fi): the deck panel cannot reach it
-  + fixed since last run: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles
-  + fixed since last run: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
-=== RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
-report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
-posted to Alpha: True
-  To https://github.com/vyos88/Personal-AI-1.2
-     f93c3bf..c499192  HEAD -> status/laptop41
-pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## auto-bridges-20261007-003344  bridges (standing)  ->  0 (restarted)   (2026-10-07T00:33:59, 0s)
-```
-'alpha-music bridge' task was Ready; last run 10/06/2026 21:50:53, last result 0xC000013A
-  log: music bridge on http://127.0.0.1:8790/music/ -> http://100.93.104.24:8787
-  log: subscriptions off: every click generates
-  log: 2026-10-06T21:11:59 the bridge exited (-1); restarting in 10s
-  log: 2026-10-06T21:12:09 starting the music bridge (machines: host,worker1)
-  log: 2026-10-06T21:33:59 starting the music bridge (machines: host,worker1)
-  log: 2026-10-06T21:51:01 starting the music bridge (machines: host,worker1)
-'alpha-music bridge' was not listening on 8790: restarted, it answers now
 ```
 
