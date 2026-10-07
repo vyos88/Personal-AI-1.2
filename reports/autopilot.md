@@ -1,8 +1,88 @@
-﻿# laptop41 autopilot 20261007-033845
+﻿# laptop41 autopilot 20261007-035352
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout d00387b is current
+checkout d5681df is current
+
+## 20261007-50-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T03:54:13, 16s)
+```
+FLEET INVENTORY DESKTOP-41HPLCN 2026-10-07 03:54
+TASKS (9 enabled, 28 disabled): name | state | last run | result | next | runs
+  Alpha | Running | 10-07 03:31 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
+  Alpha Autopilot | Running | 10-07 03:53 | 0x41301 | 10-07 03:58 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Backend | Running | 10-07 03:31 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha-backend.cmd"
+  Alpha Doctor | Ready | 10-07 03:41 | 0x0 | 10-07 03:56 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha peer report | Ready | 10-07 03:53 | 0x0 | 10-07 03:56 | powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\AlphaData\a...
+  Alpha Self-Heal | Ready | 10-07 03:53 | 0x0 | 10-07 03:55 | node.exe "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --confi...
+  Alpha Server - Health Guard | Ready | 10-07 03:49 | 0x0 | 10-07 03:54 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  alpha-image bridge | Running | 10-07 01:29 | 0x41301 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  alpha-music bridge | Running | 10-07 02:15 | 0x800710E0 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+ disabled: Client - Follow Host Updates, Fleet Render Maintenance, Fleet Transport Receiver, Hourly Governed Improvement, Server - Start at Logon, Steward - agent-officer, Steward - api-improvement, Steward - chat-improvement, Steward - cloudflare-commander, Steward - deck-improvement, Steward - evolution, Steward - fleet-verify, Steward - fullscreen-caretaker, Steward - gmail-triage, Steward - in...
+SERVICES: alpha-agent=Running/Automatic; cloudflared=Stopped/Automatic
+PROCESSES (25 roles): role xN | MB | pids | command
+  codex x1 | 28 MB | 9324 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.930.4958.0_x64__2p2nqsd0c76g0\app\...
+  cloudflared x1 | 33 MB | 11956 | "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --metrics 127.0.0.1:...
+  ps: alpha_generation_monitor.ps1 x1 | 18 MB | 9088 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  py: alpha_fleet_transport.py x1 | 18 MB | 9520 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" "C:\Users...
+  ps: alpha_runtime_always_on.ps1 x1 | 37 MB | 17272 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  py: alpha_comfyui_bridge.py x1 | 8 MB | 16876 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" C:\Users\...
+  ps: alpha_coordination_tunnel.ps1 x1 | 133 MB | 9824 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  ps: alpha-desktop-tray.ps1 x1 | 111 MB | 1196 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -...
+  llama-server x2 | 31 MB | 7428,14360 | C:\Users\Vyo\AppData\Local\Programs\Ollama\lib\ollama\llama-server.exe --model E...
+  ollama x1 | 87 MB | 15680 | "C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama app.exe" 
+  py: main.py x1 | 12 MB | 15724 | "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127....
+  claude x1 | 1759 MB | 6188 | "C:\Program Files\WindowsApps\Claude_2.26454.0.0_x64__pzs8sxrjxfjjc\app\claude.e...
+  node: npx-cli.js x1 | 45 MB | 6612 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
+  node: index.js x1 | 62 MB | 12668 | "node" "C:\Users\Vyo\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules\...
+  ps: alpha_runtime_watchdog.ps1 x1 | 37 MB | 18664 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  ps: start-music-bridge.ps1 x1 | 4 MB | 10936 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  ps: start-image-bridge.ps1 x1 | 4 MB | 18340 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  image bridge x1 | 15 MB | 9636 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge...
+  node: npm-cli.js x2 | 16 MB | 11396,5944 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
+  Alpha site x2 | 430 MB | 6508,13780 | "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modul...
+  ... 5 more role(s)
+DUPLICATES: Alpha site x2 (each of these should run once)
+PORTS: 8001=python(7656) 4173=node(15352) 8787=- 8790=node(18620) 7861=node(9636) 7860=python(16160) 8188=python(18408) 11434=ollama(19292) 8080=-
+AGENT MANAGER: 59 agent(s), snapshot 0 min old
+  alpha-runtime-caretaker=RUNTIME-DISABLED, alpha-fullscreen-caretaker=RUNTIME-DISABLED, manager=SUPERVISING, alpha-local=RECEIPT-FRESH, alpha-coding=RU
+  NTIME-PAUSED, alpha-design-steward=RUNTIME-DISABLED, alpha-api-steward=RUNTIME-DISABLED, alpha-chat-improver=RUNTIME-DISABLED, alpha-voice-steward=RUN
+  TIME-DISABLED, alpha-music-steward=RUNTIME-DISABLED, alpha-fleet-verifier=RUNTIME-DISABLED, alpha-spatial-signal-steward=RUNTIME-DISABLED, alpha-evolu
+  tion-steward=RUNTIME-DISABLED, alpha-interface-style-steward=RUNTIME-DISABLED, alpha-cloudflare-commander=RUNTIME-DISABLED, alpha-gmail-steward=RUNTIM
+  E-DISABLED, alpha-package-steward=RUNTIME-DISABLED, alpha-surface-health-steward=RUNTIME-DISABLED, alpha-agent-officer=RUNTIME-DISABLED, codex-mirror=
+  MIRROR-ONLY, claude-mirror=MIRROR-ONLY, chatgpt-mirror=MIRROR-ONLY, model:alph...(40), model:alph...(28)
+  54=ATTENTION, model:alph...(36), model:alph...(33), model:alph...(41), mo
+  del:alph...(41), model:alph...(37), model:alph...(34), model:alpha-chat
+  -dia...(29), model:alph...(39), model:alph...(35), model:alpha-chat-qc-c63eb759=
+  ATTENTION, runtime-daemon:assistant-loop=RUNTIME-AVAILABLE, runtime-daemon:autonomous-thoughts=RUNTIME-DISABLED, runtime-daemon:autoprogress=RUNTIME-A
+  VAILABLE, runtime-daemon:auto-improve=RUNTIME-AVAILABLE, runtime-daemon:workflow-schedules=RUNTIME-HEALTHY, runtime-daemon:memory-maintenance=RUNTIME-
+  HEALTHY, runtime-daemon:autonomy-run-worker=RUNTIME-HEALTHY, runtime-daemon:background-supervisor=RUNTIME-HEALTHY, runtime-task:alpha:agent-scheduler=
+  RUNTIME-HEALTHY, runtime-task:alpha:atlas-integrity-probe=RUNTIME-HEALTHY, runtime-task:alpha:auto-learning=RUNTIME-HEALTHY, runtime-task:alpha:autono
+  my-run-worker=RUNTIME-HEALTHY, runtime-task:alpha:autosave=RUNTIME-HEALTHY, runtime-task:alpha:background-supervisor=RUNTIME-HEALTHY, runtime-task:alp
+  ha:calibration-resolution=RUNTIME-HEALTHY, runtime-task:alpha:dual-consciousness-poll=RUNTIME-HEALTHY, runtime-task:alpha:gmail-auto-sync=RUNTIME-HEAL
+  THY, runtime-task:alpha:gmail-self-test=RUNTIME-HEALTHY, runtime-task:alpha:memory-maintenance=RUNTIME-HEALTHY, runtime-task:alpha:ollama-keepalive=RU
+  NTIME-HEALTHY, runtime-task:alpha:tunnel-owner-replies=RUNTIME-HEALTHY, runtime-task:alpha:tunnel-work-observations=RUNTIME-HEALTHY, runtime-task:alph
+  a:usb-monitor=RUNTIME-HEALTHY, runtime-task:alpha:visu...(38), runtime-task:alpha:workflow-scheduler=RUNTIME-HEALTHY
+```
+
+## auto-deck-liveness-20261007-035352  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T03:54:36, 5s)
+```
+DECKS: 5 live, 1 setting, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 17 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 18 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 5 s old, fresh for 90 s
+DECK SETTING: CrowPanel feed (/panel/crowpanel/state) -> the assistant loop is not started (interactive-first mode on, or lightweight autonomy off), so the feed cannot go live  [decks: CrowPanel]
+    assistant heartbeat none s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 2 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-brain-topology-20261007-033845  brain-topology (standing)  ->  0 (deck ok)   (2026-10-07T03:39:11, 0s)
 ```
@@ -503,42 +583,5 @@ HELD BACK: 44 file(s) with credential-looking lines, not pushed: scripts/alpha_m
     software/backend/tests/test_alpha_self_upgrade_evidence.py:22  credential-looking environment variable  KEY_ID = hashlib.sha256(PUBLIC).hexdigest()
     software/backend/tests/test_alpha_self_upgrade_handoff.py:11  credential-looking environment variable  FLEET_KEY = b"testΓÇª(19)"
     If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.
-```
-
-## 20261007-wb03-live-test  live-test  ->  0   (2026-10-07T01:08:58, 62s)
-```
-ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
-music machines: host, worker1
-ok: track 1 made by host in 46s, roll...(34).wav 320044 bytes, plays (WAV, 5.0s, 32000 Hz mono, peak -8 dBFS)
-ok: track task_f1n7215l1637s530 is in the playlist (/music/recipes), roll...(34).wav
-image machines: alpha-tunnel (host, worker1)
-ok: image 1 made by host (comfyui) in 8s, 87021 bytes, PNG
-ok: reel made in 6s from 1 image(s) with the generated track, 212868 bytes, MP4
-music: 1/1 worked; by machine: host x1
-playlist: 1/1 worked; by machine: music bridge x1
-image: 1/1 worked; by machine: host x1
-video: 1/1 worked; by machine: this machine x1
-(node:14356) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
-(Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261007-46-apply-route-b  apply-update  ->  0   (2026-10-07T00:39:00, 24s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  already  D backend/tests/test_image_backend_probe.py
-  applies  A backend/tests/test_image_backend_probe_live.py
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 4 file(s)
-  ok: 4 Python file(s) parse
-DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --skip-build --restart
-  stopped pid 11560, which held port 8001
-  restarted task 'Alpha Backend'
-  stopped pid 6028, which held port 4173
-  restarted task 'Alpha'
-  Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
 ```
 
