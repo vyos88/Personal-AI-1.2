@@ -431,3 +431,94 @@ test('the owner\'s live-sync allow list is passed on exactly, and the line to co
   assert.match(r.stdout, /autofix\.liveSync\.allow entries must be path:line \(1 are not\): none used/);
   assert.match(r.stdout, /live sync: 2 \(needs a person\)/);
 });
+
+test('the standing deck check runs with the backend\'s Python, at most every everyMin, and reports only a change', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-deck-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  const control = (autofix) => {
+    writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix }));
+    git(ctl, 'add', 'actions.json');
+    git(ctl, 'commit', '-qm', 'control');
+    git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+  };
+
+  // Alpha's root: software\ and, once live sync has delivered it, the check.
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const runs = join(dir, 'runs');
+  const deckScript = join(alpha, 'scripts', 'alpha_deck_liveness.py');
+  const writeDeck = (verdict) => {
+    mkdirSync(join(alpha, 'scripts'), { recursive: true });
+    writeFileSync(deckScript, [
+      'import sys, time',
+      `open(${JSON.stringify(runs)}, 'a').write('run ' + ' '.join(sys.argv[1:]) + '\\n')`,
+      `print('DECKS: 1 ${verdict.toLowerCase()}')`,
+      `print('DECK ${verdict}: deck evidence (/hubs/pulse) -> x  [decks: alpha]')`,
+      "print('    report ' + str(time.time()) + ' s old')",
+      `sys.exit(${verdict === 'LIVE' ? 0 : 2})`,
+    ].join('\n'));
+  };
+  const statePath = join(dir, 'ops', 'autopilot', 'state.json');
+  const python = spawnSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).stdout.trim();
+  // Something listens on 8001, and it runs this Python.
+  const backendUp = `function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }; function Get-Process { [pscustomobject]@{ Path = '${python}' } }; `;
+  const run = (prefix = backendUp) => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${prefix}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${join(dir, 'ops')}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  const backdate = () => {
+    const s = JSON.parse(readFileSync(statePath, 'utf8').replace(/^﻿/, ''));
+    s.deckAt = '2026-01-01T00:00:00';
+    writeFileSync(statePath, JSON.stringify(s));
+  };
+
+  // Not delivered yet: said once, plainly.
+  control({ deckLiveness: true });
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /deck liveness: 1 \(could not run\)/);
+  assert.match(report(), /alpha_deck_liveness\.py is not on this machine yet/);
+
+  // Delivered: runs with the backend's Python and Alpha's root.
+  writeDeck('STALE');
+  backdate();
+  r = run();
+  assert.match(r.stdout, /deck liveness: 2 \(not every deck is live\)/, r.stdout + r.stderr);
+  assert.match(readFileSync(runs, 'utf8'), new RegExp(`run --root ${join(dir, 'alpha').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.match(report(), /DECK STALE: deck evidence/);
+
+  // Inside its window it does not run again; past it, the same verdict is not news.
+  r = run();
+  assert.equal(readFileSync(runs, 'utf8').trim().split('\n').length, 1, 'not due yet');
+  backdate();
+  r = run();
+  assert.equal(readFileSync(runs, 'utf8').trim().split('\n').length, 2);
+  assert.doesNotMatch(r.stdout, /deck liveness:/, 'the ages moved, the verdict did not');
+
+  // A changed verdict is reported; everyMin from the object form is honoured.
+  writeDeck('LIVE');
+  control({ deckLiveness: { everyMin: 30 } });
+  backdate();
+  r = run();
+  assert.match(r.stdout, /deck liveness: 0 \(every deck live\)/);
+
+  // No backend on 8001: down, without running anything.
+  backdate();
+  const before = readFileSync(runs, 'utf8');
+  r = run('function Get-NetTCPConnection { } ; ');
+  assert.match(r.stdout, /deck liveness: 2 \(not every deck is live\)/);
+  assert.equal(readFileSync(runs, 'utf8'), before);
+  assert.match(report(), /DECK DOWN: backend \(\/health\) -> nothing listens on 8001/);
+});

@@ -94,6 +94,22 @@ changes. They are turned on in the same `actions.json`:
   malformed entry and none of it is used. `skipScripts: true` leaves
   `scripts\` out. See `docs/LIVE_SYNC.md`.
 
+- `deckLiveness` (`true`, or `{ "everyMin": 15 }`): runs Alpha's own
+  `scripts\alpha_deck_liveness.py` (live sync delivers it) with the Python the
+  backend runs, at most every `everyMin` minutes (5 to 1440, default 15).
+  - Every source behind Alpha's decks is judged by its own freshness field:
+    the hub pulse's probe report, the command centre, the device topology,
+    the CrowPanel feed and whether a panel is actually reading it, and the
+    built site and its assets.
+  - The verdicts are LIVE, DEGRADED, STALE, PLACEHOLDER, SETTING (a setting,
+    not a fault, keeps it from going live), DOWN or ERROR. Static decks and
+    the serial-only Lite Deck are named as such.
+  - It reads only. It never asks `/panel/crowpanel/public-state`, which would
+    count this machine as a panel. It signs in with a 10-minute token minted
+    on the machine and never printed.
+  - The receipt is in `memory\local\deck-liveness\latest.json`, where Alpha
+    can read it. A change of verdict is reported; ages alone are not.
+
 ## Trust
 
 The task runs as the owner, elevated, while the owner is logged on. Anyone
