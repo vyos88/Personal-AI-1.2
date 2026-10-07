@@ -700,6 +700,29 @@ and naming itself `[crowpanel]` — Alpha's own deck firmware, which
   flashed with this firmware cannot answer — so it says so and asks for
   `--port`.
 
+**The board is remembered by what it says, not by the port it was on.**
+`panel-up.mjs --pin [port]` writes `data/panel-board.json` (machine-local,
+gitignored — which USB socket a laptop's panel is in is not a fleet fact, and
+there is nothing secret in it). It keeps the board's own answer: `kind`,
+`firmware` and its **MAC**, which `panel-4` added to the `status` reply because
+it is the only identifier that survives both a re-enumeration and a reflash.
+Four rules:
+
+- **The port is a hint that gets checked.** `pickPort()` asks the pinned port
+  first and `verifyPin()` compares MACs; equal means this is the board, whatever
+  the port is called today. Trusting the number is the `device.inventory`
+  failure with a file behind it.
+- **A different MAC on the pinned port is a different board**, so the sweep runs
+  and the pin moves to where the panel actually is. That case is not
+  hypothetical: provisioning the wrong ESP32 is what pinning a bare number
+  eventually does.
+- **A board with no MAC is pinned by kind and port, and told so.** Alpha's deck
+  firmware reports none and neither did `panel-3`; `verifyPin` returns the weak
+  answer as a weak answer rather than dressing it up.
+- **Nothing silent is ever pinned.** `pinFromBoard()` takes only `panel` or
+  `alpha-deck` — a pin made from a port that said nothing is a guess the next
+  run believes.
+
 **The panel knows several networks, and picks by signal rather than by order.**
 It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
 handler so an operator hears "at most four" instead of silently losing the

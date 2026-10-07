@@ -8,6 +8,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,6 +20,10 @@ import {
   listPorts,
   parseModeOutput,
   parseSerialComm,
+  pinFromBoard,
+  readPin,
+  verifyPin,
+  writePin,
 } from '../scripts/panel-up.mjs';
 import { createHost } from '../src/host/server.js';
 import { AuthService } from '../src/host/auth/service.js';
@@ -225,4 +231,88 @@ test('every port is asked, in turn, and one unopenable port does not end the swe
   // The label the port list carried is kept: "in use by another program?" is
   // why COM20 could not be opened, and the two lines belong together.
   assert.equal(seen[2].label, 'in use by another program?');
+});
+
+test('the pin remembers the board, not the port number', () => {
+  // What a laptop needs to find its panel again after a replug: the MAC first,
+  // because it is the only part that survives both the port renumbering and a
+  // reflash. The COM number is kept as a hint to check, not as the answer.
+  const pin = pinFromBoard(
+    {
+      address: 'COM4',
+      label: null,
+      kind: 'panel',
+      detail: 'firmware panel-4',
+      status: { firmware: 'panel-4', mac: 'a0:b7:65:11:22:33', page: 'fleet' },
+    },
+    { name: 'CrowPanel', now: 1_700_000_000_000 },
+  );
+  assert.deepEqual(pin, {
+    name: 'CrowPanel',
+    port: 'COM4',
+    kind: 'panel',
+    label: null,
+    firmware: 'panel-4',
+    mac: 'A0:B7:65:11:22:33',
+    savedAt: 1_700_000_000_000,
+  });
+  // Nothing a board said about its credentials is written down — there is
+  // nothing secret in a pin, and that is what makes it safe to keep on disk.
+  assert.ok(!JSON.stringify(pin).includes('key'));
+
+  // A port that said nothing is never pinned: a pin on a guess is a guess the
+  // next run believes.
+  assert.equal(pinFromBoard({ address: 'COM6', kind: 'silent' }), null);
+  assert.equal(pinFromBoard({ address: 'COM6', kind: 'unreadable' }), null);
+  assert.equal(pinFromBoard(null), null);
+  // Alpha's own deck is pinnable too — it is a board this machine holds, and
+  // which port it is on is the same question.
+  assert.equal(pinFromBoard({ address: 'COM7', kind: 'alpha-deck', status: {} })?.kind, 'alpha-deck');
+});
+
+test('a pin is checked against the board, and says how strong the check was', () => {
+  const pin = { name: 'CrowPanel', port: 'COM4', kind: 'panel', mac: 'A0:B7:65:11:22:33' };
+
+  // Same MAC: this is the board, whatever the port is called today.
+  assert.deepEqual(
+    verifyPin(pin, { kind: 'panel', status: { mac: 'a0:b7:65:11:22:33' } }),
+    { ok: true, why: 'MAC A0:B7:65:11:22:33' },
+  );
+
+  // A different board answering on the pinned port is the case that matters:
+  // without the MAC check, provisioning would go to somebody else's ESP32.
+  const other = verifyPin(pin, { kind: 'panel', status: { mac: 'aa:bb:cc:dd:ee:ff' } });
+  assert.equal(other.ok, false);
+  assert.match(other.why, /different board: MAC AA:BB:CC:DD:EE:FF, pinned A0:B7/);
+
+  // Nothing there, or something else there: both refuse, with the difference.
+  assert.match(verifyPin(pin, { kind: 'silent' }).why, /nothing answered on COM4/);
+  assert.match(verifyPin(pin, { kind: 'alpha-deck', status: {} }).why, /answers as alpha-deck now, not panel/);
+
+  // The weaker answer is given as what it is rather than dressed up: a board
+  // with no MAC (Alpha's deck, or this firmware before panel-4) can only be
+  // checked by kind and port.
+  const weak = verifyPin({ port: 'COM7', kind: 'alpha-deck', mac: null }, { kind: 'alpha-deck', status: {} });
+  assert.equal(weak.ok, true);
+  assert.match(weak.why, /by kind and port/);
+});
+
+test('a missing or damaged pin file is no pin, never a crash', async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'panel-pin-'));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'panel-board.json');
+
+  assert.equal(await readPin(file), null);
+
+  await writeFile(file, '{ this is not json');
+  assert.equal(await readPin(file), null, 'a damaged file reads as no pin');
+
+  await writeFile(file, JSON.stringify({ name: 'CrowPanel' }));
+  assert.equal(await readPin(file), null, 'a pin with no port is not a pin');
+
+  const pin = { name: 'CrowPanel', port: 'COM4', kind: 'panel', mac: 'A0:B7:65:11:22:33', savedAt: 1 };
+  // The directory does not exist yet on a fresh checkout; writing makes it.
+  const nested = join(dir, 'data', 'panel-board.json');
+  await writePin(pin, nested);
+  assert.deepEqual(await readPin(nested), pin);
 });

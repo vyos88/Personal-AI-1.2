@@ -32,7 +32,7 @@
 
 import { execFile, spawn } from 'node:child_process';
 import { openSync } from 'node:fs';
-import { readdir, realpath } from 'node:fs/promises';
+import { mkdir, readFile, readdir, realpath, rm, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
 import { networkInterfaces } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -80,6 +80,10 @@ Options
   --identify       Ask every serial port here which board is on it, and stop.
                    For a machine carrying several — four CH340 clones and the
                    panel is a real fleet — this is what says which is which
+  --pin [port]     Remember the board on that port (or the one a sweep finds) as
+                   this machine's panel, by what it says about itself rather
+                   than by its COM number. Later runs use it and check it
+  --unpin          Forget it
   --scan           Ask the board which WiFi networks it can see, and stop
   --page <n>       Turn the display to a page (fleet, machines, work, receipts,
                    panel, or next) and stop. Add --hold to stop the rotation
@@ -282,11 +286,94 @@ export async function identifyPorts(ports, probe = probeBoard, onResult = null) 
       // monitor somebody left running — and must not end the sweep.
       error: error?.message ?? String(error),
     }));
-    const result = { ...entry, ...classifyBoard(outcome) };
+    // `status` is kept beside the classification because a pin remembers what
+    // the board said about itself — its firmware and its MAC — and not just
+    // which port it was on when somebody looked.
+    const result = { ...entry, ...classifyBoard(outcome), status: outcome?.status ?? null };
     seen.push(result);
     onResult?.(result);
   }
   return seen;
+}
+
+/**
+ * The board, remembered — `data/panel-board.json` on this machine.
+ *
+ * Which port the panel is on is the least durable fact about it: Windows
+ * renumbers COM ports on re-enumeration, so a replug moves the board and
+ * anything holding the old number stops finding it. That is the failure
+ * `device.inventory` exists to make visible, and pinning *the number* would
+ * reintroduce it. So a pin records what the board **said** — its firmware and,
+ * from `panel-4` on, its MAC — beside where it was, and the port is treated as a
+ * hint to check rather than as the answer.
+ *
+ * It lives in `data/`, which is gitignored: which USB socket a laptop's panel is
+ * in is a fact about that laptop, not about the fleet. It holds nothing secret —
+ * the panel's key is minted per provisioning and lives in the board's own NVS,
+ * and a MAC is in every frame the radio sends.
+ */
+const PIN_FILE = process.env.ALPHA_PANEL_BOARD_FILE ?? join(ROOT, 'data', 'panel-board.json');
+
+/** What to remember about a board that identified itself. */
+export function pinFromBoard(found, { name = 'CrowPanel', now = Date.now() } = {}) {
+  // Only a board that answered is pinned. A silent or unreadable port is
+  // exactly the thing a pin must not assert, or the next run trusts a guess.
+  if (found?.kind !== 'panel' && found?.kind !== 'alpha-deck') return null;
+  const status = found.status ?? {};
+  return {
+    name,
+    port: found.address,
+    kind: found.kind,
+    label: found.label ?? null,
+    firmware: typeof status.firmware === 'string' ? status.firmware : null,
+    mac: typeof status.mac === 'string' ? status.mac.toUpperCase() : null,
+    savedAt: now,
+  };
+}
+
+/**
+ * Is the board on the pinned port still the pinned board?
+ *
+ * The MAC decides when both sides have one, because it is the only identifier
+ * that survives a replug *and* a reflash. Alpha's deck firmware reports none and
+ * neither did this one before `panel-4`, so the weaker answer — same kind on the
+ * same port — is given as what it is rather than dressed up as proof.
+ */
+export function verifyPin(pin, found) {
+  if (!found || (found.kind !== 'panel' && found.kind !== 'alpha-deck')) {
+    return { ok: false, why: `nothing answered on ${pin.port}` };
+  }
+  if (found.kind !== pin.kind) {
+    return { ok: false, why: `the board on ${pin.port} answers as ${found.kind} now, not ${pin.kind}` };
+  }
+  const mac = typeof found.status?.mac === 'string' ? found.status.mac.toUpperCase() : null;
+  if (pin.mac && mac) {
+    return mac === pin.mac
+      ? { ok: true, why: `MAC ${mac}` }
+      : { ok: false, why: `a different board: MAC ${mac}, pinned ${pin.mac}` };
+  }
+  return {
+    ok: true,
+    why: pin.mac
+      ? 'it answered but reports no MAC, so this is by kind and port only'
+      : 'by kind and port: this board reports no MAC to check (reflash for panel-4 to get one)',
+  };
+}
+
+/** The pin, or null — a missing or damaged file is "no pin", never a crash. */
+export async function readPin(file = PIN_FILE) {
+  try {
+    const pin = JSON.parse(await readFile(file, 'utf8'));
+    return typeof pin?.port === 'string' && typeof pin?.kind === 'string' ? pin : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function writePin(pin, file = PIN_FILE) {
+  await mkdir(dirname(file), { recursive: true });
+  await writeFile(file, `${JSON.stringify(pin, null, 2)}\n`);
+  return file;
 }
 
 const healthy = async (url) => {
@@ -405,6 +492,8 @@ function parseArgs(argv) {
     serve: true,
     listPorts: false,
     identify: false,
+    pin: false,
+    unpin: false,
     scan: false,
     page: null,
     hold: undefined,
@@ -416,6 +505,14 @@ function parseArgs(argv) {
     else if (arg === '--ssid') options.ssids.push(argv[++i] ?? '');
     else if (arg === '--list-ports') options.listPorts = true;
     else if (arg === '--identify') options.identify = true;
+    else if (arg === '--unpin') options.unpin = true;
+    else if (arg === '--pin') {
+      options.pin = true;
+      // `--pin COM4` names the port; a bare `--pin` sweeps and pins what it
+      // finds, so the next argument is only taken when it is not another option.
+      const next = argv[i + 1];
+      if (next && !next.startsWith('--')) options.port = argv[++i];
+    }
     else if (arg === '--scan') options.scan = true;
     else if (arg === '--page') options.page = argv[++i] ?? '';
     else if (arg === '--hold') options.hold = true;
@@ -447,6 +544,21 @@ async function main() {
   /** The port to talk to, or a reason there is not one. */
   async function pickPort() {
     if (options.port) return options.port;
+
+    // A pin is a hint that gets checked, not an answer that gets trusted: the
+    // board is asked whether it is still the pinned one, and a board that moved
+    // on a replug is found by the sweep below instead of failing the run.
+    const pinned = await readPin();
+    if (pinned) {
+      const [found] = await identifyPorts([{ address: pinned.port, label: null }], probeBoard);
+      const check = verifyPin(pinned, found);
+      if (check.ok) {
+        say(`port       : ${pinned.port} — ${pinned.name}, pinned (${check.why})`);
+        return pinned.port;
+      }
+      say(`port       : ${pinned.name} is not on ${pinned.port} any more — ${check.why}`);
+    }
+
     const ports = await listPorts();
     if (ports.length === 0) {
       stop('port       : no serial ports here. Is the board plugged into this machine?');
@@ -461,7 +573,14 @@ async function main() {
         say(`             ${entry.address}  ${entry.kind} — ${entry.detail}`),
       );
       const panels = seen.filter((entry) => entry.kind === 'panel');
-      if (panels.length === 1) return panels[0].address;
+      if (panels.length === 1) {
+        // Found it somewhere else: remember the new port, so the next run does
+        // not pay for the sweep again. This is the replug case, which is the
+        // ordinary one rather than the exception.
+        await writePin(pinFromBoard(panels[0])).catch(() => {});
+        say(`port       : ${panels[0].address} is the panel — pinned`);
+        return panels[0].address;
+      }
       stop(
         `port       : ${
           panels.length === 0
@@ -491,6 +610,43 @@ async function main() {
     process.exit(0);
   }
 
+  // --- the pin: which board this machine's panel is ----------------------
+  if (options.unpin) {
+    await rm(PIN_FILE, { force: true });
+    say(`unpinned   : ${PIN_FILE} is gone — the next run works it out again`);
+    process.exit(0);
+  }
+
+  if (options.pin) {
+    // One named port, or a sweep. Either way the board has to answer: a pin on
+    // a port that said nothing is a guess the next run would trust.
+    const ports = options.port
+      ? [{ address: options.port, label: null }]
+      : await listPorts();
+    if (ports.length === 0) stop('pin        : no serial ports on this machine');
+    const seen = await identifyPorts(ports, probeBoard, (entry) =>
+      say(`  ${entry.address.padEnd(14)} ${entry.kind.padEnd(10)} ${entry.detail}`),
+    );
+    const boards = seen.filter((entry) => entry.kind === 'panel' || entry.kind === 'alpha-deck');
+    if (boards.length !== 1) {
+      stop(
+        `pin        : ${boards.length === 0 ? 'no board here identified itself' : `${boards.length} boards did`} — ` +
+          'nothing pinned. Name the port with --pin <port>',
+      );
+    }
+    const pin = pinFromBoard(boards[0]);
+    await writePin(pin);
+    say(`pinned     : ${pin.name} on ${pin.port} — ${pin.kind}${pin.firmware ? `, ${pin.firmware}` : ''}${pin.mac ? `, MAC ${pin.mac}` : ''}`);
+    if (!pin.mac) {
+      // Said plainly, because it decides how much the pin can promise: without a
+      // MAC the only check left is "a board of this kind is still on this port".
+      say('pinned     : this board reports no MAC, so the pin is by kind and port.');
+      say(`pinned     : ${pin.kind === 'alpha-deck' ? "Alpha's deck firmware has none" : 'reflash for panel-4 and it will report one'}`);
+    }
+    say(`pinned     : written to ${PIN_FILE} (machine-local, gitignored, no credential in it)`);
+    process.exit(0);
+  }
+
   // --- read-only: which of these boards is the panel --------------------
   if (options.identify) {
     const ports = await listPorts();
@@ -505,6 +661,15 @@ async function main() {
     const panels = seen.filter((entry) => entry.kind === 'panel');
     const decks = seen.filter((entry) => entry.kind === 'alpha-deck');
     say('');
+    const pinned = await readPin();
+    if (pinned) {
+      // The pin is reported against what the sweep just found, never on its own:
+      // a pin that quietly disagrees with the machine is worse than none.
+      const found = seen.find((entry) => entry.address === pinned.port);
+      const check = verifyPin(pinned, found);
+      say(`pinned     : ${pinned.name} on ${pinned.port} — ${check.ok ? `still there (${check.why})` : check.why}`);
+      if (!check.ok) say('pinned     : re-pin with --pin, or --pin <port> to name it');
+    }
     if (panels.length === 1) {
       say(`the panel is on ${panels[0].address}. Point it at a coordinator with:`);
       say(`  node scripts/panel-up.mjs --port ${panels[0].address} --ssid "<your wifi>"`);
