@@ -564,6 +564,18 @@ test('the Alpha move check runs read-only, fits the report and names what is mis
   assert.deepEqual(readdirSync(root), [], 'it writes nothing');
 });
 
+test('the Alpha move check finds the backend configuration beside software, and never reads it', { skip }, () => {
+  const top = mkdtempSync(join(tmpdir(), 'move-top-'));
+  mkdirSync(join(top, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(top, 'software', 'backend', 'main.py'), '');
+  writeFileSync(join(top, '.env.local'), 'SECRET_VALUE=do-not-print\n');
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'alpha-move-check.ps1'), '-AlphaRoot', join(top, 'software')]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\.env\.local: present, 26 bytes \(contents not read\)/);
+  assert.doesNotMatch(r.stdout, /the backend's \.env\.local/, 'present beside software\\ is present');
+  assert.doesNotMatch(r.stdout, /SECRET_VALUE|do-not-print/);
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');

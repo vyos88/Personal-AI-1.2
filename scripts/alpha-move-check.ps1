@@ -98,10 +98,13 @@ if ($root) {
   foreach ($d in @((Join-Path $top 'memory'), (Join-Path $root 'backend\data'), (Join-Path $root 'memory'))) {
     if (Test-Path $d) { Say ("  {0}: {1}" -f $d, (FolderSize $d)) }
   }
-  foreach ($f in @((Join-Path $root 'backend\.env.local'), (Join-Path $root '.env.local'), (Join-Path $root 'backend\.env'), (Join-Path $root 'frontend\.env.local'))) {
-    if (Test-Path $f) { Say ("  {0}: present, {1} bytes (contents not read)" -f $f, (Get-Item $f).Length) }
+  # The backend's configuration has lived beside software\ as well as inside
+  # it; Laptop41's first check looked only inside and called it missing.
+  $backendEnv = @((Join-Path $top '.env.local'), (Join-Path $root '.env.local'), (Join-Path $root 'backend\.env.local'), (Join-Path $top '.env'), (Join-Path $root 'backend\.env'))
+  foreach ($f in ($backendEnv + @(Join-Path $root 'frontend\.env.local'))) {
+    if (Test-Path $f) { Say ("  {0}: present, {1} bytes (contents not read)" -f $f, (Get-Item -Force $f).Length) }
   }
-  if (-not ((Test-Path (Join-Path $root 'backend\.env.local')) -or (Test-Path (Join-Path $root '.env.local')))) { Need '.env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)' }
+  if (-not ($backendEnv | Where-Object { Test-Path $_ })) { Need "the backend's .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)" }
   $venv = @((Join-Path $top '.venv\Scripts\python.exe'), (Join-Path $root '.venv\Scripts\python.exe'), (Join-Path $root 'backend\.venv\Scripts\python.exe')) | Where-Object { Test-Path $_ } | Select-Object -First 1
   if ($venv) { Say ("  venv: {0} ({1})" -f $venv, ((& $venv --version 2>&1) -as [string]).Trim()) } else { Need "Alpha's Python venv (.venv beside software\) with the backend's requirements" }
 }
