@@ -1,8 +1,103 @@
-﻿# laptop41 autopilot 20261007-215345
+﻿# laptop41 autopilot 20261007-215853
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 67563f8 is current
+checkout e54805d is current
+
+## 20261007-63-comfyui-off  comfyui-off  ->  0   (2026-10-07T21:59:18, 31s)
+```
+free memory before: 2.2 GB
+stopping ComfyUI tree at pid 15724: 3 process(es), 3823 MB: "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127.0.0.1 --cpu 
+ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, agent-manager-status
+ok: restarted the alpha-agent service
+the agent no longer offers alpha.image
+ok: nothing answers on 8188
+free memory after: 5.8 GB (3.6 GB back)
+machines that make images now (the image bridge's view): host
+done: ComfyUI is stopped here and pictures go to the other machines
+```
+
+## 20261007-64-live-test-image  live-test  ->  0   (2026-10-07T21:59:49, 13s)
+```
+ok: the site (https://127.0.0.1:4173) routes /music to the music bridge
+image machines: alpha-tunnel (host)
+ok: image 1 made by host (comfyui) in 13s, 86988 bytes, PNG
+ok: image 2 made by host (comfyui) in 9s, 110552 bytes, PNG
+image: 2/2 worked; by machine: host x2
+(node:10364) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
+(Use `node --trace-warnings ...` to show where the warning was created)
+```
+
+## 20261007-65-doctor  doctor  ->  0   (2026-10-07T22:00:02, 39s)
+```
+    COM4
+    COM6
+    COM7
+    COM20
+    COM24
+  device: USB-SERIAL CH340 (COM24)
+  device: USB-SERIAL CH340 (COM20)
+  device: USB Serial Device (COM7)
+  device: USB-SERIAL CH340 (COM6)
+  device: USB-SERIAL CH340 (COM4)
+  --- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)
+  usb  COM24  1a86:7523  5&228C54A3&0&4               USB-SERIAL CH340 (COM24)
+  usb  COM20  1a86:7523  6&24DCC5C9&0&1               USB-SERIAL CH340 (COM20)
+  usb  COM7   303a:1001  8&13DABE55&0&0000            USB Serial Device (COM7)
+  usb  COM6   1a86:7523  7&2CA6C026&0&3               USB-SERIAL CH340 (COM6)
+  usb  COM4   1a86:7523  6&13504C26&0&2               USB-SERIAL CH340 (COM4)
+  self 192.168.1.151   30:c9:ab:54:31:71  Wi-Fi
+  lan  192.168.1.1     74:24:9f:59:99:d6  Reachable
+  lan  192.168.1.88    40:c2:ba:34:3e:22  Reachable
+  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
+  --- Alpha's deck feed (/panel/crowpanel/public-state)
+  PROBLEM: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
+    assistant heartbeat 1178s old (live under 420s); stale since 2026-10-07T20:37:00.251421; panel snapshot 220.48s old; background lane free; 'book-autoread' waits for it (host-resource-pressure)
+  backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.1.151
+  ok: the panel's way in answers: http://192.168.1.151:8001/health 200 (Wi-Fi)
+  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
+=== 7. Memory, disk, heaviest processes ===
+  ok: 4.6 of 15.8 GB RAM free
+  ok: C: 14.6 GB free
+  llama-server                  1,935 MB  pid 18996
+  claude                          491 MB  pid 8028
+  MsMpEng                         473 MB  pid 6040
+  WindowsTerminal                 376 MB  pid 3764
+  chrome                          339 MB  pid 6588
+  python                          329 MB  pid 8008
+  explorer                        246 MB  pid 10108
+  claude                          229 MB  pid 12912
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
+  port 7861 : pid 8388 node.exe: "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge.mjs
+  ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
+=== SUMMARY ===
+  this pass took 29s
+  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 69 run(s), since 2026-10-07T05:11:33)
+  - Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.  (open 1 run(s), since 2026-10-07T22:00:30)
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [open 69 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  2. [new] The assistant loop's heartbeat is old or missing, so the deck shows a stale feed. Alpha#26 (merged to alpha-full) keeps it fresh between cycles and reaches this machine with the route B update. If the reason is assistant-loop-not-started, lightweight autonomy is off or interactive-first mode is on.
+  3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+posted to Alpha: True
+  To https://github.com/vyos88/Personal-AI-1.2
+     3438b58..7a03fc3  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
+
+## auto-live-sync-20261007-215853  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:00:42, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+WAITING: f1dbc73 was tried here and refused; the next commit on claude/frie...(30) is tried when it comes
+SKIPPED: nothing is captured while this machine is not on f1dbc73
+```
 
 ## auto-live-sync-20261007-215345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T21:54:29, 17s)
 ```
@@ -290,65 +385,5 @@ KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: a
       Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
 DELIVERED: 7ca5aa7..cbd4b34 of claude/frie...(30)
 CAPTURED: nothing; every source file here matches cbd4b34
-```
-
-## 20261007-57-image-host-first  enable-image  ->  0   (2026-10-07T16:59:22, 25s)
-```
-image backend: comfyui
-ok: .env.agent handlers: alpha-coordination, alpha-music, alpha-music-audio, alpha-image, alpha-image-file, agent-manager-status
-WARNING: Waiting for service 'alpha-agent (alpha-agent)' to stop...
-ok: restarted the alpha-agent service
-the agent now offers alpha.image
-image bridge machines: host,worker1
-ok: image bridge answers on 127.0.0.1:7861 (task 'alpha-image bridge', starts at logon)
-ok: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local: IMAGE_GEN_URL goes through the image bridge; the direct generator stays as a fallback (backed up)
-restarted task 'Alpha Backend' so it reads the new image route
-done: this machine renders images for Alpha through the tunnel
-```
-
-## auto-deck-liveness-20261007-165854  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T16:59:59, 12s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 96 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 11 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 2 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 389 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 204 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## 20261007-54-panel-host  panel-host  ->  0   (2026-10-07T16:44:20, 88s)
-```
-address : 192.168.1.151 (Wi-Fi)
-env     : C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.env.local
-HOST    : 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151   (already right)
-trusted : 127.0.0.1,localhost,100.69.243.25,100.69.243.25:8001,192.168.2.151,192.168.2.151:8001,desktop-41hplcn.tail3fd6f9.ts.net,desktop-41hplcn.tail879ea7.ts.net,laptop-gj8dfmlk.tail879ea7.ts.net,alpha-ai.uk,www.alpha-ai.uk,192.168.1.151
-wrapper : --host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151   (added 192.168.1.151)
-wrapper : written (backup at C:\ProgramData\AlphaBoot\run-alpha-backend.cmd.bak)
-restart : "Alpha Backend"
-restart : stopped pid 22492, which held port 8001
-restart : restarted task 'Alpha Backend'
-restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-feed    : http://192.168.1.151:8001/panel/crowpanel/public-state answers 200 (status degraded)
-Point the panel at it:
-  Alpha's deck firmware:  ALPHA http://192.168.1.151:8001        (over USB serial)
-  the tunnel's firmware:  node scripts/panel-up.mjs --primary http://192.168.1.151:8001
-```
-
-## 20261007-55-panel-endpoint  panel-endpoint  ->  1   (2026-10-07T16:45:48, 36s)
-```
-this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8001
-ok: backend answers on http://192.168.1.151:8001
-deck port: COM7 (USB Serial Device (COM7))
-PROBLEM: the deck on COM7 did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting
 ```
 
