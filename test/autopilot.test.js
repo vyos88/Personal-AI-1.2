@@ -328,6 +328,17 @@ test('panel-endpoint takes nothing from the action, and reads the deck STATUS li
   assert.equal(JSON.parse(pwsh([panel, '-ParseStatus', 'rst:0x1 (POWERON_RESET)']).stdout), null);
 });
 
+test('panel-endpoint says what a port that never answered STATUS did send', { skip }, () => {
+  const panel = join(import.meta.dirname, '..', 'scripts', 'panel-endpoint.ps1');
+  const heard = (text) => pwsh([panel, '-DescribeHeard', text]).stdout.trim();
+  assert.match(heard(''), /^nothing at all came back: the board is silent on this port/);
+  assert.match(heard('abc'), /^3 byte\(s\) came back but never a whole line/);
+  const other = heard('rst:0x1 (POWERON_RESET)\\n{"ok":true,"wifi":"Home","pass":"hunter2"}\\nwifi password=hunter2 key: abc\\n');
+  assert.match(other, /^it is talking, but not as Alpha's deck firmware\. It said: 'rst:0x1 \(POWERON_RESET\)'/);
+  assert.ok(!other.includes('hunter2') && !other.includes('abc'), `nothing credential-shaped is repeated: ${other}`);
+  assert.match(heard('boot\\n[crowpanel] fw=1.4 wifi_ssid=Starlink alpha_base=http://192.168.1.151:8001\\n'), /^status: \[crowpanel\] fw=1\.4/);
+});
+
 test('panel-host edits the env file beside Alpha, and takes nothing from the action', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-host-'));
   const file = join(dir, 'actions.json');
