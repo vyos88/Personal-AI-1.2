@@ -7,7 +7,8 @@
  * The panel is an ESP32 on the house WiFi. It cannot reach `127.0.0.1`, and it
  * cannot reach a tailnet `100.x` address either — those do not exist for it. It
  * reaches this machine on a home-network address and nothing else, so three
- * settings in Alpha's `app/.env.local` decide whether the screen is dark:
+ * settings in Alpha's env file decide whether the screen is dark (found the way
+ * the doctor finds it: `backend/.env.local`, then the root, then above it):
  *
  *   HOST                  the addresses the backend binds. Without the home
  *                         address in it, nothing the panel can dial is listening
@@ -41,12 +42,40 @@
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { restartWindows } from './apply-alpha-update.mjs';
 
 const DEFAULT_ALPHA_ROOT = process.env.ALPHA_APP_ROOT ?? 'C:\\AlphaData\\Alpha';
+
+/**
+ * Where this backend keeps its settings, in the order it reads them.
+ *
+ * Taken from `laptop41-doctor.ps1`'s `EnvSetting`, which is the repo's own
+ * statement of the convention — `backend\.env.local` first, then the root, then
+ * the directory above it, and `.env` after each `.env.local`. Guessing one path
+ * instead is what made a hand-run on Worker1 stop at "no file at
+ * ...\app\.env.local" on a machine whose Alpha has no `app` directory at all.
+ */
+export function envCandidates(alphaRoot) {
+  const root = resolve(alphaRoot);
+  const parent = dirname(root);
+  return [
+    join(root, 'backend', '.env.local'),
+    join(root, '.env.local'),
+    join(parent, '.env.local'),
+    join(root, 'backend', '.env'),
+    join(root, '.env'),
+    join(parent, '.env'),
+  ];
+}
+
+/** The first of those that is there, or null with the list that was tried. */
+export function findEnvFile(alphaRoot, exists = existsSync) {
+  const tried = envCandidates(alphaRoot);
+  return { path: tried.find((candidate) => exists(candidate)) ?? null, tried };
+}
 const DEFAULT_TASK = 'Alpha Backend';
 // The boot task's wrapper (repair-alpha-host.ps1). It is written from the live
 // backend's own command line, and start-local.ps1 always passes --host, so the
@@ -68,7 +97,9 @@ fix-panel-host — let the CrowPanel reach Alpha's backend on this machine
 Options
   --alpha-root <dir>  Where Alpha lives. Default: ALPHA_APP_ROOT or
                       ${DEFAULT_ALPHA_ROOT}
-  --env <file>        The env file to edit. Default: <alpha-root>\\app\\.env.local
+  --env <file>        The env file to edit. Default: the first of
+                      backend\\.env.local, .env.local, ..\\.env.local (then the
+                      .env of each) that exists under --alpha-root
   --address <ip>      The home-network address to publish. Default: this
                       machine's, worked out from its interfaces
   --port <n>          Backend port. Default: ${DEFAULT_PORT}
@@ -121,6 +152,14 @@ const splitList = (value) =>
     .filter(Boolean);
 
 /** The value of a key as the backend sees it: the last one wins, as dotenv does. */
+/**
+ * The value this backend will read, and how many lines claim to set it.
+ *
+ * The **first** line wins: `run_server.py` loads the file that way, and
+ * `laptop41-doctor.ps1` reads it the same way for the same reason. Taking the
+ * last — which is what dotenv would do — means reporting a value the backend
+ * never sees, so a reader of the file is confident and wrong.
+ */
 export function readKey(lines, key) {
   let value = null;
   let count = 0;
@@ -128,7 +167,7 @@ export function readKey(lines, key) {
     const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/.exec(line);
     if (!match || match[1] !== key) continue;
     count += 1;
-    value = match[2].trim().replace(/^["']|["']$/g, '');
+    if (count === 1) value = match[2].trim().replace(/^["']|["']$/g, '');
   }
   return { value, count };
 }
@@ -140,17 +179,23 @@ export function readKey(lines, key) {
  * backend reads: changing an earlier duplicate would look right in the file and
  * do nothing at all.
  */
+/**
+ * Sets a key on **every** line that sets it, appending when none does.
+ *
+ * Not just the one the loader reads. Which copy that is depends on the loader —
+ * first here, last under dotenv — and leaving the others behind is how a file
+ * ends up disagreeing with itself and with the running backend. Writing all of
+ * them is right whichever way it is read.
+ */
 function setKey(lines, key, value) {
-  let at = -1;
+  let found = false;
   for (let i = 0; i < lines.length; i++) {
     const match = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=/.exec(lines[i]);
-    if (match && match[1] === key) at = i;
+    if (!match || match[1] !== key) continue;
+    lines[i] = `${key}=${value}`;
+    found = true;
   }
-  if (at === -1) {
-    lines.push(`${key}=${value}`);
-    return lines;
-  }
-  lines[at] = `${key}=${value}`;
+  if (!found) lines.push(`${key}=${value}`);
   return lines;
 }
 
@@ -370,9 +415,17 @@ async function main() {
   say(`address : ${address} (${addresses[0].nic})${addresses.length > 1 ? `, also ${addresses.slice(1).map((a) => a.ip).join(', ')}` : ''}`);
 
   // 2. the env file
-  const envPath = options.env || join(options.alphaRoot, 'app', '.env.local');
-  if (!existsSync(envPath)) {
-    stop(`env     : no file at ${envPath}. Pass --alpha-root or --env.`);
+  const found = options.env ? { path: options.env, tried: [options.env] } : findEnvFile(options.alphaRoot);
+  const envPath = found.path;
+  if (!envPath || !existsSync(envPath)) {
+    // A path that was named and a path that was searched for are different
+    // mistakes: the first is a typo, the second is the wrong --alpha-root.
+    if (options.env) stop(`env     : no file at ${options.env}.`);
+    stop(
+      `env     : no settings file under ${options.alphaRoot}. Looked for:\n             ` +
+        found.tried.join('\n             ') +
+        '\n           Pass --env with the file that holds HOST.',
+    );
   }
   record.env = envPath;
 
@@ -405,7 +458,10 @@ async function main() {
   }
   if (plan.lanWas !== 'true') say(`deck    : ALPHA_PANEL_LAN_READ ${plan.lanWas ?? 'not set'} -> true`);
   if (plan.duplicates.length) {
-    say(`note    : ${plan.duplicates.join(', ')} appears more than once; the last line is the one that counts, and that is the one changed`);
+    say(
+      `note    : ${plan.duplicates.join(', ')} appears more than once. The backend reads the first ` +
+        'line; every copy was set to the same value so they cannot disagree',
+    );
   }
 
   // 2b. the boot wrapper, whose --host wins over the file
