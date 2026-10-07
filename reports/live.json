@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-07T16:56:29.9031146+01:00",
+    "at":  "2026-10-07T17:00:11.9042449+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -15,8 +15,8 @@
                  },
     "decks":  {
                   "summary":  "4 live, 1 stale, 1 static, 1 no feed",
-                  "not_live":  "CrowPanel: display (LAN reads), feed (/panel/crowpanel/state)",
-                  "checked_at":  "2026-10-07T15:43:15.357501+00:00"
+                  "not_live":  "CrowPanel: display (LAN reads)",
+                  "checked_at":  "2026-10-07T16:00:04.450169+00:00"
               },
     "sync":  "IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)"
 }
