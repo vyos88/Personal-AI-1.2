@@ -25,6 +25,7 @@ test('every song gets a line and a verdict, and the totals add up', { skip, time
   const a = song(1, 'completed'); writeFileSync(join(audio, `${a}.wav`), 'RIFF'); writeFileSync(join(audio, `${a}.mp3`), 'ID3');
   const b = song(2, 'completed', { hidden: true }); writeFileSync(join(audio, `${b}.wav`), 'RIFF');
   song(3, 'completed');
+  const e = song(5, 'completed'); writeFileSync(join(audio, `${e}.mp3`), 'ID3');
   song(4, 'failed');
   writeFileSync(join(jobs, 'broken.json'), '{');
   writeFileSync(join(audio, 'mp3-backfill.json'), JSON.stringify({ at: 'now', ffmpeg: true, converted: 1, failed: 0, waiting: 1, already: 0, total: 2, failures: [] }));
@@ -34,12 +35,13 @@ test('every song gets a line and a verdict, and the totals add up', { skip, time
   assert.equal(r.status, 1, 'a finished song without its MP3 is not done yet\n' + out);
   assert.match(out, /2026-10-01 +180s Song 1 .*plays \(MP3\)/);
   assert.match(out, /Song 2 .*plays \(WAV only: MP3 still to be made\) \[hidden\]/);
-  assert.match(out, /Song 3 .*cannot play: WAV missing/);
+  assert.match(out, /Song 3 .*cannot play: WAV and MP3 missing/);
+  assert.match(out, /Song 5 .*wav none +mp3 .*plays \(MP3\)/, 'a song whose WAV was deleted after its MP3 plays');
   assert.match(out, /Song 4 .*cannot play: failed/);
   assert.match(out, /unreadable receipt/);
-  assert.match(out, /TOTAL: 5 song\(s\): 2 can play, 1 of them as MP3, 1 still WAV only; 1 finished but WAV missing; 1 not finished or failed; 1 unreadable/);
+  assert.match(out, /TOTAL: 6 song\(s\): 3 can play, 2 of them as MP3, 1 still WAV only; 1 finished but no audio; 1 not finished or failed; 1 unreadable/);
   assert.match(out, /backend MP3 backfill, last pass now: ffmpeg True, made 1/);
-  assert.match(out, /memory: 5 files/);
+  assert.match(out, /memory: 6 files/);
   assert.match(out, /MISSING: .*\.env\.local \(contents not read\)/);
   assert.doesNotMatch(out, /never printed|VyoS/);
 });
