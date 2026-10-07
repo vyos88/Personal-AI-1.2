@@ -1,16 +1,16 @@
-Claude (cloud) report, 2026-10-07 22:57 UTC
+Claude (cloud) report, 2026-10-07 23:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 22:56 UTC): no problems found. Alpha is live. Chat answered in 3.1 s with 0 s load. RAM 3.1 of 15.8 GB free.
-Decks: EVERY deck is live (22:28 UTC). The deck-by-deck audit (#212) found 21 working, 0 empty, 0 broken.
+Worker1 (Laptop41) report is fresh (doctor 23:41 UTC). Alpha is live. RAM 5.5 of 15.8 GB free, C: 137.6 GB free. Every deck is live (audit: 21 working, 0 empty, 0 broken). The CrowPanel (192.168.2.97) keeps calling the backend.
 
-CrowPanel: FIXED after about 17 hours. The cause was not a renumbered router. At 03:54 UTC the "Starlink V" Wi-Fi (192.168.2.x, the panel's network) dropped for a moment, and Windows fell back to the other "STARLINK" network (192.168.1.x) and stayed there. A session with a shell on Worker1 (Desktop Commander, from V) rejoined "Starlink V" at 22:10 UTC. Worker1 is 192.168.2.151 again, and the panel (192.168.2.97) calls the backend dozens of times a minute. Keeping Worker1 on "Starlink V" (and off the fallback network) stops this recurring.
+NEW, NEEDS V: Ollama is down on Worker1, so Alpha's chat has no model. It has not answered on 127.0.0.1:11434 since 23:11 UTC (3 doctor runs). Fix: start the Ollama app, or run "ollama serve", on Worker1.
+NEW: live sync failed on route-b 5147fef at 23:19 UTC. Worker1 could not fetch vyos88/Alpha ("Empty reply from server"); Alpha is private, so Worker1 may need git credentials for github.com. Whatever was written was put back. It now waits for the next route-b commit and captures nothing until then. If it keeps failing, V signs in once on Worker1 (git credential-manager or gh auth login).
 
-Disk: at V's request Docker's data disk on Worker1 was deleted (docker_data.vhdx, 114.9 GB, last written 1 Sept). C: free went from about 17 GB to 132 GB. Docker Desktop is still installed; its old images, containers and volumes are gone. Nothing else was touched.
+Alpha move (#189): Phase 2. #214 (alpha-data-in) copies the owner's recovered data from a plugged-in drive into the Host's clone. h23 prepare-alpha on the Host passed again at 23:04 UTC. #216: the standby must be told what to watch, because the installer's default never promotes on the coordinator's machine.
+Songs: #215: songs-check counts an MP3-only song as playable (Alpha now deletes the WAV after making the MP3).
 
-Alpha move (#189): Phase 2 has started. #213 adds receive-alpha-data, the data step on the Host. h22 fleet inventory on the Host ran OK.
-Merged since 21:57: #210 (panel opens its port by device name at any COM number), #213. V merged Alpha#76 (player retry UI). Alpha#80 is held: COM7 is not the panel. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 is waiting for V.
+Merged since 22:57: #214, #215, #216. New handoff: docs/HANDOFF on Ollama down on Laptop41. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 is waiting for V.
 
-Needs V: keep Worker1 on "Starlink V"; a DHCP reservation for Worker1; #160's conflict; Alpha#77; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
+Needs V: start Ollama on Worker1; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160's conflict; Alpha#77; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
