@@ -1,8 +1,65 @@
-﻿# laptop41 autopilot 20261007-221349
+﻿# laptop41 autopilot 20261007-222849
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout a1baa39 is current
+checkout bcd5e47 is current
+
+## 20261007-66-panel-identify  panel-identify  ->  1   (2026-10-07T22:29:06, 0s)
+```
+asking 5 port(s) what is on them, up to 30s each â€” opening a port reboots the board behind it, which is why this is not instant.
+  COM4           unreadable could not open COM4: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM4'
+  COM6           unreadable could not open COM6: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM6'
+  COM7           unreadable could not open COM7: ENOENT: no such file or directory, open 'C:\services\alpha-tunnel\COM7'
+  COM20          unreadable could not configure COM20: Command failed: mode.com \\.\COM20 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
+  COM24          unreadable could not configure COM24: Command failed: mode.com \\.\COM24 BAUD=115200 PARITY=n DATA=8 STOP=1 to=off xon=off odsr=off octs=off dtr=on rts=on idsr=off
+no board here is running this firmware.
+```
+
+## auto-live-sync-20261007-222849  live-sync (standing)  ->  0 (in sync)   (2026-10-07T22:29:06, 196s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: cbd4b34..cedec9d of claude/frie...(30) (last applied here: cbd4b34)
+      applies  M backend/api/crowpanel.py
+      applies  M backend/main.py
+      applies  M backend/music_singing.py
+      skipped  M backend/tests/test_assistant_heartbeat.py  (a test this machine does not have)
+      applies  M backend/tests/test_singing_mp3.py
+      applies  M frontend/src/musicAudioLoader.js
+      applies  M frontend/src/musicAudioLoader.test.js
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 6 file(s)
+      ok: 4 Python file(s) parse
+      packages unchanged and installed: building (no npm ci)...
+      ok: frontend built
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+      stopped pid 10660, which held port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 20972, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+DELIVERED: cbd4b34..cedec9d of claude/frie...(30)
+CAPTURED: nothing; every source file here matches cedec9d
+```
+
+## auto-deck-liveness-20261007-222849  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T22:32:23, 22s)
+```
+DECKS: 2 live, 4 stale, 1 static, 1 no feed
+DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 152 s old, fresh for ? s
+DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
+    manager snapshot 13 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 77 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 1 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## 20261007-66-songs-check  songs-check  ->  1   (2026-10-07T22:14:05, 2s)
 ```
@@ -351,92 +408,5 @@ STOP STRAY SITE DESKTOP-41HPLCN 2026-10-07 17:39
 live : tree 4332 (2 processes, 53 MB) holds 4173: C:\Windows\system32\cmd.exe /d /s /c vite preview --host 127.0.0.1 --port 4173 --strictPor...
 leave: tree 6508 (31 MB) is not a preview server, left alone: "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\....
 nothing to stop: one preview tree, and it is the live one
-```
-
-## 20261007-59-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T17:39:25, 20s)
-```
-FLEET INVENTORY DESKTOP-41HPLCN 2026-10-07 17:39
-TASKS (9 enabled, 28 disabled): name | state | last run | result | next | runs
-  Alpha | Running | 10-07 17:12 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
-  Alpha Autopilot | Running | 10-07 17:38 | 0x41301 | 10-07 17:43 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  Alpha Backend | Running | 10-07 17:12 | 0x41301 | - | cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha-backend.cmd"
-  Alpha Doctor | Ready | 10-07 17:26 | 0x0 | 10-07 17:41 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  Alpha peer report | Running | 10-07 17:38 | 0x41301 | 10-07 17:41 | powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\AlphaData\a...
-  Alpha Self-Heal | Ready | 10-07 17:37 | 0x0 | 10-07 17:39 | node.exe "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --confi...
-  Alpha Server - Health Guard | Running | 10-07 17:39 | 0x41301 | 10-07 17:44 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  alpha-image bridge | Running | 10-07 16:59 | 0x800710E0 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  alpha-music bridge | Running | 10-07 02:15 | 0x800710E0 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
- disabled: Client - Follow Host Updates, Fleet Render Maintenance, Fleet Transport Receiver, Hourly Governed Improvement, Server - Start at Logon, Steward - agent-officer, Steward - api-improvement, Steward - chat-improvement, Steward - cloudflare-commander, Steward - deck-improvement, Steward - evolution, Steward - fleet-verify, Steward - fullscreen-caretaker, Steward - gmail-triage, Steward - in...
-SERVICES: alpha-agent=Running/Automatic; cloudflared=Stopped/Automatic
-PROCESSES (28 roles): role xN | MB | pids | command
-  codex x1 | 28 MB | 9324 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.930.4958.0_x64__2p2nqsd0c76g0\app\...
-  cloudflared x1 | 33 MB | 11956 | "C:\Program Files (x86)\cloudflared\cloudflared.exe" tunnel --metrics 127.0.0.1:...
-  ps: alpha_generation_monitor.ps1 x1 | 18 MB | 9088 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  py: alpha_fleet_transport.py x1 | 18 MB | 9520 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" "C:\Users...
-  ps: alpha_runtime_always_on.ps1 x1 | 36 MB | 17272 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  py: alpha_comfyui_bridge.py x1 | 8 MB | 16876 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" C:\Users\...
-  ps: alpha_coordination_tunnel.ps1 x1 | 139 MB | 9824 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  ps: alpha-desktop-tray.ps1 x1 | 101 MB | 1196 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -...
-  llama-server x2 | 35 MB | 7428,18996 | C:\Users\Vyo\AppData\Local\Programs\Ollama\lib\ollama\llama-server.exe --model E...
-  ollama x1 | 90 MB | 15680 | "C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama app.exe" 
-  py: main.py x1 | 3473 MB | 15724 | "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127....
-  claude x1 | 1312 MB | 6188 | "C:\Program Files\WindowsApps\Claude_2.26454.0.0_x64__pzs8sxrjxfjjc\app\claude.e...
-  node: npx-cli.js x1 | 45 MB | 6612 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
-  node: index.js x1 | 61 MB | 12668 | "node" "C:\Users\Vyo\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules\...
-  ps: alpha_runtime_watchdog.ps1 x1 | 42 MB | 18664 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
-  ps: start-music-bridge.ps1 x1 | 5 MB | 10936 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  ps: start-image-bridge.ps1 x1 | 19 MB | 18340 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  node: npm-cli.js x2 | 16 MB | 11396,22744 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
-  Alpha site x2 | 87 MB | 6508,4332 | "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modul...
-  music bridge x1 | 15 MB | 18620 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\music-bridge...
-  ... 8 more role(s)
-DUPLICATES: Alpha site x2 (each of these should run once)
-PORTS: 8001=python(10052) 4173=node(20972) 8787=- 8790=node(18620) 7861=node(8388) 7860=python(16160) 8188=python(18408) 11434=ollama(19292) 8080=-
-AGENT MANAGER: 59 agent(s), snapshot 0 min old
-  alpha-runtime-caretaker=RUNTIME-DISABLED, alpha-fullscreen-caretaker=RUNTIME-DISABLED, manager=SUPERVISING, alpha-local=RUNTIME-PAUSED, alpha-coding=R
-  UNTIME-PAUSED, alpha-design-steward=RUNTIME-DISABLED, alpha-api-steward=RUNTIME-DISABLED, alpha-chat-improver=RUNTIME-DISABLED, alpha-voice-steward=RU
-  NTIME-DISABLED, alpha-music-steward=RUNTIME-DISABLED, alpha-fleet-verifier=RUNTIME-DISABLED, alpha-spatial-signal-steward=RUNTIME-DISABLED, alpha-evol
-  ution-steward=RUNTIME-DISABLED, alpha-interface-style-steward=RUNTIME-DISABLED, alpha-cloudflare-commander=RUNTIME-DISABLED, alpha-gmail-steward=RUNTI
-  ME-DISABLED, alpha-package-steward=RUNTIME-DISABLED, alpha-surface-health-steward=RUNTIME-DISABLED, alpha-agent-officer=RUNTIME-DISABLED, codex-mirror
-  =MIRROR-ONLY, claude-mirror=MIRROR-ONLY, chatgpt-mirror=MIRROR-ONLY, model:alph...(40), model:alph...(27)
-  d54=ATTENTION, model:alph...(36), model:alph...(33), model:alph...(41), m
-  odel:alph...(41), model:alph...(37), model:alph...(34), model:alpha-cha
-  t-di...(30), model:alph...(39), model:alph...(35), model:alpha-chat-qc-c63eb759
-  =ATTENTION, runtime-daemon:assistant-loop=RUNTIME-AVAILABLE, runtime-daemon:autonomous-thoughts=RUNTIME-DISABLED, runtime-daemon:autoprogress=RUNTIME-
-  AVAILABLE, runtime-daemon:auto-improve=RUNTIME-AVAILABLE, runtime-daemon:workflow-schedules=RUNTIME-HEALTHY, runtime-daemon:memory-maintenance=RUNTIME
-  -HEALTHY, runtime-daemon:autonomy-run-worker=RUNTIME-PAUSED, runtime-daemon:background-supervisor=RUNTIME-HEALTHY, runtime-task:alpha:agent-scheduler=
-  RUNTIME-HEALTHY, runtime-task:alpha:atlas-integrity-probe=RUNTIME-HEALTHY, runtime-task:alpha:auto-learning=RUNTIME-HEALTHY, runtime-task:alpha:autono
-  my-run-worker=RUNTIME-HEALTHY, runtime-task:alpha:autosave=RUNTIME-HEALTHY, runtime-task:alpha:background-supervisor=RUNTIME-HEALTHY, runtime-task:alp
-  ha:calibration-resolution=RUNTIME-HEALTHY, runtime-task:alpha:dual-consciousness-poll=RUNTIME-HEALTHY, runtime-task:alpha:gmail-auto-sync=RUNTIME-HEAL
-  THY, runtime-task:alpha:gmail-self-test=RUNTIME-HEALTHY, runtime-task:alpha:memory-maintenance=RUNTIME-HEALTHY, runtime-task:alpha:ollama-keepalive=RU
-  NTIME-HEALTHY, runtime-task:alpha:tunnel-owner-replies=RUNTIME-HEALTHY, runtime-task:alpha:tunnel-work-observations=RUNTIME-HEALTHY, runtime-task:alph
-  a:usb-monitor=RUNTIME-HEALTHY, runtime-task:alpha:visu...(38), runtime-task:alpha:workflow-scheduler=RUNTIME-HEALTHY
-```
-
-## auto-deck-liveness-20261007-173354  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T17:34:33, 13s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 24 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 1 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 4 s old, fresh for 90 s
-DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
-    assistant heartbeat 576 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 482 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-brain-topology-20261007-171846  brain-topology (standing)  ->  0 (deck ok)   (2026-10-07T17:19:18, 1s)
-```
-OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
-OK: the deck's source draws the links the backend sends and checks them (Region links)
-OK: the site serves the fixed deck (Brai...(25).js)
 ```
 
