@@ -398,6 +398,23 @@
       "id": "20261007-60-stop-stray-site",
       "do": "stop-stray-site",
       "why": "re-run with #202: job 58 left pid 6508 alone (not a preview server); the report now says what it runs, since when, and its ports"
+    },
+    {
+      "id": "20261007-63-comfyui-off",
+      "do": "comfyui-off",
+      "why": "owner yes 2026-10-07 ~20:47 UTC (option A, 'do both A and B'): stop Worker1's ComfyUI (3.4 GB) so Alpha has memory; pictures go to the Host (Personal-AI-1.2#205)"
+    },
+    {
+      "id": "20261007-64-live-test-image",
+      "do": "live-test",
+      "count": 2,
+      "only": "image",
+      "why": "owner asked to test image creation after A: two pictures through the image bridge Alpha's chat uses, and which machine made each"
+    },
+    {
+      "id": "20261007-65-doctor",
+      "do": "doctor",
+      "why": "owner asked to test chat: the doctor's chat-model answer and /chat check, plus free memory and the deck feed after A and B"
     }
   ],
   "autofix": {
