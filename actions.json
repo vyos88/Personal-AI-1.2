@@ -116,6 +116,11 @@
       "id": "20261007-h21-songs-check",
       "do": "songs-check",
       "why": "owner: songs must work on the Host too; confirms the USB copy (memory, songs, .env.local presence) once it lands; re-queued after the copy"
+    },
+    {
+      "id": "20261007-h22-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "owner 2026-10-07 ~23:00Z: decks look different on the Host; read-only list of what Alpha runs here (site/backend ports, tasks) to compare with Worker1 (ca87445, site built 22:31)"
     }
   ],
   "autofix": {
