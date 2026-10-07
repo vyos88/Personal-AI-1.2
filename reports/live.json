@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-07T04:39:12.5903863+01:00",
+    "at":  "2026-10-07T04:44:26.8413887+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -14,11 +14,11 @@
                      "snapshot":  "the rollback copy of the site was not saved: EPERM: operation not permitted, rename \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good.tmp\u0027 -\u003e \u0027C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\dist.last-good\u0027"
                  },
     "decks":  {
-                  "summary":  "5 live, 1 setting, 1 static, 1 no feed",
+                  "summary":  "5 live, 1 stale, 1 static, 1 no feed",
                   "not_live":  [
                                    "CrowPanel feed (/panel/crowpanel/state)"
                                ],
-                  "checked_at":  "2026-10-07T03:29:18.439551+00:00"
+                  "checked_at":  "2026-10-07T03:44:23.813831+00:00"
               },
     "sync":  "IN SYNC: this machine runs 7ca5aa7 of claude/frie...(30)"
 }
