@@ -316,6 +316,11 @@
       "count": 1,
       "only": "music",
       "why": "prove music still comes back after job 47 restarted the agent and the bridge on #159"
+    },
+    {
+      "id": "20261007-49-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "owner asked (2026-10-07): one recipe of every agent and worker, then stop the ones not needed. Read-only list for Claude and Alpha to decide from (HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md, BACKLOG F1)"
     }
   ],
   "autofix": {
