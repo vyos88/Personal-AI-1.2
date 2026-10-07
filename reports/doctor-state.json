@@ -1,19 +1,24 @@
 {
     "cloudSeen":  "a90c834dc680dcb46865738d49a1d8c4dc6562d4",
-    "lastRun":  "2026-10-07T19:56:44",
+    "lastRun":  "2026-10-07T20:26:46",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
+                 "only #.# of #.# GB RAM free":  {
+                                                     "since":  "2026-10-07T20:26:46",
+                                                     "runs":  1,
+                                                     "text":  "only 1.1 of 15.8 GB RAM free"
+                                                 },
                  "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.":  {
                                                                                                                                                                                                                                    "since":  "2026-10-07T19:11:57",
-                                                                                                                                                                                                                                   "runs":  4,
+                                                                                                                                                                                                                                   "runs":  6,
                                                                                                                                                                                                                                    "text":  "Alpha\u0027s deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host\u0027s assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes."
                                                                                                                                                                                                                                },
                  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
                                                                                                                                                          "since":  "2026-10-07T05:11:33",
-                                                                                                                                                         "runs":  60,
+                                                                                                                                                         "runs":  62,
                                                                                                                                                          "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-07T19:56:44",
+    "lastPost":  "2026-10-07T20:26:46",
     "relay":  "relayed status/cloud a90c834"
 }
