@@ -109,17 +109,20 @@ that last question on its own, any time.
 
 ### What is on Worker1's serial ports
 
-Worker1 (DESKTOP-41HPLCN) has four USB serial boards. That is why every tool
-here that picks a port by itself refuses to guess there.
+Worker1 (DESKTOP-41HPLCN) has five USB serial boards, four of them the same
+CH340 bridge (`1a86:7523`). That is why every tool here that picks a port by
+itself refuses to guess there.
 
-| Port | Board | Rule |
-|---|---|---|
-| COM24 | the network bridge (V, 2026-10-07) | never opened by a panel tool |
-| COM20 | the Arduino Uno (V, 2026-10-07) | never opened by a panel tool: opening a port resets an Uno (DTR) |
-| COM7 | the CrowPanel deck (USB Serial Device; on COM7 since the 2026-10-02 briefing) | the deck's `STATUS` / `ALPHA` go here |
-| COM4 | the LoRa board (V, 2026-10-07) | never opened by a panel tool: Alpha treats LoRa as passive (detect, never transmit) |
+| Port | Board | USB instance (doctor section 6) | Rule |
+|---|---|---|---|
+| COM24 | the network bridge, an ESP32 (V, 2026-10-07) | `1a86:7523 5&228C54A3&0&4` | never opened by a panel tool |
+| COM20 | the Arduino Uno, a CH340 clone (V, 2026-10-07) | `1a86:7523 6&24DCC5C9&0&1` | never opened by a panel tool: opening a port resets an Uno (DTR) |
+| COM7 | the CrowPanel deck (native USB) | `303a:1001 8&13DABE55&0&0000` | the deck's `STATUS` / `ALPHA` go here |
+| COM6 | the Alpha Lite Deck, USB only, no Wi-Fi (V, 2026-10-07) | `1a86:7523 7&2CA6C026&0&3` | not the CrowPanel; never opened by a panel tool |
+| COM4 | the LoRa board (V, 2026-10-07) | `1a86:7523 6&13504C26&0&2` | never opened: Alpha treats LoRa as passive (detect, never transmit) |
 
-Windows renumbers COM ports when a board is re-plugged, so check this table
+Windows renumbers COM ports when a board is re-plugged, so match a board by
+its USB instance (which follows the USB socket it is in) and check this table
 against the doctor's section 6 before trusting a number. Pass the deck's port
 explicitly (`connect-panel.mjs --port`, `ALPHA_PANEL_PORT`) rather than letting
 a tool probe: probing opens every candidate.
