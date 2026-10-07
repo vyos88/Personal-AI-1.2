@@ -234,7 +234,12 @@ export function writeLive(file, text, { bom = false, crlf = false } = {}) {
 export function plan({ root, patch, files }) {
   const stage = mkdtempSync(join(tmpdir(), 'alpha-update-'));
   const patchFile = join(stage, '.update.patch');
-  writeFileSync(patchFile, patch);
+  // The scratch tree is LF (readLive), so the patch must be too. Live sync
+  // captures Worker1's files as they are, so the live branch holds CRLF files
+  // (and a few with the old CR-CR-LF), and a patch that kept their CRs could
+  // never match: every change to one was refused as "differs where the change
+  // was made". writeLive puts each file's own line endings back.
+  writeFileSync(patchFile, toLf(patch));
   const tree = join(stage, 'tree');
   const meta = {};
   for (const f of files) {
