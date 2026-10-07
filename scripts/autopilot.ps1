@@ -40,6 +40,7 @@
     panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
+    alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -268,6 +269,10 @@ function Resolve-Action($a) {
     # Phase 2: take what Laptop41 sent over Taildrop, check it against its
     # manifest, put it in place. Refuses while Alpha runs here; starts nothing.
     'receive-alpha-data' { $spec = Ps1 'receive-alpha-data.ps1' @(); $out.timeoutMin = 30 }
+    # The data step of the move: copies memory\ and artifacts\ from an
+    # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
+    # never a .env file; refuses while anything answers on 8001 here.
+    'alpha-data-in' { $spec = Ps1 'alpha-data-in.ps1' @(); $out.timeoutMin = 60 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
