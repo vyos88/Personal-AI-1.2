@@ -1,8 +1,40 @@
-﻿# host autopilot 20261007-162916
+﻿# host autopilot 20261007-163914
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout b58424b is current
+checkout 9e46623 is current
+
+## 20261007-h17-comfyui-back  enable-image  ->  0   (2026-10-07T16:39:19, 53s)
+```
+NVIDIA GPU found: installing CUDA torch
+ComfyUI's torch: 2.11.0+cu128 cuda
+ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon; log C:\AlphaData\comfyui.log)
+image backend: comfyui
+ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
+ok: restarted the agent through task 'alpha-tunnel agent'
+the agent now offers alpha.image
+done: this machine renders images for Alpha through the tunnel
+```
+
+## 20261007-h18-prepare-alpha  prepare-alpha-here  ->  2   (2026-10-07T16:40:12, 145s)
+```
+PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 16:40
+  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
+1. code
+  cloned: 7ca5aa7 10-07 04:20 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
+  NOT READY: no software\backend\main.py in C:\Users\jack\Downloads\VyoS-advance-tech-ai
+2. backend
+  NOT READY: no code yet
+3. site
+  NOT READY: no frontend\package.json yet
+4. chat
+  llama3.2:3b is here
+5. connector (installed only; never started here)
+  installed: C:\Program Files (x86)\cloudflared\cloudflared.exe (not started)
+RAM: 0.4 GB free of 15.8 GB
+STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
+RESULT: not ready: code, backend, site
+```
 
 ## 20261007-h16-alpha-move-check  alpha-move-check  ->  0   (2026-10-07T16:29:23, 16s)
 ```
