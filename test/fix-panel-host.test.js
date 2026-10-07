@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { checkFeed, homeAddresses, planEnv, readKey } from '../scripts/fix-panel-host.mjs';
+import { checkFeed, homeAddresses, planEnv, readKey, restartBackend, waitForFeed } from '../scripts/fix-panel-host.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SCRIPT = join(ROOT, 'scripts', 'fix-panel-host.mjs');
@@ -241,4 +241,51 @@ test('no file, or no home address, is said plainly rather than guessed at', asyn
   });
   assert.equal(missing.code, 1);
   assert.match(missing.stdout, /no file at .*\.env\.local/);
+});
+
+test('with --require-host, a file that sets no HOST is left alone', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'fix-panel-host-'));
+  const envPath = join(dir, '.env.local');
+  const original = 'ALPHA_TRUSTED_HOSTS=127.0.0.1,100.69.243.25\nOLLAMA_MODEL=llama3.2:3b\n';
+  await writeFile(envPath, original);
+  const out = await new Promise((resolvePromise) => {
+    execFile(
+      process.execPath,
+      [SCRIPT, '--env', envPath, '--address', '192.168.1.151', '--require-host'],
+      { cwd: ROOT, timeout: 30_000 },
+      (error, stdout) => resolvePromise({ code: error?.code ?? 0, stdout }),
+    );
+  });
+  assert.equal(out.code, 1);
+  assert.match(out.stdout, /sets no HOST, so the backend takes its addresses from somewhere else\. Nothing changed\./);
+  assert.equal(await readFile(envPath, 'utf8'), original, 'no HOST invented that could drop the tailnet');
+});
+
+test('the restart frees the port the way apply-update does, and only a started task counts', () => {
+  const asked = [];
+  const fake = (started) => (log, options) => {
+    asked.push(options.tasks);
+    log('  stopped pid 42, which held port 8001');
+    log(started ? "  restarted task 'Alpha Backend'" : "  could not start 'Alpha Backend': access denied");
+  };
+  const good = restartBackend('Alpha Backend', 8001, { restart: fake(true) });
+  assert.deepEqual(asked[0], [{ task: 'Alpha Backend', port: 8001 }], 'the backend task and its port, nothing else');
+  assert.equal(good.ok, true);
+  assert.match(good.out, /stopped pid 42/);
+  assert.equal(restartBackend('Alpha Backend', 8001, { restart: fake(false) }).ok, false);
+});
+
+test('after a restart the feed is asked until it answers, and no longer than the deadline', async () => {
+  let asked = 0;
+  const naps = [];
+  const slowStart = async () => (++asked >= 4 ? { ok: true, feed: 200 } : { ok: false, health: 'unreachable' });
+  const feed = await waitForFeed('http://192.168.1.151:8001', { check: slowStart, everyMs: 5, deadlineMs: 60_000, sleep: async (ms) => naps.push(ms) });
+  assert.equal(feed.ok, true, 'a backend still loading is waited for, not reported as down');
+  assert.equal(asked, 4);
+  assert.deepEqual(naps, [5, 5, 5]);
+
+  let tries = 0;
+  const never = await waitForFeed('http://x', { check: async () => (tries++, { ok: false, health: 'timeout' }), everyMs: 10, deadlineMs: 5, sleep: async () => {} });
+  assert.equal(never.ok, false);
+  assert.equal(tries, 1, 'past the deadline it stops asking');
 });
