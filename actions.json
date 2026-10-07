@@ -348,6 +348,14 @@
     {
       "id": "20261007-54-promo-reel",
       "do": "promo-reel"
+    },
+    {
+      "id": "20261007-54-panel-host",
+      "do": "panel-host"
+    },
+    {
+      "id": "20261007-55-panel-endpoint",
+      "do": "panel-endpoint"
     }
   ],
   "autofix": {
