@@ -1,8 +1,17 @@
-﻿# laptop41 autopilot 20261007-182353
+﻿# laptop41 autopilot 20261007-183355
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout f5cbc3a is current
+checkout 67563f8 is current
+
+## 20261007-60-stop-stray-site  stop-stray-site  ->  0   (2026-10-07T18:34:27, 7s)
+```
+STOP STRAY SITE DESKTOP-41HPLCN 2026-10-07 18:34
+live : tree 4332 (2 processes, 39 MB) holds 4173: C:\Windows\system32\cmd.exe /d /s /c vite preview --host 127.0.0.1 --port 4173 --strictPor...
+leave: tree 6508 (178 MB) is not a preview server, left alone. What it is:
+       pid 6508 node.exe, started 10-07 01:32, listening on 5173: "node" "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\..\vite\bin\vite.js" --host 127.0.0.1 --port 5173 --strictPort
+nothing to stop: one preview tree, and it is the live one
+```
 
 ## auto-deck-liveness-20261007-182353  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T18:24:31, 12s)
 ```
@@ -387,11 +396,5 @@ restart : stopped pid 20592, which held port 8001
 restart : restarted task 'Alpha Backend'
 restart : Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
 feed    : nothing answers on http://192.168.1.151:8001 â€” the backend is not listening on that address. If it did not restart, start it and re-run with --no-restart; a firewall rule for TCP 8001 on the private profile is the other thing that blocks this.
-```
-
-## 20261007-53-panel-endpoint  panel-endpoint  ->  1   (2026-10-07T15:56:06, 4s)
-```
-this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8001
-PROBLEM: the backend does not answer on http://192.168.1.151:8001/health (HTTP 000): it is not listening on 192.168.1.151 yet. Add 192.168.1.151 to HOST and ALPHA_TRUSTED_HOSTS in Alpha's .env.local (scripts\fix-panel-host.mjs) and restart the backend; pointing the deck here now would leave it dark
 ```
 
