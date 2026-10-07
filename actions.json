@@ -302,6 +302,20 @@
       "do": "live-test",
       "count": 1,
       "why": "owner renamed the Host's Windows account (former Jack's laptop); prove music and images still come back from Host through the tunnel"
+    },
+    {
+      "id": "20261007-47-enable-music",
+      "do": "enable-music",
+      "bridge": true,
+      "machines": "host,worker1",
+      "why": "owner asked: Worker1 git pull and restart the worker1 agent and the music bridge for #159 (music playback: forgotten tracks, express lane, resumable downloads, MP3). This pass's own pull brings #159; enable-music reinstalls requirements-music.txt (imageio-ffmpeg), restarts the alpha-agent service and the bridge on 8790. machines=host,worker1 keeps the Host-first order."
+    },
+    {
+      "id": "20261007-48-music-check",
+      "do": "live-test",
+      "count": 1,
+      "only": "music",
+      "why": "prove music still comes back after job 47 restarted the agent and the bridge on #159"
     }
   ],
   "autofix": {
