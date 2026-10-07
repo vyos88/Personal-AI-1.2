@@ -79,6 +79,11 @@
       "id": "20261007-h14-fleet-inventory",
       "do": "fleet-inventory",
       "why": "communication check 2026-10-07 14:30 UTC: is the leftover vite preview tree (Worker1) still there, and DUPLICATES on both; read-only (HANDOFF_2026-10-07c)"
+    },
+    {
+      "id": "20261007-h15-alpha-move-check",
+      "do": "alpha-move-check",
+      "why": "what the Host lacks to run Alpha (owner's decision 2026-10-07; read-only). HANDOFF_2026-10-07d Phase 0"
     }
   ],
   "autofix": {
