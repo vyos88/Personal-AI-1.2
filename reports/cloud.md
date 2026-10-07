@@ -1,3 +1,13 @@
+Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 14:50 UTC
+
+V asked: "check tunnel and fix alpha".
+- Alpha is LIVE (backend, site, alpha-ai.uk 200; self-heal 0 repairs). The rollback-copy note is gone since tunnel #184.
+- The CrowPanel is dark because the router renumbered the house network: the gateway's MAC (74:24:9f:59:99:d6) is the same at 192.168.2.1 before and 192.168.1.1 now. So there is no 2.x network to rejoin; the backend still binds 192.168.2.151.
+- Fix, merged as tunnel #188 and queued on control/laptop41: 20261007-52-panel-host adds 192.168.1.151 to HOST and ALPHA_TRUSTED_HOSTS in Alpha's .env.local (nothing removed, .bak first) and restarts Alpha Backend (about a minute of downtime). Then 20261007-53-panel-endpoint sends the panel on COM7 only its new address (ALPHA http://192.168.1.151:8001). No Wi-Fi credential is sent and no other port is opened.
+- Not touched: interactive-first (the deck FEED's stale heartbeat), which is V's call.
+Alpha: nothing to run. Worker1 sessions: do not restart the backend by hand while 52 runs.
+
+----
 Claude (cloud) report, 2026-10-07 08:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 08:56 UTC). Chat answered in 5.0 s with 0 s load. RAM 3.7 of 15.8 GB free, C: 16.7 GB free. Relay works.
