@@ -837,3 +837,59 @@ test('stop-stray-site stops only a preview tree that does not hold the port', { 
     assert.deepEqual(p.stop, [], 'without a live tree to tell it from, nothing is stopped');
   }
 });
+
+// The owner, 2026-10-07: Alpha checks her decks one by one and reports in the
+// tunnel. Each new deck-audit report goes into the autopilot report once.
+test("Alpha's deck audit reaches the tunnel once per report", { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-audit-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [] }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const folder = join(alpha, 'memory', 'local', 'deck-audit');
+  mkdirSync(folder, { recursive: true });
+  const write = (at, verdict) => writeFileSync(join(folder, 'latest.json'), JSON.stringify({
+    checked_at: at, machine: 'DESKTOP-41HPLCN', counts: { WORKING: 1, [verdict]: 1 },
+    decks: [
+      { deck: 'core', verdict: 'WORKING', why: 'answers with data', content: { keys: 3, lists: { agents: 4 } }, fixes: [] },
+      { deck: 'phone', verdict, why: 'answered 500', content: null, fixes: ['retry: still broken'] },
+    ],
+  }));
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  write('2026-10-07T21:50:00+00:00', 'BROKEN');
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 0 empty, 1 broken/);
+  let md = report();
+  assert.match(md, /deck-audit \(Alpha\) {2}-> {2}2 \(1 working, 0 empty, 1 broken\)/);
+  assert.match(md, /WORKING core: answers with data \(agents 4\)/);
+  assert.match(md, /BROKEN {2}phone: answered 500 \(nothing read\) {2}\[retry: still broken\]/);
+
+  r = run();
+  assert.doesNotMatch(r.stdout, /deck audit \(Alpha\)/, 'the same report is not posted twice');
+
+  write('2026-10-07T22:20:00+00:00', 'EMPTY');
+  r = run();
+  assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 1 empty, 0 broken/);
+});
