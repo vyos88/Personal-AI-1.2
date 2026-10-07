@@ -1,52 +1,52 @@
-laptop41-doctor 20261007-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ f36d8ef 2026-10-07)
+laptop41-doctor 20261007-224103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ bcd5e47 2026-10-07)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 10660 python.exe: 
+  port 8001 : pid 17648 python.exe: 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
               in: 
               wrapper: C:\ProgramData\AlphaBoot\run-alpha.cmd
-  port 4173 : pid 20972 node.exe: 
+  port 4173 : pid 7852 node.exe: 
   frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:True
   ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
 
 === 1. Backend (port 8001) ===
   ok: /health answers 200
   ok: chat fix (dictionary 500) is in the live main.py
-  main.py edited 2026-10-07 03:29; backend started 
+  main.py edited 2026-10-07 22:29; backend started 
 
 === 2. Chat ===
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b
-  ok: chat model 'llama3.2:3b' answered in 1.5s (load 0s, 10.4 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 3.3s (load 0s, 7.7 tokens/s): OK.
   Ollama unloads 'llama3.2:3b' 15 min after each use (OLLAMA_KEEP_ALIVE not set); the next chat then waits for a reload
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
 === 3. Is Alpha stale, and at which layer? ===
-  dist built     2026-10-07 17:12
-  newest source  2026-10-07 17:10  src\liveCoordinationLabels.test.js
+  dist built     2026-10-07 22:31
+  newest source  2026-10-07 22:29  src\musicAudioLoader.test.js
   ok: build is newer than every source file
   frontend probed at https://127.0.0.1:4173/
-  bundle in dist     /assets/index-BXRfhHHd.js
-  bundle on :4173   /assets/index-BXRfhHHd.js
-  bundle public      /assets/index-BXRfhHHd.js
+  bundle in dist     /assets/index-BxAAoqPx.js
+  bundle on :4173   /assets/index-BxAAoqPx.js
+  bundle public      /assets/index-BxAAoqPx.js
   public headers: Server: cloudflare
   ok: 4173 serves the build in dist
   ok: public site serves the same build as this machine
 
 === 4. Public alpha-ai.uk and the boot tasks ===
   ok: https://alpha-ai.uk/ answers 200
-  task Alpha            Running  last run 2026-10-07 17:12 result 0x00041301 (still running)
-  task Alpha Backend    Running  last run 2026-10-07 18:14 result 0x00041301 (still running)
-  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
+  task Alpha            Running  last run 2026-10-07 22:31 result 0x00041301 (still running)
+  task Alpha Backend    Running  last run 2026-10-07 22:31 result 0x00041301 (still running)
+  ok: self-heal is running (its log was written 2 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-07T21:21:39.425Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T21:23:39.418Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-07T21:25:39.434Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T21:35:40.280Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T21:37:39.986Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-07T21:39:39.691Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -72,14 +72,14 @@ laptop41-doctor 20261007-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 5d. Brain topology (neurological deck) ===
   ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
   ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
-  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-CA9EMiAX.js)
+  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-wpwtdqSp.js)
 
 === 6. CrowPanel ===
     COM4
     COM6
     COM7
     COM20
-    COM24   in use by another program?
+    COM24
   device: USB-SERIAL CH340 (COM24)
   device: USB-SERIAL CH340 (COM20)
   device: USB Serial Device (COM7)
@@ -96,22 +96,22 @@ laptop41-doctor 20261007-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.1.88    40:c2:ba:34:3e:22  Reachable
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 14s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 1s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.1.151
   ok: the panel's way in answers: http://192.168.1.151:8001/health 200 (Wi-Fi)
   PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.7 of 15.8 GB RAM free
-  ok: C: 14.6 GB free
-  llama-server                  1,939 MB  pid 18996
-  claude                          598 MB  pid 8028
-  MsMpEng                         457 MB  pid 6040
-  WindowsTerminal                 387 MB  pid 3764
-  chrome                          334 MB  pid 6588
-  python                          254 MB  pid 10660
-  explorer                        246 MB  pid 10108
-  claude                          243 MB  pid 12912
+  ok: 2.8 of 15.8 GB RAM free
+  ok: C: 15 GB free
+  llama-server                  1,772 MB  pid 18996
+  Memory Compression              991 MB  pid 3840
+  claude                          748 MB  pid 8028
+  MsMpEng                         494 MB  pid 6040
+  chrome                          458 MB  pid 23292
+  chrome                          354 MB  pid 6588
+  explorer                        282 MB  pid 10108
+  WindowsTerminal                 281 MB  pid 3764
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -119,12 +119,11 @@ laptop41-doctor 20261007-222602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 23s
-  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 71 run(s), since 2026-10-07T05:11:33)
-  + fixed since last run: Alpha's deck feed is degraded: heartbeat-stale. feed stale - showing last known state; the host's assistant-loop heartbeat is missing or old. Keep retrying; it recovers when the loop resumes.
+  this pass took 46s
+  - NEEDS A PERSON - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 72 run(s), since 2026-10-07T05:11:33)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 71 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  1. [open 72 runs NEEDS A PERSON] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
   4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
