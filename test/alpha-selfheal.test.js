@@ -345,3 +345,24 @@ test('a control URL that is down does not make a healthy Alpha failing', async (
   }
   assert.deepEqual(calls, []);
 });
+
+test('a rollback snapshot that fails says why in the log, and is tried again', async (t) => {
+  const dir = tempDir(t);
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'state', 'selfheal.jsonl'), backend: { url: 'http://x/' }, frontend: { url: 'http://x/' } };
+  const healthy = async () => ({ backend: ok, frontend: { ...ok, fingerprint: 'build-7' }, public: { skipped: true } });
+  let tries = 0;
+  const executor = {
+    snapshot: async () => {
+      tries++;
+      throw new Error("EPERM: operation not permitted, rename 'dist.last-good.tmp' -> 'dist.last-good'");
+    },
+  };
+  for (const now of [0, 2 * MIN, 4 * MIN, 6 * MIN]) await runPass({ config: cfg, probe: healthy, executor, now });
+  const lines = readFileSync(cfg.logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  const snaps = lines.flatMap((l) => l.actions).filter((a) => a.action === 'snapshot');
+  assert.equal(snaps.length, 2, 'not taken, so asked for again on the next pass');
+  assert.equal(tries, 2);
+  assert.equal(snaps[0].code, 1);
+  assert.match(snaps[0].error, /EPERM: operation not permitted, rename/);
+  assert.ok(lines.every((l) => l.events.length === 0), 'a snapshot is not a repair and posts nothing');
+});
