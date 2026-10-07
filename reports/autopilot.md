@@ -1,8 +1,19 @@
-﻿# laptop41 autopilot 20261007-025345
+﻿# laptop41 autopilot 20261007-030345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout d7a0d8c is current
+checkout 1e8cdf5 is current
+
+## auto-live-sync-20261007-030345  live-sync (standing)  ->  0 (in sync)   (2026-10-07T03:04:02, 25s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: 7e76aeb..f219f4b of claude/frie...(30) (last applied here: 7e76aeb)
+    ok: nothing new on claude/frie...(30) since the last apply
+DELIVERED: 7e76aeb..f219f4b of claude/frie...(30)
+CAPTURED: 5 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 386c753 on claude/frie...(30)
+    3 credential-looking line(s) cleared by the owner's list go with this capture
+```
 
 ## auto-live-sync-20261007-025345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T02:54:05, 13s)
 ```
@@ -568,22 +579,6 @@ changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
   ok: wrote 4 file(s)
   the merged file is kept at C:\AlphaData\alpha-ops\backups\alph...(37)\failed\software\backend\main.py
   C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: line 18004: invalid syntax (2300 line(s) from change #3 at lines 15690-15704) -- putting everything back
-  restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-```
-
-## 20261006-40-apply-route-b  apply-update  ->  1   (2026-10-06T22:49:03, 17s)
-```
-Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-changes: dff4d98..a1440fc of claude/frie...(30) (last applied here: dff4d98)
-  applies  M backend/main.py
-  already  D backend/tests/test_image_backend_probe.py
-  applies  A backend/tests/test_image_backend_probe_live.py
-  applies  A backend/tests/test_tunnel_coordinator.py
-  applies  A backend/tunnel_coordinator.py
-  backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-  ok: wrote 4 file(s)
-  the merged file is kept at C:\AlphaData\alpha-ops\backups\alph...(37)\failed\software\backend\main.py
-  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py does not parse: line 18004: invalid syntax (2300 line(s) from the change at lines 15690-15704) -- putting everything back
   restored 1 file(s), removed 3 added file(s) under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 ```
 
