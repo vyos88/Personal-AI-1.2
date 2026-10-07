@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261007-022345
+﻿# laptop41 autopilot 20261007-022845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 34d6963 is current
+
+## auto-live-sync-20261007-022845  live-sync (standing)  ->  0 (in sync)   (2026-10-07T02:29:02, 23s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 0123942 of claude/frie...(30)
+CAPTURED: 1 changed and 43 new source file(s) from DESKTOP-41HPLCN, pushed as 7e76aeb on claude/frie...(30)
+    69 credential-looking line(s) cleared by the owner's list go with this capture
+```
 
 ## auto-live-sync-20261007-022345  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T02:24:06, 5s)
 ```
@@ -574,69 +582,5 @@ ok: image 1 made by host (comfyui) in 16s, 87021 bytes, PNG
 image: 1/1 worked; by machine: host x1
 (node:940) Warning: Setting the NODE_TLS_REJECT_UNAUTHORIZED environment variable to '0' makes TLS connections and HTTPS requests insecure by disabling certificate verification.
 (Use `node --trace-warnings ...` to show where the warning was created)
-```
-
-## 20261006-37-snapshot-new  snapshot  ->  2   (2026-10-06T22:14:20, 234s)
-```
-  software/backend/tests/test_fleet_prerequisites.py:66  credential-looking assignment
-      result = blocking("$credentialPath = 'alphâ€¦(34)'",
-  software/backend/tests/test_fleet_update_control.py:15  credential-looking environment variable
-      KEY = b"testâ€¦(21)"
-  software/backend/tests/test_fleet_update_control.py:19  credential-looking environment variable
-      RELEASE_KEY_ID = manifest_public_key_id(RELEASE_PUBLIC)
-  software/backend/tests/test_planet_build_handoff.py:37  credential-looking assignment
-      key='codiâ€¦(31)'
-  software/backend/tests/test_sensitive_data_gate.py:67  credential-looking assignment
-      assert gate.flagged('client_secret = "..."\n', gaâ€¦(84)'s own tests
-  software/backend/tests/test_sensitive_data_gate.py:71  credential-looking assignment
-      assert gate.flagged('access_token = "..."\n', gaâ€¦(84)'s own tests
-  software/backend/tests/test_sensitive_data_gate.py:75  credential-looking assignment
-      marked = 'access_token = "..."  # sensitive-data-gate: allow - fixture\n'
-  software/backend/tests/test_sensitive_data_gate.py:87  credential-looking assignment
-      'access_token = "..."  # sensitive-data-gate: allow - fixture\n'
-  software/backend/tests/test_sensitive_data_gate.py:88  credential-looking assignment
-      'access_token = "..."\n'  # â€¦(62)'s own tests
-  software/backend/tests/test_sensitive_data_gate.py:95  credential-looking assignment
-      'password = "..."  # sensitive-data-gate: allow - fixture\n',
-  software/backend/tests/test_sensitive_data_gate.py:96  credential-looking assignment
-      'const password = "..."  // sensitive-data-gate: allow - fixture\n',
-  software/backend/tests/test_sensitive_data_gate.py:104  credential-looking assignment
-      line = f'password = "..."  {comment}\n'  # â€¦(62)'s own tests
-  software/frontend/src/avatarPresentationSelection.js:1  credential-looking assignment
-      export const AVATAR_PRESENTATION_SELECTION_KEY='alphâ€¦(34)'
-  software/frontend/src/bodyChatFocus.js:2  credential-looking assignment
-      export const BODY_FOCUS_KEY='alphâ€¦(16)'
-  software/frontend/src/brainOverviewHierarchy.test.js:92  credential-looking assignment
-      assert.match(model,/BRAIN_VISUAL_SNAPSHOT_KEY='alphâ€¦(30)'/)
-  software/frontend/src/chatCommandUnderstanding.js:8  credential-looking assignment
-      export const ANATOMY_LIBRARY_FOCUS_KEY='alphâ€¦(33)'
-  software/frontend/src/chatComposerControls.test.js:111  credential-looking assignment
-      assert.match(docked,/ALWAYS_LISTENING_KEY = 'alphâ€¦(25)'/)
-  software/frontend/src/components/EducationalMissionPanel.jsx:6  credential-looking assignment
-      export const EDUCATION_INTENT_KEY='alphâ€¦(25)'
-  software/frontend/src/components/MusicQuickStart.jsx:47  credential-looking assignment
-      const SIMPLE_KEY='alphâ€¦(21)'
-  software/frontend/src/components/MusicSingingPanel.jsx:8  credential-looking assignment
-      const DRAFT_KEY='alphâ€¦(20)'
-  software/frontend/src/components/MusicSingingPanel.jsx:9  credential-looking assignment
-      const JOB_KEY='alphâ€¦(17)'
-  software/frontend/src/config/deckRecommendationActions.js:3  credential-looking assignment
-      export const DECK_CONTINUITY_KEY = 'alphâ€¦(21)'
-  software/frontend/src/educationalLearning.js:7  credential-looking assignment
-      export const EDUCATION_PROGRESS_KEY='alphâ€¦(27)'
-  software/frontend/src/educationalLearning.js:8  credential-looking assignment
-      export const EDUCATION_LEVEL_KEY='alphâ€¦(24)'
-  software/frontend/src/gmailConnectionAlert.js:6  credential-looking assignment
-      * credential_storage: "procâ€¦(19)" -- so every backend restart
-  software/frontend/src/softwareTaskFocus.js:22  credential-looking assignment
-      export const SOFTWARE_TASK_FOCUS_KEY = 'alphâ€¦(24)'
-  software/frontend/src/solarSystemLearning.js:1  credential-looking assignment
-      export const SPACE_LEARNING_FOCUS_KEY='alphâ€¦(25)'
-  software/frontend/src/startupGreetings.js:50  credential-looking assignment
-      const key = 'alphâ€¦(28)'
-  software/frontend/src/theme/matrixSound.js:19  credential-looking assignment
-      const STORAGE_KEY = 'alphâ€¦(18)'
-REFUSED: nothing was pushed. If a line holds a real secret, move it to .env.local and rotate it.
-  If a reviewer has cleared every line above, add:  --allow scripts/alpha_maintenance_review.py:372,scripts/handoff_planet_builds.py:54,scripts/ingest_ecosystem_learning.py:19,scripts/ingest_ecosystem_learning.py:34,scripts/ingest_ecosystem_learning.py:38,scripts/ingest_international_astronomy.py:23,scripts/ingest_international_astronomy.py:34,scripts/refresh_animal_groups.py:57,scripts/refresh_workspace_knowledge.py:44,scripts/refresh_workspace_knowledge.py:56,scripts/retain_space_visual_lesson.py:14,scripts/run_educational_reviews.py:42,software/backend/chat_length_control.py:31,software/backend/fleet_gpu_view.py:3,software/backend/learning_evidence.py:42,software/backend/music_singing.py:26,software/backend/peer_capability_upgrade.py:51,software/backend/peer_capability_upgrade.py:54,software/backend/process_inventory.py:11,software/backend/process_inventory.py:12,software/backend/process_inventory.py:15,software/backend/ring_integration.py:17,software/backend/ring_integration.py:41,software/backend/ring_integration.py:43,software/backend/tests/test_alpha_peer_review_tool.py:14,software/backend/tests/test_alpha_peer_trust_tool.py:15,software/backend/tests/test_alpha_peer_trust_tool.py:16,software/backend/tests/test_alpha_peer_trust_tool.py:98,software/backend/tests/test_alpha_self_upgrade_evidence.py:22,software/backend/tests/test_alpha_self_upgrade_handoff.py:11,software/backend/tests/test_alpha_self_upgrade_handoff.py:12,software/backend/tests/test_alpha_taildrop_handoff.py:34,software/backend/tests/test_alpha_taildrop_handoff.py:35,software/backend/tests/test_alpha_taildrop_retry_steward.py:33,software/backend/tests/test_alpha_taildrop_retry_steward.py:34,software/backend/tests/test_autonomy_mission_admission.py:148,software/backend/tests/test_autonomy_readiness_evidence_checks.py:194,software/backend/tests/test_blocked_prerequisite_findings.py:36,software/backend/tests/test_fleet_prerequisites.py:58,software/backend/tests/test_fleet_prerequisites.py:66,software/backend/tests/test_fleet_update_control.py:15,software/backend/tests/test_fleet_update_control.py:19,software/backend/tests/test_planet_build_handoff.py:37,software/backend/tests/test_sensitive_data_gate.py:67,software/backend/tests/test_sensitive_data_gate.py:71,software/backend/tests/test_sensitive_data_gate.py:75,software/backend/tests/test_sensitive_data_gate.py:87,software/backend/tests/test_sensitive_data_gate.py:88,software/backend/tests/test_sensitive_data_gate.py:95,software/backend/tests/test_sensitive_data_gate.py:96,software/backend/tests/test_sensitive_data_gate.py:104,software/frontend/src/avatarPresentationSelection.js:1,software/frontend/src/bodyChatFocus.js:2,software/frontend/src/brainOverviewHierarchy.test.js:92,software/frontend/src/chatCommandUnderstanding.js:8,software/frontend/src/chatComposerControls.test.js:111,software/frontend/src/components/EducationalMissionPanel.jsx:6,software/frontend/src/components/MusicQuickStart.jsx:47,software/frontend/src/components/MusicSingingPanel.jsx:8,software/frontend/src/components/MusicSingingPanel.jsx:9,software/frontend/src/config/deckRecommendationActions.js:3,software/frontend/src/educationalLearning.js:7,software/frontend/src/educationalLearning.js:8,software/frontend/src/gmailConnectionAlert.js:6,software/frontend/src/softwareTaskFocus.js:22,software/frontend/src/solarSystemLearning.js:1,software/frontend/src/startupGreetings.js:50,software/frontend/src/theme/matrixSound.js:19
 ```
 
