@@ -492,7 +492,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -554,12 +554,53 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Deck liveness (Alpha's scripts\alpha_deck_liveness.py, which live sync
+# delivers): every deck source judged by its own freshness field. Turned on by
+# autofix.deckLiveness in actions.json; runs at most every everyMin minutes
+# (default 15: reading the CrowPanel state costs the backend ~30 s) and is
+# reported only when a deck's verdict changes. It runs with the Python the
+# backend runs, because it signs in with the backend's own token signer.
+$deckKey = if ($state -and $state.deckKey) { [string]$state.deckKey } else { '' }
+$deckAt = if ($state -and $state.deckAt) { [string]$state.deckAt } else { '' }
+$deck = if ($control -and $control.autofix -and $control.autofix.deckLiveness) { $control.autofix.deckLiveness } else { $null }
+if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
+  $every = 15
+  if ($deck -isnot [bool] -and $deck.everyMin) {
+    $n = 0
+    if ([int]::TryParse([string]$deck.everyMin, [ref]$n) -and $n -ge 5 -and $n -le 1440) { $every = $n } else { Write-Host 'autofix.deckLiveness.everyMin must be 5 to 1440: 15 used' }
+  }
+  $last = [datetime]::MinValue
+  $due = -not $deckAt -or -not [datetime]::TryParse($deckAt, [ref]$last) -or ((Get-Date) - $last).TotalMinutes -ge $every
+  if ($due) {
+    $started = Get-Date
+    $deckAt = $started.ToString('s')
+    $deckScript = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'scripts') 'alpha_deck_liveness.py'
+    $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+    $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+    if (-not (Test-Path -LiteralPath $deckScript)) { $text = "STOP: $deckScript is not on this machine yet (live sync delivers it from the live branch)"; $code = 1 }
+    elseif (-not $py) { $text = 'DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]'; $code = 2 }
+    else {
+      $text = (& $py $deckScript --root (Split-Path -Parent $AlphaRoot) 2>&1 | Out-String)
+      $code = $LASTEXITCODE
+    }
+    # The DECK lines carry verdicts, never ages, so a change is a real change.
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(DECK|STOP)' }) -join ' | ')
+    if ($key -ne $deckKey) {
+      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 60) -join "`n"
+      $result = switch ($code) { 0 { '0 (every deck live)' } 2 { '2 (not every deck is live)' } default { "$code (could not run)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-deck-liveness-$stamp"; do = 'deck-liveness (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "deck liveness: $result"
+    }
+    $deckKey = $key
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
