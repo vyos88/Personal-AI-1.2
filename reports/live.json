@@ -1,22 +1,25 @@
 ﻿{
-    "at":  "2026-10-07T23:54:09.0032458+01:00",
+    "at":  "2026-10-08T00:00:59.2411080+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  1,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  ""
                  },
     "decks":  {
-                  "summary":  "5 live, 1 static, 1 no feed",
-                  "not_live":  null,
-                  "checked_at":  "2026-10-07T22:44:20.647557+00:00"
+                  "summary":  "2 stale, 3 live, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
+                                   "command: deck (/command-center/summary)"
+                               ],
+                  "checked_at":  "2026-10-07T23:00:49.605671+00:00"
               },
-    "sync":  "IN SYNC: this machine runs ca87445 of claude/frie...(30)"
+    "sync":  "DELIVERED: ca87445..cfb5371 of claude/frie...(30)"
 }
