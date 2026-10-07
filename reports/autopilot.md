@@ -1,8 +1,46 @@
-﻿# laptop41 autopilot 20261007-215853
+﻿# laptop41 autopilot 20261007-220845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e54805d is current
+
+## auto-live-sync-20261007-220845  live-sync (standing)  ->  2 (needs a person)   (2026-10-07T22:09:05, 11s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: cbd4b34..cedec9d of claude/frie...(30) (last applied here: cbd4b34)
+      applies  M backend/api/crowpanel.py
+      applies  M backend/main.py
+      applies  M backend/music_singing.py
+      conflict M backend/tests/test_assistant_heartbeat.py  -- error: backend/tests/test_assistant_heartbeat.py: No such file or directory
+      applies  M backend/tests/test_singing_mp3.py
+      applies  M frontend/src/musicAudioLoader.js
+      applies  M frontend/src/musicAudioLoader.test.js
+    REFUSED: 1 file(s) here differ where the change was made. Nothing was written.
+      Those files were edited on this machine since alpha-full was taken. Apply those changes by hand, or ask a session to merge them.
+REFUSED: cedec9d: a file here differs where the change was made, and nothing was written
+SKIPPED: nothing is captured while this machine is not on cedec9d
+```
+
+## auto-deck-liveness-20261007-220845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T22:09:16, 5s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 84 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 12 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    16 device(s), newest heartbeat 5 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 18 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 532 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## 20261007-63-comfyui-off  comfyui-off  ->  0   (2026-10-07T21:59:18, 31s)
 ```
@@ -355,35 +393,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## 20261007-cp3-panel-endpoint  panel-endpoint  ->  1   (2026-10-07T17:09:22, 37s)
-```
-this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8001
-ok: backend answers on http://192.168.1.151:8001
-deck port: COM7 (USB Serial Device (COM7))
-PROBLEM: the deck on COM7 did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting. nothing at all came back: the board is silent on this port (its console may be on another port, or it is not running)
-```
-
-## auto-live-sync-20261007-170854  live-sync (standing)  ->  0 (in sync)   (2026-10-07T17:09:59, 236s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: 7ca5aa7..cbd4b34 of claude/frie...(30) (last applied here: 7ca5aa7)
-      applies  M frontend/src/components/CoordinationTunnelPanel.jsx
-      applies  M frontend/src/liveCoordinationLabels.js
-      applies  M frontend/src/liveCoordinationLabels.test.js
-      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-      ok: wrote 3 file(s)
-      packages unchanged and installed: building (no npm ci)...
-      ok: frontend built
-    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-      could not stop pid 22732 on port 8001
-      restarted task 'Alpha Backend'
-      stopped pid 12448, which held port 4173
-      restarted task 'Alpha'
-      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-DELIVERED: 7ca5aa7..cbd4b34 of claude/frie...(30)
-CAPTURED: nothing; every source file here matches cbd4b34
 ```
 
