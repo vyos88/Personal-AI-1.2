@@ -23,18 +23,24 @@
  * restarts the backend and checks the feed from the home address, which is the
  * only check that means anything: it is the request the panel makes.
  *
- * It changes Alpha's configuration, so it is deliberately a command somebody
- * runs, not an autopilot job. `--dry-run` prints the diff and writes nothing.
+ * It changes Alpha's configuration, so it runs only when somebody asks for it:
+ * by hand, or as one queued autopilot id (`panel-host`), never as a standing
+ * check. Nothing in it comes from the queue: the address is this machine's own
+ * and the file is the one the autopilot's own Alpha root names. The owner asked
+ * for that on 2026-10-07, after the router renumbered the house network from
+ * 192.168.2.x to 192.168.1.x and the panel went dark with nobody at the
+ * machine. `--dry-run` prints the diff and writes nothing.
  *
  * Exit 0 when the feed answers on a home-network address; 1 with the reason.
  */
 
-import { execFile } from 'node:child_process';
 import { readFile, writeFile, copyFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { networkInterfaces } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import { restartWindows } from './apply-alpha-update.mjs';
 
 const DEFAULT_ALPHA_ROOT = process.env.ALPHA_APP_ROOT ?? 'C:\\AlphaData\\Alpha';
 const DEFAULT_TASK = 'Alpha Backend';
@@ -56,6 +62,9 @@ Options
   --port <n>          Backend port. Default: ${DEFAULT_PORT}
   --task <name>       Scheduled task to restart. Default: ${DEFAULT_TASK}
   --no-restart        Edit and check only; do not restart the backend
+  --require-host      Stop unless the file already sets HOST (the autopilot
+                      passes this: then the file is surely the one the
+                      backend reads)
   --dry-run           Print what would change and write nothing
   --json              Print the record instead of the running commentary
   --help              This message
@@ -197,12 +206,33 @@ export function planEnv(text, { addresses, lanRead = true } = {}) {
   };
 }
 
-const run = (command, args) =>
-  new Promise((resolvePromise) => {
-    execFile(command, args, { timeout: 120_000, windowsHide: true }, (error, stdout, stderr) =>
-      resolvePromise({ ok: !error, out: `${stdout ?? ''}${stderr ?? ''}`.trim() }),
-    );
-  });
+/**
+ * Restart the backend the way apply-alpha-update.mjs does, the restart that has
+ * worked on the host: /End, stop whatever still holds the port, /Run. /End alone
+ * can leave the backend's python serving the old HOST, and Alpha's
+ * single-instance lock then refuses the new one, so the change never takes.
+ */
+export function restartBackend(task, port, { restart = restartWindows } = {}) {
+  const lines = [];
+  restart((line) => lines.push(String(line).trim()), { tasks: [{ task, port }] });
+  return { task, ok: lines.includes(`restarted task '${task}'`), out: lines.join('\n').slice(-400), lines };
+}
+
+/**
+ * Ask until the feed answers or the deadline passes. A restarted backend loads
+ * for a while before it binds, and the next queued step (panel-endpoint) checks
+ * the same address, so giving up early would fail both while Alpha came up fine.
+ */
+export async function waitForFeed(base, { deadlineMs = 120_000, everyMs = 5_000, check = checkFeed, sleep } = {}) {
+  const nap = sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const until = Date.now() + deadlineMs;
+  let feed = await check(base);
+  while (!feed.ok && Date.now() + everyMs <= until) {
+    await nap(everyMs);
+    feed = await check(base);
+  }
+  return feed;
+}
 
 /** The request the panel makes, from the address the panel would use. */
 export async function checkFeed(base, { timeoutMs = 5_000 } = {}) {
@@ -239,12 +269,14 @@ function parseArgs(argv) {
     port: DEFAULT_PORT,
     task: DEFAULT_TASK,
     restart: true,
+    requireHost: false,
     dryRun: false,
     json: false,
   };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === '--no-restart') options.restart = false;
+    else if (arg === '--require-host') options.requireHost = true;
     else if (arg === '--dry-run') options.dryRun = true;
     else if (arg === '--json') options.json = true;
     else if (arg === '--help' || arg === '-h') options.help = true;
@@ -301,6 +333,12 @@ async function main() {
   record.env = envPath;
 
   const text = await readFile(envPath, 'utf8');
+  if (options.requireHost && readKey(text.split(/\r?\n/), 'HOST').count === 0) {
+    // The backend is listening somewhere, so its addresses come from elsewhere
+    // (the task's environment, a wrapper). A HOST written here would either do
+    // nothing or replace that list, and the tailnet with it.
+    stop(`env     : ${envPath} sets no HOST, so the backend takes its addresses from somewhere else. Nothing changed.`);
+  }
   const plan = planEnv(text, { addresses: [address] });
   record.steps.env = {
     changed: plan.changed,
@@ -344,28 +382,19 @@ async function main() {
     say('restart : skipped — the new HOST only takes effect when the backend restarts');
   } else if (plan.changed) {
     say(`restart : "${options.task}"`);
-    // End then Run: a scheduled task that is already running ignores /Run.
-    await run('schtasks', ['/End', '/TN', options.task]);
-    const started = await run('schtasks', ['/Run', '/TN', options.task]);
-    record.steps.restart = { task: options.task, ok: started.ok, out: started.out.slice(-400) };
-    if (!started.ok) {
-      say(`restart : could not start it — ${started.out.slice(-200)}`);
+    const restarted = restartBackend(options.task, options.port);
+    for (const line of restarted.lines) say(`restart : ${line}`);
+    record.steps.restart = { task: restarted.task, ok: restarted.ok, out: restarted.out };
+    if (!restarted.ok) {
       say('restart : start Alpha however this machine normally does, then re-run with --no-restart');
     }
-    // The backend takes a few seconds to bind and load its model config.
-    await new Promise((r) => setTimeout(r, 8_000));
   } else {
     say('restart : not needed, nothing changed');
   }
 
   // 4. the only check that means anything: the request the panel makes
   const base = `http://${address}:${options.port}`;
-  let feed = await checkFeed(base);
-  if (!feed.ok && options.restart && plan.changed) {
-    // One more look: a cold backend can still be binding.
-    await new Promise((r) => setTimeout(r, 7_000));
-    feed = await checkFeed(base);
-  }
+  const feed = options.restart && plan.changed ? await waitForFeed(base) : await checkFeed(base);
   record.steps.feed = feed;
 
   if (feed.ok) {

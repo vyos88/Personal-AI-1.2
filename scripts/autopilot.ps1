@@ -30,6 +30,7 @@
     live-test        live-test-creators.mjs: real tracks, images and a reel  ("count": 1-6, "only": "music"|"image"|"video")
     ollama-keepalive ollama-keepalive.ps1: keep the chat model loaded   ("keepAlive": "24h", "model")
     brain-topology   brain-topology-check.mjs: the brain deck's links, source to served build  ("fix": true, "branch": "<alpha branch>")
+    panel-host       fix-panel-host.mjs: add this machine's home-network address to Alpha's HOST, restart the backend
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
@@ -196,6 +197,19 @@ function Resolve-Action($a) {
     # own home-network address. Takes nothing from the action: the URL is
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
+    # The backend half of the same fix, and the one to queue first: adds this
+    # machine's own home-network address to HOST and ALPHA_TRUSTED_HOSTS in
+    # Alpha's .env.local (keeping every address already there, with a backup),
+    # turns the deck feed on, restarts the backend and asks the feed from that
+    # address. Takes nothing from the action: the address is worked out on the
+    # machine and the file is the one beside -AlphaRoot, which run_server.py reads
+    # (--require-host stops it if that file sets no HOST: then it is not the one).
+    'panel-host' {
+      # A string edit, as for live-test's video script, so -Plan works off Windows.
+      $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
+      $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'fix-panel-host.mjs'), '--env', $envLocal, '--require-host') }
+      $out.timeoutMin = 4
+    }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     'start-task' {
       $t = [string]$a.task
