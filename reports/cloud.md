@@ -1,31 +1,23 @@
-Claude (cloud, session "beautiful-noether") note for Alpha, 2026-10-07 14:50 UTC
+Claude (cloud) report, 2026-10-07 14:57 UTC
 
-V asked: "check tunnel and fix alpha".
-- Alpha is LIVE (backend, site, alpha-ai.uk 200; self-heal 0 repairs). The rollback-copy note is gone since tunnel #184.
-- The CrowPanel is dark because the router renumbered the house network: the gateway's MAC (74:24:9f:59:99:d6) is the same at 192.168.2.1 before and 192.168.1.1 now. So there is no 2.x network to rejoin; the backend still binds 192.168.2.151.
-- Fix, merged as tunnel #188 and queued on control/laptop41: 20261007-52-panel-host adds 192.168.1.151 to HOST and ALPHA_TRUSTED_HOSTS in Alpha's .env.local (nothing removed, .bak first) and restarts Alpha Backend (about a minute of downtime). Then 20261007-53-panel-endpoint sends the panel on COM7 only its new address (ALPHA http://192.168.1.151:8001). No Wi-Fi credential is sent and no other port is opened.
-- Not touched: interactive-first (the deck FEED's stale heartbeat), which is V's call.
-Alpha: nothing to run. Worker1 sessions: do not restart the backend by hand while 52 runs.
+Worker1 (Laptop41) report is fresh (doctor 14:41 UTC). Alpha is live: backend, site and alpha-ai.uk 200. Chat answered in 3.0 s with 0 s load. RAM 3.9 of 15.8 GB free, C: 16.4 GB free. The deck feed heartbeat was fine at 14:41.
 
-----
-Claude (cloud) report, 2026-10-07 08:57 UTC
+CrowPanel: still dark (44 doctor runs). Cause found at 14:50 UTC: the ROUTER RENUMBERED the house network from 192.168.2.x to 192.168.1.x (same router, same MAC). There is no old network to rejoin. Worker1 is now 192.168.1.151, and the backend still binds 192.168.2.151.
+Fix is queued on Worker1, not run yet:
+ - Job 52 panel-host (#188): adds 192.168.1.151 to HOST and ALPHA_TRUSTED_HOSTS (nothing removed, backup first) and restarts Alpha Backend, about 1 minute down.
+ - Job 53 panel-endpoint: sends the panel on COM7 only its new address. No Wi-Fi credential is sent.
+A DHCP reservation on the router would stop this recurring.
 
-Worker1 (Laptop41) report is fresh (doctor 08:56 UTC). Chat answered in 5.0 s with 0 s load. RAM 3.7 of 15.8 GB free, C: 16.7 GB free. Relay works.
+NEW, from V (#189, docs/HANDOFF_2026-10-07d_alpha-moves-to-host.md): Alpha moves to the Host, with Worker1 as warm copy and standby. scripts/alpha-move-check.ps1 is a read-only job that lists what a machine lacks to run Alpha and what a move must carry. Inventories 51 (Worker1) and h14 (Host) ran OK at 14:34 UTC.
 
-STILL OPEN, NEEDS V (21 doctor runs, since 03:56 UTC): Worker1 is on Wi-Fi 192.168.1.151 now (it was 192.168.2.151). The backend listens only on the old address, so no home-network device reaches it and the CrowPanel shows nothing.
-If the move is meant to stay: add 192.168.1.151 to HOST in .env.local (scripts/fix-panel-host.mjs does it) and restart the backend. Then point the panel at http://192.168.1.151:8001: the autopilot's panel-endpoint action does it over USB, and since #185 it finds the CrowPanel by its own USB ID (303A) among the five boards. If the panel is not on the 192.168.1.x network, re-provision its Wi-Fi as well. A DHCP reservation stops the address moving. If the laptop joined the other network by accident, rejoin 192.168.2.x instead. Do not re-provision the panel without V.
+Merged since 08:57: #186 and #187 (communication check, inventory results), #188 (panel-host: a renumbered network fixed without anyone at the machine), #189 (Alpha on both laptops, one coordinator). Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
-Deck feed: the assistant-loop heartbeat comes and goes (stale at 07:41, fine at 06:56). Other decks are live, and Alpha is live on the 5-minute page.
-Live sync: in sync. Host: ComfyUI on the RTX 3050 since 02:54 UTC; music (#159) live on both machines.
-
-Merged since 03:57: #184 (self-heal snapshot copy fallback), #185 (panel-endpoint picks the CrowPanel by USB ID). Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
-
-Needs V: the Wi-Fi move above; the assistant loop for the CrowPanel feed; whether COM24 is the ELEGOO bridge; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; review Alpha#68, #73; store the coordinator admin key on Worker1. The bridges close with 0xC000013A (console close).
+Needs V: a DHCP reservation for Worker1; the assistant loop for the CrowPanel feed (interactive-first is V's call); whether COM24 is the ELEGOO bridge; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; review Alpha#68, #73; store the coordinator admin key on Worker1.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
  - From V: Alpha may read GitHub pull requests in vyos88/Personal-AI-1.2 and vyos88/Alpha (titles, state, diffs). Read only: no merging, approving or commenting.
- - Roles, from V: Host = laptop-gj8dfmlk (RTX 3050), the owner's laptop; runs the coordinator. Worker1 = Laptop41, serves Alpha and is the standby; the coordinator fails over to it (F30).
+ - Roles, from V (updated 07 Oct, #189): Host = laptop-gj8dfmlk (RTX 3050) runs the coordinator and will run Alpha too. Worker1 = Laptop41 is the warm copy and standby for both. All work goes through the one coordinator. Until the move is done, Worker1 still serves Alpha.
  - From V: on the Host, GPU work uses the NVIDIA RTX 3050 (GPU 0), never the Intel UHD (GPU 1). Images and MusicGen take turns with its 4 GB (#156).
  - From V: Worker1's boards are COM24 network bridge, COM20 Arduino Uno, COM6 Alpha Lite Deck, COM4 LoRa (passive only, never transmit) and COM7 CrowPanel. Only COM7 is ever opened. Do not reflash or re-provision anything. Set ALPHA_GSM_PORT to use a modem (Alpha#82).
  - Do not start task-queue Q1 or Q7 until Alpha#24/#61 land. No busy work for the 70% target.
@@ -33,4 +25,4 @@ Still stands:
 
 The phones publish no status.
 
-Alpha: post in the tunnel per the owner's rule; nothing else to run. Codex: C3 and C5, read-only.
+Alpha: post in the tunnel per the owner's rule; do not restart the backend by hand while job 52 runs. Codex: C3 and C5, read-only.
