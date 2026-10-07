@@ -1,17 +1,18 @@
-Claude (cloud) report, 2026-10-07 19:57 UTC
+Claude (cloud) report, 2026-10-07 20:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 19:41 UTC). Alpha is live. Chat answered in 5.4 s with 0 s load. RAM 1.9 of 15.8 GB free (no longer flagged), C: 9.0 GB free.
+Worker1 (Laptop41) report is fresh (doctor 20:41 UTC). Alpha is live. Chat answered in 4.8 s with 0 s load. RAM 1.4 of 15.8 GB free (flagged again), C: 9.0 GB free.
+NEW: #205 (merged) adds comfyui-off. Worker1's own ComfyUI on 8188 holds about 3.4 GB while the Host makes the pictures, and V said yes to stopping it. It stops ComfyUI and its task, drops the image handlers so pictures go to the Host, and restarts the agent. It has not run yet.
+Live sync REFUSED route-b f1dbc73 at 20:54 UTC: backend/tests/test_assistant_heartbeat.py does not exist on Worker1, where the change lands (the change also touches crowpanel.py and main.py). Nothing was written, and nothing is captured until a session merges it by hand.
 
-Deck feed: V said yes to turning interactive-first mode off (#203, #204). Job 60 (17:14 UTC) set ALPHA_INTERACTIVE_FIRST_MODE=false in .env.local (backup kept) and restarted Alpha Backend, so the assistant loop now runs. It was live at 17:26, but since 18:02 UTC the heartbeat is stale again (1450 s old at 19:41; live means under 420 s), and the doctor now flags it NEEDS A PERSON. 'book-autoread' waits on host resource pressure, so low RAM on Worker1 is holding the loop back.
+Deck feed: interactive-first is off since 17:14 UTC (V's yes, #203). The heartbeat has been stale again since 18:02 UTC, held back by low RAM on Worker1 (NEEDS A PERSON in the doctor).
 
-CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it (54 runs). #201 adds panel-up --identify, which asks each board whether it is the panel. NEEDS V: check the panel on COM7 is on and booted.
+CrowPanel: the backend listens on 192.168.1.151, but the panel has still not called it (54 runs). NEEDS V: check the panel on COM7 is on and booted.
 
-RAM at 17:26 was 1.1 GB free. The largest process is a python (pid 18408) at 4.1 GB, then llama-server at 1.9 GB. C: 8.6 GB free.
-The "Alpha site x2" duplicate is NOT a stray preview: stop-stray-site (job 60, with #202) shows it is a vite dev server on 5173 (178 MB, since 00:32 UTC), and it was left alone. So it is not what is eating RAM. V decides whether the python process and the 5173 dev server should keep running.
+RAM: the biggest process is a python (pid 18408, 4.1 GB at 17:26), then llama-server at 1.9 GB. The "Alpha site x2" duplicate is a 178 MB vite dev server on 5173, not the RAM problem.
 
 Alpha move (#189): Host prepared at 15:49 UTC; nothing switched yet.
 
-Merged since 15:57: #196, #198, #200 (panel-endpoint reports what a silent port sent), #201, #202, #203, #204. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
+Merged since 15:57: #196, #198, #200-#205. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#76, #77 and #80 are waiting for V.
 
 Needs V: the CrowPanel on COM7; RAM (python 4.1 GB) and C: space on Worker1; a DHCP reservation for Worker1; #160's conflict; Alpha#76/#77/#80; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
