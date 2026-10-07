@@ -47,7 +47,18 @@ if (-not $Target) {
   $profileDir = if ($env:USERPROFILE) { $env:USERPROFILE } else { $HOME }
   $Target = Join-Path (Join-Path $profileDir 'Downloads') 'VyoS-advance-tech-ai'
 }
-$software = Join-Path $Target 'software'
+# The live branch keeps what Laptop41 has in VyoS-advance-tech-ai under
+# BuildArtifacts\installers\Alpha-Full (live-sync.mjs, apply-alpha-update.mjs).
+# The first run looked for software\ at the top of the clone and called a good
+# clone empty.
+$AppSubdir = 'BuildArtifacts\installers\Alpha-Full'
+function Resolve-AlphaHome {
+  $nested = Join-Path $Target $AppSubdir
+  if (Test-Path (Join-Path $nested 'software')) { return $nested }
+  $Target
+}
+$alphaHome = Resolve-AlphaHome
+$software = Join-Path $alphaHome 'software'
 $failed = New-Object System.Collections.ArrayList
 function Say([string]$t) { Write-Output $t }
 function Fail([string]$step, [string]$why) { [void]$failed.Add($step); Say "  NOT READY: $why" }
@@ -89,12 +100,15 @@ if ($DryRun) {
     else { Say ("  up to date: {0}" -f (git -C $Target log -1 --format='%h %cd %s' --date=format:'%m-%d %H:%M' 2>$null)) }
   }
 }
+$alphaHome = Resolve-AlphaHome
+$software = Join-Path $alphaHome 'software'
 $haveCode = Test-Path (Join-Path $software 'backend\main.py')
-if (-not $DryRun -and -not $haveCode -and -not ($failed -contains 'code')) { Fail 'code' "no software\backend\main.py in $Target" }
+if (-not $DryRun -and -not $haveCode -and -not ($failed -contains 'code')) { Fail 'code' "no software\backend\main.py in $Target or $(Join-Path $Target $AppSubdir)" }
+elseif ($haveCode) { Say "  Alpha's software\ is $software" }
 
 # ---------------------------------------------------------------- 2. backend
 Say '2. backend'
-$venvPy = Join-Path $Target '.venv\Scripts\python.exe'
+$venvPy = Join-Path $alphaHome '.venv\Scripts\python.exe'
 $reqs = @('backend\requirements.txt', 'requirements.txt', 'backend\requirements-windows.txt') | ForEach-Object { Join-Path $software $_ } | Where-Object { Test-Path $_ } | Select-Object -First 1
 if ($DryRun) { Say "  would create $venvPy and install the backend's requirements" }
 elseif (-not $haveCode) { Fail 'backend' 'no code yet' }
@@ -102,7 +116,7 @@ elseif (-not $reqs) { Fail 'backend' "no requirements file under $software" }
 else {
   if (-not (Test-Path $venvPy)) {
     $py = Get-Command py -EA SilentlyContinue
-    $out = if ($py) { & py -3 -m venv (Join-Path $Target '.venv') 2>&1 } else { & python -m venv (Join-Path $Target '.venv') 2>&1 }
+    $out = if ($py) { & py -3 -m venv (Join-Path $alphaHome '.venv') 2>&1 } else { & python -m venv (Join-Path $alphaHome '.venv') 2>&1 }
     if (-not (Test-Path $venvPy)) { Fail 'backend' 'could not create the venv'; Tail $out }
   }
   if (Test-Path $venvPy) {
@@ -121,10 +135,11 @@ else {
   Push-Location $front
   try {
     $cmd = if (Test-Path 'package-lock.json') { 'ci' } else { 'install' }
-    $out = & npm.cmd $cmd --no-audit --no-fund 2>&1
+    $npm = if (Get-Command npm.cmd -EA SilentlyContinue) { 'npm.cmd' } else { 'npm' }
+    $out = & $npm $cmd --no-audit --no-fund 2>&1
     if ($LASTEXITCODE -ne 0) { Fail 'site' "npm $cmd failed"; Tail $out 4 }
     else {
-      $out = & npm.cmd run build 2>&1
+      $out = & $npm run build 2>&1
       if ($LASTEXITCODE -ne 0) {
         Fail 'site' 'the build failed (a file the branch lacks is BACKLOG L3: report it, never copy it in by hand)'
         Tail ($out | Where-Object { $_ -match '(?i)error|could not resolve|not found|failed' }) 4
