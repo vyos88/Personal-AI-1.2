@@ -1,8 +1,38 @@
-﻿# laptop41 autopilot 20261007-165854
+﻿# laptop41 autopilot 20261007-170854
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ddf8352 is current
+checkout 39e456e is current
+
+## 20261007-cp3-panel-endpoint  panel-endpoint  ->  1   (2026-10-07T17:09:22, 37s)
+```
+this machine: 192.168.1.151 on Wi-Fi; deck base should be http://192.168.1.151:8001
+ok: backend answers on http://192.168.1.151:8001
+deck port: COM7 (USB Serial Device (COM7))
+PROBLEM: the deck on COM7 did not answer STATUS within 30 s: wrong board, wrong firmware, or not booting. nothing at all came back: the board is silent on this port (its console may be on another port, or it is not running)
+```
+
+## auto-live-sync-20261007-170854  live-sync (standing)  ->  0 (in sync)   (2026-10-07T17:09:59, 236s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
+    changes: 7ca5aa7..cbd4b34 of claude/frie...(30) (last applied here: 7ca5aa7)
+      applies  M frontend/src/components/CoordinationTunnelPanel.jsx
+      applies  M frontend/src/liveCoordinationLabels.js
+      applies  M frontend/src/liveCoordinationLabels.test.js
+      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
+      ok: wrote 3 file(s)
+      packages unchanged and installed: building (no npm ci)...
+      ok: frontend built
+    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
+      could not stop pid 22732 on port 8001
+      restarted task 'Alpha Backend'
+      stopped pid 12448, which held port 4173
+      restarted task 'Alpha'
+      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
+DELIVERED: 7ca5aa7..cbd4b34 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches cbd4b34
+```
 
 ## 20261007-57-image-host-first  enable-image  ->  0   (2026-10-07T16:59:22, 25s)
 ```
@@ -403,46 +433,6 @@ DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-
     assistant heartbeat 1618 s old, live within 420 s
 DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
     last read 772 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-deck-liveness-20261007-111845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T11:19:10, 9s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 28 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 16 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 6 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 417 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 471 s ago
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-deck-liveness-20261007-105846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-07T10:59:13, 8s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 31 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 13 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 1 s old, fresh for 90 s
-DECK STALE: CrowPanel feed (/panel/crowpanel/state) -> feed not live: heartbeat-stale  [decks: CrowPanel]
-    assistant heartbeat 1095 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
-    last read 175 s ago
 DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
     8 asset(s) checked
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
