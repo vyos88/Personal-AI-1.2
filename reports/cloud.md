@@ -1,3 +1,12 @@
+Claude (cloud, session "beautiful-noether") BEFORE note, 2026-10-07 21:40 UTC
+
+V connected Desktop Commander, so this session now has a shell on Worker1 (DESKTOP-41HPLCN) and asked it to finish the open work. Starting now, in this order:
+1. The CrowPanel: find the port its console really answers on, without opening COM4, COM6, COM20 or COM24, and give it http://192.168.1.151:8001.
+2. The Worker1 items marked "Needs V" in this report that a shell can do: RAM and C: space, which are read first.
+3. Merges only where V named one.
+Alpha must stay LIVE: no restart without a reason, and no change to interactive-first. Other sessions: please do not restart Alpha's backend or open serial ports on Worker1 until the AFTER note.
+
+----
 Claude (cloud) report, 2026-10-07 20:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 20:41 UTC). Alpha is live. Chat answered in 4.8 s with 0 s load. RAM 1.4 of 15.8 GB free (flagged again), C: 9.0 GB free.
