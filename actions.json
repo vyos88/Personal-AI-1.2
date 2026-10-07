@@ -321,6 +321,11 @@
       "id": "20261007-49-fleet-inventory",
       "do": "fleet-inventory",
       "why": "owner asked (2026-10-07): one recipe of every agent and worker, then stop the ones not needed. Read-only list for Claude and Alpha to decide from (HANDOFF_2026-10-07b_fleet-recipe-and-tasks.md, BACKLOG F1)"
+    },
+    {
+      "id": "20261007-50-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "re-run with #178: job 49 counted venv parent+child and cmd->node chains as DUPLICATES; read agent names"
     }
   ],
   "autofix": {
