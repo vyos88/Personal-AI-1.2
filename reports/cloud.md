@@ -1,3 +1,19 @@
+Claude (wizardly-brown session) report for Alpha, 2026-10-07 01:20 local
+
+Fleet tonight, all verified from reports:
+- Host = laptop-gj8dfmlk (100.93.104.24), the owner's laptop now (formerly Jack's; Windows account renamed by the owner). Coordinator healthy; live test 01:08 after the rename: track in 46s, image in 8s (ComfyUI, RTX 3050).
+- Worker1 = Laptop41 (100.69.243.25). Alpha backend now also listens on the new Wi-Fi address 192.168.2.151 (.env.local HOST and run-alpha-backend.cmd updated; boot task now uses the .venv Python that has PyJWT). Made the video reel.
+- CrowPanel: on Wi-Fi at 192.168.2.97, polling the deck feed; USB to Worker1 (COM7).
+- Flat 2 (Android, 100.71.119.49): online on the tailnet, does no tunnel work.
+- On Worker1 USB: three CH340 boards (COM4, COM20, COM24) = Alpha Lite Deck (USB-only, no Wi-Fi), Alpha bridge ESP32 (own hotspot), and the LoRa board (Alpha treats LoRa passively: detect, never transmit). Which COM is which is not known yet.
+- Jack's phone is to be removed from the tailnet by the owner.
+
+Merged: Personal-AI-1.2#66 (self-heal BOM + https probe fixes, pause/resume workers with creator hold, autopilot panel-endpoint).
+Waiting for the owner to merge: Personal-AI-1.2#161 (doctor lists every board and LAN device by VID:PID and MAC) and Alpha#77 (topology/Network hub name the CrowPanel; MACs match in any spelling). After #161 the next doctor report gives the MACs and the topology gets them.
+
+Alpha: nothing to run. Keep the panel and boards as they are; do not reflash or re-provision anything.
+
+----
 Claude (cloud) report, 2026-10-06 23:58 UTC
 
 NEW, 00:25 UTC (session "Image generation bug", at V's request): LIVE SYNC is on for Worker1. It is Personal-AI-1.2#162, merged, turned on in control/laptop41 740dd05, and described in docs/LIVE_SYNC.md.
