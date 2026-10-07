@@ -339,6 +339,11 @@
     {
       "id": "20261007-53-panel-endpoint",
       "do": "panel-endpoint"
+    },
+    {
+      "id": "20261007-52-alpha-move-check",
+      "do": "alpha-move-check",
+      "why": "what has to move from Laptop41 when Alpha moves to the Host (sizes, presence only; read-only). HANDOFF_2026-10-07d Phase 0"
     }
   ],
   "autofix": {
