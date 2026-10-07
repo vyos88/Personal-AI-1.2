@@ -101,6 +101,11 @@
       "id": "20261007-h18-prepare-alpha",
       "do": "prepare-alpha-here",
       "why": "owner authorized the Alpha move (HANDOFF_2026-10-07d Phase 1); the Host Claude session hit its usage limit after step 0. Clones, builds, pulls the chat model, installs cloudflared; starts nothing"
+    },
+    {
+      "id": "20261007-h19-prepare-alpha",
+      "do": "prepare-alpha-here",
+      "why": "re-run with #197: h18 cloned 7ca5aa7 fine but looked for software\\ at the top instead of BuildArtifacts\\installers\\Alpha-Full; chat model and cloudflared are already done"
     }
   ],
   "autofix": {
