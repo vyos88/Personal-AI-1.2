@@ -61,6 +61,63 @@ export function inspectWav(buf) {
   return { ok: true, reason: '', seconds, rate, channels, bits, peak, rms };
 }
 
+const MP3_BITRATES = {
+  1: [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+  2: [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
+};
+const MP3_RATES = { 3: [44100, 48000, 32000], 2: [22050, 24000, 16000], 0: [11025, 12000, 8000] };
+
+/**
+ * Inspect an MP3 (MPEG audio layer III) by walking its frames: how many
+ * seconds it holds, at what rate and layout. Since alpha-tunnel #159 the music
+ * bridge plays tracks as MP3 when the music machine has ffmpeg, so this is
+ * what the live test reads. Loudness would need a decoder, so `peak` and
+ * `rms` are null and a silent MP3 passes on length alone.
+ */
+export function inspectMp3(buf) {
+  const fail = (reason) => ({ ok: false, reason, format: 'mp3', seconds: 0, rate: 0, channels: 0, bits: null, peak: null, rms: null });
+  if (!Buffer.isBuffer(buf) || buf.length < 4) return fail('shorter than an MP3 frame');
+  let at = 0;
+  if (buf.toString('ascii', 0, 3) === 'ID3' && buf.length >= 10) {
+    at = 10 + ((buf[6] & 0x7f) << 21 | (buf[7] & 0x7f) << 14 | (buf[8] & 0x7f) << 7 | (buf[9] & 0x7f));
+  }
+  let frames = 0;
+  let samples = 0;
+  let rate = 0;
+  let channels = 0;
+  while (at + 4 <= buf.length) {
+    const b1 = buf[at + 1];
+    const b2 = buf[at + 2];
+    const version = (b1 >> 3) & 3;
+    const layer = (b1 >> 1) & 3;
+    const bitrate = MP3_BITRATES[version === 3 ? 1 : 2]?.[b2 >> 4];
+    const sampleRate = MP3_RATES[version]?.[(b2 >> 2) & 3];
+    if (buf[at] !== 0xff || (b1 & 0xe0) !== 0xe0 || layer !== 1 || !bitrate || !sampleRate) {
+      // Not a frame header here: look for the next one, as a decoder would.
+      if (frames === 0 && at > 64 * 1024) break;
+      at += 1;
+      continue;
+    }
+    const perFrame = version === 3 ? 1152 : 576;
+    const length = Math.floor(((version === 3 ? 144 : 72) * bitrate * 1000) / sampleRate) + ((b2 >> 1) & 1);
+    frames += 1;
+    samples += perFrame;
+    rate = sampleRate;
+    channels = (buf[at + 3] >> 6) === 3 ? 1 : 2;
+    at += length;
+  }
+  if (frames < 2) return fail('not an MP3 file (no MPEG audio frames)');
+  return { ok: true, reason: '', format: 'mp3', seconds: samples / rate, rate, channels, bits: null, peak: null, rms: null };
+}
+
+/** A WAV or an MP3, whichever the bytes are; anything else is reported as not a WAV. */
+export function inspectAudio(buf) {
+  if (Buffer.isBuffer(buf) && buf.length >= 4 && (buf.toString('ascii', 0, 3) === 'ID3' || (buf[0] === 0xff && (buf[1] & 0xe0) === 0xe0))) {
+    return inspectMp3(buf);
+  }
+  return { format: 'wav', ...inspectWav(buf) };
+}
+
 /**
  * Is this real audio of about the length asked for? A track is "real" when
  * it holds at least 80% of the seconds requested and is not silence (peak
@@ -78,4 +135,9 @@ export function describeWav(info) {
   const db = (x) => (x > 0 ? `${Math.round(20 * Math.log10(x))} dBFS` : '-inf dBFS');
   const layout = info.channels === 1 ? 'mono' : info.channels === 2 ? 'stereo' : `${info.channels} ch`;
   return `${info.seconds.toFixed(1)}s, ${info.rate} Hz ${layout}${info.bits === 16 ? `, peak ${db(info.peak)}` : ''}`;
+}
+
+/** "MP3, 5.0s, 32000 Hz mono" or "WAV, 5.0s, 32000 Hz mono, peak -6 dBFS" */
+export function describeAudio(info) {
+  return `${info.format === 'mp3' ? 'MP3' : 'WAV'}, ${describeWav(info)}`;
 }

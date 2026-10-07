@@ -36,6 +36,31 @@ tried. That is also how a refusal is fixed: push a commit that resolves it.
 The owner chose updates "any time", not a nightly window, because every
 failure puts itself back.
 
+## Knowledge: what Alpha learns, every pass
+
+Alpha does not learn by retraining. It reads `memory\knowledge\*.json` once,
+when its backend starts (`knowledge_autoload.py`), and neither `software\`
+nor `scripts\` carries that folder. So a record a session committed to the
+branch ("teach Alpha") used to stay in git and never reached the machine
+Alpha runs on.
+
+Every pass now also writes the branch's documents
+(`BuildArtifacts/installers/Alpha-Full/memory/knowledge/*.json`, top level
+only) into this machine's `memory\knowledge\`:
+
+- a document this machine does not have is written;
+- one it still has exactly as it was last written or found equal is
+  updated to the branch's version;
+- one edited here is **kept** and named on every pass (`KNOWLEDGE: ... kept
+  as they are`); line ends alone do not count as an edit;
+- one that is not a JSON object is not written, because Alpha would skip it;
+- nothing is ever deleted, and nothing in this folder is captured back.
+
+When a document is written, `Alpha Backend` is restarted so Alpha reads it,
+unless this pass's delivery already restarted it. This step runs before the
+code is applied, so one restart covers both. To teach Alpha, commit a document
+to the branch; the next pass, within five minutes, puts it in front of Alpha.
+
 ## Capture: this machine to git, on the primary only
 
 With `"capture": true`, and only when this machine runs exactly the branch tip,
@@ -52,6 +77,8 @@ record, so scripts left behind by a `--skip-scripts` update are not captured.
 What counts as source is the snapshot's `--include-new` rule
 (`snapshot-alpha-live.mjs`):
 
+- the frontend's data JSON (`software/frontend/src`, `software/frontend/public`; up to 2 MB each; never backend JSON, which is runtime state), and `software/frontend/scripts`. On 2026-10-07 the live branch lacked 27 such files and could not build the site;
+
 - the source folders and extensions;
 - nothing in data, build, package, log, model or key folders;
 - nothing over 512 KB;
@@ -66,9 +93,20 @@ credential scan.
 - A file with a finding is **held back**: it is not pushed, and it is listed
   by file, line and kind, with every value cut to its first four characters.
   The rest of the capture goes.
-- There is deliberately no `--allow` here. Clearing a finding is the owner's
-  call, made through a snapshot action carrying the list they approved. If the
-  line holds a real secret, it belongs in `.env.local`, rotated.
+- Clearing a finding is the owner's call, and only theirs. A held-back report
+  ends with one line, `ALLOW WITH: <path:line>,...`, naming every open line.
+  When the owner has read them and says they are not secrets, that list goes
+  into `actions.json`, exactly as printed:
+
+  ```json
+  "liveSync": { "branch": "...", "capture": true, "allow": "software/backend/x.py:3,scripts/y.ps1:12" }
+  ```
+
+  The next pass captures at once rather than at the next hour. Each entry is
+  one line in one file: if the line moves, or a new finding appears in the same
+  file, that file is held back again and asks again. One malformed entry and
+  the autopilot uses none of the list. If a line holds a real secret, it
+  belongs in `.env.local`, rotated, and not on this list.
 
 A capture runs at most once an hour (`--capture-every-min`). A capture pushed by
 this machine is recorded as applied here, so the next pass is simply in sync.
@@ -89,8 +127,9 @@ is in the lines that start with these words:
 | `FAILED` | it was applied, broke a parse or the build, and was put back |
 | `WAITING` | that tip was already tried; the next commit is tried |
 | `CAPTURED` | edits from here were pushed, or there was nothing to push |
-| `HELD BACK` | files with credential-looking lines were not pushed; they need the owner |
+| `HELD BACK` | files with credential-looking lines were not pushed; they need the owner, and `ALLOW WITH:` after it is the list to approve |
 | `SKIPPED` | capture did not run this pass, and why |
+| `KNOWLEDGE` | documents for Alpha were written (and the backend restarted), or are kept here, or are not JSON |
 | `STOP` | it could not run |
 
 Exit codes: 0 fine, 2 needs a person (`REFUSED`, `FAILED`, `HELD BACK`),

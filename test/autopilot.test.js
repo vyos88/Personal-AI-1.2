@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -48,12 +48,14 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'g3', do: 'brain-topology', fix: true, branch: '../x' },
     { id: 'g4', do: 'brain-topology', fix: true },
     { id: 'h1', do: 'restart-site' },
+    { id: 'h2', do: 'restart-coordinator', task: 'anything else' },
+    { id: 'i1', do: 'fleet-inventory', stop: 'everything' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
   ] }));
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'p1']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'p1']);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
   assert.match(plan.e4.reason, /machines must be/);
@@ -68,6 +70,9 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.match(plan.g3.reason, /plain branch name/);
   assert.match(plan.g4.reason, /fix needs branch/);
   assert.equal(plan.h1.internal, 'restart-site');
+  assert.equal(plan.h2.internal, 'restart-coordinator');
+  assert.deepEqual(plan.h2.args, [], 'it restarts alpha-coordinator and nothing a payload names');
+  assert.match(plan.i1.args.join(' '), /fleet-inventory\.ps1 -AlphaRoot C:\\A\\software$/, 'read-only: nothing from the payload reaches it');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -402,4 +407,291 @@ test('the standing live sync passes its settings on and reports only a change', 
   // A new state is reported once, then nothing more to say.
   assert.match(pwsh(args, env).stdout, /live sync: 0 \(in sync\)/);
   assert.match(pwsh(args, env).stdout, /nothing new to run/);
+});
+
+test('the owner\'s live-sync allow list is passed on exactly, and the line to copy is never masked', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-allow-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  // A stand-in for live-sync.mjs: without --allow it holds a file back and
+  // names the line; with it, it captures.
+  const held = 'software/backend/crowpanel_alpha_display_v2_test.py:3';
+  writeFileSync(join(work, 'scripts', 'live-sync.mjs'), [
+    "const a = process.argv.slice(2); const i = a.indexOf('--allow');",
+    "if (i < 0) { console.log('HELD BACK: 1 file(s) with credential-looking lines, not pushed');",
+    `  console.log('    ${held}  token  abcd...'); console.log('ALLOW WITH: ${held}'); process.exit(2); }`,
+    "console.log('CAPTURED: abc1234..def5678 of claude/x-route-b; allowed ' + a[i + 1]);",
+  ].join('\n'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  const control = (liveSync) => {
+    writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { liveSync: { branch: 'claude/x-route-b', ...liveSync } } }));
+    git(ctl, 'add', 'actions.json');
+    git(ctl, 'commit', '-qm', 'control');
+    git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+  };
+  const sw = join(dir, 'software');
+  mkdirSync(sw);
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  control({});
+  let r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /live sync: 2 \(needs a person\)/);
+  // A long file name with a digit is what Redact masks; on this line it stays whole.
+  assert.ok(report().includes(`ALLOW WITH: ${held}`), report());
+
+  // A string or a list, trimmed and joined: exactly what the owner wrote.
+  control({ allow: ' software/a.py:3, software/b.py:9 ' });
+  r = pwsh(args, env);
+  assert.match(r.stdout, /live sync: 0 \(in sync\)/);
+  assert.match(report(), /allowed software\/a\.py:3,software\/b\.py:9$/m);
+  control({ allow: ['software/c.py:1', 'software/d.py:2'] });
+  r = pwsh(args, env);
+  assert.match(report(), /allowed software\/c\.py:1,software\/d\.py:2$/m);
+
+  // One bad entry and none of the list is used: the files stay held back.
+  control({ allow: ['software/c.py:1', 'software/d.py; calc'] });
+  r = pwsh(args, env);
+  assert.match(r.stdout, /autofix\.liveSync\.allow entries must be path:line \(1 are not\): none used/);
+  assert.match(r.stdout, /live sync: 2 \(needs a person\)/);
+});
+
+test('the standing deck check runs with the backend\'s Python, at most every everyMin, and reports only a change', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-deck-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  const control = (autofix) => {
+    writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix }));
+    git(ctl, 'add', 'actions.json');
+    git(ctl, 'commit', '-qm', 'control');
+    git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+  };
+
+  // Alpha's root: software\ and, once live sync has delivered it, the check.
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const runs = join(dir, 'runs');
+  const deckScript = join(alpha, 'scripts', 'alpha_deck_liveness.py');
+  const writeDeck = (verdict) => {
+    mkdirSync(join(alpha, 'scripts'), { recursive: true });
+    writeFileSync(deckScript, [
+      'import sys, time',
+      `open(${JSON.stringify(runs)}, 'a').write('run ' + ' '.join(sys.argv[1:]) + '\\n')`,
+      `print('DECKS: 1 ${verdict.toLowerCase()}')`,
+      `print('DECK ${verdict}: deck evidence (/hubs/pulse) -> x  [decks: alpha]')`,
+      "print('    report ' + str(time.time()) + ' s old')",
+      `sys.exit(${verdict === 'LIVE' ? 0 : 2})`,
+    ].join('\n'));
+  };
+  const statePath = join(dir, 'ops', 'autopilot', 'state.json');
+  const python = spawnSync('python3', ['-c', 'import sys; print(sys.executable)'], { encoding: 'utf8' }).stdout.trim();
+  // Something listens on 8001, and it runs this Python.
+  const backendUp = `function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }; function Get-Process { [pscustomobject]@{ Path = '${python}' } }; `;
+  const run = (prefix = backendUp) => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${prefix}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${join(dir, 'ops')}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  const backdate = () => {
+    const s = JSON.parse(readFileSync(statePath, 'utf8').replace(/^﻿/, ''));
+    s.deckAt = '2026-01-01T00:00:00';
+    writeFileSync(statePath, JSON.stringify(s));
+  };
+
+  // Not delivered yet: said once, plainly.
+  control({ deckLiveness: true });
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /deck liveness: 1 \(could not run\)/);
+  assert.match(report(), /alpha_deck_liveness\.py is not on this machine yet/);
+
+  // Delivered: runs with the backend's Python and Alpha's root.
+  writeDeck('STALE');
+  backdate();
+  r = run();
+  assert.match(r.stdout, /deck liveness: 2 \(not every deck is live\)/, r.stdout + r.stderr);
+  assert.match(readFileSync(runs, 'utf8'), new RegExp(`run --root ${join(dir, 'alpha').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`));
+  assert.match(report(), /DECK STALE: deck evidence/);
+
+  // Inside its window it does not run again; past it, the same verdict is not news.
+  r = run();
+  assert.equal(readFileSync(runs, 'utf8').trim().split('\n').length, 1, 'not due yet');
+  backdate();
+  r = run();
+  assert.equal(readFileSync(runs, 'utf8').trim().split('\n').length, 2);
+  assert.doesNotMatch(r.stdout, /deck liveness:/, 'the ages moved, the verdict did not');
+
+  // A changed verdict is reported; everyMin from the object form is honoured.
+  writeDeck('LIVE');
+  control({ deckLiveness: { everyMin: 30 } });
+  backdate();
+  r = run();
+  assert.match(r.stdout, /deck liveness: 0 \(every deck live\)/);
+
+  // No backend on 8001: down, without running anything.
+  backdate();
+  const before = readFileSync(runs, 'utf8');
+  r = run('function Get-NetTCPConnection { } ; ');
+  assert.match(r.stdout, /deck liveness: 2 \(not every deck is live\)/);
+  assert.equal(readFileSync(runs, 'utf8'), before);
+  assert.match(report(), /DECK DOWN: backend \(\/health\) -> nothing listens on 8001/);
+});
+
+test('the fleet inventory runs read-only and fits the report', { skip }, () => {
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'fleet-inventory.ps1'), '-AlphaRoot', mkdtempSync(join(tmpdir(), 'inv-'))]);
+  assert.equal(r.status, 0, r.stderr);
+  const out = r.stdout.trim().split(/\r?\n/);
+  assert.ok(out.length <= 60, `${out.length} lines; the autopilot keeps 60`);
+  for (const section of ['FLEET INVENTORY', 'TASKS', 'SERVICES', 'PROCESSES', 'DUPLICATES', 'PORTS', 'AGENT MANAGER']) {
+    assert.ok(out.some((line) => line.startsWith(section)), section);
+  }
+});
+
+test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: true } }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  mkdirSync(join(alpha, 'memory', 'local', 'deck-liveness'), { recursive: true });
+  writeFileSync(join(alpha, 'memory', 'local', 'deck-liveness', 'latest.json'), JSON.stringify({
+    checked_at: '2026-10-07T02:30:00+00:00', not_live: ['CrowPanel feed (/panel/crowpanel/state)'],
+    sources: [{ verdict: 'LIVE' }, { verdict: 'LIVE' }, { verdict: 'SETTING' }],
+  }));
+  mkdirSync(join(ops, 'logs'), { recursive: true });
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const heal = (probes) => writeFileSync(log, `${JSON.stringify({ at: '2026-10-07T02:30:00Z', probes, actions: [], events: [] })}\n`);
+  const ok = { ok: true, status: 200 };
+  const kicks = join(dir, 'kicks');
+  // Stand-ins for the Windows cmdlets: a task that can be started, a backend that answers.
+  const fakes = `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; function Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200 } }; `;
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const live = () => git(remote, 'show', 'status/laptop41-live:reports/live.md');
+  const commits = () => git(remote, 'rev-list', '--count', 'status/laptop41-live').trim();
+
+  heal({ backend: ok, frontend: ok, public: ok, control: ok });
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /live report: Alpha LIVE; self-heal RUNNING/);
+  let md = live();
+  assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
+  assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel feed/);
+  const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
+  assert.equal(json.alpha.verdict, 'LIVE');
+
+  // Nothing changed, and it still reports: that is what tells a quiet machine from a dead reporter.
+  const before = Number(commits());
+  r = run();
+  assert.match(r.stdout, /nothing new to run/);
+  assert.equal(Number(commits()), before + 1);
+
+  // Saving the rollback copy is not a repair; when it fails, the reason is shown.
+  writeFileSync(log, `${JSON.stringify({ at: '2026-10-07T02:30:00Z', probes: { backend: ok, frontend: ok, public: ok, control: ok }, actions: [{ component: 'frontend', action: 'snapshot', code: 1, error: 'EPERM: operation not permitted, rename' }], events: [] })}\n`);
+  run();
+  assert.match(live(), /last pass 0 min ago, 0 repair\(s\) in it; the rollback copy of the site was not saved: EPERM: operation not permitted, rename/);
+
+  // A part that does not answer is named.
+  heal({ backend: ok, frontend: { ok: false, status: 502 }, public: ok, control: ok });
+  run();
+  assert.match(live(), /\| DOWN \| backend 200, site 502, alpha-ai\.uk 200; not answering: site/);
+
+  // Self-heal stopped writing: started again once, not again inside 30 minutes.
+  const old = new Date(Date.now() - 20 * 60 * 1000);
+  utimesSync(log, old, old);
+  r = run();
+  md = live();
+  assert.match(md, /\| Repair agent \(self-heal\) \| STOPPED \| last pass 20 min ago.*started its task again/);
+  assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not running/);
+  run();
+  assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
+  assert.match(live(), /restart already tried at/);
+});
+
+test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-update-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const dev = join(dir, 'dev');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', '-u', 'origin', 'main');
+  git(dir, 'clone', '-q', '-b', 'main', remote, dev);
+  git(dev, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(dev, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(dev, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: true } }));
+  git(dev, 'add', 'actions.json');
+  git(dev, 'commit', '-qm', 'control');
+  git(dev, 'push', '-q', 'origin', 'control/laptop41');
+  git(dev, 'checkout', '-q', '-f', 'main');
+  git(dev, 'clean', '-qfd');
+
+  const ops = join(dir, 'ops');
+  mkdirSync(join(dir, 'alpha', 'software'), { recursive: true });
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', ops, '-AlphaRoot', join(dir, 'alpha', 'software')];
+  const env = { COMPUTERNAME: 'DESKTOP-41HPLCN' };
+  let r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const reports = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41-live').trim());
+  const before = reports();
+
+  // Main moves while the machine is between passes: the next pass updates.
+  const script = readFileSync(join(dev, 'scripts', 'autopilot.ps1'), 'utf8');
+  writeFileSync(join(dev, 'scripts', 'autopilot.ps1'), script.replace("$ErrorActionPreference = 'Continue'", "$ErrorActionPreference = 'Continue'\nWrite-Host 'running the v2 code'"));
+  git(dev, 'commit', '-qam', 'v2');
+  git(dev, 'push', '-q', 'origin', 'main');
+
+  r = pwsh(args, env);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /updated this checkout; running the rest of this pass with the new code/);
+  assert.match(r.stdout, /running the v2 code/, 'the rest of the pass is the new code');
+  assert.equal(reports(), before + 1, 'and it still wrote its live report');
+  assert.equal((r.stdout.match(/updated this checkout/g) || []).length, 1, 'it updates once, not in a loop');
 });

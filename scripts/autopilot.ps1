@@ -71,7 +71,10 @@ param(
   [switch]$Install,
   [switch]$Uninstall,
   # Print what an actions file would run, as JSON, and run nothing.
-  [string]$Plan
+  [string]$Plan,
+  # Set by a pass that has just updated this checkout and hands the rest of
+  # the pass to the new code; such a run does not update again.
+  [switch]$AfterUpdate
 )
 
 $ErrorActionPreference = 'Continue'
@@ -95,6 +98,7 @@ function Resolve-Action($a) {
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
     'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
+    'restart-coordinator' { $out.internal = 'restart-coordinator'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
@@ -198,6 +202,7 @@ function Resolve-Action($a) {
     # own home-network address. Takes nothing from the action: the URL is
     # worked out on the machine, and a Wi-Fi passphrase never travels here.
     'panel-endpoint'  { $spec = Ps1 'panel-endpoint.ps1' @(); $out.timeoutMin = 3 }
+    'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
@@ -301,9 +306,28 @@ if (Get-Command Get-ScheduledTask -EA SilentlyContinue) {
 }
 
 # 1. Current code first: a new action on the menu arrives with the code that runs it.
-$update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
-$updateExit = $LASTEXITCODE
-if ($updateExit -eq 10) { Write-Host 'updated this checkout; queued actions run on the next pass, with the new code'; exit 0 }
+if ($AfterUpdate) { $update = ''; $updateExit = 0 }
+else {
+  $update = & node (Join-Path $PSScriptRoot 'self-update.mjs') --repo $repo 2>&1 | Out-String
+  $updateExit = $LASTEXITCODE
+}
+if ($updateExit -eq 10) {
+  # The checkout moved under this pass. Stopping here left the pass silent:
+  # on 2026-10-07 main moved every few minutes from 02:15 to 02:30 UTC, and
+  # four passes in a row updated and stopped with no action run and no report
+  # (not even the live report, which exists to say the reporter is alive).
+  # The rest of the pass runs with the new code instead, in a new process,
+  # once: that run does not update again.
+  Write-Host 'updated this checkout; running the rest of this pass with the new code'
+  $forward = @()
+  foreach ($k in $PSBoundParameters.Keys) {
+    $v = $PSBoundParameters[$k]
+    if ($v -is [System.Management.Automation.SwitchParameter]) { if ($v.IsPresent) { $forward += "-$k" } }
+    else { $forward += @("-$k", [string]$v) }
+  }
+  & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @forward -AfterUpdate
+  exit $LASTEXITCODE
+}
 # A checkout that cannot update is silent otherwise, and every fix sent through
 # this repository then stops reaching the machine. Say why, in every report.
 $head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()
@@ -413,6 +437,38 @@ foreach ($a in $queued) {
       [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
     }
     $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
+  } elseif ($p.internal -eq 'restart-coordinator') {
+    # The coordinator runs as the scheduled task 'alpha-coordinator' on the
+    # Host. A git pull does not reach it: the 2026-10-07 pull of #159 left it
+    # on the old code (LastRunTime 2026-10-06) until something restarted it.
+    # The queue survives (data/tasks.json); agents re-register by themselves.
+    $port = 8787
+    $n = 0; if ($env:ALPHA_HOST_PORT -and [int]::TryParse($env:ALPHA_HOST_PORT, [ref]$n)) { $port = $n }
+    $lines = New-Object System.Collections.ArrayList
+    if (-not (Get-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue)) {
+      $code = 1; $text = "no scheduled task 'alpha-coordinator' on $env:COMPUTERNAME: the coordinator does not run here"
+    } else {
+      Stop-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue
+      $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+      foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+      if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+      Start-Sleep -Seconds 3
+      Start-ScheduledTask -TaskName 'alpha-coordinator'
+      [void]$lines.Add("started task 'alpha-coordinator' from checkout $((git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim())")
+      $deadline = (Get-Date).AddSeconds(150)
+      while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+      $listen = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
+      if ($listen) {
+        $addr = if ($listen.LocalAddress -in @('0.0.0.0', '::')) { '127.0.0.1' } else { $listen.LocalAddress }
+        $health = (& curl.exe -s --max-time 10 "http://${addr}:$port/healthz" 2>$null | Out-String).Trim()
+        [void]$lines.Add("coordinator listening on ${addr}:$port; healthz: $(if ($health) { $health.Substring(0, [math]::Min(120, $health.Length)) } else { 'no answer' })")
+        $code = $(if ($health -match '"ok"\s*:\s*true') { 0 } else { 1 })
+      } else {
+        [void]$lines.Add("coordinator NOT listening on $port after 150s")
+        $code = 1
+      }
+      $text = $lines -join "`n"
+    }
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
@@ -465,7 +521,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); eolKey = $(if ($state) { [string]$state.eolKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); eolKey = $(if ($state) { [string]$state.eolKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -528,11 +584,20 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
     if ($env:COMPUTERNAME) { $syncArgs += @('--machine', $env:COMPUTERNAME) }
     if ($sync.capture -eq $true) { $syncArgs += '--capture' }
     if ($sync.skipScripts -eq $true) { $syncArgs += '--skip-scripts' }
+    # The owner's approved credential-scan lines, exactly as the snapshot action takes them.
+    $syncAllow = @()
+    if ($sync.allow) { $syncAllow = @((@($sync.allow) -join ',').Split(',') | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+    $badAllow = @($syncAllow | Where-Object { $_ -notmatch '^[A-Za-z0-9_./-]+:\d+$' })
+    if ($badAllow.Count) { Write-Host "autofix.liveSync.allow entries must be path:line ($($badAllow.Count) are not): none used" }
+    elseif ($syncAllow.Count) { $syncArgs += @('--allow', ($syncAllow -join ',')) }
     $text = (& node @syncArgs 2>&1 | Out-String)
     $code = $LASTEXITCODE
-    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|STOP)' }) -join ' | ')
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|KNOWLEDGE|STOP)' }) -join ' | ')
     if ($key -ne $syncKey) {
-      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 60) -join "`n"
+      # Long enough for every held-back line and the ALLOW WITH line after them.
+      # That line is file paths and line numbers only, and a long file name
+      # masked by Redact could not be copied into autofix.liveSync.allow.
+      $tail = (($text -split "`r?`n") | ForEach-Object { if ($_ -match '^ALLOW WITH: ([A-Za-z0-9_./-]+:\d+)?(,[A-Za-z0-9_./-]+:\d+)*$') { $_ } else { Redact $_ } } | Where-Object { $_.Trim() } | Select-Object -Last 200) -join "`n"
       $result = switch ($code) { 0 { '0 (in sync)' } 2 { '2 (needs a person)' } default { "$code (could not run)" } }
       [void]$ran.Add([ordered]@{ id = "auto-live-sync-$stamp"; do = 'live-sync (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
       Write-Host "live sync: $result"
@@ -541,12 +606,159 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Deck liveness (Alpha's scripts\alpha_deck_liveness.py, which live sync
+# delivers): every deck source judged by its own freshness field. Turned on by
+# autofix.deckLiveness in actions.json; runs at most every everyMin minutes
+# (default 15: reading the CrowPanel state costs the backend ~30 s) and is
+# reported only when a deck's verdict changes. It runs with the Python the
+# backend runs, because it signs in with the backend's own token signer.
+$deckKey = if ($state -and $state.deckKey) { [string]$state.deckKey } else { '' }
+$deckAt = if ($state -and $state.deckAt) { [string]$state.deckAt } else { '' }
+$deck = if ($control -and $control.autofix -and $control.autofix.deckLiveness) { $control.autofix.deckLiveness } else { $null }
+if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
+  $every = 15
+  if ($deck -isnot [bool] -and $deck.everyMin) {
+    $n = 0
+    if ([int]::TryParse([string]$deck.everyMin, [ref]$n) -and $n -ge 5 -and $n -le 1440) { $every = $n } else { Write-Host 'autofix.deckLiveness.everyMin must be 5 to 1440: 15 used' }
+  }
+  $last = [datetime]::MinValue
+  $due = -not $deckAt -or -not [datetime]::TryParse($deckAt, [ref]$last) -or ((Get-Date) - $last).TotalMinutes -ge $every
+  if ($due) {
+    $started = Get-Date
+    $deckAt = $started.ToString('s')
+    $deckScript = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'scripts') 'alpha_deck_liveness.py'
+    $held = if (Get-Command Get-NetTCPConnection -EA SilentlyContinue) { Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | Select-Object -First 1 }
+    $py = if ($held) { (Get-Process -Id $held.OwningProcess -EA SilentlyContinue).Path }
+    if (-not (Test-Path -LiteralPath $deckScript)) { $text = "STOP: $deckScript is not on this machine yet (live sync delivers it from the live branch)"; $code = 1 }
+    elseif (-not $py) { $text = 'DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]'; $code = 2 }
+    else {
+      $text = (& $py $deckScript --root (Split-Path -Parent $AlphaRoot) 2>&1 | Out-String)
+      $code = $LASTEXITCODE
+    }
+    # The DECK lines carry verdicts, never ages, so a change is a real change.
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(DECK|STOP)' }) -join ' | ')
+    if ($key -ne $deckKey) {
+      $tail = (($text -split "`r?`n") | ForEach-Object { Redact $_ } | Where-Object { $_.Trim() } | Select-Object -Last 60) -join "`n"
+      $result = switch ($code) { 0 { '0 (every deck live)' } 2 { '2 (not every deck is live)' } default { "$code (could not run)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-deck-liveness-$stamp"; do = 'deck-liveness (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "deck liveness: $result"
+    }
+    $deckKey = $key
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; eolKey = $eolKey; syncKey = $syncKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; eolKey = $eolKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+# 3c. The live report (autofix.heartbeat): every pass, whatever else did or
+# did not happen, one short page on status/<channel>-live says whether Alpha is
+# live. The owner asked for a report every 5 minutes, and a report written only
+# on change cannot tell "nothing changed" from "the reporter died".
+# - Alpha: self-heal's own last probes (backend, site, alpha-ai.uk), which run
+#   every 2 minutes; nothing is probed twice.
+# - The repair agent: if self-heal has not written its log for 6 minutes, its
+#   task is started again, at most once every 30 minutes. It is never
+#   duplicated here: two repairers would fight over the same processes.
+# - Decks: the deck check's last receipt. Live sync: its last state.
+function Read-SelfHeal {
+  $log = Join-Path $OpsDir 'logs\selfheal.jsonl'
+  if (-not (Test-Path -LiteralPath $log)) { return $null }
+  $age = [int]((Get-Date) - (Get-Item -LiteralPath $log).LastWriteTime).TotalMinutes
+  $last = $null
+  try { $last = (Get-Content -LiteralPath $log -Tail 1 -EA Stop) | ConvertFrom-Json } catch { }
+  return [pscustomobject]@{ age = $age; last = $last }
+}
+function Publish-Live([string]$md, [string]$json, [string]$headline) {
+  $liveBranch = "status/$Channel-live"
+  $tmpRoot = Join-Path $OpsDir 'tmp'
+  New-Item -ItemType Directory -Force -Path $tmpRoot | Out-Null
+  $lwt = Join-Path $tmpRoot "live-$stamp"
+  git -C $repo fetch -q origin $liveBranch 2>&1 | Out-Null
+  $lbase = if ($LASTEXITCODE -eq 0) { 'FETCH_HEAD' } else { 'HEAD' }
+  git -C $repo worktree add --detach $lwt $lbase 2>&1 | Out-Null
+  if ($LASTEXITCODE -ne 0) { Write-Host 'live report: could not create a worktree'; return }
+  New-Item -ItemType Directory -Force -Path (Join-Path $lwt 'reports') | Out-Null
+  Set-Content -LiteralPath (Join-Path $lwt 'reports\live.md') -Value $md -Encoding UTF8
+  Set-Content -LiteralPath (Join-Path $lwt 'reports\live.json') -Value $json -Encoding UTF8
+  git -C $lwt add reports 2>&1 | Out-Null
+  git -C $lwt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel).invalid" commit -q -m "$Channel live ${stamp}: $headline" 2>&1 | Out-Null
+  git -C $lwt push -q origin "HEAD:refs/heads/$liveBranch" 2>&1 | Out-Null
+  $ok = ($LASTEXITCODE -eq 0)
+  git -C $repo worktree remove --force $lwt 2>&1 | Out-Null
+  Write-Host $(if ($ok) { "live report: $headline" } else { 'live report: push failed' })
+}
+if ($control -and $control.autofix -and $control.autofix.heartbeat) {
+  $now = Get-Date
+  $sh = Read-SelfHeal
+  $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
+  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = '' }
+  if ($sh) {
+    $heal.age_min = $sh.age
+    # A snapshot is self-heal saving the site's last good build for rollback,
+    # not a repair; a failed one is worth saying, as its own note.
+    $heal.repairs = @($sh.last.actions | Where-Object { $_ -and $_.action -ne 'snapshot' }).Count
+    $badSnap = @($sh.last.actions | Where-Object { $_ -and $_.action -eq 'snapshot' -and $_.code -ne 0 }) | Select-Object -First 1
+    if ($badSnap) { $heal.snapshot = 'the rollback copy of the site was not saved' + $(if ($badSnap.error) { ": $(Redact ([string]$badSnap.error))" } else { ' (no reason logged)' }) }
+    $heal.state = if ($sh.age -le 6) { 'RUNNING' } else { 'STOPPED' }
+  }
+  if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
+    $parts = [ordered]@{ backend = $sh.last.probes.backend; site = $sh.last.probes.frontend; 'alpha-ai.uk' = $sh.last.probes.public }
+    $down = @($parts.Keys | Where-Object { -not ($parts[$_] -and $parts[$_].ok -eq $true) })
+    $alpha.verdict = if ($down.Count) { 'DOWN' } else { 'LIVE' }
+    $alpha.detail = (($parts.Keys | ForEach-Object { "$_ $(if ($parts[$_]) { $parts[$_].status } else { '?' })" }) -join ', ') + $(if ($down.Count) { "; not answering: $($down -join ', ')" } else { '' })
+    $alpha.checked_by = "self-heal, $($sh.age) min ago"
+  } else {
+    # Self-heal is not watching, so look at the backend directly (only that).
+    $code = $null
+    try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
+    $alpha.verdict = if ($code -eq 200) { 'BACKEND UP' } else { 'DOWN' }
+    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is not running"
+    $alpha.checked_by = 'this pass'
+  }
+  if ($heal.state -eq 'STOPPED') {
+    $kickFile = Join-Path $dir 'selfheal-restart.txt'
+    $lastKick = [datetime]::MinValue
+    if (Test-Path -LiteralPath $kickFile) { [void][datetime]::TryParse((Get-Content -LiteralPath $kickFile -Raw).Trim(), [ref]$lastKick) }
+    if (($now - $lastKick).TotalMinutes -ge 30) {
+      Set-Content -LiteralPath $kickFile -Value $now.ToString('s')
+      try { Start-ScheduledTask -TaskName 'Alpha Self-Heal' -EA Stop; $heal.restarted = 'started its task again' }
+      catch {
+        & schtasks.exe /Run /TN 'Alpha Self-Heal' 2>&1 | Out-Null
+        $heal.restarted = $(if ($LASTEXITCODE -eq 0) { 'started its task again (schtasks)' } else { 'could not start its task: run scripts\repair-alpha-host.ps1 as Administrator' })
+      }
+    } else { $heal.restarted = "restart already tried at $($lastKick.ToString('HH:mm'))" }
+  }
+  $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
+  $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
+  if (Test-Path -LiteralPath $receipt) {
+    try {
+      $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
+      $counts = @($r.sources | Group-Object verdict | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
+      $decks.summary = $counts -join ', '
+      $decks.not_live = @($r.not_live)
+      $decks.checked_at = [string]$r.checked_at
+    } catch { $decks.summary = 'receipt unreadable' }
+  }
+  $syncState = (($syncKey -replace '^\d+ ', '') -split ' \| ' | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|STOP)' } | Select-Object -First 1)
+  if (-not $syncState) { $syncState = $(if ($sync) { 'no state yet' } else { 'off' }) }
+  $syncState = Redact $syncState
+  $headline = "Alpha $($alpha.verdict); self-heal $($heal.state)"
+  $md = @(
+    "# Alpha is $($alpha.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
+    'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
+    '| Check | State | Detail |', '|---|---|---|',
+    "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
+    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+    "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
+    "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
+  ) -join "`n"
+  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  Publish-Live $md $json $headline
+}
+
 if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Host 'nothing new to run'; exit 0 }
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.

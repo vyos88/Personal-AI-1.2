@@ -150,6 +150,40 @@ test('capture pushes what this machine runs, fast-forward, in the repository\'s 
   assert.equal(remoteTip(f), tip, 'nothing new was pushed');
 });
 
+test('the owner\'s approved lines go at once, exactly those lines and no others', { skip }, async () => {
+  const f = fixture();
+  write(f.alpha, 'software/backend/provider_keys.py', 'storage_key = "educational_lesson_store"\n');
+  write(f.alpha, 'software/backend/other_keys.py', 'cache_token = "a_very_long_cache_name_here"\n');
+
+  const first = await run(f, '--capture');
+  assert.equal(first.code, 2, first.out);
+  assert.match(first.out, /^ALLOW WITH: software\/backend\/other_keys\.py:1,software\/backend\/provider_keys\.py:1$/m);
+  const before = remoteTip(f);
+
+  // Within the hour, but the list changed: captured now. Only the approved line goes.
+  const second = await run(f, '--capture', '--allow', 'software/backend/provider_keys.py:1');
+  assert.equal(second.code, 2, second.out);
+  assert.match(second.out, /CAPTURED: 0 changed and 1 new source file\(s\)/);
+  assert.match(second.out, /1 credential-looking line\(s\) cleared by the owner's list go with this capture/);
+  assert.match(second.out, /^ALLOW WITH: software\/backend\/other_keys\.py:1$/m);
+  assert.notEqual(remoteTip(f), before);
+  const files = git(f.remote, 'ls-tree', '-r', '--name-only', 'live').split('\n');
+  assert.ok(files.includes(`${SUB}/backend/provider_keys.py`));
+  assert.ok(!files.includes(`${SUB}/backend/other_keys.py`), 'a line nobody approved stays here');
+
+  // An approval for a line that is not the one found does not clear it.
+  write(f.alpha, 'software/backend/other_keys.py', '# moved\ncache_token = "a_very_long_cache_name_here"\n');
+  const third = await run(f, '--capture', '--allow', 'software/backend/provider_keys.py:1,software/backend/other_keys.py:1');
+  assert.match(third.out, /^ALLOW WITH: software\/backend\/other_keys\.py:2$/m);
+  assert.ok(!git(f.remote, 'ls-tree', '-r', '--name-only', 'live').split('\n').includes(`${SUB}/backend/other_keys.py`));
+});
+
+test('an allow entry that is not path:line is refused', async () => {
+  const lines = [];
+  assert.equal(await main(['--alpha-root', '/nowhere', '--branch', 'live', '--allow', 'software/x.py'], (l) => lines.push(l)), 1);
+  assert.match(lines.join('\n'), /--allow entries must be path:line/);
+});
+
 test('nothing is captured while this machine is behind the branch', { skip }, async () => {
   const f = fixture();
   write(f.alpha, 'software/backend/main.py', MAIN.replace('"old"', '"edited on this machine"'));
@@ -207,4 +241,50 @@ test('only source, package and requirements files are overlaid, outside data and
   assert.equal(capturableTracked('software/backend/memory/state.py'), false);
   assert.equal(capturableTracked('software/backend/settings.json'), false);
   assert.equal(capturableTracked('software/backend/.cache/x.py'), false);
+});
+
+test("the branch's knowledge documents teach this machine's Alpha, and one edited here is kept", { skip }, async () => {
+  const f = fixture();
+  const K = `${BASE}/memory/knowledge`;
+  const live = (name) => join(f.alpha, 'memory', 'knowledge', name);
+  write(f.alpha, 'memory/knowledge/alpha_same.json', '{"a":1}\r\n');
+  commitOnLive(f, {
+    [`${K}/alpha_new.json`]: '{"title":"v1"}\n',
+    [`${K}/alpha_edited.json`]: '{"title":"v1"}\n',
+    [`${K}/alpha_same.json`]: '{"a":1}\n',
+    [`${K}/alpha_list.json`]: '[1]\n',
+    [`${K}/notes.txt`]: 'not a document\n',
+    [`${K}/old/alpha_nested.json`]: '{}\n',
+  }, 'knowledge only');
+
+  const first = await run(f);
+  assert.equal(first.code, 0, first.out);
+  assert.match(first.out, /KNOWLEDGE: 2 document\(s\) for Alpha written to memory\\knowledge: alpha_edited\.json, alpha_new\.json/);
+  assert.match(first.out, /KNOWLEDGE: 1 document\(s\) on the branch are not a JSON object and were not written: alpha_list\.json/);
+  assert.match(first.out, /restart Alpha Backend so Alpha reads them/);
+  assert.equal(readFileSync(live('alpha_new.json'), 'utf8'), '{"title":"v1"}\n');
+  assert.equal(readFileSync(live('alpha_same.json'), 'utf8'), '{"a":1}\r\n', 'line ends alone are not rewritten');
+  for (const name of ['alpha_list.json', 'notes.txt', 'old/alpha_nested.json']) assert.ok(!existsSync(live(name)), name);
+
+  // Edited here: kept, and named on every pass. Untouched since delivery: updated.
+  writeFileSync(live('alpha_edited.json'), '{"title":"mine"}\n');
+  commitOnLive(f, { [`${K}/alpha_new.json`]: '{"title":"v2"}\n', [`${K}/alpha_edited.json`]: '{"title":"v2"}\n' }, 'knowledge v2');
+  const second = await run(f);
+  assert.equal(second.code, 0, second.out);
+  assert.match(second.out, /KNOWLEDGE: 1 document\(s\) for Alpha written to memory\\knowledge: alpha_new\.json\n/);
+  assert.match(second.out, /KNOWLEDGE: 1 document\(s\) differ here from the branch and are kept as they are: alpha_edited\.json/);
+  assert.equal(readFileSync(live('alpha_new.json'), 'utf8'), '{"title":"v2"}\n');
+  assert.equal(readFileSync(live('alpha_edited.json'), 'utf8'), '{"title":"mine"}\n');
+
+  const third = await run(f);
+  assert.match(third.out, /IN SYNC/);
+  assert.doesNotMatch(third.out, /for Alpha written|restart Alpha Backend/, 'nothing new, no restart');
+  assert.match(third.out, /kept as they are: alpha_edited\.json/);
+
+  // A document removed from the branch stays here: nothing is deleted.
+  git(f.work, 'rm', '-q', `${K}/alpha_new.json`);
+  git(f.work, 'commit', '-qm', 'drop one');
+  git(f.work, 'push', '-q', 'origin', 'HEAD:live');
+  await run(f);
+  assert.ok(existsSync(live('alpha_new.json')));
 });

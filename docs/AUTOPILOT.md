@@ -41,6 +41,8 @@ reported.
 | `doctor` | `laptop41-doctor.ps1 -Watch -Push` |
 | `repair-host` | `repair-alpha-host.ps1`, with its own rollback |
 | `restart-backend` | Stops whatever listens on the backend port, then starts it again: the `Alpha Backend` task if it exists, otherwise `scripts\start-local.ps1`. |
+| `fleet-inventory` | `fleet-inventory.ps1`: one read-only list of everything Alpha runs here, in the report's 60 lines. It covers scheduled tasks (state, last run, result, next run, what they run), services, background processes grouped by role (coordinator, agent, keeper, bridges, backend, site, ComfyUI, stewards by script name), DUPLICATES of anything that should run once, listening ports, and Alpha's Agent Manager snapshot. It starts, stops and writes nothing, and takes no arguments |
+| `restart-coordinator` | On the Host: stops the scheduled task `alpha-coordinator` and whatever holds its port (8787, or `ALPHA_HOST_PORT`), starts the task again from the current checkout, and fails unless `/healthz` answers. A `git pull` alone leaves the coordinator on its old code. The queue survives (`data/tasks.json`) and agents re-register by themselves. Takes no arguments |
 | `restart-site` | Stops whatever holds the site's port (4173) with its process tree and starts task `Alpha` again, then asks `/music/healthz` through the site. `Stop-ScheduledTask` alone left the old preview server serving its old `vite.config.js` |
 | `apply-update` | `apply-alpha-update.mjs --apply --restart`; add `"skipScripts": true` to leave `scripts\` alone |
 | `snapshot` | `snapshot-alpha-live.mjs --push`; `"allow": "file:line,..."` must list only lines a person has reviewed; `"includeNew": true` also brings source files only this machine has (source folders and extensions, each under 512 KB, credential-scanned like the rest) |
@@ -60,6 +62,12 @@ reported by the next pass. The task's limit is 6 hours (a machine installed
 with the old 2-hour limit raises it on its next pass), and a pass does not
 start an action that would not fit in what is left: that action, and what is
 queued after it, waits for the next pass, five minutes later.
+
+A pass that finds new code on main updates its checkout first and then runs
+the rest of the pass with the new code, in a new process, once. It used to
+stop there and leave the work to the next pass. On 2026-10-07 main moved
+every few minutes for a quarter of an hour, so four passes in a row updated
+and stopped, with nothing run and nothing reported.
 
 ## Standing checks
 
@@ -93,10 +101,41 @@ changes. They are turned on in the same `actions.json`:
 
 - `liveSync` (`{ "branch": "<live branch>", "capture": true }`): every pass,
   the live branch is delivered to this machine (`apply-alpha-update.mjs`, each
-  tip tried once). With `capture`, when this machine runs the tip, the source
+  tip tried once), and its `memory/knowledge` documents are written where
+  Alpha reads them, with a backend restart when one is new. With `capture`, when this machine runs the tip, the source
   edited here and the source only it has are pushed back to the branch,
   fast-forward only; files with credential-looking lines are held back and
-  listed. `skipScripts: true` leaves `scripts\` out. See `docs/LIVE_SYNC.md`.
+  listed, ending with an `ALLOW WITH:` line. `allow` (a `path:line,...`
+  string or a list) is the owner's approval of exactly those lines; one
+  malformed entry and none of it is used. `skipScripts: true` leaves
+  `scripts\` out. See `docs/LIVE_SYNC.md`.
+
+- `deckLiveness` (`true`, or `{ "everyMin": 15 }`): runs Alpha's own
+  `scripts\alpha_deck_liveness.py` (live sync delivers it) with the Python the
+  backend runs, at most every `everyMin` minutes (5 to 1440, default 15).
+  - Every source behind Alpha's decks is judged by its own freshness field:
+    the hub pulse's probe report, the command centre, the device topology,
+    the CrowPanel feed and whether a panel is actually reading it, and the
+    built site and its assets.
+  - The verdicts are LIVE, DEGRADED, STALE, PLACEHOLDER, SETTING (a setting,
+    not a fault, keeps it from going live), DOWN or ERROR. Static decks and
+    the serial-only Lite Deck are named as such.
+  - It reads only. It never asks `/panel/crowpanel/public-state`, which would
+    count this machine as a panel. It signs in with a 10-minute token minted
+    on the machine and never printed.
+  - The receipt is in `memory\local\deck-liveness\latest.json`, where Alpha
+    can read it. A change of verdict is reported; ages alone are not.
+
+- `heartbeat` (`true`): every pass, whether or not anything changed, writes
+  `reports/live.md` (and `live.json`) to `status/<channel>-live`.
+  - Alpha's state is read from self-heal's own last probes (backend, site,
+    alpha-ai.uk), so nothing is probed twice.
+  - It also shows the repair agent's last pass, the decks' last verdicts and
+    live sync's state.
+  - If self-heal has not written its log for 6 minutes, its task is started
+    again, at most once every 30 minutes. While it is stopped, only the
+    backend is checked directly. The heartbeat never repairs Alpha itself:
+    two repairers would fight over the same processes.
 
 ## Trust
 

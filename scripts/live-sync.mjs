@@ -31,8 +31,17 @@
  * named like a secret, and Alpha's .gitignore wins. Every captured line goes
  * through the snapshot's credential scan; a file with a finding is held back
  * and named by file and line, with every value cut to four characters, and
- * the rest go. There is no --allow here: clearing a finding stays the owner's,
- * through a snapshot action with an approved list.
+ * the rest go. Clearing a finding is the owner's alone: --allow takes the
+ * list they approved (autofix.liveSync.allow), exact path:line entries, so a
+ * line that moves or a new finding is held back again.
+ *
+ * Knowledge: Alpha learns from memory/knowledge/*.json, which its backend
+ * reads once, at start (knowledge_autoload.py), and neither area above
+ * carries that folder. So every pass also writes the branch's documents there:
+ * one this machine lacks, or still holds exactly as it was delivered or found
+ * equal, is written; one edited here is kept and named; nothing is deleted.
+ * When one is written, Alpha Backend is restarted so Alpha reads it. Nothing
+ * here is captured back.
  *
  * Never: a force push, a change to this checkout, a restart of anything but
  * what apply-alpha-update.mjs restarts.
@@ -41,34 +50,43 @@
  *
  * Other options: --ops <dir>  --repo <url>  --machine <name>
  *   --capture-every-min <n> (default 60)  --skip-scripts  --no-restart
+ *   --allow <path:line,...>  (the owner's approved list; see above)
  *   --python <exe> and --skip-build (passed on to apply-alpha-update.mjs)
  *
  * Its state is in the lines that start IN SYNC, DELIVERED, REFUSED, FAILED,
- * WAITING, CAPTURED, HELD BACK, SKIPPED or STOP; the autopilot reports only
+ * WAITING, CAPTURED, HELD BACK, SKIPPED, KNOWLEDGE or STOP; the autopilot reports only
  * when those change. Exit codes: 0 fine; 2 needs a person (refused, failed,
  * held back); 1 could not run.
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
-  DEFAULTS, appliedStatePath, fetchBranch, findSoftwareRoot, main as applyUpdate, resolveCommit, writeState,
+  DEFAULTS, RESTART_TASKS, appliedStatePath, fetchBranch, findSoftwareRoot, main as applyUpdate, resolveCommit,
+  restartWindows, writeState,
 } from './apply-alpha-update.mjs';
 import {
-  NEW_FILE_EXTENSIONS, NEW_FILE_MAX_COUNT, NEW_FILE_SKIP_DIRS, inRepoShape, newSourceFiles, scanAddedLines,
+  NEW_FILE_EXTENSIONS, NEW_FILE_MAX_COUNT, NEW_FILE_SKIP_DIRS, inRepoShape, isCapturableJson, newSourceFiles, scanAddedLines,
 } from './snapshot-alpha-live.mjs';
 
 const BASE = 'BuildArtifacts/installers/Alpha-Full';
 const AREAS = ['software', 'scripts'];
 // Tracked files that change with the code although they are not source.
 const TRACKED_NAMES = new Set(['package.json', 'package-lock.json', 'requirements.txt', 'requirements-dev.txt']);
+// What Alpha reads at start, and the names it may take there.
+const KNOWLEDGE_DIR = `${BASE}/memory/knowledge`;
+const KNOWLEDGE_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,150}\.json$/;
 const EXIT_OK = 0;
 const EXIT_ERROR = 1;
 const EXIT_PERSON = 2;
+
+// One entry of the owner's list: a path inside Alpha's root and a line number.
+const ALLOW_ID = /^[A-Za-z0-9_./-]+:\d+$/;
 
 export function parseArgs(argv) {
   const opts = { capture: false, restart: true, skipScripts: false, skipBuild: false, captureEveryMin: 60 };
@@ -86,6 +104,11 @@ export function parseArgs(argv) {
     else if (a === '--machine') opts.machine = next();
     else if (a === '--python') opts.python = next();
     else if (a === '--capture') opts.capture = true;
+    else if (a === '--allow') {
+      opts.allow = next().split(',').map((x) => x.trim()).filter(Boolean);
+      const bad = opts.allow.filter((x) => !ALLOW_ID.test(x));
+      if (bad.length) throw new Error(`--allow entries must be path:line (${bad.length} are not)`);
+    }
     else if (a === '--capture-every-min') {
       opts.captureEveryMin = Number(next());
       if (!Number.isFinite(opts.captureEveryMin) || opts.captureEveryMin < 0) throw new Error('--capture-every-min needs a number of minutes');
@@ -120,8 +143,69 @@ export function capturableTracked(rel) {
   if (parts.slice(0, -1).some((p) => NEW_FILE_SKIP_DIRS.has(p.toLowerCase()) || p.startsWith('.'))) return false;
   const name = parts.at(-1);
   if (TRACKED_NAMES.has(name)) return true;
+  if (isCapturableJson(rel)) return true;
   const dot = name.lastIndexOf('.');
   return dot > 0 && NEW_FILE_EXTENSIONS.has(name.slice(dot).toLowerCase());
+}
+
+const blobSha = (buf) => createHash('sha1').update(`blob ${buf.length}\0`).update(buf).digest('hex');
+const listNames = (names) => `${names.slice(0, 12).join(', ')}${names.length > 12 ? ', ...' : ''}`;
+
+/**
+ * The branch's knowledge documents (memory/knowledge/*.json at `tip`) onto
+ * this machine. A document is written when this machine does not have it, or
+ * still has exactly the version that was last written or found equal here
+ * (state.knowledge); one edited here is kept as it is and named. A document
+ * that is not a JSON object is not written: Alpha would skip it. Nothing is
+ * deleted. Returns the names written.
+ */
+export function deliverKnowledge({ cache, tip, liveRoot, state, log }) {
+  const listing = git(['ls-tree', '-z', tip, '--', `${KNOWLEDGE_DIR}/`], { cwd: cache, allowFail: true });
+  if (listing.status !== 0) { log(`KNOWLEDGE: could not list ${KNOWLEDGE_DIR} at ${short(tip)}`); return []; }
+  const entries = listing.stdout.split('\0').filter(Boolean).map((row) => {
+    const [meta, path] = row.split('\t');
+    const [, type, sha] = meta.split(' ');
+    return { type, sha, name: path.slice(KNOWLEDGE_DIR.length + 1) };
+  }).filter((e) => e.type === 'blob' && KNOWLEDGE_NAME.test(e.name));
+  const dir = join(liveRoot, 'memory', 'knowledge');
+  const seen = (state.knowledge ??= {});
+  const written = [];
+  const kept = [];
+  const broken = [];
+  const failed = [];
+  for (const e of entries) {
+    const path = join(dir, e.name);
+    const live = existsSync(path) ? readFileSync(path) : null;
+    const liveSha = live && blobSha(live);
+    if (liveSha === e.sha) { seen[e.name] = e.sha; continue; }
+    // The bytes as committed: a string round trip would change a BOM or a stray byte.
+    const blob = spawnSync('git', ['cat-file', 'blob', e.sha], { cwd: cache, maxBuffer: 64 * 1024 * 1024 });
+    if (blob.status !== 0) { failed.push(e.name); continue; }
+    const text = blob.stdout;
+    const lf = (buf) => buf.toString('utf8').replace(/\r\n/g, '\n');
+    // Line ends alone are not an edit (git on Windows may have written them),
+    // and not a reason to restart the backend either.
+    if (live && lf(live) === lf(text)) { seen[e.name] = liveSha; continue; }
+    if (live && liveSha !== seen[e.name]) { kept.push(e.name); continue; }
+    let doc = null;
+    try { doc = JSON.parse(lf(text).replace(/^\uFEFF/, '')); } catch { /* not JSON */ }
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) { broken.push(e.name); continue; }
+    try {
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(`${path}.live-sync-tmp`, text);
+      renameSync(`${path}.live-sync-tmp`, path);
+      seen[e.name] = e.sha;
+      written.push(e.name);
+    } catch (err) {
+      rmSync(`${path}.live-sync-tmp`, { force: true });
+      failed.push(`${e.name} (${err.code ?? err.message})`);
+    }
+  }
+  if (written.length) log(`KNOWLEDGE: ${written.length} document(s) for Alpha written to memory\\knowledge: ${listNames(written)}`);
+  if (kept.length) log(`KNOWLEDGE: ${kept.length} document(s) differ here from the branch and are kept as they are: ${listNames(kept)}`);
+  if (broken.length) log(`KNOWLEDGE: ${broken.length} document(s) on the branch are not a JSON object and were not written: ${listNames(broken)}`);
+  if (failed.length) log(`KNOWLEDGE: ${failed.length} document(s) could not be written: ${listNames(failed)}`);
+  return written;
 }
 
 async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
@@ -141,13 +225,22 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
   }
   const tip = resolveCommit(cache, branch);
   if (!tip) { log(`STOP: ${branch} has no commit to follow`); return { code: EXIT_ERROR }; }
+  // Before the code, so a delivery that restarts the backend also teaches it.
+  const taught = deliverKnowledge({ cache, tip, liveRoot: dirname(softwareRoot), state, log });
+  const teach = (restarted) => {
+    if (!taught.length || restarted) return;
+    if (!opts.restart) { log('    restart Alpha Backend so Alpha reads them (--no-restart)'); return; }
+    restartWindows((line) => log(`    ${line.trim()}`), { tasks: RESTART_TASKS.filter((t) => t.task === 'Alpha Backend') });
+  };
   if (record.to === tip) {
     log(`IN SYNC: this machine runs ${short(tip)} of ${branch}`);
+    teach(false);
     return { code: EXIT_OK, tip, record };
   }
   if (state.deliver?.tip === tip && state.deliver.code !== 0) {
     const how = state.deliver.code === 2 ? 'refused' : 'failed';
     log(`WAITING: ${short(tip)} was tried here and ${how}; the next commit on ${branch} is tried when it comes`);
+    teach(false);
     return { code: EXIT_PERSON, tip, record };
   }
   const args = ['--alpha-root', dirname(softwareRoot), '--branch', branch, '--ops', ops, '--apply'];
@@ -165,6 +258,7 @@ async function deliver({ opts, ops, branch, softwareRoot, log, state }) {
   if (code === 0) log(`DELIVERED: ${short(record.to)}..${short(tip)} of ${branch}`);
   else if (code === 2) log(`REFUSED: ${short(tip)}: a file here differs where the change was made, and nothing was written`);
   else log(`FAILED: ${short(tip)} could not be applied, and what was written was put back (above)`);
+  teach(lines.some((line) => line.includes("restarted task 'Alpha Backend'")));
   return { code: code === 0 ? EXIT_OK : EXIT_PERSON, tip, record: after ?? record };
 }
 
@@ -188,7 +282,9 @@ function prepareWork({ work, repo, branch }) {
 async function capture({ opts, ops, branch, tip, record, liveRoot, log, state }) {
   const every = opts.captureEveryMin * 60 * 1000;
   const last = state.capture?.at ? Date.parse(state.capture.at) : 0;
-  if (state.capture?.tip === tip && Date.now() - last < every) {
+  // A new owner-approved list is acted on at once, not at the next hour.
+  const allowKey = [...new Set(opts.allow ?? [])].sort().join(',');
+  if (state.capture?.tip === tip && (state.capture.allowKey ?? '') === allowKey && Date.now() - last < every) {
     for (const line of state.capture.summary ?? []) log(line);
     return state.capture.code ?? EXIT_OK;
   }
@@ -252,7 +348,7 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
   // null makes the next pass try again.
   const finish = (code, capturedTip) => {
     for (const line of summary) log(line);
-    state.capture = { tip: capturedTip, at: new Date().toISOString(), summary, code };
+    state.capture = { tip: capturedTip, at: new Date().toISOString(), summary, code, allowKey };
     return code;
   };
   if (!changed.length && !added.length) {
@@ -262,8 +358,14 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
 
   // Hold back every file with a credential-looking line; the rest go.
   const findings = scanAddedLines(git(['diff', '-U0', '--no-color'], { cwd: work }).stdout)
-    .map((f) => ({ ...f, rel: f.file.slice(BASE.length + 1) }));
-  const held = [...new Set(findings.map((f) => f.rel))];
+    .map((f) => ({ ...f, rel: f.file.slice(BASE.length + 1) }))
+    .map((f) => ({ ...f, id: `${f.rel}:${f.line}` }));
+  // The owner's approved list (autofix.liveSync.allow): exactly these lines, by
+  // path and line. A line that moves, or any new one, is held back again.
+  const allowed = new Set(opts.allow ?? []);
+  const cleared = findings.filter((f) => allowed.has(f.id));
+  const open = findings.filter((f) => !allowed.has(f.id));
+  const held = [...new Set(open.map((f) => f.rel))];
   for (const rel of held) {
     const path = `${BASE}/${rel}`;
     if (added.includes(rel)) {
@@ -276,9 +378,16 @@ async function capture({ opts, ops, branch, tip, record, liveRoot, log, state })
   const sent = { changed: changed.filter((r) => !held.includes(r)), added: added.filter((r) => !held.includes(r)) };
   if (held.length) {
     summary.push(`HELD BACK: ${held.length} file(s) with credential-looking lines, not pushed: ${held.slice(0, 12).join(', ')}${held.length > 12 ? ', ...' : ''}`);
-    for (const f of findings.slice(0, 30)) summary.push(`    ${f.rel}:${f.line}  ${f.label}  ${f.text}`);
-    summary.push('    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears these lines, a snapshot action with their approved list publishes them.');
+    for (const f of open) summary.push(`    ${f.id}  ${f.label}  ${f.text}`);
+    summary.push('    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:');
+    // One line, last, so it survives the report's tail and can be copied whole.
+    // A path --allow cannot take (a space, a bracket) is named instead of listed.
+    const listable = open.filter((f) => ALLOW_ID.test(f.id));
+    summary.push(`ALLOW WITH: ${listable.map((f) => f.id).join(',')}`);
+    if (listable.length < open.length) summary.push(`    ${open.length - listable.length} line(s) cannot go on the list (rename the file): ${[...new Set(open.filter((f) => !ALLOW_ID.test(f.id)).map((f) => f.rel))].join(', ')}`);
   }
+  const clearedSent = cleared.filter((f) => !held.includes(f.rel));
+  if (clearedSent.length) summary.push(`    ${clearedSent.length} credential-looking line(s) cleared by the owner's list go with this capture`);
   if (!sent.changed.length && !sent.added.length) return finish(held.length ? EXIT_PERSON : EXIT_OK, tip);
 
   const machine = opts.machine ?? hostname();

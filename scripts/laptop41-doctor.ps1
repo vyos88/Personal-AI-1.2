@@ -186,24 +186,34 @@ function EnvSetting([string]$name) {
 # what Windows already holds; nothing is probed or sent.
 function Devices-ByAddress {
   Note '--- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)'
+  $script:devicesFound = [ordered]@{ at = (Get-Date).ToString('o'); host = $env:COMPUTERNAME; usb = @(); self = @(); lan = @() }
   foreach ($d in @(Get-CimInstance Win32_PnPEntity -Filter "Name LIKE '%(COM%'" -EA SilentlyContinue)) {
     $com = [regex]::Match([string]$d.Name, '\((COM\d+)\)').Groups[1].Value
     $vp = [regex]::Match([string]$d.DeviceID, 'VID_([0-9A-F]{4})&PID_([0-9A-F]{4})', 'IgnoreCase')
     $vidpid = if ($vp.Success) { "$($vp.Groups[1].Value):$($vp.Groups[2].Value)".ToLower() } else { '-' }
     $inst = ([string]$d.DeviceID).Split('\')[-1]
     Note ("usb  {0,-6} {1,-10} {2,-28} {3}" -f $com, $vidpid, $inst, $d.Name)
+    $script:devicesFound.usb += [ordered]@{ port = $com; vidPid = $vidpid; instance = $inst; deviceId = [string]$d.DeviceID; name = [string]$d.Name }
   }
   foreach ($a in @(Get-NetAdapter -Physical -EA SilentlyContinue | Where-Object Status -eq 'Up')) {
     $ip = (Get-NetIPAddress -InterfaceIndex $a.ifIndex -AddressFamily IPv4 -EA SilentlyContinue | Select-Object -First 1).IPAddress
     Note ("self {0,-15} {1}  {2}" -f $ip, ($a.MacAddress -replace '-', ':').ToLower(), $a.Name)
+    $script:devicesFound.self += [ordered]@{ ip = $ip; mac = ($a.MacAddress -replace '-', ':').ToLower(); adapter = [string]$a.Name }
   }
   $seen = @(Get-NetNeighbor -AddressFamily IPv4 -EA SilentlyContinue | Where-Object {
       $_.IPAddress -match '^(192\.168\.|10\.|172\.(1[6-9]|2\d|3[01])\.)' -and
       $_.State -in 'Reachable', 'Stale', 'Delay', 'Probe', 'Permanent' -and
       $_.LinkLayerAddress -and $_.LinkLayerAddress -notmatch '^(00-00-00-00-00-00|FF-FF-FF-FF-FF-FF)$' -and
       $_.IPAddress -notmatch '\.255$' } | Sort-Object { [version]$_.IPAddress })
-  foreach ($n in $seen) { Note ("lan  {0,-15} {1}  {2}" -f $n.IPAddress, ($n.LinkLayerAddress -replace '-', ':').ToLower(), $n.State) }
+  foreach ($n in $seen) {
+    Note ("lan  {0,-15} {1}  {2}" -f $n.IPAddress, ($n.LinkLayerAddress -replace '-', ':').ToLower(), $n.State)
+    $script:devicesFound.lan += [ordered]@{ ip = [string]$n.IPAddress; mac = ($n.LinkLayerAddress -replace '-', ':').ToLower(); state = [string]$n.State }
+  }
   if (-not $seen.Count) { Note 'lan  (no home-network neighbours in the table yet)' }
+  # The same list as data, for Alpha and the cloud sessions to read without
+  # parsing the report: alpha-ops\devices.json here, reports/devices.json on
+  # status/laptop41.
+  try { $script:devicesFound | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $OpsDir 'devices.json') -Encoding ASCII } catch {}
 }
 
 function Check-DeckFeed {
@@ -227,6 +237,32 @@ function Check-DeckFeed {
       OK "Alpha's deck feed is live$age"
     } elseif ($feed.freshness -and $feed.freshness.reason) {
       Problem "Alpha's deck feed is $($feed.status): $($feed.freshness.reason). $($feed.freshness.advice)"
+      # The numbers that tell a stalled loop from an old snapshot: how old the
+      # heartbeat was when the panel state was built, and how old that state is.
+      $f = $feed.freshness
+      $ages = @()
+      if ($null -ne $f.heartbeat_age_s) { $ages += "assistant heartbeat $($f.heartbeat_age_s)s old (live under $($f.threshold_s)s)" }
+      if ($f.stale_since) { $ages += "stale since $(if ($f.stale_since -is [datetime]) { $f.stale_since.ToString('s') } else { $f.stale_since })" }
+      if ($null -ne $feed.snapshot_age_s) { $ages += "panel snapshot $($feed.snapshot_age_s)s old" }
+      if ($f.cycle_step) { $ages += "assistant cycle in step '$($f.cycle_step)' since $(if ($f.cycle_step_since -is [datetime]) { $f.cycle_step_since.ToString('s') } else { $f.cycle_step_since })" }
+      # A cycle that never gets the shared background lane never reaches a
+      # step; the lane's holder and its waiter say what it waits on.
+      if ($f.lane_active_task -or $f.lane_waiting_task) {
+        $lane = if ($f.lane_active_task) { "background lane held by '$($f.lane_active_task)'" } else { 'background lane free' }
+        if ($f.lane_waiting_task) { $lane += "; '$($f.lane_waiting_task)' waits for it$(if ($f.lane_waiting_reason) { " ($($f.lane_waiting_reason))" })" }
+        $ages += $lane
+      }
+      if ($ages.Count) { Note "  $($ages -join '; ')" }
+      # The loop starts only with background or lightweight autonomy on and
+      # interactive-first off. Name each setting, its value and where it came
+      # from, so one that changed between two starts shows.
+      if ($f.reason -eq 'assistant-loop-not-started') {
+        $flags = foreach ($n in 'ALPHA_INTERACTIVE_FIRST_MODE', 'ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED', 'ALPHA_BACKGROUND_AUTOMATION_ENABLED') {
+          $v = EnvSetting $n
+          if ($v) { "$n=$($v.value) ($($v.from))" } else { "$n not set" }
+        }
+        Note "  settings that start the loop: $($flags -join '; ')"
+      }
     } else {
       Problem "Alpha's deck feed is $($feed.status), and this backend does not say why: it predates Alpha#26, which keeps the assistant heartbeat fresh between cycles"
     }
@@ -1090,6 +1126,8 @@ if ($Push -or ($Watch -and ($due -or $relayChanged))) {
     New-Item -ItemType Directory -Force -Path (Join-Path $wt 'reports') | Out-Null
     Copy-Item $report (Join-Path $wt 'reports\latest.txt') -Force
     Copy-Item $statePath (Join-Path $wt 'reports\doctor-state.json') -Force
+    $dev = Join-Path $OpsDir 'devices.json'
+    if (Test-Path $dev) { Copy-Item $dev (Join-Path $wt 'reports\devices.json') -Force }
     git -C $wt add reports 2>&1 | Plain | Out-Null
     git -C $wt -c user.name=laptop41-doctor -c user.email=doctor@laptop41.invalid commit -q -m "laptop41 doctor ${stamp}: $($open.Count) open" 2>&1 | Plain | Out-Null
     git -C $wt push origin "HEAD:refs/heads/$branch" 2>&1 | Plain | ForEach-Object { Write-Host "  $_" }

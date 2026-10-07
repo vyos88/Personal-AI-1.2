@@ -310,6 +310,31 @@ test("Alpha's deck feed: stale says why and what clears it", { skip, timeout: 30
   assert.match(out, /lightweight autonomy is off or interactive-first mode is on/);
 });
 
+// 2026-10-07: after a restart Worker1's loop stayed not-started, though the
+// same task ran it before. The three settings that decide it are named with
+// their value and where each came from, so a changed one shows.
+test("Alpha's deck feed: a loop that is not started names the settings that start it", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded',
+    freshness: { stale: true, reason: 'assistant-loop-not-started', advice: 'assistant loop is not running on the host.' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true', ALPHA_INTERACTIVE_FIRST_MODE: 'true', ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED: 'true' }, curlExe: true });
+  assert.match(out, /settings that start the loop: ALPHA_INTERACTIVE_FIRST_MODE=true \(environment \(Process\)\); ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true \(environment \(Process\)\); ALPHA_BACKGROUND_AUTOMATION_ENABLED not set/);
+});
+
+// 2026-10-07: Worker1's feed went heartbeat-stale with no restart in between.
+// Whether the loop stalled or the panel snapshot is old decides the fix.
+test("Alpha's deck feed: a stale heartbeat shows its age and the snapshot's", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded', snapshot_age_s: 4.2,
+    freshness: { stale: true, reason: 'heartbeat-stale', advice: 'feed stale', heartbeat_age_s: 900, threshold_s: 420, stale_since: '2026-10-07T01:26:00',
+      cycle_step: 'serial-port-scan', cycle_step_since: '2026-10-07T01:28:00',
+      lane_active_task: 'auto-improve', lane_waiting_task: 'assistant-monitor', lane_waiting_reason: 'host-resource-pressure' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /background lane held by 'auto-improve'; 'assistant-monitor' waits for it \(host-resource-pressure\)/);
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded: heartbeat-stale/);
+  assert.match(out, /assistant heartbeat 900s old \(live under 420s\); stale since 2026-10-07T01:26:00; panel snapshot 4\.2s old; assistant cycle in step 'serial-port-scan' since 2026-10-07T01:28:00/);
+});
+
 // The backend live on Laptop41 on 2026-10-06 predates Alpha#26: its feed has
 // a status but no freshness block.
 test("Alpha's deck feed: an older backend's stale feed points at Alpha#26", { skip, timeout: 300_000 }, async () => {
