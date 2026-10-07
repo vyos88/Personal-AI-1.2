@@ -310,6 +310,17 @@ test("Alpha's deck feed: stale says why and what clears it", { skip, timeout: 30
   assert.match(out, /lightweight autonomy is off or interactive-first mode is on/);
 });
 
+// 2026-10-07: Worker1's feed went heartbeat-stale with no restart in between.
+// Whether the loop stalled or the panel snapshot is old decides the fix.
+test("Alpha's deck feed: a stale heartbeat shows its age and the snapshot's", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded', snapshot_age_s: 4.2,
+    freshness: { stale: true, reason: 'heartbeat-stale', advice: 'feed stale', heartbeat_age_s: 900, threshold_s: 420, stale_since: '2026-10-07T01:26:00' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded: heartbeat-stale/);
+  assert.match(out, /assistant heartbeat 900s old \(live under 420s\); stale since 2026-10-07T01:26:00; panel snapshot 4\.2s old/);
+});
+
 // The backend live on Laptop41 on 2026-10-06 predates Alpha#26: its feed has
 // a status but no freshness block.
 test("Alpha's deck feed: an older backend's stale feed points at Alpha#26", { skip, timeout: 300_000 }, async () => {
