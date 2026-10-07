@@ -89,6 +89,7 @@ function Resolve-Action($a) {
     'repair-host'     { $spec = Ps1 'repair-alpha-host.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 45 }
     'restart-backend' { $out.internal = 'restart-backend'; $out.timeoutMin = 3 }
     'restart-site'    { $out.internal = 'restart-site'; $out.timeoutMin = 4 }
+    'restart-coordinator' { $out.internal = 'restart-coordinator'; $out.timeoutMin = 4 }
     'apply-update' {
       $rest = @((Join-Path $PSScriptRoot 'apply-alpha-update.mjs'), '--alpha-root', $AlphaRoot, '--apply', '--restart')
       if ($a.skipScripts -eq $true) { $rest += '--skip-scripts' }
@@ -407,6 +408,38 @@ foreach ($a in $queued) {
       [void]$lines.Add("/music/healthz through the site: $(if ($music -match '"ok"\s*:\s*true') { 'the music bridge answers' } elseif ($music) { $music.Substring(0, [math]::Min(120, $music.Length)) } else { 'no answer' })")
     }
     $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
+  } elseif ($p.internal -eq 'restart-coordinator') {
+    # The coordinator runs as the scheduled task 'alpha-coordinator' on the
+    # Host. A git pull does not reach it: the 2026-10-07 pull of #159 left it
+    # on the old code (LastRunTime 2026-10-06) until something restarted it.
+    # The queue survives (data/tasks.json); agents re-register by themselves.
+    $port = 8787
+    $n = 0; if ($env:ALPHA_HOST_PORT -and [int]::TryParse($env:ALPHA_HOST_PORT, [ref]$n)) { $port = $n }
+    $lines = New-Object System.Collections.ArrayList
+    if (-not (Get-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue)) {
+      $code = 1; $text = "no scheduled task 'alpha-coordinator' on $env:COMPUTERNAME: the coordinator does not run here"
+    } else {
+      Stop-ScheduledTask -TaskName 'alpha-coordinator' -EA SilentlyContinue
+      $held = @(Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | ForEach-Object OwningProcess | Select-Object -Unique)
+      foreach ($procId in $held) { taskkill.exe /T /F /PID $procId 2>&1 | Out-Null; [void]$lines.Add("stopped pid $procId (and its children) on $port") }
+      if (-not $held.Count) { [void]$lines.Add("nothing listened on $port") }
+      Start-Sleep -Seconds 3
+      Start-ScheduledTask -TaskName 'alpha-coordinator'
+      [void]$lines.Add("started task 'alpha-coordinator' from checkout $((git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim())")
+      $deadline = (Get-Date).AddSeconds(150)
+      while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+      $listen = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
+      if ($listen) {
+        $addr = if ($listen.LocalAddress -in @('0.0.0.0', '::')) { '127.0.0.1' } else { $listen.LocalAddress }
+        $health = (& curl.exe -s --max-time 10 "http://${addr}:$port/healthz" 2>$null | Out-String).Trim()
+        [void]$lines.Add("coordinator listening on ${addr}:$port; healthz: $(if ($health) { $health.Substring(0, [math]::Min(120, $health.Length)) } else { 'no answer' })")
+        $code = $(if ($health -match '"ok"\s*:\s*true') { 0 } else { 1 })
+      } else {
+        [void]$lines.Add("coordinator NOT listening on $port after 150s")
+        $code = 1
+      }
+      $text = $lines -join "`n"
+    }
   } elseif ($p.internal -eq 'restart-backend') {
     $port = 8001
     $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
