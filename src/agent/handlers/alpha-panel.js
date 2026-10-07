@@ -661,8 +661,14 @@ export function redact(text, password) {
  *
  * Split in two so the conversation can be tested without a board: `converse`
  * owns the port, `converseOver` owns the protocol.
+ *
+ * Exported because identifying a board is the same conversation with no
+ * commands in it: `scripts/panel-up.mjs --identify` asks each port of a machine
+ * carrying several boards which one answers this firmware, and a second copy of
+ * the open-configure-close rules is a second place for them to drift.
  */
-async function converse(port, commands, secret, { signal, log } = {}) {
+export async function converse(port, commands, secret, options = {}) {
+  const { signal } = options;
   await configurePort(port, { signal });
 
   const handle = await open(devicePath(port), 'r+').catch((error) => {
@@ -673,7 +679,7 @@ async function converse(port, commands, secret, { signal, log } = {}) {
   });
 
   try {
-    return await converseOver(handle, commands, secret, { signal, log });
+    return await converseOver(handle, commands, secret, options);
   } finally {
     // Closing is also what releases a read still sitting on the port: on
     // Windows there is no termios knob for a read timeout, so an outstanding

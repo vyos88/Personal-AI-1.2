@@ -675,6 +675,31 @@ the wall must not hold a credential that could queue work. It picks the port by
 the CH340 bridge and refuses to guess between two candidates, because flashing
 the wrong board is not something the next command can undo.
 
+**Which board is the panel is asked of the boards, not of the port names.**
+Worker1 carries five bridges — four CH340 clones and the panel — and every one
+of them is "USB-SERIAL CH340" to `mode.com`, while Windows renumbers COM ports
+on re-enumeration, so the number is the least durable fact there is about a
+board. `panel-up.mjs --identify` opens each port in turn and classifies what
+answers: **panel** (this firmware's `status` came back), **alpha-deck** (talking
+and naming itself `[crowpanel]` — Alpha's own deck firmware, which
+`scripts/panel-endpoint.ps1` points and this must never flash over),
+**other**, **silent** or **unreadable**. Four rules:
+
+- **The only thing written is the status query** the readiness probe already
+  sends. A board whose identity is unknown is never handed a command, which is
+  the same rule as refusing to guess which board to flash.
+- **One port at a time.** Opening a port reboots the board behind it, and five
+  boards rebooting at once on one laptop's USB is a brownout, not a diagnosis.
+- **A port gets the handler's own 30 s**, because the sketch spends up to 15 s
+  joining WiFi in `setup()` before its loop reads a byte. A shorter window
+  reports the panel as silent, which sends somebody looking for an unplugged
+  board.
+- **It feeds `pickPort()`.** With several ports and no `--port`, panel-up
+  identifies instead of giving up, and uses the one board that answered *this*
+  firmware. None answering is not a port it can choose — a board not yet
+  flashed with this firmware cannot answer — so it says so and asks for
+  `--port`.
+
 **The panel knows several networks, and picks by signal rather than by order.**
 It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
 handler so an operator hears "at most four" instead of silently losing the
