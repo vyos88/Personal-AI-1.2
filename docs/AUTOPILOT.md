@@ -84,7 +84,8 @@ changes. They are turned on in the same `actions.json`:
 
 - `liveSync` (`{ "branch": "<live branch>", "capture": true }`): every pass,
   the live branch is delivered to this machine (`apply-alpha-update.mjs`, each
-  tip tried once). With `capture`, when this machine runs the tip, the source
+  tip tried once), and its `memory/knowledge` documents are written where
+  Alpha reads them, with a backend restart when one is new. With `capture`, when this machine runs the tip, the source
   edited here and the source only it has are pushed back to the branch,
   fast-forward only; files with credential-looking lines are held back and
   listed, ending with an `ALLOW WITH:` line. `allow` (a `path:line,...`

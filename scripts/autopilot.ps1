@@ -507,7 +507,7 @@ if ($sync -and (Test-Path -LiteralPath $AlphaRoot)) {
     elseif ($syncAllow.Count) { $syncArgs += @('--allow', ($syncAllow -join ',')) }
     $text = (& node @syncArgs 2>&1 | Out-String)
     $code = $LASTEXITCODE
-    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|STOP)' }) -join ' | ')
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|CAPTURED|HELD BACK|SKIPPED|KNOWLEDGE|STOP)' }) -join ' | ')
     if ($key -ne $syncKey) {
       # Long enough for every held-back line and the ALLOW WITH line after them.
       # That line is file paths and line numbers only, and a long file name
