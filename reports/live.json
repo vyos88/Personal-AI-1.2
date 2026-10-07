@@ -1,15 +1,15 @@
 ﻿{
-    "at":  "2026-10-08T00:24:19.8272601+01:00",
+    "at":  "2026-10-08T00:29:06.4847119+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "LIVE",
-                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
+                  "verdict":  "DOWN",
+                  "detail":  "backend 0, site 200, alpha-ai.uk 200; not answering: backend",
                   "checked_by":  "self-heal, 1 min ago"
               },
     "selfheal":  {
                      "state":  "RUNNING",
                      "age_min":  1,
-                     "repairs":  0,
+                     "repairs":  1,
                      "restarted":  "",
                      "snapshot":  ""
                  },
