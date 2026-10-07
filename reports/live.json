@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-07T23:39:09.7336109+01:00",
+    "at":  "2026-10-07T23:44:22.2691856+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -16,7 +16,7 @@
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-07T22:29:20.091134+00:00"
+                  "checked_at":  "2026-10-07T22:44:20.647557+00:00"
               },
     "sync":  "IN SYNC: this machine runs ca87445 of claude/frie...(30)"
 }
