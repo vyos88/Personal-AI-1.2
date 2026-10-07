@@ -435,6 +435,13 @@
       "id": "20261007-cp4-restart-backend",
       "do": "restart-backend",
       "why": "Worker1 rejoined 'Starlink V' (192.168.2.151, the CrowPanel's network) at 22:10 UTC; the backend still binds the old 192.168.1.151 and Desktop Commander (not elevated) cannot stop it. The boot wrapper's --host already lists 192.168.2.151."
+    },
+    {
+      "id": "20261008-01-ollama-keepalive",
+      "do": "ollama-keepalive",
+      "model": "llama3.2:3b",
+      "keepAlive": "24h",
+      "why": "doctor 20261008-004104: Ollama has not answered on 127.0.0.1:11434 since 00:11:24 (open 3 runs), so Alpha has no chat model. This restarts Ollama, loads the chat model and fails unless it stays loaded an hour."
     }
   ],
   "autofix": {
