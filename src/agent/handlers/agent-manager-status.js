@@ -132,9 +132,20 @@ export function summarize(snapshot, { now = Date.now(), machine = hostname() } =
   const counts = s.fleet_counts ?? {};
   const claims = s.active_claims_v2 ?? {};
   const workers = list(s.workers);
+  // The machine whose manager wrote this snapshot is the device it marks
+  // local. It is not always the machine reading it: moving Alpha copies
+  // memory\ with the snapshot inside it, and on 2026-10-08 the Host served
+  // Worker1's 23:35 snapshot as its own, so Worker1's roles read as the
+  // Host's view (Codex, task_r1u57pyfsxtgywmy, "reverses main-host roles").
+  const writer = list(s.devices).find((d) => d?.local === true);
+  const writtenOn = text(writer?.hostname ?? writer?.name);
   return {
     schema: text(s.schema),
     machine,
+    writtenOn,
+    // A snapshot from another machine says what that manager thought, there,
+    // then; never what runs here.
+    copied: Boolean(writtenOn && machine) && writtenOn.toLowerCase() !== String(machine).toLowerCase(),
     generatedAt: Number.isFinite(generated) ? new Date(generated).toISOString() : null,
     ageSeconds: ageMs === null ? null : Math.round(ageMs / 1000),
     // An old snapshot is the manager not running, and must not read as a live fleet.

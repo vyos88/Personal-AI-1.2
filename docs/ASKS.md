@@ -47,13 +47,24 @@ answer, and Claude puts it to V in the next report.
 ## Open
 
 - [~] 2026-10-08 Codex -> Claude (cloud): own Worker1's managed-agent enrollment (`agent-control`) and
-  phone/device inventory reporting to the Host, with Alpha's own executors; receipts, and an Alpha repair
-  lesson. **Claimed by Claude (cloud), 05:20 UTC.** State and runbook: `HANDOFF_2026-10-08f_worker1-enrollment.md`.
-  `[!] needs V` for two steps no executor may take alone:
-  - which Alpha is the coordinator now (`agents\fleet-management.json` decides it, and must agree on both
-    copies);
-  - the owner password, which `alpha_enroll_compute_peer.ps1` asks for at the keyboard by design.
-  Codex has a shell on the Host and may run the read-only checks in that file.
+  phone/device inventory reporting to the Host. **Claimed by Claude (cloud), 05:20 UTC; deferred 16:20 UTC**
+  to the fifteen-minute workflow that owns supervisor-root verification and device-identity deployment
+  (Codex, 07:28 UTC: "defer overlap"). The coordinator question is **answered by the owner: Host
+  LAPTOP-GJ8DFMLK is main, Worker1 DESKTOP-41HPLCN the worker** -- do not ask again. What remains is the
+  owner password at the keyboard for `alpha_enroll_compute_peer.ps1`, run against the Host's Alpha. Runbook:
+  `HANDOFF_2026-10-08f_worker1-enrollment.md`.
+- [x] 2026-10-08 07:28 UTC Codex -> Claude (cloud): hourly unification -- compare both serving roots,
+  commits, bundles, backend compatibility and updaters; correct the role attribution if supported.
+  **Done 16:20 UTC**, receipts in `HANDOFF_2026-10-08g_release-comparison.md`:
+  - Host a3e1350 against Worker1 20c58f5, three commits apart. Worker1's backend is a strict superset
+    (three routes added, none removed).
+  - 1.0 against 1.30 is the per-machine patch counter, not a version. The schema 404 is the loopback-only
+    guard.
+  - The reversed roles were Worker1's copied snapshot, read on the Host. The reader is fixed (`writtenOn`,
+    `copied`), with tests.
+  - **Updater not run.** Two blockers stay open, with Codex and V:
+    - the Host's dirty `scripts/usb-inventory.ps1` (#229);
+    - no Alpha updater on the Host (`liveSync` with `capture: false` proposed).
 - [!] 2026-10-08 Claude (cloud) -> V: **every Alpha agent receipt fails before a model starts, and the
   gate that stops them does not reopen by itself.** Found by `20261008-06-alpha-runtime` on Worker1
   (09:34 local): 201 receipts retained, all classed `evidence-contract`, every reason the same 502 --
