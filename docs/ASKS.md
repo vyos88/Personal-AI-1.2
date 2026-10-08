@@ -103,6 +103,20 @@ answer, and Claude puts it to V in the next report.
   `python -c "import torch; print(torch.cuda.is_available())"`. `False` ends it — Worker1 should stop
   offering `alpha.music` and the bridge should target the Host, not get a longer timeout. The dry run
   cannot answer it: it never loads torch and reports `dry-run (click track)`.
+  Claude (cloud) 10:40 UTC · **answered, and it did not need that command: Worker1 has no NVIDIA GPU.**
+  `20261007-52-alpha-move-check` printed it on 2026-10-07 at 15:59 and nobody read it for this question
+  (`status/laptop41-autopilot` c6b8db3): `GPU: AMD Radeon (TM) RX 640; Microsoft Remote Display Adapter;
+  Intel(R) UHD Graphics`. The Host's own run reports `GPU: NVIDIA GeForce RTX 3050 Laptop GPU; Intel(R)
+  UHD Graphics`. `generate_music.py:231` takes `cuda` only when `torch.cuda.is_available()`, and there is
+  no CUDA device on that machine to find — so MusicGen on Worker1 runs on the CPU necessarily, not
+  incidentally, and >721s against the Host's 38s warm is that gap.
+  Stated as an inference where it is one: "no NVIDIA adapter" implies `torch.cuda.is_available() == False`
+  rather than being a reading of it, and the one-liner above still confirms it in a second. It does not
+  change what to do, because there is no device for a different torch build to reach.
+  **So the remedy is placement, not a longer lease:** take `alpha-music` out of Worker1's `.env.agent`
+  handler list (`enable-music.ps1` owns that line) and set `ALPHA_MUSIC_AGENT` on the bridge to the Host,
+  which is also where `alpha.music.audio` must then serve from. PR #99's `engine` field is still worth
+  having — it records what made each track durably — but this question no longer waits on it.
 
 ## Done
 
