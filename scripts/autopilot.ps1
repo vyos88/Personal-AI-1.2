@@ -42,6 +42,8 @@
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
     alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
+    chat-task        chat-task.ps1: the 'Alpha Ollama' task and "chat" in selfheal.json, so self-heal restarts chat
+    coord-post       coord-post.mjs: one message to Alpha's coordination log  ("message", "actor", "via": "records-standby")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -282,6 +284,30 @@ function Resolve-Action($a) {
     # Phase 2: take what Laptop41 sent over Taildrop, check it against its
     # manifest, put it in place. Refuses while Alpha runs here; starts nothing.
     'receive-alpha-data' { $spec = Ps1 'receive-alpha-data.ps1' @(); $out.timeoutMin = 30 }
+    # Chat for self-heal: a task that runs Ollama as this user, and "chat" in
+    # selfheal.json naming it (Ollama started as SYSTEM finds no models).
+    'chat-task' { $spec = Ps1 'chat-task.ps1' @('-OpsDir', $OpsDir); $out.timeoutMin = 4 }
+    # One message to Alpha's coordination log, through the coordination handler.
+    # The text travels base64-encoded so no quoting can split it into arguments.
+    'coord-post' {
+      $msg = [string]$a.message
+      if (-not $msg.Trim() -or $msg.Length -gt 2000) { $out.reason = 'message must be 1 to 2000 characters'; return $out }
+      $rest = @((Join-Path $PSScriptRoot 'coord-post.mjs'), '--message-b64', [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($msg)))
+      if ($a.actor) {
+        if ([string]$a.actor -notmatch '^[A-Za-z0-9._-]{1,64}$') { $out.reason = 'actor must be 1-64 letters, digits, dot, dash or underscore'; return $out }
+        $rest += @('--actor', [string]$a.actor)
+      }
+      # "via" picks whose coordination root, from a fixed list, never a path:
+      # the Host's records standby (HANDOFF_2026-10-05g) holds Alpha's notes
+      # while Worker1's log is unavailable; this checkout's own .env.agent may
+      # set no ALPHA_REPO_ROOT at all.
+      if ($a.via) {
+        $vias = @{ 'records-standby' = 'C:\services\alpha-records-standby\.env.agent' }
+        if (-not $vias.ContainsKey([string]$a.via)) { $out.reason = "via must be one of: $($vias.Keys -join ', ')"; return $out }
+        $rest += @('--env', $vias[[string]$a.via])
+      }
+      $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 3
+    }
     # The data step of the move: copies memory\ and artifacts\ from an
     # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
     # never a .env file; refuses while anything answers on 8001 here.
@@ -604,7 +630,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -708,6 +734,31 @@ if ($deck -and (Test-Path -LiteralPath $AlphaRoot)) {
   }
 }
 
+# Channel watch (scripts/channel-watch.mjs): is every status channel named in
+# autofix.channelWatch.channels ("name:minutes,...") still being written? Each
+# report is written by the machine it is about, so a machine that stops also
+# stops saying so: on 2026-10-07 Laptop41's autopilot went quiet at 23:24 UTC
+# and a cloud session noticed three hours later. Reported only on a change.
+$watchKey = if ($state -and $state.watchKey) { [string]$state.watchKey } else { '' }
+$watch = if ($control -and $control.autofix -and $control.autofix.channelWatch -and $control.autofix.channelWatch.channels) { $control.autofix.channelWatch } else { $null }
+if ($watch) {
+  $channels = [string]$watch.channels
+  if ($channels -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}:\d{1,4}(,[A-Za-z0-9][A-Za-z0-9._-]{0,63}:\d{1,4})*$') { Write-Host 'autofix.channelWatch.channels must be name:minutes,...: skipped' }
+  else {
+    $started = Get-Date
+    $text = (& node (Join-Path $PSScriptRoot 'channel-watch.mjs') --repo $repo --channels $channels 2>&1 | Out-String)
+    $code = $LASTEXITCODE
+    $key = "$code " + (($text -split "`r?`n" | Where-Object { $_ -match '^(OK|SILENT|MISSING):' -or $_ -match '^could not run' }) -join ' | ')
+    if ($key -ne $watchKey) {
+      $tail = (($text -split "`r?`n") | Where-Object { $_.Trim() } | Select-Object -Last 20) -join "`n"
+      $result = switch ($code) { 0 { '0 (every channel talking)' } 2 { '2 (a channel went quiet)' } default { "$code (could not run)" } }
+      [void]$ran.Add([ordered]@{ id = "auto-channel-watch-$stamp"; do = 'channel-watch (standing)'; result = $result; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = $tail })
+      Write-Host "channel watch: $result"
+    }
+    $watchKey = $key
+  }
+}
+
 # Alpha's own deck-by-deck check (backend deck_audit.py, every 30 min): each
 # new report goes into this report, so the tunnel carries what Alpha found
 # deck by deck and what she fixed. The owner, 2026-10-07: "teach alpha to do
@@ -742,7 +793,7 @@ if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only

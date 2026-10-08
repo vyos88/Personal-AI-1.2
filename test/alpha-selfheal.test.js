@@ -443,3 +443,50 @@ test('a rename that stays refused is thrown with its own reason; other errors ar
   assert.throws(() => retryTransient(missing, { sleep: () => {} }), /ENOENT/);
   assert.equal(tries, 1);
 });
+
+// Chat (2026-10-08): Ollama was down on Laptop41 for over three hours while
+// every other component was healthy, and nothing here looked at it.
+test('chat that stays down is restarted through its own task, like the backend', () => {
+  const chatDown = { backend: ok, frontend: ok, public: { skipped: true }, chat: { ok: false, status: 0, reason: 'ECONNREFUSED' } };
+  const { log } = passes([chatDown, chatDown]);
+  assert.deepEqual(log[0].actions, [], 'one failed pass is a blip for chat too');
+  assert.deepEqual(log[1].actions.map((a) => [a.component, a.action]), [['chat', 'restart']]);
+});
+
+test('chat with no task to start it is reported to a person once, and nothing is spent on it', () => {
+  const noTask = { backend: ok, frontend: ok, public: { skipped: true }, chat: { ok: false, status: 0, reason: 'no-chat-task' } };
+  const { log } = passes([noTask, noTask, noTask]);
+  assert.deepEqual(log.flatMap((l) => l.actions), []);
+  const told = log.flatMap((l) => l.events).filter((e) => e.kind === 'needs-person' && e.component === 'chat');
+  assert.equal(told.length, 1);
+  assert.match(told[0].detail, /chat-task/);
+});
+
+test('a state written before chat existed still decides, and a machine without chat is unchanged', () => {
+  const old = emptyState();
+  delete old.components.chat;
+  const out = decide({ config, state: old, probes: { backend: ok, frontend: ok, public: { skipped: true }, chat: { skipped: true } }, now: 0 });
+  assert.deepEqual(out.actions, []);
+  assert.equal(out.state.components.chat.failStreak, 0);
+});
+
+test('the chat probe asks the configured URL, and calls a missing task what it is', async () => {
+  const server = http.createServer((req, res) => {
+    res.writeHead(req.url === '/api/tags' ? 200 : 404, { 'content-type': 'application/json' });
+    res.end('{"models":[]}');
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const { port } = server.address();
+  try {
+    const base = { backend: { url: `http://127.0.0.1:${port}/api/tags` }, frontend: { url: `http://127.0.0.1:${port}/api/tags` } };
+    let probes = await probeAll({ ...base, chat: { url: `http://127.0.0.1:${port}/api/tags`, task: 'Alpha Ollama' } });
+    assert.equal(probes.chat.ok, true);
+    probes = await probeAll({ ...base, chat: { url: 'http://127.0.0.1:1/api/tags' } });
+    assert.equal(probes.chat.ok, false);
+    assert.equal(probes.chat.reason, 'no-chat-task');
+    probes = await probeAll(base);
+    assert.deepEqual(probes.chat, { skipped: true });
+  } finally {
+    server.close();
+  }
+});

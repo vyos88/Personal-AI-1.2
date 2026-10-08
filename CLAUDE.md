@@ -420,6 +420,11 @@ on. Its policy lives in the pure `decide()` and is pinned by
   `dist.last-good`; it never deletes the evidence of what broke.
 - Probes send `Host: <public host>` through `node:http` because that is what
   cloudflared sends and `fetch` cannot.
+- **Chat is optional and restarted as its owner.** With `chat` in the config,
+  Ollama is probed and restarted through its own scheduled task
+  (`chat-task.ps1` makes `Alpha Ollama`), never started directly: self-heal is
+  SYSTEM, and an Ollama started as SYSTEM finds no models. A `chat` with no
+  task is reported once as needing a person, and no budget is spent on it.
 
 ## Alpha's Agent Manager, seen from any machine
 
