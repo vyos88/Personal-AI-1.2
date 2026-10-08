@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-08T07:14:39.5075498+01:00",
+    "at":  "2026-10-08T07:19:24.1861421+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "BACKEND UP",
@@ -8,9 +8,9 @@
               },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  171,
+                     "age_min":  176,
                      "repairs":  0,
-                     "restarted":  "could not start its task: run scripts\\repair-alpha-host.ps1 as Administrator",
+                     "restarted":  "restart already tried at 07:14",
                      "snapshot":  ""
                  },
     "decks":  {
