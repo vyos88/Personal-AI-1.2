@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-224410
+﻿# host autopilot 20261008-231410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261008-231410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T23:14:14, 2s)
+```
+OK: status/laptop41-live
+OK: status/laptop41
+  ages: laptop41-live 4 min (silent after 30), laptop41 2 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-224410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-08T22:44:13, 2s)
 ```
@@ -274,10 +281,5 @@ PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 22:44
 RAM: 1.8 GB free of 15.8 GB
 STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
 RESULT: ready for the data copy
-```
-
-## 20261007-h21-songs-check  songs-check  ->  1   (2026-10-07T22:45:17, 0s)
-```
-PROBLEM: no song receipts found (looked for memory\local\music-singing above C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software)
 ```
 
