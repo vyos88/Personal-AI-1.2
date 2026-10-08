@@ -459,6 +459,11 @@
       "id": "20261008-02-alpha-runtime",
       "do": "alpha-runtime",
       "why": "the two Alpha questions: whether the assistant cycle is running or waiting for the shared background lane (awareness runs inside it, so not-started is ambiguous), and the reason behind each incomplete agent receipt rather than just the evidence-contract class. Read-only, merged in #218."
+    },
+    {
+      "id": "20261008-60-chat-task",
+      "do": "chat-task",
+      "why": "Ollama down since 23:11 UTC; self-heal can restart chat once this task exists (#219). Runs when this autopilot runs again"
     }
   ],
   "autofix": {
