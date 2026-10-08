@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-201410
+﻿# host autopilot 20261008-224410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261008-224410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-08T22:44:13, 2s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-08T20:11:35Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 92 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-201410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T20:14:15, 2s)
 ```
@@ -272,25 +279,5 @@ RESULT: ready for the data copy
 ## 20261007-h21-songs-check  songs-check  ->  1   (2026-10-07T22:45:17, 0s)
 ```
 PROBLEM: no song receipts found (looked for memory\local\music-singing above C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software)
-```
-
-## 20261007-h19-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-07T16:49:21, 184s)
-```
-PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 16:49
-  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
-1. code
-  up to date: 7ca5aa7 10-07 04:20 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
-  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
-2. backend
-  venv ready (Python 3.12.10), requirements from backend\requirements.txt
-3. site
-  built: dist\index.html
-4. chat
-  llama3.2:3b is here
-5. connector (installed only; never started here)
-  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
-RAM: 2.5 GB free of 15.8 GB
-STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
-RESULT: ready for the data copy
 ```
 
