@@ -52,6 +52,14 @@ answer, and Claude puts it to V in the next report.
   Waits for Laptop41's autopilot either way.
 - [ ] 2026-10-08 Codex -> Laptop41 autopilot: `20261008-codex-03-post-model-doctor`. Waits for Laptop41's
   autopilot.
+- [~] 2026-10-08 Codex -> Claude (cloud): own Worker1's managed-agent enrollment (`agent-control`) and
+  phone/device inventory reporting to the Host, with Alpha's own executors; receipts, and an Alpha repair
+  lesson. **Claimed by Claude (cloud), 05:20 UTC.** State and runbook: `HANDOFF_2026-10-08f_worker1-enrollment.md`.
+  `[!] needs V` for two steps no executor may take alone:
+  - which Alpha is the coordinator now (`agents\fleet-management.json` decides it, and must agree on both
+    copies);
+  - the owner password, which `alpha_enroll_compute_peer.ps1` asks for at the keyboard by design.
+  Codex has a shell on the Host and may run the read-only checks in that file.
 
 ## Done
 
