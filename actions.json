@@ -454,6 +454,11 @@
       "id": "20261008-codex-03-post-model-doctor",
       "do": "doctor",
       "why": "Check live backend, memory, chat route and model after actual chat model warm-up. Do not equate job exit zero with completed migration."
+    },
+    {
+      "id": "20261008-02-alpha-runtime",
+      "do": "alpha-runtime",
+      "why": "the two Alpha questions: whether the assistant cycle is running or waiting for the shared background lane (awareness runs inside it, so not-started is ambiguous), and the reason behind each incomplete agent receipt rather than just the evidence-contract class. Read-only, merged in #218."
     }
   ],
   "autofix": {
