@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-08T06:39:52.6574292+01:00",
+    "at":  "2026-10-08T06:45:14.3737894+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "BACKEND UP",
@@ -8,9 +8,9 @@
               },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  136,
+                     "age_min":  142,
                      "repairs":  0,
-                     "restarted":  "could not start its task: run scripts\\repair-alpha-host.ps1 as Administrator",
+                     "restarted":  "restart already tried at 06:39",
                      "snapshot":  ""
                  },
     "decks":  {
@@ -18,5 +18,5 @@
                   "not_live":  null,
                   "checked_at":  "2026-10-08T05:39:40.582284+00:00"
               },
-    "sync":  "DELIVERED: a3e1350..ab67005 of claude/frie...(30)"
+    "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
