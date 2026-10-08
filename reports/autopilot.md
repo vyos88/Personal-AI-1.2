@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261008-071845
+﻿# laptop41 autopilot 20261008-074344
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ae2f3fd is current
+checkout b48d0d9 is current
+
+## auto-live-sync-20261008-074344  live-sync (standing)  ->  0 (in sync)   (2026-10-08T07:44:03, 32s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches 20c58f5
+```
 
 ## auto-deck-audit-20261008-071845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T07:19:19, 0s)
 ```
@@ -325,13 +332,5 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
 OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
 OK: the deck's source draws the links the backend sends and checks them (Region links)
 OK: the site serves the fixed deck (BrainNeuralModel-BizulwOh.js)
-```
-
-## auto-live-sync-20261008-000345  live-sync (standing)  ->  0 (in sync)   (2026-10-08T00:04:06, 5s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs a3e1350 of claude/frie...(30)
-CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as a3e1350 on claude/frie...(30)
-    1 credential-looking line(s) cleared by the owner's list go with this capture
 ```
 
