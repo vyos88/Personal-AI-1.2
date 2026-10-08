@@ -474,6 +474,11 @@
       "id": "20261008-04-doctor",
       "do": "doctor",
       "why": "after 03: confirm self-heal logs again and the open problem clears."
+    },
+    {
+      "id": "20261008-05-alpha-runtime",
+      "do": "alpha-runtime",
+      "why": "re-run now that #228 is merged: the first pass printed nothing because the entrypoint guard did not match on Windows, so main() never ran. This one should print the loop states, what the assistant cycle is waiting for, and the newest agent receipts with their reasons."
     }
   ],
   "autofix": {
