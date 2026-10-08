@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-042414
+﻿# host autopilot 20261008-064410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ebc44b1 is current
+checkout ae2f3fd is current
+
+## auto-channel-watch-20261008-064410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T06:44:18, 2s)
+```
+OK: status/laptop41-live
+OK: status/laptop41
+  ages: laptop41-live 4 min (silent after 30), laptop41 2 min (silent after 45)
+```
 
 ## 20261008-h30-coord-post  coord-post  ->  1   (2026-10-08T04:24:19, 1s)
 ```
@@ -377,41 +384,5 @@ ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, me
 ok: restarted the agent through task 'alpha-tunnel agent'
 the agent now offers alpha.image
 done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261007-h13-fleet-inventory  fleet-inventory  ->  0   (2026-10-07T03:55:07, 4s)
-```
-FLEET INVENTORY LAPTOP-GJ8DFMLK 2026-10-07 03:55
-TASKS (11 enabled, 5 disabled): name | state | last run | result | next | runs
-  ACCAgent | Ready | 10-01 05:25 | 0x0 | - | LiveUpdateAgent.exe 
-  Alpha Autopilot | Running | 10-07 03:54 | 0x41301 | 10-07 03:59 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  Alpha compute worker keep-alive | Ready | 10-07 03:52 | 0x0 | 10-07 03:57 | wscript.exe //B //NoLogo "C:\AlphaData\alpha-ops\run-hidden.vbs" "C:\A...
-  Alpha peer report | Ready | 10-07 03:52 | 0x0 | 10-07 03:55 | wscript.exe //B //NoLogo "C:\AlphaData\alpha-ops\run-hidden.vbs" "C:\A...
-  Alpha records from Worker1 | Ready | 10-07 03:50 | 0x0 | 10-07 04:00 | wscript.exe //B //NoLogo "C:\AlphaData\alpha-ops\run-hidden.vbs" "C:\A...
-  Alpha records standby | Running | 10-06 20:57 | 0x41301 | - | node.exe "C:\services\alpha-records-standby\scripts\standby-alpha.mjs"...
-  alpha-coordinator | Running | 10-07 02:15 | 0x41301 | - | cmd.exe /c "C:\services\alpha-tunnel\run-coordinator.cmd"
-  alpha-tunnel agent | Running | 10-07 03:55 | 0x41301 | - | node.exe "C:\services\alpha-tunnel\scripts\keep-agent.mjs"
-  ComfyUI | Running | 10-07 03:54 | 0x41301 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
-  JumpstartAgentTask | Ready | 09-29 16:14 | 0x0 | - | jsagent.exe" /runas
-  Proton VPN NRPT watchdog | Ready | 10-06 01:08 | 0x0 | - | ProtonVPN.NrptWatchdog.exe --force
- disabled: Fleet Render Maintenance, Host - Agent Manager, Host - Health Guard, Host - Start at Logon, Tunnel Worker
-SERVICES: none named like Alpha, cloudflared, Ollama or ComfyUI
-PROCESSES (13 roles): role xN | MB | pids | command
-  codex x3 | 1324 MB | 17108,59020,62652 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.930.4958.0_x64__2p2nqsd0c76g0\app\...
-  claude x1 | 1544 MB | 20440 | "C:\Program Files\WindowsApps\Claude_2.19675.0.0_x64__pzs8sxrjxfjjc\app\Claude.e...
-  node: npx-cli.js x4 | 8 MB | 9160,13372,29920,33416 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
-  node: index.js x4 | 110 MB | 26840,13964,20576,32448 | "node" "C:\Users\jack\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules...
-  py: alpha_windows_supervisor.py x1 | 10 MB | 46264 | "C:\Users\jack\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:\Users\ja...
-  py: alpha_windows_worker.py x1 | 10 MB | 45748 | C:\Users\jack\AppData\Local\Programs\Python\Python312\pythonw.exe C:\Users\jack\...
-  standby x1 | 24 MB | 48316 | "C:\Program Files\nodejs\node.exe" "C:\services\alpha-records-standby\scripts\st...
-  coordinator x1 | 22 MB | 57984 | node src\host\index.js 
-  ps: autopilot.ps1 x1 | 236 MB | 61668 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  ps: start-comfyui.ps1 x1 | 79 MB | 63768 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
-  ComfyUI x1 | 915 MB | 54972 | "C:\services\ComfyUI\venv\Scripts\python.exe" C:\services\ComfyUI\main.py --list...
-  agent keeper x1 | 44 MB | 64816 | "C:\Program Files\nodejs\node.exe" "C:\services\alpha-tunnel\scripts\keep-agent....
-  tunnel agent x1 | 57 MB | 62628 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\src\agent\index.js
-DUPLICATES: none
-PORTS: 8001=- 4173=- 8787=node(57984) 8790=- 7861=- 7860=- 8188=python(65008) 11434=- 8080=-
-AGENT MANAGER: no snapshot at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\agent-manager\manager-status.json (the manager does not run here)
 ```
 
