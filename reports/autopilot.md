@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261008-085846
+﻿# laptop41 autopilot 20261008-092845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 is current
+
+## auto-deck-audit-20261008-092845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T09:29:13, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T08:25:49.526524+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 3, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
+WORKING terminal: answers with data (logs 79)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## auto-deck-audit-20261008-085846  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T08:59:16, 0s)
 ```
@@ -436,41 +462,5 @@ Ollama answers now; nothing started
 OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
 OK: the deck's source draws the links the backend sends and checks them (Region links)
 OK: the site serves the fixed deck (BrainNeuralModel-BizulwOh.js, Brai...(25).js)
-```
-
-## auto-live-sync-20261008-063351  live-sync (standing)  ->  0 (in sync)   (2026-10-08T06:36:15, 196s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-    Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
-    changes: a3e1350..ab67005 of claude/frie...(30) (last applied here: a3e1350)
-      applies  M backend/api/__init__.py
-      applies  A backend/api/coding_context.py
-      applies  A backend/api/debts.py
-      applies  M backend/api/music_generation.py
-      applies  A backend/coding_context_pack.py
-      applies  M backend/music_singing.py
-      applies  A backend/tests/test_coding_context_pack.py
-      applies  A backend/tests/test_debts_api.py
-      applies  M backend/tests/test_singing_mp3.py
-      applies  A frontend/src/debtMerge.js
-      applies  M frontend/src/debtStorage.js
-      applies  A frontend/src/debtSync.js
-      applies  A frontend/src/debtSync.test.js
-      applies  M frontend/src/pages/DebtContactLinks.jsx
-      applies  M frontend/src/pages/DebtsHubPanel.jsx
-      applies  M frontend/vite.config.js
-      backup: C:\AlphaData\alpha-ops\backups\alph...(37)
-      ok: wrote 16 file(s)
-      ok: 9 Python file(s) parse
-      packages unchanged and installed: building (no npm ci)...
-      ok: frontend built
-    DONE. Undo with:  node scripts/apply-alpha-update.mjs --rollback "C:\AlphaData\alpha-ops\backups\alph...(37)" --restart
-      stopped pid 5412, which held port 8001
-      restarted task 'Alpha Backend'
-      stopped pid 23200, which held port 4173
-      restarted task 'Alpha'
-      Check http://127.0.0.1:8001/health and the site in a minute. The self-heal task also restarts anything left down.
-DELIVERED: a3e1350..ab67005 of claude/frie...(30)
-CAPTURED: 3 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 20c58f5 on claude/frie...(30)
 ```
 
