@@ -69,7 +69,38 @@ const EVENT_ID_PATTERN = /^[a-f0-9]{32}$/;
 
 const MAX_MESSAGE_LENGTH = 4_000;
 const MAX_PATHS = 64;
+const MAX_OUTPUT_CHARS = 16_000;
 const DEFAULT_SCRIPT = 'scripts/alpha_coordination_tunnel.ps1';
+
+/** Parse before clipping stdout: a tail of JSON cannot establish ownership. */
+export function statusEvidence(stdout) {
+  let status;
+  try {
+    status = JSON.parse(stdout.replace(/^\uFEFF/, ''));
+  } catch {
+    return { status: null, statusError: 'Status output is not complete JSON; ownership is unknown.' };
+  }
+  if (!status || status.schema !== 'alpha.coordination.status.v1'
+      || !status.claims || typeof status.claims !== 'object' || Array.isArray(status.claims)
+      || !status.claims_lifecycle || typeof status.claims_lifecycle !== 'object'
+      || Array.isArray(status.claims_lifecycle)) {
+    return { status: null, statusError: 'Status schema or claim evidence is missing; ownership is unknown.' };
+  }
+  const claims = Object.entries(status.claims);
+  const { details, ...lifecycle } = status.claims_lifecycle;
+  const detailList = Array.isArray(details) ? details : details ? [details] : [];
+  return { status: {
+    schema: status.schema,
+    generatedAt: status.generated_at ?? null,
+    tunnelIdentity: status.tunnel_identity ?? null,
+    claims: Object.fromEntries(claims.slice(0, MAX_PATHS)),
+    claimEntries: claims.length,
+    claimsComplete: claims.length <= MAX_PATHS,
+    claimsLifecycle: { ...lifecycle, details: detailList.slice(0, MAX_PATHS) },
+    lifecycleDetailsComplete: detailList.length <= MAX_PATHS,
+    // No defaults for absent counts or provenance: missing evidence stays missing.
+  }, statusError: null };
+}
 
 // Actor names end up in a shared log; keep them to something legible and
 // unambiguous rather than accepting arbitrary text.
@@ -342,8 +373,12 @@ export async function run(payload, { signal, log } = {}) {
     paths,
     ...(eventId ? { eventId, stage } : {}),
     exitCode: code,
-    stdout: stdout.slice(-16_000),
-    stderr: stderr.slice(-16_000),
+    sourceRoot: root,
+    stdout: stdout.slice(-MAX_OUTPUT_CHARS),
+    stderr: stderr.slice(-MAX_OUTPUT_CHARS),
+    stdoutTruncated: stdout.length > MAX_OUTPUT_CHARS,
+    stderrTruncated: stderr.length > MAX_OUTPUT_CHARS,
+    ...(action === 'Status' && code === 0 ? statusEvidence(stdout) : {}),
   };
 }
 
