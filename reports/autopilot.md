@@ -1,8 +1,48 @@
-﻿# laptop41 autopilot 20261008-063351
+﻿# laptop41 autopilot 20261008-064350
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout ae2f3fd is current
+
+## auto-brain-topology-20261008-064350  brain-topology (standing)  ->  0 (deck ok)   (2026-10-08T06:45:00, 0s)
+```
+OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+OK: the deck's source draws the links the backend sends and checks them (Region links)
+OK: the site serves the fixed deck (Brai...(25).js)
+```
+
+## auto-live-sync-20261008-064350  live-sync (standing)  ->  0 (in sync)   (2026-10-08T06:45:00, 9s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
+CAPTURED: 3 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 20c58f5 on claude/frie...(30)
+```
+
+## auto-deck-audit-20261008-064350  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T06:45:09, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T05:43:48.393126+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 3, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 1, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
+WORKING terminal: answers with data (logs 44)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 40 of 87 songs have their MP3; made 0 now, 0 failed, 47 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## auto-bridges-20261008-063351  bridges (standing)  ->  0 (restarted)   (2026-10-08T06:34:12, 0s)
 ```
@@ -295,71 +335,5 @@ KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: a
 DELIVERED: ca87445..cfb5371 of claude/frie...(30)
 CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as a3e1350 on claude/frie...(30)
     1 credential-looking line(s) cleared by the owner's list go with this capture
-```
-
-## auto-deck-liveness-20261007-235848  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-08T00:00:46, 12s)
-```
-DECKS: 4 live, 2 stale, 1 static, 1 no feed
-DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 27 s old, fresh for ? s
-DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
-    manager snapshot 4 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 1 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 3 s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-deck-audit-20261007-235848  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T00:00:59, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-07T22:54:37.816132+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 5)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 1, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 4, registry_summary.connected_names 4, registry_summary.disconnected_names 0, registry_summary.statements 5)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 16, nodes 16, resources.awaiting_first_heartbeat 6, resources.capability_set 9)
-WORKING terminal: answers with data (logs 87)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 4, devices.disconnected_names 0, devices.statements 5)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-deck-liveness-20261007-232852  deck-liveness (standing)  ->  0 (every deck live)   (2026-10-07T23:29:17, 4s)
-```
-DECKS: 6 live, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 58 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 5 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    16 device(s), newest heartbeat 5 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 17 s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
