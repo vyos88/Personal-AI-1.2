@@ -1,8 +1,44 @@
-﻿# host autopilot 20261008-005410
+﻿# host autopilot 20261008-011409
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 80fa8e2 is current
+
+## 20261008-codex-h26-receive-config  receive-alpha-data  ->  3   (2026-10-08T01:14:14, 178s)
+```
+RECEIVE ALPHA DATA LAPTOP-GJ8DFMLK 2026-10-08 01:14
+  taildrop: getting WaitingFiles: 503 Service Unavailable: no backend
+NOT YET: no alpha-move-manifest.json in C:\AlphaData\alpha-move\inbox
+```
+
+## 20261008-codex-h27-migration-readiness  alpha-move-check  ->  0   (2026-10-08T01:17:13, 22s)
+```
+ALPHA MOVE CHECK LAPTOP-GJ8DFMLK 2026-10-08 01:17
+MACHINE: RAM 1.4 GB free of 15.8 GB; C: 53.8 GB free; on AC
+  GPU: NVIDIA GeForce RTX 3050 Laptop GPU; Intel(R) UHD Graphics
+  addresses: tailnet none; LAN 192.168.1.88 (Ethernet)
+ALPHA COPY:
+  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: not here
+  C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software: backend, frontend, node_modules, dist; git claude/frie...(30) @ a3e1350 10-08 00:00
+DATA (runtime state; never in git, moves by USB or LAN):
+  C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\memory: 32472 files, 4.4 GB
+  venv: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\.venv\Scripts\python.exe (Python 3.12.10)
+TOOLS:
+  git: git version 2.55.0.windows.4
+  node: v24.19.0
+  python: Python 3.12.10
+  py: Python 3.12.10
+  ollama: ollama version is 0.35.1
+  cloudflared: cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
+  tailscale: 1.102.4
+  ollama models: llama3.2:3b, qwen2.5:3b
+  cloudflared: service none; 0 process(es); config folders hold 0 .yml and 0 .json file(s) (not opened)
+PORTS: 8001 backend=-, 4173 site=-, 8787 coordinator=up, 8790 music bridge=-, 7861 image bridge=-, 11434 ollama=up, 8188 comfyui=-
+TASKS: Alpha=-, Alpha Backend=-, Alpha Self-Heal=-, Alpha Doctor=-, alpha-music bridge=-, alpha-image bridge=-, alpha-coordinator=Running, alpha-tunnel agent=Running, Alpha Autopilot=Running
+AGENT MANAGER: snapshot here, written 10-07 23:35
+MISSING TO RUN ALPHA HERE (1):
+  - the backend's .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)
+```
 
 ## 20261008-h24-alpha-data-in  alpha-data-in  ->  0   (2026-10-08T00:54:18, 391s)
 ```
@@ -417,34 +453,6 @@ coordinator listening on 127.0.0.1:8787; healthz: {"ok":true,"protocolVersion":1
 ```
 
 ## 20261006-h08-enable-music  enable-music  ->  0   (2026-10-06T23:54:17, 42s)
-```
-ok: C:\Users\jack\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
-python: C:\AlphaData\creators-venv\Scripts\python.exe
-NVIDIA GPU found: installing CUDA torch first
-installing scripts\requirements-music.txt (the first time downloads torch, several hundred MB)...
-ok: torch and transformers import (2.6.0+cu124 5.19.0 cuda)
-downloading facebook/musicgen-small once, so the first track does not wait for it...
-ok: facebook/musicgen-small is cached
-model cache for the agent: C:\Users\jack\.cache\huggingface
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the agent through task 'alpha-tunnel agent'
-the agent now offers alpha.music
-done: this machine makes music for the Music Creator
-```
-
-## 20261006-h07-enable-image  enable-image  ->  0   (2026-10-06T21:34:14, 380s)
-```
-NVIDIA GPU found: installing CUDA torch
-ComfyUI's torch: 2.11.0+cu128 cuda
-ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon; log C:\AlphaData\comfyui.log)
-image backend: comfyui
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the agent through task 'alpha-tunnel agent'
-the agent now offers alpha.image
-done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261006-h04-enable-music  enable-music  ->  0   (2026-10-06T21:04:14, 36s)
 ```
 ok: C:\Users\jack\AppData\Local\Programs\Python\Python312\python.exe has no broken requirements Alpha's server needs
 python: C:\AlphaData\creators-venv\Scripts\python.exe
