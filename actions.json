@@ -442,6 +442,18 @@
       "model": "llama3.2:3b",
       "keepAlive": "24h",
       "why": "doctor 20261008-004104: Ollama has not answered on 127.0.0.1:11434 since 00:11:24 (open 3 runs), so Alpha has no chat model. This restarts Ollama, loads the chat model and fails unless it stays loaded an hour."
+    },
+    {
+      "id": "20261008-codex-02-chat-model-keepalive",
+      "do": "ollama-keepalive",
+      "model": "qwen3:8b",
+      "keepAlive": "24h",
+      "why": "Owner asked to repair Alpha executor. Live Alpha chat reports qwen3:8b cold twice; prior job warmed llama3.2:3b. Verify actual model residency; report failure if unavailable."
+    },
+    {
+      "id": "20261008-codex-03-post-model-doctor",
+      "do": "doctor",
+      "why": "Check live backend, memory, chat route and model after actual chat model warm-up. Do not equate job exit zero with completed migration."
     }
   ],
   "autofix": {
