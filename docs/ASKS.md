@@ -162,6 +162,38 @@ answer, and Claude puts it to V in the next report.
   It needs a `pwsh` run against `test/laptop41-doctor.test.js` before merge — this container has no
   PowerShell, and that file is the fleet's only health report, so I am not pushing it blind.
 
+  **Update 2026-10-08 15:37 UTC: the fleet now raises this by itself, and the gap has doubled.** The
+  Host's standing `channel-watch` fired at 15:14Z with exit 2 -- `SILENT: status/laptop41 (last write
+  2026-10-08T13:39:41Z)`, `laptop41 94 min (silent after 90)` -- which is the 90-minute threshold set
+  on `control/host` two cycles earlier working as intended, on the first real silence since. The gap
+  is 118 minutes as of this write (13:39:41Z to 15:37Z), against the 15-minute interval the schedule
+  is installed with, and `reports/doctor-state.json` still reads `"lastRun": "2026-10-08T14:39:36"`
+  (local, +01:00 = 13:39:36Z) -- the forced run and nothing after it. Nothing further is measurable
+  from here; it still needs the elevated read above.
+
+- [ ] 2026-10-08 Claude (cloud) -> V (or Codex, who has a shell there): **the Host's checkout has been
+  frozen for eight hours by one uncommitted file, and its report has said so every pass without anyone
+  acting on it.** `status/host-autopilot`'s report opens with
+  `checkout e175472 did NOT update (self-update exit 1): self-update: working copy has uncommitted
+  changes; local changes:  M scripts/usb-inventory.ps1`, and the 08:49+01:00 pass was already
+  subjected `checkout cannot update`.
+  The arithmetic: `e175472` is `Merge #228`, committed 2026-10-08T08:30:55+01:00 = **07:30Z**; `main`
+  is at `dc48760` and `git rev-list --count e175472..origin/main` is **16**. So the Host has been
+  pinned 8h07m and 16 commits behind as of 15:37Z, and `self-update.mjs` refuses by design -- rule 2,
+  never over local work -- so no pass will ever clear it.
+  **The remedy is one decision on that machine, and it is not mine to take:** `scripts/usb-inventory.ps1`
+  was last changed on `main` on 2026-09-29 (`d294793`), nine days ago, so the modification is local to
+  the Host and not a merge artifact. Either it is wanted -- commit it -- or it is not --
+  `git -C C:\services\alpha-tunnel checkout -- scripts/usb-inventory.ps1`. Discarding local work is
+  exactly what this repo forbids a script to do, so I will not queue an action for it.
+  **What I did ship for it:** the refusal now names the cost, not only the remedy -- how many commits
+  the checkout is missing and how long the oldest has waited, in the message and as `behind` /
+  `oldestMissing` in the `--json`. Same rule `channel-watch.mjs` follows for a silent heartbeat.
+  `scripts/self-update.mjs`, pinned by the new `test/self-update.test.js` (5 tests).
+  **Not claimed as a cause of anything else.** I checked whether the stale checkout explained the Host
+  running a `channel-watch` without `describeQueued`: it does not -- that work is in PR #99 and is not
+  on `main` at all, so no checkout has it.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own

@@ -78,6 +78,39 @@ function git(repo, args) {
   });
 }
 
+/**
+ * How far this checkout has fallen behind, as a count of the commits it is
+ * missing and the age of the oldest one.
+ *
+ * Every refusal below names the remedy -- the file somebody is holding, or the
+ * divergence a person has to resolve -- and none of them names the cost. That
+ * is what makes a refusal easy to leave alone: the Host's autopilot reported
+ * `checkout cannot update` from 07:49Z on 2026-10-08 and was still pinned at
+ * e175472 eight hours and sixteen commits later, the line reading the same on
+ * every pass. `channel-watch.mjs` has the rule for this shape of report -- a
+ * silent heartbeat names the work it has stranded, not only the symptom.
+ *
+ * It fetches first, because the answer is worthless against a remote ref as
+ * old as the stall itself. Fetching is not updating: it writes `refs/remotes`
+ * and touches no tracked file, so the "never over local work" rule above
+ * stands. A fetch that fails costs nothing -- the refusal is already decided,
+ * so the gap is left out rather than guessed at, and the reason the caller
+ * came for is never replaced by a second one about the network.
+ */
+async function behindUpstream(options, { fetch = true } = {}) {
+  if (fetch) {
+    const fetched = await git(options.repo, ['fetch', '--prune', options.remote]);
+    if (fetched.exitCode !== 0) return {};
+  }
+  // --format with no -n: the count is the line count, so one call answers both,
+  // and the oldest is the last line. `log -1 --reverse` would not work here --
+  // the limit applies before the reversal, which hands back the newest.
+  const log = await git(options.repo, ['log', '--format=%cI', 'HEAD..@{upstream}']);
+  if (log.exitCode !== 0 || !log.stdout) return {};
+  const dates = log.stdout.split('\n');
+  return { behind: dates.length, oldestMissing: dates[dates.length - 1] };
+}
+
 async function main(argv) {
   const options = parseArgs(argv);
 
@@ -100,6 +133,7 @@ async function main(argv) {
       reason: 'working copy has uncommitted changes',
       files: dirty.stdout.split('\n').length,
       head: before.stdout,
+      ...(await behindUpstream(options)),
       exit: EXIT_FAILED,
     };
   }
@@ -115,7 +149,15 @@ async function main(argv) {
   if (pulled.exitCode !== 0) {
     // Almost always a diverged branch: this machine has a commit the remote
     // does not. That is a person's decision to resolve, not a script's.
-    return { ok: false, reason: pulled.stderr || 'pull failed', head: after.stdout, exit: EXIT_FAILED };
+    return {
+      ok: false,
+      reason: pulled.stderr || 'pull failed',
+      head: after.stdout,
+      // This path has already fetched, and asking the network twice on a pass
+      // that is going to fail anyway buys nothing.
+      ...(await behindUpstream(options, { fetch: false })),
+      exit: EXIT_FAILED,
+    };
   }
 
   const moved = after.stdout !== before.stdout;
@@ -141,6 +183,12 @@ if (result.json ?? process.argv.includes('--json')) {
   console.log(JSON.stringify(result));
 } else if (!result.ok) {
   console.error(`self-update: ${result.reason}`);
+  if (result.behind) {
+    console.error(
+      `self-update: this checkout is ${result.behind} commit(s) behind its upstream`
+      + `, the oldest waiting since ${result.oldestMissing}`,
+    );
+  }
 } else if (result.updated) {
   console.log(`self-update: now on ${result.head.slice(0, 7)} — ${result.subject}`);
   console.log('self-update: restart the agent to pick this up');
