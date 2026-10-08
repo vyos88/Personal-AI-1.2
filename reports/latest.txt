@@ -1,4 +1,4 @@
-laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 7194939 2026-10-08)
+laptop41-doctor 20261008-181102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 7194939 2026-10-08)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 1.2s (load 0s, 10.5 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 1.3s (load 0s, 11.9 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -44,9 +44,9 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-08T16:06:54.482Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-08T16:08:54.513Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-08T16:10:54.489Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-08T17:06:54.691Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-08T17:08:54.766Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-08T17:10:54.688Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -76,7 +76,7 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 6. CrowPanel ===
     COM7
-    COM24   in use by another program?
+    COM24
   device: USB-SERIAL CH340 (COM24)
   device: USB Serial Device (COM7)
   --- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)
@@ -88,7 +88,7 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 34s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 37s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
   ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (37 connections)
@@ -96,15 +96,15 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 === 7. Memory, disk, heaviest processes ===
   ok: 2.9 of 15.8 GB RAM free
   ok: C: 132.7 GB free
-  ok: CPU 41% (Alpha holds GPU admission at 90%)
+  ok: CPU 51% (Alpha holds GPU admission at 90%)
   llama-server                  1,932 MB  pid 1040
-  Memory Compression            1,855 MB  pid 3840
-  node                            829 MB  pid 21168
-  claude                          750 MB  pid 8028
-  MsMpEng                         410 MB  pid 6040
-  WindowsTerminal                 405 MB  pid 9648
-  explorer                        343 MB  pid 10108
-  claude                          273 MB  pid 12912
+  Memory Compression            1,889 MB  pid 3840
+  node                            826 MB  pid 21168
+  claude                          763 MB  pid 8028
+  WindowsTerminal                 425 MB  pid 9648
+  MsMpEng                         377 MB  pid 6040
+  explorer                        341 MB  pid 10108
+  claude                          270 MB  pid 12912
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -112,7 +112,7 @@ laptop41-doctor 20261008-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 24s
+  this pass took 28s
   ok: no problems found
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
