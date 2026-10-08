@@ -1,8 +1,17 @@
-﻿# laptop41 autopilot 20261008-082845
+﻿# laptop41 autopilot 20261008-083354
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout b48d0d9 is current
+checkout e175472 is current
+
+## 20261008-05-alpha-runtime  alpha-runtime  ->  0   (2026-10-08T08:34:16, 0s)
+```
+loops    : assistant=running awareness=degraded thoughts=active
+beat     : 16s old, stale=false
+lane     : waiting_on=host busy (systemcpu) since=2026-10-08T07:33:45.212682 step=-
+advice   : feed live - waiting: host busy (systemcpu)
+receipts : 0 retained; classes none
+```
 
 ## auto-deck-audit-20261008-082845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T08:29:20, 0s)
 ```
@@ -463,10 +472,5 @@ WORKING terminal: answers with data (logs 84)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-home-wifi-20261008-063351  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-10-08T06:39:46, 6s)
-```
-on 'Starlink V'; the backend listens on 192.168.2.151
 ```
 
