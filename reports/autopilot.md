@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261008-111847
+﻿# laptop41 autopilot 20261008-112845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4dcb26e is current
+
+## auto-deck-audit-20261008-112845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T11:29:32, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T10:25:59.284609+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 1, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
+WORKING terminal: answers with data (logs 88)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## 20261008-08-alpha-runtime  alpha-runtime  ->  0   (2026-10-08T11:19:16, 0s)
 ```
@@ -540,25 +566,5 @@ WORKING terminal: answers with data (logs 44)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 40 of 87 songs have their MP3; made 0 now, 0 failed, 47 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-bridges-20261008-063351  bridges (standing)  ->  0 (restarted)   (2026-10-08T06:34:12, 0s)
-```
-'alpha-music bridge' task was Ready; last run 10/07/2026 02:15:29, last result 0xC000013A
-  log: 2026-10-07T00:33:54 starting the music bridge (machines: host,worker1)
-  log: 2026-10-07T01:28:54 starting the music bridge (machines: host,worker1)
-  log: music bridge on http://127.0.0.1:8790/music/ -> http://100.93.104.24:8787
-  log: subscriptions off: every click generates
-  log: 2026-10-07T02:15:29 the bridge exited (-1); restarting in 5s
-  log: 2026-10-07T02:15:34 starting the music bridge (machines: host,worker1)
-'alpha-music bridge' was not listening on 8790: restarted, it answers now
-'alpha-image bridge' task was Ready; last run 10/07/2026 16:59:36, last result 0xC000013A
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
-  log: 2026-10-07T01:29:01 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
-  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
-'alpha-image bridge' was not listening on 7861: restarted, it answers now
 ```
 
