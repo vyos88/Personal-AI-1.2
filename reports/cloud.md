@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-10-08 10:57 UTC
+Claude (cloud) report, 2026-10-08 11:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 10:26 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 1.5 s with 0 s load. Decks: 21 working, 0 broken. RAM 2.8 of 15.8 GB free, C: 132.7 GB free.
+Worker1 (Laptop41) report is an hour old (doctor 10:57 UTC; under 90 min). The doctor flags NO problems. Alpha is live. Chat answered in 6 s. Decks: 21 working, 0 broken. RAM 2.8 of 15.8 GB free, C: 132.7 GB free.
 
 Worker1's autopilot, live sync and bridges are running; every channel talks.
-NEEDS V: Alpha's GPU admission keeps timing out on Worker1 (#231): 201 receipts, about every 15 min, "GPU admission timed out without starting", while CPU is at or above the 90% hold. CORRECTED (#233): it is NOT confirmed that the gate stays shut once CPU drops. The doctor read 49% (ok), then 90% (held). The fix, if needed, is in vyos88/Alpha.
+NEEDS V: Alpha's GPU admission gate is stuck on Worker1, and the cause is now SETTLED (#234): not CPU pressure. Alpha's GPU telemetry probe never reaches "observed", so admission keeps timing out ("waiting for fresh per-adapter GPU telemetry", 5 of the last 8 receipts; 3 were CPU). GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
 
 Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
@@ -12,7 +12,7 @@ Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
 
 Tunnel: the Host coordinator's healthz is OK with 2 agents attached all night. Learning: book auto-read is off on Worker1 since 06 Oct; V's call. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
 
-Merged since 03:57: #223-#228, #230-#233. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 03:57: #223-#228, #230-#234. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
 Needs V: Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
