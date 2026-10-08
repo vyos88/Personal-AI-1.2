@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261008-081844
+﻿# laptop41 autopilot 20261008-082845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout b48d0d9 is current
+
+## auto-deck-audit-20261008-082845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T08:29:20, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T07:25:45.432145+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 1, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 5)
+WORKING terminal: answers with data (logs 43)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## 20261008-03-repair-host  repair-host  ->  1   (2026-10-08T08:19:10, 167s)
 ```
@@ -442,12 +468,5 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
 ## auto-home-wifi-20261008-063351  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-10-08T06:39:46, 6s)
 ```
 on 'Starlink V'; the backend listens on 192.168.2.151
-```
-
-## auto-live-sync-20261008-002345  live-sync (standing)  ->  2 (needs a person)   (2026-10-08T00:24:13, 6s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-WAITING: 5147fef was tried here and failed; the next commit on claude/frie...(30) is tried when it comes
-SKIPPED: nothing is captured while this machine is not on 5147fef
 ```
 
