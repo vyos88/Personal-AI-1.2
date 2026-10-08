@@ -68,25 +68,41 @@ answer, and Claude puts it to V in the next report.
     after CPU drops is refused for want of it. It is the same gate the assistant cycle waits on, which
     is why the lane's `waiting_since` sat unchanged for an hour across two passes.
 
-  **Update 2026-10-08 11:1x, and a correction to the line above as first written.** The doctor now
-  reads CPU (PR #231) and its first two readings point both ways: `ok: CPU 49%` at 10:39 and
-  `PROBLEM: CPU 90% is at or above Alpha's 90% GPU-admission hold` at 11:11. So CPU does reach the
-  hold -- but at 49% the guard *allows* the probe, so "the stall outlasts the spike" follows for a
-  brief dip and **not** for a sustained drop. `llama-server` is the heaviest process either way
-  (1,932 MB, pid 1040, resident all day) and chat answers at 10 tokens/s, which is CPU-speed
-  inference. `20261008-08-alpha-runtime` is queued to read the receipts in the low-CPU window, which
-  is what decides between "the gate reopens on its own and sustained CPU is the whole story" and "the
-  probe is failing rather than merely unscheduled". **The Alpha-side change still waits on V either
-  way, and the stronger claim should not be written back in without that evidence.**
+  **Update 2026-10-08 10:19 UTC: settled, and it is not what either draft of this said.**
+  `20261008-08-alpha-runtime` read the receipts against the clock, and the answer does not depend on
+  the CPU samples at all -- it comes out of Alpha's own ordering of checks. **Five of the eight newest
+  receipts fail with the *telemetry* message, not the CPU one** (10:12:48, 09:41:47, 09:26:17,
+  08:55:16, 08:39:46 UTC; the other three, 09:57:18, 09:10:46 and 08:24:16, carry the CPU message).
+  That is decisive because:
 
-  `[!] needs V` because the fix is in vyos88/Alpha, which Claude may only read: let the telemetry probe
-  run under CPU pressure (it is a short PDH read on a background thread, and the comment above it says it
-  is kept off the request path, not that it must wait for an idle host), or re-arm it on a timer. Two
-  things anyone with a shell on Worker1 can answer read-only in the meantime, and they may be the whole
-  story: what is actually holding the CPU, and whether `llama-server` is doing inference on it -- the
-  doctor's chat check reports ~6 tokens/s for `llama3.2:3b`, which is CPU speed, not GPU speed.
-  `laptop41-doctor.ps1` now prints the CPU against that hold (it previously ranked only working set, so
-  the number that explained a stalled fleet was the one nothing printed).
+  1. `admission_reason` checks CPU **first** and returns early, and RAM second. So a receipt whose
+     reason is `Waiting for fresh per-adapter GPU telemetry` proves CPU was *below* the hold and RAM
+     was inside its limits at that moment.
+  2. The admission loop re-evaluates `gpu_snapshot()` every 0.25 s until its deadline and raises with
+     the **last** reason, so that held right up to the timeout -- not for an instant.
+  3. With `pressure_reasons` empty, `gpu_snapshot()` *does* call `_schedule_windows_gpu_refresh()`.
+     The probe was being scheduled, over and over, for an hour and a half.
+  4. And `gpu_telemetry_status` still never reached `observed`.
+
+  **So the probe is not merely unscheduled -- it is not producing `observed`.** `windows_gpu.py`
+  returns `"observed" if measured else "counter-unavailable"`, where `measured` needs at least one
+  configured adapter carrying a PDH `utilization_percent`; and `_refresh_windows_gpu` passes
+  `failure_backoff_seconds=300`, so a probe that fails stays stale for five minutes at a time. Both
+  earlier drafts of this ask called it a pressure deadlock (CPU pinned, so no probe). That framing was
+  wrong in a way that matters: **freeing CPU will not fix it**, because those five failures happened
+  with CPU already below the hold.
+
+  CPU pressure is real and separate -- `PROBLEM: CPU 90%` at 11:11 local, `ok: CPU 49%` at 10:39, and
+  three receipts blaming it. `llama-server` (1,932 MB, pid 1040, resident all day) answering chat at
+  6-10 tokens/s is CPU-speed inference and the obvious cause. Worth fixing; it is not this.
+
+  `[!] needs V`, and the question has changed: **why does the per-adapter probe never reach
+  `observed` on Worker1?** Two things a shell there can check read-only, and neither needs Alpha
+  changed: what `config/gpu-routing.json` names as integrated/dedicated adapters, and whether the PDH
+  counters for them actually read (the probe shells out to PowerShell). If that config names an
+  adapter this machine does not have, or whose counter cannot be read, `measured` is empty forever and
+  every local model call on this host is refused -- which is exactly what the 201 receipts show. The
+  Alpha-side change still waits on V.
 
 ## Done
 

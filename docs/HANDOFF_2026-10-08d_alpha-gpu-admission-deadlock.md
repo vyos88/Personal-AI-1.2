@@ -75,3 +75,58 @@ doesn't yet confirm whether the telemetry-refresh side resolved on its own
 too — the queued read-only `alpha-runtime` check (see #233 above) is what
 would actually settle that. Laptop41 telemetry otherwise reads
 `ok: no problems found` this pass.
+
+### Settled: the probe is not unscheduled, it never reaches `observed`
+
+That queued check ran — `20261008-08-alpha-runtime`, 10:19 UTC — and the
+answer does not use the CPU readings at all. **Five of the eight newest
+receipts fail with the *telemetry* message, three with the CPU one:**
+
+```
+10:12:48Z Alpha Solutions   ... Waiting for fresh per-adapter GPU telemetry
+09:57:18Z Coding Qc         ... Waiting for system CPU below the hold limit
+09:41:47Z Coding Fixer      ... Waiting for fresh per-adapter GPU telemetry
+09:26:17Z Coding Solutions  ... Waiting for fresh per-adapter GPU telemetry
+09:10:46Z Alpha Diagnosis   ... Waiting for system CPU below the hold limit
+08:55:16Z Chat Solutions    ... Waiting for fresh per-adapter GPU telemetry
+08:39:46Z Chat Fixer        ... Waiting for fresh per-adapter GPU telemetry
+08:24:16Z Chat Diagnosis    ... Waiting for system CPU below the hold limit
+```
+
+The proof is Alpha's own check order, which is why no CPU trace is needed:
+
+1. `admission_reason` tests CPU **first** and RAM second, returning early.
+   So a receipt whose reason is the telemetry one proves CPU was *below* the
+   hold and RAM inside its limits at that moment.
+2. The admission loop re-evaluates `gpu_snapshot()` every 0.25 s until its
+   deadline and raises with the **last** reason, so that held to the timeout
+   rather than for an instant.
+3. With `pressure_reasons` empty, `gpu_snapshot()` **does** call
+   `_schedule_windows_gpu_refresh()`.
+
+So the probe was scheduled, repeatedly, across an hour and a half, and
+`gpu_telemetry_status` still never reached `observed`. `windows_gpu.py`
+returns `"observed" if measured else "counter-unavailable"`, where
+`measured` needs at least one configured adapter carrying a PDH
+`utilization_percent`; `_refresh_windows_gpu` passes
+`failure_backoff_seconds=300`, so a failing probe stays stale five minutes
+at a time.
+
+**So "deadlock independent of CPU" is confirmed, but the mechanism in the
+section above is wrong** — including in its corrected form. The refusal does
+not persist because the probe is blocked from running; the probe runs and
+does not produce `observed`. **Freeing CPU will not fix it.** The four CPU
+readings since (31%, 49%, 54%, and one 90% spike) put the host below the
+hold most of the time, and the gate is still shut.
+
+CPU pressure is a real second problem, not this one: three receipts blame
+the hold, and `llama-server` resident at 1,932 MB (pid 1040) answering chat
+at 6–10 tokens/s is CPU-speed inference.
+
+The live question is now in `docs/ASKS.md`: **why does the per-adapter probe
+never reach `observed` on this host?** Two read-only checks a shell there
+can answer, neither needing Alpha changed — what
+`config/gpu-routing.json` names as integrated/dedicated adapters, and
+whether their PDH counters read at all. An adapter named there that the
+machine does not have leaves `measured` empty forever and refuses every
+local model call, which is exactly what the 201 receipts show.
