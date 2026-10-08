@@ -1,8 +1,36 @@
-﻿# laptop41 autopilot 20261008-105845
+﻿# laptop41 autopilot 20261008-111847
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 4dcb26e is current
+
+## 20261008-08-alpha-runtime  alpha-runtime  ->  0   (2026-10-08T11:19:16, 0s)
+```
+loops    : assistant=ok awareness=degraded thoughts=active
+beat     : 20s old, stale=false
+lane     : waiting_on=host busy (systemcpu) since=2026-10-08T07:33:45.212682 step=-
+advice   : feed live - waiting: host busy (systemcpu)
+note     : "degraded" is the awareness cycle's hardware-test report, not the loop:
+           it ran and at least one sketch compile or port test failed. Ports it saw:
+           2; the failing items are in Alpha's awareness deck.
+receipts : 201 retained; classes evidence-contract=201
+  2026-10-08T10:12:48.668641Z Alpha Solutions (solutions) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T09:57:18.308873Z Coding Qc (qc) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
+  2026-10-08T09:41:47.892841Z Coding Fixer (fixer) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T09:26:17.486096Z Coding Solutions (solutions) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T09:10:46.984257Z Alpha Diagnosis (diagnosis) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
+  2026-10-08T08:55:16.653331Z Chat Solutions (solutions) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T08:39:46.439930Z Chat Fixer (fixer) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T08:24:16.064223Z Chat Diagnosis (diagnosis) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
+```
 
 ## auto-deck-audit-20261008-105845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T10:59:40, 0s)
 ```
@@ -532,14 +560,5 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
   log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
   log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
 'alpha-image bridge' was not listening on 7861: restarted, it answers now
-```
-
-## 20261008-01-ollama-keepalive  ollama-keepalive  ->  0   (2026-10-08T06:34:31, 39s)
-```
-set OLLAMA_KEEP_ALIVE=24h for this user and the machine
-stopped 2 Ollama process(es)
-started the Ollama app
-loaded 'llama3.2:3b' in 14s
-ok: 'llama3.2:3b' is loaded and kept for 24 h after each use
 ```
 
