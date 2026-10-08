@@ -38,6 +38,7 @@
     interactive-first-off interactive-first-off.mjs: ALPHA_INTERACTIVE_FIRST_MODE=false in Alpha's .env.local, restart the backend  (takes no arguments)
     panel-endpoint   panel-endpoint.ps1: point the USB-attached deck at this machine's home-network backend
     panel-identify   panel-up.mjs --identify: ask each serial port which board is on it (takes no arguments)
+    alpha-runtime    alpha-runtime.mjs: Alpha's loop state and its newest agent receipts with reasons (read-only)
     prepare-alpha-here  prepare-alpha-here.ps1: clone, venv, site build, chat model, cloudflared installed; starts nothing (takes no arguments)
     receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
     alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
@@ -249,6 +250,18 @@ function Resolve-Action($a) {
       $envLocal = ($AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', '') + '\.env.local'
       $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'interactive-first-off.mjs'), '--env', $envLocal) }
       $out.timeoutMin = 5
+    }
+    # Why Alpha's loops or agents are where they are, from the machine. Two
+    # questions needed a person at the keyboard: whether the assistant cycle is
+    # running or waiting for the shared background lane (awareness runs inside it
+    # and shares its gate, so "not-started" is ambiguous), and why every agent
+    # receipt is incomplete (the receipt records the reason; only the class is
+    # published). Read-only: one unauthenticated LAN GET and one JSON file read,
+    # Alpha's root from -AlphaRoot and nothing from the action.
+    'alpha-runtime' {
+      $alphaHome = $AlphaRoot -replace '[\\/][^\\/]+[\\/]?$', ''
+      $spec = @{ exe = 'node'; args = @((Join-Path $PSScriptRoot 'alpha-runtime.mjs'), '--alpha-root', $alphaHome) }
+      $out.timeoutMin = 4
     }
     'fleet-inventory' { $spec = Ps1 'fleet-inventory.ps1' @('-AlphaRoot', $AlphaRoot); $out.timeoutMin = 3 }
     # The one stop fleet-inventory's DUPLICATES asks for on Worker1 (HANDOFF

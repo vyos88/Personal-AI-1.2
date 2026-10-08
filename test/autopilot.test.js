@@ -60,6 +60,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'j4', do: 'coord-post', message: 'hi', actor: 'a b' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
     { id: 'p2', do: 'panel-identify', port: 'COM3' },
+    { id: 'r1', do: 'alpha-runtime', root: 'C:\\Windows' },
     { id: 's1', do: 'stop-stray-site', pid: 12448, port: 8001 },
     { id: 's2', do: 'comfyui-off', pid: 4, dir: 'C:\\Windows' },
     { id: 's3', do: 'songs-check', root: 'C:\\Windows' },
@@ -68,7 +69,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'j1', 'j2', 'p1', 'p2', 's1', 's2', 's3', 's4']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'j1', 'j2', 'p1', 'p2', 'r1', 's1', 's2', 's3', 's4']);
   assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
   assert.match(plan.s2.args.at(-1), /comfyui-off\.ps1$/, 'nothing from the payload: what is ComfyUI is read off the machine');
   assert.deepEqual(plan.s3.args.slice(-3).map(String), [plan.s3.args.at(-3), '-AlphaRoot', 'C:\\A\\software'], 'only the autopilot\'s own AlphaRoot, nothing from the payload');
@@ -76,6 +77,10 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   // payload that could name one is a payload that could aim a write at a board
   // nobody identified, which is the whole point of asking.
   assert.deepEqual(plan.p2.args.slice(1), ['--identify']);
+  // Alpha's root comes from the autopilot's own -AlphaRoot (its parent, where
+  // memory\ lives), never a path from the payload.
+  assert.deepEqual(plan.r1.args.slice(1), ['--alpha-root', 'C:\\A']);
+  assert.match(plan.r1.args[0], /alpha-runtime\.mjs$/);
   assert.match(plan.p2.args[0], /panel-up\.mjs$/);
   assert.ok(plan.e1.args.includes('-Bridge') && plan.e1.args.includes('-AlphaRoot'));
   assert.equal(plan.e1.args[plan.e1.args.indexOf('-Machines') + 1], 'host,worker1');
