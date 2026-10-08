@@ -1,8 +1,88 @@
-﻿# host autopilot 20261008-000410
+﻿# host autopilot 20261008-005410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 4987134 is current
+checkout 80fa8e2 is current
+
+## 20261008-h24-alpha-data-in  alpha-data-in  ->  0   (2026-10-08T00:54:18, 391s)
+```
+drives searched: D:\
+source: D:\alpha-move-20261007
+target: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full
+copying memory: 32472 files, 4.37 GB
+  robocopy exit 1 (ok) in 343 s
+copying artifacts: 304 files, 3.79 GB
+  robocopy exit 0 (ok) in 0 s
+memory here now: 32472 files, 4.37 GB; 0 from the drive missing
+artifacts here now: 304 files, 3.79 GB; 0 from the drive missing
+MISSING: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\.env.local (contents not read; copied by hand only)
+MISSING: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software\frontend\.env.local (contents not read; copied by hand only)
+done: the data is in place; next songs-check, then the local test start
+```
+
+## 20261008-h25-songs-check  songs-check  ->  0   (2026-10-08T01:00:48, 6s)
+```
+ 42. 2026-09-20  165s Hai la joc, ca suna saxul                        wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 43. 2026-09-20  240s We're gonna rise, we're gonna shift              wav 87.9 MB   mp3 9.2 MB    plays (MP3)
+ 44. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 45. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 6.9 MB    plays (MP3) [hidden]
+ 46. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 47. 2026-09-20     - Suna seara, vin de sarbatori                     wav none      mp3 none      cannot play: failed
+ 48. 2026-09-20  180s Suna seara, vin de sarbatori                     wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 49. 2026-09-20  165s Acasa nu se uita                                 wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 50. 2026-09-20  170s Tu e?ti capatul lor                              wav 62.3 MB   mp3 6.5 MB    plays (MP3)
+ 51. 2026-09-20  165s Mai am o curba ?i-am ajuns                       wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 52. 2026-09-20  180s Dunare, pe malul tau                             wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 53. 2026-09-20  165s Mai am o curba ?i-am ajuns                       wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 54. 2026-09-20  180s Pas cu pas                                       wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 55. 2026-09-20  180s La aceea?i fereastra                             wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 56. 2026-09-20  180s Mai ramƒi pƒna la ziua                           wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 57. 2026-09-20  180s Tu ?i eu                                         wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 58. 2026-09-20  165s ×nca o data                                      wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 59. 2026-09-20  180s Mai departe, Vio                                 wav 65.9 MB   mp3 6.9 MB    plays (MP3)
+ 60. 2026-09-21  180s drum and bass rollers                            wav 65.9 MB   mp3 4.1 MB    plays (MP3)
+ 61. 2026-09-21  240s meneaito                                         wav 87.9 MB   mp3 9.2 MB    plays (MP3)
+ 62. 2026-09-21  240s meneaito                                         wav 87.9 MB   mp3 5.5 MB    plays (MP3)
+ 63. 2026-09-22  165s La Calara?i au dat haiducii                      wav 60.4 MB   mp3 3.8 MB    plays (MP3)
+ 64. 2026-09-22  235s La Calara?i au dat haiducii                      wav 86.1 MB   mp3 9.0 MB    plays (MP3) [hidden]
+ 65. 2026-09-22     - Proba una, proba doua                            wav none      mp3 none      cannot play: failed
+ 66. 2026-09-23     - Romani in strainatate                            wav none      mp3 none      cannot play: failed
+ 67. 2026-09-23  180s Romani in strainatate                            wav 65.9 MB   mp3 4.1 MB    plays (MP3)
+ 68. 2026-09-23  150s Sƒrba de la rƒu                                  wav 54.9 MB   mp3 5.7 MB    plays (MP3)
+ 69. 2026-09-23  165s Muro Drom                                        wav 60.4 MB   mp3 6.3 MB    plays (MP3)
+ 70. 2026-09-25     - Romani in strainatate                            wav none      mp3 none      cannot play: generating
+ 71. 2026-10-03   47s Dor de Acasa                                     wav 8.0 MB    mp3 1.8 MB    plays (MP3)
+ 72. 2026-10-03   56s Dor de Acasa - Cƒntat                            wav 9.4 MB    mp3 1.3 MB    plays (MP3)
+ 73. 2026-10-03   44s Acasa Vine cu Mine - House Rap                   wav 8.1 MB    mp3 1.0 MB    plays (MP3)
+ 74. 2026-10-03   48s Came From the Cold                               wav 8.7 MB    mp3 1.1 MB    plays (MP3)
+ 75. 2026-10-03   49s Joaca Hora                                       wav 9.0 MB    mp3 1.1 MB    plays (MP3)
+ 76. 2026-10-03   32s Sub Neonul de la Scara                           wav 5.8 MB    mp3 0.7 MB    plays (MP3)
+ 77. 2026-10-04   31s Spare Key                                        wav 5.7 MB    mp3 1.2 MB    plays (MP3)
+ 78. 2026-10-04   40s Afterhours Glow - House 40s                      wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 79. 2026-10-04   40s Velvet Current - Deep house 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 80. 2026-10-04   39s Concrete Pulse - Techno 40s                      wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 81. 2026-10-04   40s Side Street Signal - Tech house 40s              wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 82. 2026-10-04   39s Mirrorball Morning - Disco 40s                   wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 83. 2026-10-04   39s Neon Satin - Nu disco 40s                        wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 84. 2026-10-04   39s Last Train Swing - UK garage 40s                 wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 85. 2026-10-04   39s Low End Call - Bassline 40s                      wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 86. 2026-10-04   39s Rainforest Radio - Jungle 40s                    wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 87. 2026-10-04   40s Night Runner - Drum and bass 40s                 wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 88. 2026-10-04   39s Out of My Head                                   wav 7.1 MB    mp3 1.5 MB    plays (MP3)
+ 89. 2026-10-04   39s Gold Sparks - EDM trap 40s                       wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 90. 2026-10-04   39s Gravity Room - Dubstep 40s                       wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 91. 2026-10-04   40s Chrome Motion - Electro 40s                      wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 92. 2026-10-04   40s Broken Lines - Breakbeat 40s                     wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 93. 2026-10-04   39s Fractal Dawn - Psytrance 40s                     wav 7.2 MB    mp3 1.5 MB    plays (MP3)
+ 94. 2026-10-04   40s Open Horizon - Trance 40s                        wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 95. 2026-10-04   40s Overdrive Hearts - Hardcore 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 96. 2026-10-04   40s Steel Sunrise - Hardstyle 40s                    wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 97. 2026-10-05   40s Soft Street Dawn - Amapiano 40s                  wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+ 98. 2026-10-05   40s Everywhere Tonight - Eurodance 40s               wav 7.3 MB    mp3 1.5 MB    plays (MP3)
+TOTAL: 98 song(s): 87 can play, 87 of them as MP3, 0 still WAV only; 0 finished but no audio; 11 not finished or failed; 0 unreadable
+ok: ffmpeg found (ffmpeg on PATH) for this account
+backend MP3 backfill, last pass 2026-10-07T22:36:07.445234+00:00: ffmpeg True, made 0, failed 0, waiting 0, already 87 of 87
+```
 
 ## 20261007-h23-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-08T00:04:18, 75s)
 ```
@@ -378,46 +458,5 @@ ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, me
 ok: restarted the agent through task 'alpha-tunnel agent'
 the agent now offers alpha.music
 done: this machine makes music for the Music Creator
-```
-
-## 20261006-h05-enable-image  enable-image  ->  1   (2026-10-06T21:04:51, 441s)
-```
-NVIDIA GPU found: installing CUDA torch
-ComfyUI's torch: 2.6.0+cu124 cuda
-PROBLEM: ComfyUI did not answer on 127.0.0.1:8188 within 420 s after starting the task; the end of C:\AlphaData\comfyui.log follows
-  |   File "C:\services\ComfyUI\comfy\utils.py", line 25, in <module>
-  |     import comfy.memory_management
-  |   File "C:\services\ComfyUI\comfy\memory_management.py", line 8, in <module>
-  |     from comfy.quant_ops import QuantizedTensor
-  |   File "C:\services\ComfyUI\comfy\quant_ops.py", line 8, in <module>
-  |     import comfy_kitchen as ck
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\comfy_kitchen\__init__.py", line 4, in <module>
-  |     from .backends import cuda as _cuda_backend
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\comfy_kitchen\backends\cuda\__init__.py", line 173, in <module>
-  |     from comfy_kitchen.backends.eager import rope as _eager_rope  # noqa: E402
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\comfy_kitchen\backends\eager\__init__.py", line 73, in <module>
-  |     from .conv3d import fp16_conv3d, fp16_conv3d_out
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\comfy_kitchen\backends\eager\conv3d.py", line 37, in <module>
-  |     @torch.library.custom_op("comfy_kitchen::fp16_conv3d_out", mutates_args=("out",))
-  |      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\torch\_library\custom_ops.py", line 121, in inner
-  |     schema_str = torch.library.infer_schema(fn, mutates_args=mutates_args)
-  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\torch\_library\infer_schema.py", line 106, in infer_schema
-  |     error_fn(
-  |   File "C:\services\ComfyUI\venv\Lib\site-packages\torch\_library\infer_schema.py", line 58, in error_fn
-  |     raise ValueError(
-  | ValueError: infer_schema(func): Parameter stride has unsupported type list[int]. The valid types are: dict_keys([<class 'torch.Tensor'>, typing.Optional[torch.Tensor], typing.Sequence[torch.Tensor], typing.List[torch.Tensor], typing.Sequence[typing.Optional[torch.Tensor]], typing.List[typing.Optional[torch.Tensor]], <class 'int'>, typing.Optional[int], typing.Sequence[int], typing.List[int], typing.Optional[typing.Sequence[int]], typing.Optional[typing.List[int]], <class 'float'>, typing.Optional[float], typing.Sequence[float], typing.List[float], typing.Optional[typing.Sequence[float]], typing.Optional[typing.List[float]], <class 'bool'>, typing.Optional[bool], typing.Sequence[bool], typing.List[bool], typing.Optional[typing.Sequence[bool]], typing.Optional[typing.List[bool]], <class 'str'>, typing.Optional[str], typing.Union[int, float, bool], typing.Union[int, float, bool, NoneType], typing.Sequence[typing.Union[int, float, bool]], typing.List[typing.Union[int, float, bool]], <class 'torch.dtype'>, typing.Optional[torch.dtype], <class 'torch.device'>, typing.Optional[torch.device]]). Got func with signature (x: torch.Tensor, weight: torch.Tensor, bias: torch.Tensor | None, residual: torch.Tensor | None, stride: list[int], out: torch.Tensor) -> None)
-  | 2026-10-06T21:11:58 ComfyUI exited (1); restarting in 120s
-image backend: comfyui
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the agent through task 'alpha-tunnel agent'
-the agent now offers alpha.image
-```
-
-## 20261006-h06-brain-topology  brain-topology  ->  0   (2026-10-06T21:12:12, 0s)
-```
-NOTE: no Alpha under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: nothing to check here
 ```
 
