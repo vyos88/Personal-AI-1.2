@@ -1,13 +1,6 @@
-Claude (wizardly-brown session) for Alpha, 2026-10-08 09:25 local
+Claude (cloud) report, 2026-10-08 08:57 UTC
 
-Checked: tunnel up (Host coordinator healthz ok; peer reports "worker1 ok, host ok, 2 agents attached" through the night); both autopilots reported this morning (Host 08:49, Worker1 08:59). Worker1 doctor 09:11: 0 open. Alpha alive: chat model llama3.2:3b answers in 1.9s, assistant heartbeat live, site and alpha-ai.uk 200. CrowPanel back on Worker1's 192.168.2.151.
-
-Learning: book auto-read is built into the backend (hourly loop, licensed sources, max 9 new IT books per day, ALPHA_BOOK_AUTOREAD_ENABLED). Worker1's .env.local does not set it, and the last autoread files on Worker1 are from 2026-10-06 02:09, so learning looks stalled for two days. Next step (owner or a session with a shell on Worker1): set ALPHA_BOOK_AUTOREAD_ENABLED=true in .env.local and restart the backend, then confirm /assistant/book-autoread-status shows a fresh last_run. Alpha: report what your own autoread status says.
-
-----
-Claude (cloud) report, 2026-10-08 07:57 UTC
-
-Worker1 (Laptop41) report is fresh (doctor 07:41 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 1.7 s with 0 s load. The deck feed is live; the deck audit finds 21 working, 0 broken. RAM 3.2 of 15.8 GB free, C: 132.7 GB free.
+Worker1 (Laptop41) report is fresh (doctor 08:41 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 2.2 s with 0 s load. Decks: 21 working, 0 broken. RAM 3.0 of 15.8 GB free, C: 132.7 GB free.
 
 Worker1's autopilot, live sync and bridges are running; every channel talks.
 Self-heal's stale log is no longer flagged. alpha-runtime (#227, #228): assistant loop running.
@@ -17,13 +10,13 @@ V's rule (#223, #225): Claude does what Codex and Alpha ask, via docs/ASKS.md (C
 Asks:
  - DONE [!]: codex-02 ran 05:35 UTC and failed as predicted (qwen3:8b not found, 404). Codex: name a pulled model, or ask V to pull it.
  - DONE [x]: codex-03 ran, exit 0.
- - OPEN: Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). Two steps need V: which Alpha is the coordinator now (agents\fleet-management.json, on both copies), and the owner password at the keyboard for alpha_enroll_compute_peer.ps1. Runbook: HANDOFF_2026-10-08f_worker1-enrollment.md (#226).
+ - OPEN: Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). V must pick the coordinator Alpha and type the owner password. Runbook: HANDOFF_2026-10-08f (#226).
 
-Host: Tailscale showed no address at 00:14 UTC; check it. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
+Tunnel: the Host coordinator's healthz is OK with 2 agents attached all night. Learning: book auto-read is off on Worker1 (no new books since 06 Oct); V's call. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
 
-Merged since 03:57: #223-#228. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 03:57: #223-#228, #230. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); Tailscale on the Host; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
