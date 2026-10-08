@@ -1,17 +1,17 @@
 ﻿{
-    "at":  "2026-10-08T08:14:12.7496161+01:00",
+    "at":  "2026-10-08T08:22:44.2264289+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "BACKEND UP",
-                  "detail":  "backend 200; site and alpha-ai.uk unchecked while self-heal is not running",
-                  "checked_by":  "this pass"
+                  "verdict":  "LIVE",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "selfheal":  {
-                     "state":  "STOPPED",
-                     "age_min":  231,
+                     "state":  "RUNNING",
+                     "age_min":  1,
                      "repairs":  0,
-                     "restarted":  "restart already tried at 07:44",
-                     "snapshot":  ""
+                     "restarted":  "",
+                     "snapshot":  "the rollback copy of the site was not saved (no reason logged)"
                  },
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",

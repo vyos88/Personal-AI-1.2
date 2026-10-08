@@ -1,11 +1,11 @@
-﻿# Alpha is BACKEND UP - DESKTOP-41HPLCN, 2026-10-08 08:14 +01:00
+﻿# Alpha is LIVE - DESKTOP-41HPLCN, 2026-10-08 08:22 +01:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
 | Check | State | Detail |
 |---|---|---|
-| Alpha (backend, site, alpha-ai.uk) | BACKEND UP | backend 200; site and alpha-ai.uk unchecked while self-heal is not running (checked by this pass) |
-| Repair agent (self-heal) | STOPPED | last pass 231 min ago, 0 repair(s) in it; restart already tried at 07:44 |
+| Alpha (backend, site, alpha-ai.uk) | LIVE | backend 200, site 200, alpha-ai.uk 200 (checked by self-heal, 1 min ago) |
+| Repair agent (self-heal) | RUNNING | last pass 1 min ago, 0 repair(s) in it; the rollback copy of the site was not saved (no reason logged) |
 | Decks | 5 live, 1 static, 1 no feed | all data decks live (checked 2026-10-08T07:09:19.945999+00:00) |
 | Live sync | IN SYNC | IN SYNC: this machine runs 20c58f5 of claude/frie...(30) |
 
