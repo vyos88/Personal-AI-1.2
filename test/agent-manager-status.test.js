@@ -166,6 +166,24 @@ test('a snapshot the manager stopped writing reads as stale, not as a live fleet
   assert.equal(summarize(managerSnapshot({ generatedAt: 'not a time' }), { now }).stale, true);
 });
 
+test('a snapshot copied from another machine says whose manager wrote it', () => {
+  // The fixture is Worker1's own snapshot: DESKTOP-41HPLCN is the device it marks local.
+  const there = summarize(managerSnapshot(), { machine: 'desktop-41hplcn' });
+  assert.equal(there.writtenOn, 'DESKTOP-41HPLCN');
+  assert.equal(there.copied, false, 'hostnames compare without case');
+
+  // The same file read on the Host after memory\\ was copied across (2026-10-08).
+  const here = summarize(managerSnapshot(), { machine: 'LAPTOP-GJ8DFMLK' });
+  assert.equal(here.machine, 'LAPTOP-GJ8DFMLK');
+  assert.equal(here.writtenOn, 'DESKTOP-41HPLCN');
+  assert.equal(here.copied, true);
+
+  // No device marked local: nothing to compare, so nothing is claimed.
+  const unknown = summarize(managerSnapshot({ devices: [] }), { machine: 'LAPTOP-GJ8DFMLK' });
+  assert.equal(unknown.writtenOn, null);
+  assert.equal(unknown.copied, false);
+});
+
 test('long receipt text is clipped, and garbage fields do not throw', () => {
   const long = 'x'.repeat(5_000);
   const result = summarize(

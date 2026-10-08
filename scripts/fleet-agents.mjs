@@ -140,7 +140,9 @@ export function renderFrame(view, { width = 132, now = Date.now(), color = false
   const m = view.manager?.summary ?? null;
   const agents = view.agents ?? [];
   const leases = view.leases ?? [];
-  const managerAt = m?.machine ?? view.manager?.agentName ?? 'the Alpha machine';
+  // Whose manager wrote it, not who read it: a snapshot copied with memory\
+  // names the reader, and its roles would read as the reader's (2026-10-08).
+  const managerAt = m?.writtenOn ?? m?.machine ?? view.manager?.agentName ?? 'the Alpha machine';
   // Its age when read, plus the time since: a kept snapshot keeps getting older.
   const mAge = Number.isFinite(m?.ageSeconds)
     ? m.ageSeconds + Math.max(0, Math.round((now - (view.manager?.readAt ?? now)) / 1000))
@@ -167,7 +169,8 @@ export function renderFrame(view, { width = 132, now = Date.now(), color = false
       line(
         !m
           ? ' manager: not read'
-          : ` manager on ${managerAt}: snapshot ${age(mAge)} old${mStale ? ' (STALE)' : ''} | backend=${m.backend.status ?? '?'}/${m.backend.ready}` +
+          : ` manager on ${managerAt}: snapshot ${age(mAge)} old${mStale ? ' (STALE)' : ''}` +
+              `${m.copied ? ` (COPIED: read on ${m.machine}; not that machine's manager)` : ''} | backend=${m.backend.status ?? '?'}/${m.backend.ready}` +
               ` | records=${m.counts.records ?? '?'} attention=${m.counts.attention ?? '?'}` +
               ` | accuracy avg=${m.accuracy.average ?? '?'} strong=${m.accuracy.strong ?? '?'} improve=${m.accuracy.improve ?? '?'}`,
       ),

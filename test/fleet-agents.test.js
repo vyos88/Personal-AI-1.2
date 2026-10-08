@@ -120,6 +120,15 @@ test('one frame shows both laptops, the tunnel agents beside them, and Alpha\'s 
   assert.match(frame, /READ-ONLY: this viewer starts nothing/);
 });
 
+test('a snapshot copied to another machine is drawn as the writer\'s, and marked', () => {
+  const now = Date.parse('2026-10-06T20:07:16Z');
+  const summary = summarize(managerSnapshot({ generatedAt: '2026-10-06T20:07:00Z' }), { now, machine: 'LAPTOP-GJ8DFMLK' });
+  const { view: v } = view({ manager: { summary, agentName: 'host', readAt: now } });
+  const frame = renderFrame(v, { width: 160, now });
+  assert.match(frame, /manager on DESKTOP-41HPLCN: snapshot 16s old \(COPIED: read on LAPTOP-GJ8DFMLK; not that machine's manager\)/);
+  assert.doesNotMatch(frame, /manager on LAPTOP-GJ8DFMLK/);
+});
+
 test('no line runs past the window, at any width', () => {
   const { view: v, now } = view();
   for (const width of [80, 100, 132, 200]) {
