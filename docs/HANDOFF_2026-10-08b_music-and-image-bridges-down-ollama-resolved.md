@@ -1,61 +1,53 @@
 ## Hourly alpha-tunnel handoff check — 2026-10-08 (second pass)
 
-### New PROBLEM: the music bridge and the image bridge are both down
+### Resolved: the music bridge and image bridge are back up
 
-Laptop41's doctor (`reports/latest.txt`, `status/laptop41`) now reports three
-new problems, all open since `2026-10-08T04:11:54`:
+Both bridges, down since `2026-10-08T04:11:54` (peaked at 10 open
+`NEEDS A PERSON` runs each), are **answering again** as of this check:
 
-- `music bridge is not running on 127.0.0.1:8790: Generate cannot queue
-  anything` — the Music Creator panel's Generate button has nothing to talk
-  to.
-- `image bridge is not running on 127.0.0.1:7861` and `image backend not
-  running: nothing answers on http://127.0.0.1:7861 (chat images fail)` —
-  images are neither shared between machines nor generated for chat.
+- `ok: music bridge answers on 127.0.0.1:8790` — machines that make music:
+  host, worker1.
+- `ok: image bridge answers on 127.0.0.1:7861` — Stable Diffusion API
+  answers 200 again on that port.
 
-**Update, ~1 hour later:** all three are still down and the doctor has
-escalated them to `NEEDS A PERSON` (5 open runs). Nothing has self-corrected.
+No PR or commit caused this — it reads as someone having restarted the
+bridges directly on Laptop41/Worker1. Nobody needs to act on this one
+further; noting it so the earlier escalation isn't chased after the fact.
 
-The doctor's own ranked recommendations for this:
-1. Queue `{"do":"enable-image","bridge":true}` on Worker1's autopilot, start
-   Stable Diffusion WebUI with `--api` and wait for "Model loaded".
-2. Queue `{"do":"enable-music","bridge":true}` on Worker1's autopilot.
+### Still open: self-heal's own log is stale
 
-Both are live-host actions on Laptop41/Worker1 — nothing a cloud session can
-run. Flagging rather than attempting either.
+`PROBLEM: self-heal is installed but its log is 168 min old: check the
+task's last result as Administrator (3 = config unreadable)`, continuing
+since `2026-10-08T04:43:46` (the "open 3 run(s) since 06:41:50" in this
+pass's summary is the doctor's own rolling window, not a new start). Backend,
+frontend, public and control were all last recorded green at 03:23:39, before
+the log went stale — this is about self-heal's own task failing to run, not
+about those probes. Still needs a person as Administrator on Laptop41.
 
-**Likely contributing factor:** section 7 (heaviest processes) now shows
-`llama-server` at **1.9–2.4 GB** across the last two passes, a process that
-wasn't present in earlier checks. Free RAM has been oscillating between 2.8
-and 5.3 of 15.8 GB. Whether `llama-server` starting up is what knocked the
-two bridges over, or just coincides with it, isn't something this check can
-tell — that needs a person looking at what's actually running on the
-machine.
+`llama-server` (~1.9 GB) is still the heaviest process and free RAM is
+holding around 4 of 15.8 GB — tight but stable across the last several
+passes.
 
-### New: self-heal's own log has gone stale
+### Original findings this pass (superseded above, kept for the record)
 
-As of this pass: `PROBLEM: self-heal is installed but its log is 48 min old:
-check the task's last result as Administrator (3 = config unreadable)`, open
-3 runs since `2026-10-08T04:43:46`. Per `CLAUDE.md`, self-heal only covers
-Alpha's backend, production frontend and cloudflared connector — it was
-never going to restart the music/image bridges — but a self-heal that can't
-read its own config is a second, independent thing needing a person at the
-machine (Task Scheduler result code 3). The backend/frontend/public/control
-probes it last recorded (03:23:39) were all still green at that point.
+Previously reported: both bridges down since `2026-10-08T04:11:54`,
+escalating to `NEEDS A PERSON` (10 open runs), plausibly tied to
+`llama-server` appearing in the process list around the same time as the
+Ollama outage resolved. See "Resolved" above — that's no longer the
+situation.
 
-### Resolved: Ollama outage is over
+### Resolved earlier: Ollama outage
 
 The `NEEDS A PERSON — Ollama does not answer` line that was open since
-`2026-10-08T00:11:24` (peaked at 11 open runs) no longer appears in the
-summary. `llama-server` appearing in the process list is a plausible
-explanation — the chat-model backend looks to have moved to a direct
-`llama.cpp` server rather than Ollama being restarted. Superseded by this
-doc: `docs/HANDOFF_2026-10-08_ollama-down.md`.
+`2026-10-08T00:11:24` (peaked at 11 open runs) is gone; `llama-server`
+appearing in the process list looks like the chat-model backend moved to a
+direct `llama.cpp` server. Superseded doc:
+`docs/HANDOFF_2026-10-08_ollama-down.md`.
 
 ### Everything else checked this pass
 
-- **vyos88/Personal-AI-1.2**: no new PRs. #99 keeps picking up new commits
-  (now retitled "...and what a silence costs") — still draft, still
-  unreviewed here.
+- **vyos88/Personal-AI-1.2**: no new PRs. #99 keeps picking up new commits —
+  still draft, still unreviewed here.
 - **vyos88/Alpha**: no new PRs since Alpha#85 (already flagged in
   `docs/HANDOFF_2026-10-08_alpha-pr85-wrong-base-branch.md`).
-- CrowPanel, brain-topology deck and the public site all still read `ok`.
+- CrowPanel, brain-topology deck and the public site all read `ok`.

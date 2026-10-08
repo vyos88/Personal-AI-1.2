@@ -26,6 +26,7 @@
 import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { networkInterfaces } from 'node:os';
+import { fileURLToPath } from 'node:url';
 
 /** This machine's home-network address: what the deck feed is served on. */
 export function homeAddress(interfaces = networkInterfaces()) {
@@ -170,7 +171,10 @@ async function main() {
   }
 }
 
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname);
+// fileURLToPath, not URL.pathname: on Windows the pathname is "/C:/...", which
+// never equals the resolved argv path, so the job printed nothing and exited 0
+// (Laptop41, 20261008-02-alpha-runtime).
+const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (invokedDirectly) {
   main().catch((error) => {
     process.stderr.write(`alpha-runtime: ${error.stack ?? error.message}\n`);
