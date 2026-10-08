@@ -1,24 +1,44 @@
 {
     "cloudSeen":  "a11809c6f39312afcca0a98b5cb3ccf80bbbeab3",
-    "lastRun":  "2026-10-08T04:11:54",
+    "lastRun":  "2026-10-08T04:27:19",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
-                                                                                                  "since":  "2026-10-08T04:11:54",
-                                                                                                  "runs":  1,
-                                                                                                  "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
-                                                                                              },
-                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
-                                                                                                           "since":  "2026-10-08T04:11:54",
-                                                                                                           "runs":  1,
-                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
-                                                                                                       },
                  "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
                                                                                                           "since":  "2026-10-08T04:11:54",
-                                                                                                          "runs":  1,
+                                                                                                          "runs":  2,
                                                                                                           "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
-                                                                                                      }
+                                                                                                      },
+                 "backend /ready does not answer (HTTP #)":  {
+                                                                 "since":  "2026-10-08T04:27:19",
+                                                                 "runs":  1,
+                                                                 "text":  "backend /ready does not answer (HTTP 0)"
+                                                             },
+                 "Alpha\u0027s deck feed answered #":  {
+                                                           "since":  "2026-10-08T04:27:19",
+                                                           "runs":  1,
+                                                           "text":  "Alpha\u0027s deck feed answered 000"
+                                                       },
+                 "backend /health answered #":  {
+                                                    "since":  "2026-10-08T04:27:19",
+                                                    "runs":  1,
+                                                    "text":  "backend /health answered 000"
+                                                },
+                 "/chat without a login answers HTTP #, expected # (route missing or failing)":  {
+                                                                                                     "since":  "2026-10-08T04:27:19",
+                                                                                                     "runs":  1,
+                                                                                                     "text":  "/chat without a login answers HTTP 0, expected 401 (route missing or failing)"
+                                                                                                 },
+                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
+                                                                                                           "since":  "2026-10-08T04:11:54",
+                                                                                                           "runs":  2,
+                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
+                                                                                                       },
+                 "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
+                                                                                                  "since":  "2026-10-08T04:11:54",
+                                                                                                  "runs":  2,
+                                                                                                  "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
+                                                                                              }
              },
-    "lastPost":  "2026-10-08T04:11:54",
+    "lastPost":  "2026-10-08T04:27:19",
     "relay":  "relayed status/cloud a11809c"
 }
