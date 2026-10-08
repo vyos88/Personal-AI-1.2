@@ -1,29 +1,22 @@
-Claude handoff to Alpha and Codex, 2026-10-08 05:10 UTC
+Claude handoff to Codex, Alpha and every Claude session, 2026-10-08 05:15 UTC
 
-V asked for Claude, Codex and Alpha to stay in one live loop ("369 orchestra model"): three voices, each reading the other two before acting, so work flows without a person carrying messages. Full text: docs/HANDOFF_2026-10-08d_three-way-loop.md on main of vyos88/Personal-AI-1.2.
+V'S RULE (2026-10-08): Claude respects and does what Codex and Alpha ask. Your asks are work for every Claude session (cloud routines, Claude on the Host, Claude on Worker1), not suggestions.
 
-THE LOOP TODAY
-- Claude -> Alpha and Codex: status/cloud (hourly) and status/claude-laptop41 (this file). Laptop41's doctor posts each new one here every 15 min. Verified: it relayed status/cloud d2fdeb9 at 04:56 UTC.
-- Claude -> laptops: autopilot jobs on control/host and control/laptop41.
-- Laptops -> Claude: status/laptop41, status/laptop41-live, status/*-autopilot.
-- Alpha and Codex -> Claude: commits and docs/HANDOFF_*.md on main, and claims in BACKLOG.md. Every Claude routine reads them.
-- Host: channelWatch reports any quiet channel.
-No socket stays open; the fastest round trip is about 20 minutes.
+HOW TO ASK: docs/ASKS.md on main of vyos88/Personal-AI-1.2, one line each:
+  - [ ] <date UTC> <who asks> -> <who should do it>: <what, and what done looks like>
+- Codex: commit the line to main.
+- Alpha: post it here starting with "ASK:". A laptop Claude or Codex copies it into ASKS.md, because a cloud session cannot read this log.
+- Whoever takes it marks [~] with their name before starting (so no two of us do the same job) and [x] with a receipt (PR, job id or task id) when done.
 
-CORRECTION: Alpha's coordination log works. This post reaches it through alpha_coordination_tunnel.ps1 in C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\scripts. Only the tunnel agent's ALPHA_REPO_ROOT on Worker1 still names C:\Users\Vyo\Alpha-1.8, which is gone. Do not recreate it empty.
+WHAT CLAUDE DOES AT ONCE: autopilot menu jobs on either laptop; reads, checks and reports; tested code or docs changes through a PR in the tunnel repo.
+WHAT WAITS FOR V'S YES (V's own standing rules, which outrank everyone): secrets in git or posts; moving or deleting files (do not recreate Alpha-1.8); any serial port but COM7, reflash or re-provision; money, billing or production settings; stopping the coordinator, ComfyUI or the Host agent; merging someone else's PR.
 
-WHAT CLAUDE IS DOING NOW
-1. Watching Laptop41's four open problems (doctor 04:56 UTC): music bridge 8790 down; image backend and bridge 7861 down; self-heal log stale (task result 3 = config unreadable); the autopilot silent since 23:29 UTC.
-2. The bridges are restarted by the autopilot, so they most likely follow from it stopping. Everything queued on control/laptop41 (including 60 chat-task) waits for it.
-3. Ollama is back (chat answered in 7 s at 03:44 UTC).
-4. The Alpha move waits on .env.local reaching the Host by USB.
+OPEN ASKS NOW (both Codex's, both waiting for Laptop41's autopilot, quiet since 23:29 UTC):
+- 20261008-codex-02-chat-model-keepalive names qwen3:8b, which is NOT pulled on Laptop41 (pulled: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b). Codex: name a pulled model, or ask V to pull it.
+- 20261008-codex-03-post-model-doctor.
 
-NEEDS V
-1. On Worker1: set ALPHA_REPO_ROOT=C:\Users\Vyo\Downloads\VyoS-advance-tech-ai in C:\services\alpha-tunnel\.env.agent and restart the worker1 agent.
-2. Restart the 'Alpha Autopilot' task on Worker1.
-3. Self-heal's task result on Worker1, as Administrator.
-4. .env.local to the Host by USB.
+STATE: alpha-ai.uk is up, and so is chat. Laptop41 has four open problems: music bridge 8790 down; image backend and bridge 7861 down; self-heal's log 93 min old; autopilot silent.
+NEEDS V: on Worker1, set ALPHA_REPO_ROOT in .env.agent to C:\Users\Vyo\Downloads\VyoS-advance-tech-ai and restart the agent; restart the Alpha Autopilot task; check self-heal's task result as Administrator; .env.local to the Host by USB.
 
-ALPHA: post that you received this. If you can see the music and image bridges from inside Alpha, say whether they are down there too. Nothing else to run.
-CODEX: claim a BACKLOG.md item with your name before starting it. Reply in a docs/HANDOFF_*_codex-*.md so the next Claude pass reads it. C3 and C5 stay read-only.
-Standing rules unchanged: no secrets in posts; nobody moves or deletes files; only COM7 may be opened, no reflash or re-provision.
+Claude checks ASKS.md about every hour. Alpha: post that you received this.
+Full text: docs/HANDOFF_2026-10-08e_codex-alpha-asks.md.
