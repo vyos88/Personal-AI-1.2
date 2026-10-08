@@ -182,6 +182,28 @@ answer, and Claude puts it to V in the next report.
   (local, +01:00 = 13:39:36Z) -- the forced run and nothing after it. Nothing further is measurable
   from here; it still needs the elevated read above.
 
+  **Correction 2026-10-08 16:35 UTC: "its schedule does not fire" is wrong, and it changes what to
+  look at.** The schedule fires, on the right minute, 26 times today. It *drops* most of its
+  firings. The run ids on `status/laptop41` are the evidence -- each commit subject carries one
+  (`laptop41 doctor 20261008-171102`), so the branch is a complete log of every run. There are **31
+  today**. Five sit off the quarter-hour (02:43:04, 06:35:17, 08:21:58, 10:39:16, 14:39:09) and are
+  the queued/forced ones, mine among them. The other **26 land on `:11`, `:26`, `:41` or `:56`** --
+  without exception -- which is a 15-minute repetition keeping perfect time. Between 01:11 and 17:11
+  local there are 65 such slots, so **26 of 65 fired: 40%**, and the misses come in bursts (nothing
+  between 13:11 and 17:11 but my forced run; nothing between 11:56 and 13:11; nothing between 01:41
+  and 04:11 but one off-slot run).
+  So the 2h32m gap I reported as a dead schedule is the worst instance of something that has been
+  happening all day, not a new fault -- and a task that fires 26 times is neither unregistered nor
+  disabled, which is what I asked V to check. **The useful elevated read is narrower:** on Worker1,
+  `Get-ScheduledTaskInfo -TaskName 'Alpha Doctor'` for `NumberOfMissedRuns` and `LastTaskResult`,
+  `(Get-ScheduledTask 'Alpha Doctor').Settings` for the conditions and `MultipleInstances`, and
+  `Get-WinEvent -LogName Microsoft-Windows-TaskScheduler/Operational` around a dropped slot
+  (13:26, 13:41, 13:56, 14:11 local are four in a row). A condition such as run-only-if-idle or
+  stop-on-battery would produce exactly this shape, and the machine was demonstrably awake
+  throughout -- self-heal passed every 2 minutes and the live branch wrote every 5.
+  The proposed `laptop41-doctor.ps1:656` one-liner below stands unchanged, and matters more now:
+  a report that listed its own task would have shown `NumberOfMissedRuns` climbing hours ago.
+
 - [ ] 2026-10-08 Claude (cloud) -> V (or Codex, who has a shell there): **the Host's checkout has been
   frozen for eight hours by one uncommitted file, and its report has said so every pass without anyone
   acting on it.** `status/host-autopilot`'s report opens with
@@ -189,9 +211,11 @@ answer, and Claude puts it to V in the next report.
   changes; local changes:  M scripts/usb-inventory.ps1`, and the 08:49+01:00 pass was already
   subjected `checkout cannot update`.
   The arithmetic: `e175472` is `Merge #228`, committed 2026-10-08T08:30:55+01:00 = **07:30Z**; `main`
-  is at `dc48760` and `git rev-list --count e175472..origin/main` is **16**. So the Host has been
-  pinned 8h07m and 16 commits behind as of 15:37Z, and `self-update.mjs` refuses by design -- rule 2,
-  never over local work -- so no pass will ever clear it.
+  is at `7194939` and `git rev-list --count e175472..origin/main` is **18**. So the Host has been
+  pinned 9h04m and 18 commits behind as of 16:35Z, and `self-update.mjs` refuses by design -- rule 2,
+  never over local work -- so no pass will ever clear it. Its 17:14+01:00 pass still opens with the
+  same line. For contrast, Worker1's own report that minute reads `checkout 7194939 is current`, so
+  this is the Host alone.
   **The remedy is one decision on that machine, and it is not mine to take:** `scripts/usb-inventory.ps1`
   was last changed on `main` on 2026-09-29 (`d294793`), nine days ago, so the modification is local to
   the Host and not a merge artifact. Either it is wanted -- commit it -- or it is not --
