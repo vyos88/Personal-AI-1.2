@@ -54,6 +54,10 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'i2', do: 'alpha-move-check', copy: 'C:\\Users' },
     { id: 'i3', do: 'prepare-alpha-here', target: 'C:\\Windows', branch: 'evil' },
     { id: 'i4', do: 'receive-alpha-data', inbox: 'C:\\Windows' },
+    { id: 'j1', do: 'chat-task', task: 'evil' },
+    { id: 'j2', do: 'coord-post', message: 'Phase 2 "done"; $(x)', actor: 'cloud-claude' },
+    { id: 'j3', do: 'coord-post', message: '   ' },
+    { id: 'j4', do: 'coord-post', message: 'hi', actor: 'a b' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
     { id: 'p2', do: 'panel-identify', port: 'COM3' },
     { id: 'r1', do: 'alpha-runtime', root: 'C:\\Windows' },
@@ -65,7 +69,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'p1', 'p2', 'r1', 's1', 's2', 's3', 's4']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'j1', 'j2', 'p1', 'p2', 'r1', 's1', 's2', 's3', 's4']);
   assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
   assert.match(plan.s2.args.at(-1), /comfyui-off\.ps1$/, 'nothing from the payload: what is ComfyUI is read off the machine');
   assert.deepEqual(plan.s3.args.slice(-3).map(String), [plan.s3.args.at(-3), '-AlphaRoot', 'C:\\A\\software'], 'only the autopilot\'s own AlphaRoot, nothing from the payload');
@@ -101,6 +105,14 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.match(plan.i3.args.at(-1), /prepare-alpha-here\.ps1$/, 'no target, branch or anything else from the payload');
   assert.equal(plan.i3.timeoutMin, 90);
   assert.match(plan.i4.args.at(-1), /receive-alpha-data\.ps1$/, 'no inbox or target from the payload');
+  assert.deepEqual(plan.j1.args.slice(-2), ['-OpsDir', plan.j1.args.at(-1)], 'only the autopilot\'s own OpsDir');
+  assert.match(plan.j1.args.at(-3), /chat-task\.ps1$/);
+  const b64 = plan.j2.args[plan.j2.args.indexOf('--message-b64') + 1];
+  assert.equal(Buffer.from(b64, 'base64').toString('utf8'), 'Phase 2 "done"; $(x)', 'the message travels whole, encoded');
+  assert.match(b64, /^[A-Za-z0-9+/=]+$/, 'nothing in the argument can be split by quoting');
+  assert.deepEqual(plan.j2.args.slice(-2), ['--actor', 'cloud-claude']);
+  assert.match(plan.j3.reason, /message must be 1 to 2000/);
+  assert.match(plan.j4.reason, /actor must be/);
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
@@ -761,6 +773,73 @@ test('what send-alpha-data packs, receive-alpha-data accepts: leftovers stay beh
   assert.equal(readFileSync(join(host, 'memory', 'local', 'agent-manager', 'manager-status.json'), 'utf8'), '{"agents":1}');
   assert.ok(!readdirSync(join(host, 'memory', 'local')).includes('pytest-fleet'), 'test leftovers are not moved');
   assert.ok(!readdirSync(host).includes('.env.local'), '.env.local goes by USB, never with the data');
+});
+
+test('a status channel that goes quiet is reported once by the watcher, and its return once more', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-watch-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs', 'channel-watch.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  let n = 0;
+  const branch = (name, iso, file = 'r.md') => {
+    git(ctl, 'checkout', '-q', '--orphan', `local-${n++}`);
+    git(ctl, 'rm', '-rq', '--cached', '.', '--ignore-unmatch');
+    writeFileSync(join(ctl, file), `${name} ${iso}`);
+    git(ctl, 'add', file);
+    execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', name], { cwd: ctl, env: { ...process.env, GIT_COMMITTER_DATE: iso, GIT_AUTHOR_DATE: iso } });
+    git(ctl, 'push', '-q', 'origin', `+HEAD:refs/heads/${name}`); // a test remote: a new orphan each time
+  };
+  const nowIso = new Date().toISOString();
+  branch('status/fresh', nowIso);
+  branch('status/quiet', new Date(Date.now() - 3 * 3600 * 1000).toISOString());
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(ctl, 'rm', '-rq', '--cached', '.', '--ignore-unmatch');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { channelWatch: { channels: 'fresh:30,quiet:45' } } }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command', `& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+    { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /channel watch: 2 \(a channel went quiet\)/);
+  assert.match(report(), /channel-watch \(standing\)\s+->\s+2 \(a channel went quiet\)[\s\S]*SILENT: status\/quiet/);
+
+  r = run();
+  assert.doesNotMatch(r.stdout, /channel watch:/, 'the same silence is not reported again');
+
+  branch('status/quiet', new Date().toISOString());
+  r = run();
+  assert.match(r.stdout, /channel watch: 0 \(every channel talking\)/);
+});
+
+test('chat-task adds chat to self-heal\'s configuration and keeps everything else', { skip }, () => {
+  const ops = mkdtempSync(join(tmpdir(), 'chat-task-'));
+  // Written by Windows PowerShell 5.1: with a BOM, which JSON.parse refuses.
+  writeFileSync(join(ops, 'selfheal.json'), '\uFEFF' + JSON.stringify({ stateDir: 'x', backend: { url: 'http://a' }, frontend: { url: 'http://b' }, cooldownMs: 300000 }));
+  const r = pwsh([join(import.meta.dirname, '..', 'scripts', 'chat-task.ps1'), '-OpsDir', ops, '-ConfigOnly']);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const raw = readFileSync(join(ops, 'selfheal.json'), 'utf8');
+  assert.notEqual(raw.charCodeAt(0), 0xfeff, 'written without a BOM');
+  const json = JSON.parse(raw);
+  assert.deepEqual(json.chat, { url: 'http://127.0.0.1:11434/api/tags', task: 'Alpha Ollama', port: 11434 });
+  assert.equal(json.cooldownMs, 300000);
+  assert.equal(json.frontend.url, 'http://b');
 });
 
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {

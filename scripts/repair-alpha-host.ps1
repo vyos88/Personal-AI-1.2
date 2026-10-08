@@ -512,7 +512,7 @@ if ($lid -and $lid.Matches[0].Groups[1].Value -ne '0x00000000') {
 Section "6. Self-heal"
 $node = (Get-Command node.exe -EA SilentlyContinue).Source
 $shConfig = Join-Path $OpsDir 'selfheal.json'
-[ordered]@{
+$shBody = [ordered]@{
   stateDir = (Join-Path $OpsDir 'selfheal')
   logFile  = (Join-Path $logDir 'selfheal.jsonl')
   backend  = @{ url = $backendUrl; task = $BackendTask; wrapper = $backendWrapper; port = $BackendPort }
@@ -520,7 +520,13 @@ $shConfig = Join-Path $OpsDir 'selfheal.json'
   public   = @{ url = "https://$PublicHost/"; controlUrl = 'https://www.cloudflare.com/cdn-cgi/trace'; service = $CloudflaredService }
   coordination = @{ root = $AlphaRoot; actor = 'alpha-selfheal' }
   cooldownMs = 300000; budgetPerHour = 3; budgetPerDay = 12
-} | ConvertTo-Json -Depth 4 | ForEach-Object {
+}
+# Chat, once chat-task.ps1 has made the task that starts Ollama as its user:
+# rewriting this file must not drop it, or self-heal stops watching chat again.
+if (Get-ScheduledTask -TaskName 'Alpha Ollama' -EA SilentlyContinue) {
+  $shBody.chat = @{ url = 'http://127.0.0.1:11434/api/tags'; task = 'Alpha Ollama'; port = 11434 }
+}
+$shBody | ConvertTo-Json -Depth 4 | ForEach-Object {
   # Windows PowerShell's -Encoding utf8 writes a BOM, and JSON.parse refuses it:
   # every self-heal pass exited 3 before checking anything.
   [IO.File]::WriteAllText($shConfig, $_, (New-Object Text.UTF8Encoding $false))

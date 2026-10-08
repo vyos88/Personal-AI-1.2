@@ -28,6 +28,12 @@
  * - **Some failures are not restartable.** Vite answering 403 "Blocked request"
  *   to the public hostname is a configuration fault; restarting it answers the
  *   same. That is reported with the fix and no restart is spent on it.
+ * - **Chat is optional, and restarted as its owner.** With `chat` in the
+ *   configuration, Ollama is probed like the backend and restarted through
+ *   its own scheduled task (`chat.task`). The task, not this SYSTEM process,
+ *   starts it, because Ollama's models live in the user's profile: an Ollama
+ *   started as SYSTEM answers with no model at all. On 2026-10-08 Ollama was
+ *   down on Laptop41 for over three hours and nothing here could see it.
  *
  * Every pass appends one JSON line to the log. Repairs, exhausted budgets and
  * recoveries are also posted to Alpha's coordination tunnel, so live progress
@@ -79,7 +85,7 @@ export const DEFAULTS = Object.freeze({
 
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;
-const COMPONENTS = ['backend', 'frontend', 'public'];
+const COMPONENTS = ['backend', 'frontend', 'public', 'chat'];
 
 // Codes Cloudflare returns when the edge was reached but the tunnel could not
 // deliver the request to the origin (502/504), or no connector is serving the
@@ -97,6 +103,9 @@ const NOT_RESTARTABLE = {
   'no-dist':
     'The frontend has no dist/index.html and no last-good snapshot to restore. Run the build ' +
     '(npm run build in the frontend) — restarting a preview server with nothing to serve does not help.',
+  'no-chat-task':
+    'Ollama does not answer and chat.task names no scheduled task to start it. Create one that runs ' +
+    'Ollama as its own user (the autopilot job chat-task does), then add it to selfheal.json.',
 };
 
 // ---------------------------------------------------------------------------
@@ -156,6 +165,7 @@ const ladders = {
   backend: ['restart'],
   frontend: ['restart', 'rollback'],
   public: ['restart-connector'],
+  chat: ['restart'],
 };
 
 function within(list, now, span) {
@@ -175,6 +185,8 @@ export function decide({ config, state, probes, now }) {
   const actions = [];
   const events = [];
 
+  // A state written before a component existed (chat, 2026-10-08) starts it fresh.
+  for (const c of COMPONENTS) next.components[c] ??= emptyComponent();
   // Spent repairs age out of the budget.
   for (const c of COMPONENTS) next.components[c].repairs = within(next.components[c].repairs, now, DAY);
   const spentToday = COMPONENTS.reduce((n, c) => n + next.components[c].repairs.length, 0);
@@ -242,6 +254,7 @@ export function decide({ config, state, probes, now }) {
 
   judge('backend', probes.backend, { threshold: cfg.failuresBeforeRepair });
   judge('frontend', probes.frontend, { threshold: cfg.failuresBeforeRepair });
+  judge('chat', probes.chat, { threshold: cfg.failuresBeforeRepair });
 
   const origin = next.components.frontend;
   judge('public', probes.public, {
@@ -357,6 +370,17 @@ export async function probeAll(config) {
     }
   } else {
     probes.public = { skipped: true };
+  }
+
+  if (config.chat?.url) {
+    const chat = await request(config.chat.url, { timeoutMs });
+    probes.chat = {
+      ok: chat.status >= 200 && chat.status < 300,
+      status: chat.status,
+      reason: !config.chat.task ? 'no-chat-task' : chat.error ?? (chat.status ? `status ${chat.status}` : 'no answer'),
+    };
+  } else {
+    probes.chat = { skipped: true };
   }
   return probes;
 }
@@ -499,7 +523,9 @@ export function makeWindowsExecutor(config) {
         ASH_TASK: c.task,
         ASH_WRAPPER: c.wrapper ?? '',
         ASH_PORT: String(c.port ?? new URL(c.url).port ?? ''),
-        ASH_ALLOWED: (c.killableNames ?? ['node', 'python', 'pythonw', 'uvicorn']).join(',').toLowerCase(),
+        ASH_ALLOWED: (c.killableNames ?? (component === 'chat' ? ['ollama', 'ollama app'] : ['node', 'python', 'pythonw', 'uvicorn']))
+          .join(',')
+          .toLowerCase(),
       },
     });
   };
