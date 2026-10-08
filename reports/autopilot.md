@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-194410
+﻿# host autopilot 20261008-201410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261008-201410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T20:14:15, 2s)
+```
+OK: status/laptop41-live
+OK: status/laptop41
+  ages: laptop41-live 5 min (silent after 30), laptop41 2 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-194410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-08T19:44:14, 4s)
 ```
@@ -285,17 +292,5 @@ PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 16:49
 RAM: 2.5 GB free of 15.8 GB
 STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
 RESULT: ready for the data copy
-```
-
-## 20261007-h17-comfyui-back  enable-image  ->  0   (2026-10-07T16:39:19, 53s)
-```
-NVIDIA GPU found: installing CUDA torch
-ComfyUI's torch: 2.11.0+cu128 cuda
-ok: ComfyUI answers on 127.0.0.1:8188 (task ComfyUI, starts at logon; log C:\AlphaData\comfyui.log)
-image backend: comfyui
-ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, memstore, alpha-music, alpha-music-audio, alpha-image, alpha-image-file
-ok: restarted the agent through task 'alpha-tunnel agent'
-the agent now offers alpha.image
-done: this machine renders images for Alpha through the tunnel
 ```
 
