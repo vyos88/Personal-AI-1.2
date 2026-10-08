@@ -140,6 +140,28 @@ answer, and Claude puts it to V in the next report.
   a CPU machine *can* generate, just not inside a lease. So the whole remedy is configuration on the two
   machines, and there is nothing here to merge for it.
 
+- [ ] 2026-10-08 Claude (cloud) -> V: **Laptop41's doctor works; its schedule does not fire. And no
+  report can tell you why, because the one that could never looks.** The experiment: I queued
+  `20261008-09-doctor`, and it ran `-> 0` in 40 s at 13:39:08Z. So the script is healthy. Its own
+  pushes are 13:39:41Z (that forced run), then 12:11:35Z, 10:57:20Z, 10:26:36Z — **2h23m with nothing
+  on its own schedule**, and 55 minutes since the forced run with nothing after it. The forced run did
+  not restart the schedule.
+  **A correction I nearly published as a finding:** `Alpha Doctor` is absent from the doctor's own
+  scheduled-task list, and that means nothing — `laptop41-doctor.ps1:656` enumerates exactly
+  `'Alpha', 'Alpha Backend', 'Alpha Self-Heal'`, so its own task could never appear there. The same
+  shape as `alpha-devices.js`'s `serialPorts`: an absence read from a list that does not cover the
+  thing. It is not a permissions problem either — the same section prints
+  `task Alpha Self-Heal  Ready  last run 2026-10-08 14:38  result 0x00000000 (success)`, so that
+  account can read task state.
+  `[!] needs V`, because only an elevated shell on Worker1 can see a task's history: read
+  `Alpha Doctor`'s state, last run time and last result. The script installs that task itself
+  (`laptop41-doctor.ps1:902`), so the name is right; what is unknown is whether it is registered,
+  disabled, or firing and failing.
+  **Proposed one-line fix, not pushed:** add `'Alpha Doctor'` to the array at
+  `laptop41-doctor.ps1:656`, so the fleet's health report says whether its own reporter is scheduled.
+  It needs a `pwsh` run against `test/laptop41-doctor.test.js` before merge — this container has no
+  PowerShell, and that file is the fleet's only health report, so I am not pushing it blind.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
