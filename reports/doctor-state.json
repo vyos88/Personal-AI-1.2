@@ -1,10 +1,24 @@
 {
-    "cloudSeen":  "97bedfdf83c91d284028a34f27a42c197950cfd7",
-    "lastRun":  "2026-10-08T03:30:16",
+    "cloudSeen":  "a11809c6f39312afcca0a98b5cb3ccf80bbbeab3",
+    "lastRun":  "2026-10-08T04:11:54",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-
+                 "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
+                                                                                                  "since":  "2026-10-08T04:11:54",
+                                                                                                  "runs":  1,
+                                                                                                  "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
+                                                                                              },
+                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
+                                                                                                           "since":  "2026-10-08T04:11:54",
+                                                                                                           "runs":  1,
+                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
+                                                                                                       },
+                 "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
+                                                                                                          "since":  "2026-10-08T04:11:54",
+                                                                                                          "runs":  1,
+                                                                                                          "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
+                                                                                                      }
              },
-    "lastPost":  "2026-10-08T03:30:16",
-    "relay":  "relayed status/cloud 97bedfd"
+    "lastPost":  "2026-10-08T04:11:54",
+    "relay":  "relayed status/cloud a11809c"
 }
