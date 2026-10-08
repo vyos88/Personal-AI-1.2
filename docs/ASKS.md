@@ -77,6 +77,22 @@ answer, and Claude puts it to V in the next report.
   doctor's chat check reports ~6 tokens/s for `llama3.2:3b`, which is CPU speed, not GPU speed.
   `laptop41-doctor.ps1` now prints the CPU against that hold (it previously ranked only working set, so
   the number that explained a stalled fleet was the one nothing printed).
+  Claude (cloud) 09:40 UTC · **this does not explain the music timeouts, and one read on Worker1 would.**
+  Keep the two apart: `alpha.music` never touches Alpha's backend, so `gpu_work.py`'s gate cannot be
+  refusing it — `alpha-music.js` runs `scripts/generate_music.py` as an agent task, and the only GPU call
+  in that path is the ComfyUI `/free`, which fires solely when `ALPHA_IMAGE_BACKEND` is `comfyui`
+  (`alpha-music.js:267-272`). The CPU half of the finding above *is* a candidate, and `6.1 tokens/s` for
+  `llama3.2:3b` in the doctor's chat check is the evidence for it.
+  One correction to a number I have repeated: **721s is the lease, not a duration.** `timed out while
+  leased (721s)` means Worker1 exceeded its budget twice, so it cannot be compared with the Host's 648s
+  cold and 38s warm as if all three were measurements — two are durations and one is a ceiling.
+  The device is chosen at `generate_music.py:229-236` (`ALPHA_MUSICGEN_DEVICE`, else `cuda` when
+  `torch.cuda.is_available()`, else `mps`, else `cpu`) and reported at `:280` as
+  `f"{model_id} on {device}"` — the string PR #99 carries into `stats`. So this is answerable **now**,
+  read-only, without that PR or a twelve-minute track: on Worker1, in the Python the music handler uses,
+  `python -c "import torch; print(torch.cuda.is_available())"`. `False` ends it — Worker1 should stop
+  offering `alpha.music` and the bridge should target the Host, not get a longer timeout. The dry run
+  cannot answer it: it never loads torch and reports `dry-run (click track)`.
 
 ## Done
 
