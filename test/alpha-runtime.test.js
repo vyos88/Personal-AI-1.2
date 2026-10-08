@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { homeAddress, summarizeReceipts, summarizeRuntime } from '../scripts/alpha-runtime.mjs';
+import { homeAddress, isEntrypoint, summarizeReceipts, summarizeRuntime } from '../scripts/alpha-runtime.mjs';
 
 test('the lane is reported, because a starved cycle looks exactly like a dead one', () => {
   // Alpha's own deck feed, as it answered at 23:04 on Worker1.
@@ -103,4 +103,49 @@ test('the feed is asked on a LAN address, never on the tailnet', () => {
   );
   // Nothing private at all: loopback, which is where the backend also answers.
   assert.equal(homeAddress({ lo: [{ family: 4, internal: true, address: '127.0.0.1' }] }), '127.0.0.1');
+});
+
+// On Windows URL.pathname is "/C:/...", which never equals the resolved argv
+// path, so a guard built on it skips main() and exits 0 having printed nothing.
+// That is what 20261008-02-alpha-runtime did on Laptop41: "->  0", empty output.
+test('no script decides it was run directly from URL.pathname', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const dir = new URL('../scripts/', import.meta.url);
+  const offenders = [];
+  for (const name of await readdir(dir)) {
+    if (!name.endsWith('.mjs')) continue;
+    const source = await readFile(new URL(name, dir), 'utf8');
+    if (/new URL\(import\.meta\.url\)\.pathname/.test(source)) offenders.push(name);
+  }
+  assert.deepEqual(offenders, []);
+});
+
+test('the entrypoint guard survives the two spellings Windows gives one file', () => {
+  // The first real pass of this script on Worker1 printed nothing and exited 0
+  // in 0 seconds — the signature of a guard that answered no. On Windows the
+  // same file reaches `argv[1]` and `import.meta.url` with different casing
+  // (the ESM loader reports the on-disk spelling), and a case-sensitive string
+  // comparison then hides the whole script behind a silent success.
+  const url = 'file:///C:/services/alpha-tunnel/scripts/alpha-runtime.mjs';
+  assert.equal(isEntrypoint('C:\\services\\alpha-tunnel\\scripts\\alpha-runtime.mjs', url, 'win32'), true);
+  assert.equal(isEntrypoint('C:\\Services\\Alpha-Tunnel\\scripts\\alpha-runtime.mjs', url, 'win32'), true);
+  // Still a real comparison: another file is not this one.
+  assert.equal(isEntrypoint('C:\\services\\alpha-tunnel\\scripts\\panel-up.mjs', url, 'win32'), false);
+  // Imported rather than run: no argv[1] at all.
+  assert.equal(isEntrypoint(undefined, url, 'win32'), false);
+  assert.equal(isEntrypoint('', url, 'win32'), false);
+
+  // POSIX keeps its case sensitivity, because there `Scripts` and `scripts` are
+  // two directories and treating them as one would be the opposite bug.
+  const posix = 'file:///srv/alpha-tunnel/scripts/alpha-runtime.mjs';
+  assert.equal(isEntrypoint('/srv/alpha-tunnel/scripts/alpha-runtime.mjs', posix, 'linux'), true);
+  assert.equal(isEntrypoint('/srv/alpha-tunnel/Scripts/alpha-runtime.mjs', posix, 'linux'), false);
+});
+
+test('this file is reachable as a module without running main()', async () => {
+  // The import at the top of this suite is the proof: importing the script must
+  // not start a run, or every test here would make a network call.
+  const module = await import('../scripts/alpha-runtime.mjs');
+  assert.equal(typeof module.isEntrypoint, 'function');
+  assert.equal(module.isEntrypoint(process.argv[1], 'file:///somewhere/else.mjs'), false);
 });
