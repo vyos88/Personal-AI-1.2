@@ -484,6 +484,11 @@
       "id": "20261008-06-alpha-runtime",
       "do": "alpha-runtime",
       "why": "re-run now that #230 is merged. Pass 05 printed its loop lines but reported \"receipts : 0 retained; classes none\" from a reader looking at agents[].history -- a field Alpha only ever puts in an API response, since the file keeps receipts as a flat top-level list joined by agent_id. The evidence-contract failures were in the file the whole time. This pass should print them with the reason each one gives, and \"0 retained\" now carries the registry's own top-level keys beside it so an empty answer can be told from a misread one."
+    },
+    {
+      "id": "20261008-07-doctor",
+      "do": "doctor",
+      "why": "re-run the doctor now that #231 is merged: it reads CPU for the first time, against Alpha's 90% GPU-admission hold. That is the open question -- pass 06 showed 201 agent receipts all failing with \"GPU admission timed out without starting language-model\", and the hold is what refuses them, but nothing on this machine has ever printed the CPU figure. Section 7 should now say whether CPU is at or above the hold and name the heaviest processes beside it. The doctor's own chat check reports llama3.2:3b at ~6 tokens/s, which is CPU speed, so llama-server is the first suspect."
     }
   ],
   "autofix": {
