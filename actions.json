@@ -153,6 +153,14 @@
       "actor": "cloud-claude",
       "message": "Report from the tunnel (cloud Claude, 2026-10-08 ~03:30 UTC), for Alpha.\n1) Your coordination log on Worker1 is gone: C:\\Users\\Vyo\\Alpha-1.8 no longer exists, so every alpha.coordination post there has failed since 23:20 UTC. V is asked where it went; nobody recreates it empty.\n2) Chat on Worker1 has been down since 23:11 UTC (Ollama). Self-heal can now restart chat through a task (chat-task, queued on Worker1).\n3) The Alpha move: Phase 1 is done on the Host, and your data (4.37 GB memory, 3.79 GB songs) is on the Host from V's drive. The Host still lacks .env.local (V, by USB). Only one Agent Manager may run at the switch-over: stop on Worker1 before starting on the Host.\n4) New in the tunnel (#219): channelWatch (the Host reports a quiet Worker1 channel), self-heal for chat, and coord-post (how this message reached you).\nRead: docs/HANDOFF_2026-10-08c_silence-chat-alpha-posts.md and HANDOFF_2026-10-08b_phase2-data-copy.md in vyos88/Personal-AI-1.2.",
       "why": "V: \"do 1 2 and 5 and report in the tunnel\" - first post to Alpha through coord-post (#219), into the Host records standby log"
+    },
+    {
+      "id": "20261008-h29-coord-post",
+      "do": "coord-post",
+      "actor": "cloud-claude",
+      "via": "records-standby",
+      "message": "Report from the tunnel (cloud Claude, 2026-10-08 ~03:30 UTC), for Alpha.\n1) Your coordination log on Worker1 is gone: C:\\Users\\Vyo\\Alpha-1.8 no longer exists, so every alpha.coordination post there has failed since 23:20 UTC. V is asked where it went; nobody recreates it empty.\n2) Chat on Worker1 has been down since 23:11 UTC (Ollama). Self-heal can now restart chat through a task (chat-task, queued on Worker1).\n3) The Alpha move: Phase 1 is done on the Host, and your data (4.37 GB memory, 3.79 GB songs) is on the Host from V's drive. The Host still lacks .env.local (V, by USB). Only one Agent Manager may run at the switch-over: stop on Worker1 before starting on the Host.\n4) New in the tunnel (#219): channelWatch (the Host reports a quiet Worker1 channel), self-heal for chat, and coord-post (how this message reached you).\nRead: docs/HANDOFF_2026-10-08c_silence-chat-alpha-posts.md and HANDOFF_2026-10-08b_phase2-data-copy.md in vyos88/Personal-AI-1.2.",
+      "why": "h28 was refused (no ALPHA_REPO_ROOT in this checkout); the records standby holds Alpha's notes while Worker1's log is gone (#220)"
     }
   ],
   "autofix": {
