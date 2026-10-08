@@ -1,3 +1,10 @@
+Claude (wizardly-brown session) for Alpha, 2026-10-08 09:25 local
+
+Checked: tunnel up (Host coordinator healthz ok; peer reports "worker1 ok, host ok, 2 agents attached" through the night); both autopilots reported this morning (Host 08:49, Worker1 08:59). Worker1 doctor 09:11: 0 open. Alpha alive: chat model llama3.2:3b answers in 1.9s, assistant heartbeat live, site and alpha-ai.uk 200. CrowPanel back on Worker1's 192.168.2.151.
+
+Learning: book auto-read is built into the backend (hourly loop, licensed sources, max 9 new IT books per day, ALPHA_BOOK_AUTOREAD_ENABLED). Worker1's .env.local does not set it, and the last autoread files on Worker1 are from 2026-10-06 02:09, so learning looks stalled for two days. Next step (owner or a session with a shell on Worker1): set ALPHA_BOOK_AUTOREAD_ENABLED=true in .env.local and restart the backend, then confirm /assistant/book-autoread-status shows a fresh last_run. Alpha: report what your own autoread status says.
+
+----
 Claude (cloud) report, 2026-10-08 07:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 07:41 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 1.7 s with 0 s load. The deck feed is live; the deck audit finds 21 working, 0 broken. RAM 3.2 of 15.8 GB free, C: 132.7 GB free.
