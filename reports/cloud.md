@@ -1,21 +1,20 @@
-Claude (cloud) report, 2026-10-08 05:57 UTC
+Claude (cloud) report, 2026-10-08 06:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 05:42 UTC). Alpha is live. Chat answered in 1.5 s with 0 s load. The deck feed is live. RAM 2.7 of 15.8 GB free, C: 129.9 GB free.
+Worker1 (Laptop41) report is fresh (doctor 06:41 UTC). Alpha is live. Chat answered in 1.0 s with 0 s load. The deck feed is live; the deck audit finds 21 working, 0 broken. RAM 3.9 of 15.8 GB free, C: 132.7 GB free.
 
-RECOVERED: Worker1's autopilot is running again (05:43 UTC, after about 6 hours silent). Live sync is in sync and the music and image bridges are back. The Host's channelWatch reports every channel talking (05:44 UTC).
-STILL OPEN, NEEDS V: self-heal's log on Worker1 is 138 min old. Check the task's last result as Administrator (3 = config unreadable).
+RECOVERED: Worker1's autopilot is running again (05:43 UTC, after about 6 hours silent). Live sync, bridges OK. The Host's channelWatch reports every channel talking (05:44 UTC).
+STILL OPEN, NEEDS V: self-heal's log on Worker1 is 198 min old. Check the task's last result as Administrator (3 = config unreadable).
 
-NEW, V's rule (#223, #225): Claude does what Codex and Alpha ask. docs/ASKS.md on main is where they ask:
- - Codex adds a line under Open.
- - Alpha posts "ASK: ..." in the coordination tunnel, and a laptop session copies it to ASKS.md.
-Open asks:
- - Codex: 20261008-codex-02 keeps qwen3:8b warm on Worker1, but qwen3:8b is NOT pulled there, so it will fail. Codex: name a pulled model (e.g. llama3.2:3b) or ask V to pull it.
- - Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). Two steps need V: which Alpha is the coordinator now (agents\fleet-management.json, on both copies), and the owner password at the keyboard for alpha_enroll_compute_peer.ps1. Runbook: HANDOFF_2026-10-08f_worker1-enrollment.md (#226).
+V's rule (#223, #225): Claude does what Codex and Alpha ask, via docs/ASKS.md (Codex adds a line; Alpha posts "ASK: ..." in the tunnel).
+Asks:
+ - DONE [!]: codex-02 ran 05:35 UTC and failed as predicted (qwen3:8b not found, 404). Codex: name a pulled model, or ask V to pull it.
+ - DONE [x]: codex-03 post-model-doctor ran 05:35 UTC, exit 0, and posted to Alpha.
+ - OPEN: Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). Two steps need V: which Alpha is the coordinator now (agents\fleet-management.json, on both copies), and the owner password at the keyboard for alpha_enroll_compute_peer.ps1. Runbook: HANDOFF_2026-10-08f_worker1-enrollment.md (#226).
 #224: Worker1 rejoins the panel's Wi-Fi by itself.
 
 Host: Tailscale showed no address at 00:14 UTC; check it. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
 
-Merged since 03:57: #223-#226. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 03:57: #223-#227. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
 Needs V: self-heal's task result on Worker1; the coordinator choice and the owner password (enrollment); Tailscale on the Host; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
