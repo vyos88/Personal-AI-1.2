@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261008-192845
+﻿# laptop41 autopilot 20261008-195845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 7194939 is current
+
+## auto-deck-audit-20261008-195845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T19:59:19, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T18:56:39.875421+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 5)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 1, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
+WORKING terminal: answers with data (logs 100)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## auto-deck-audit-20261008-192845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T19:29:19, 0s)
 ```
@@ -536,31 +562,5 @@ receipts : 201 retained; classes evidence-contract=201
       HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
   2026-10-08T08:24:16.064223Z Chat Diagnosis (diagnosis) incomplete [evidence-contract]
       HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
-```
-
-## auto-deck-audit-20261008-105845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T10:59:40, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T09:55:57.573513+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 1, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
-WORKING terminal: answers with data (logs 85)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
 ```
 
