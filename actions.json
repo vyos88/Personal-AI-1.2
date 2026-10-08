@@ -489,6 +489,11 @@
       "id": "20261008-07-doctor",
       "do": "doctor",
       "why": "re-run the doctor now that #231 is merged: it reads CPU for the first time, against Alpha's 90% GPU-admission hold. That is the open question -- pass 06 showed 201 agent receipts all failing with \"GPU admission timed out without starting language-model\", and the hold is what refuses them, but nothing on this machine has ever printed the CPU figure. Section 7 should now say whether CPU is at or above the hold and name the heaviest processes beside it. The doctor's own chat check reports llama3.2:3b at ~6 tokens/s, which is CPU speed, so llama-server is the first suspect."
+    },
+    {
+      "id": "20261008-08-alpha-runtime",
+      "do": "alpha-runtime",
+      "why": "settles the one thing two CPU readings cannot. 20261008-07-doctor read CPU 49% at 10:39 and the 11:11 doctor read exactly 90%, so CPU does reach Alpha's hold -- but at 49% the guard on gpu_work.py's telemetry probe (not pressure_reasons) would ALLOW the probe, so admission should have recovered in that window. The receipts say whether it did: if any receipt between ~10:00 and ~11:00 completed, the gate reopens on its own and sustained CPU is the whole story; if they all still read evidence-contract with 'Waiting for fresh per-adapter GPU telemetry' through a 49% CPU window, the probe is failing rather than merely unscheduled and the deadlock is real and independent. The data is already in the registry; this only reads it."
     }
   ],
   "autofix": {
