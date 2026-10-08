@@ -464,6 +464,16 @@
       "id": "20261008-60-chat-task",
       "do": "chat-task",
       "why": "Ollama down since 23:11 UTC; self-heal can restart chat once this task exists (#219). Runs when this autopilot runs again"
+    },
+    {
+      "id": "20261008-03-repair-host",
+      "do": "repair-host",
+      "why": "doctor 20261008-075603 NEEDS A PERSON: self-heal is installed but its log is 213 min old and the task's last result is 3 = config unreadable (alpha-selfheal.mjs loadConfig threw). Its log stopped ~04:23, so Alpha has had no repair agent since. repair-alpha-host.ps1 rewrites the config and reinstalls the task, with its own rollback."
+    },
+    {
+      "id": "20261008-04-doctor",
+      "do": "doctor",
+      "why": "after 03: confirm self-heal logs again and the open problem clears."
     }
   ],
   "autofix": {
