@@ -100,9 +100,41 @@ export function parseArgs(argv) {
   return opts;
 }
 
+/**
+ * How long one git call may take before it is killed, and what to call it then.
+ *
+ * A git call that hangs is worse here than one that fails. `Publish-Live` runs
+ * at the *end* of an autopilot pass (`autopilot.ps1:850`), so a pass stuck in
+ * git writes no live report and reaches no later action -- and the next pass
+ * finds the same wedge. Laptop41's live branch went 126 minutes without a
+ * write on 2026-10-08 (last 23:29:08Z, read at 01:35Z) while its separately
+ * scheduled doctor kept pushing every ~15 minutes from the same machine with
+ * the same credentials: the pass, not the network. Its own live-sync had
+ * reported `Empty reply from server` ten minutes earlier, which is the fast
+ * version of what a server that accepts a connection and sends nothing does;
+ * `spawnSync` with no timeout is the slow one, and waits for ever.
+ *
+ * Two minutes is generous for a blob-filtered fetch and well inside the
+ * five-minute pass. A timeout that is too short is loud and self-correcting --
+ * the tip is reported as not tried and comes round next pass -- where no
+ * timeout at all is silent.
+ */
+export const gitTimeoutMs = () => {
+  const n = Number(process.env.ALPHA_GIT_TIMEOUT_MS);
+  return Number.isFinite(n) && n > 0 ? n : 120_000;
+};
+
+/** A timeout is not a missing git, and must not be reported as one. */
+export function gitSpawnError(args, error) {
+  const what = `git ${args.slice(0, 3).join(' ')}`;
+  return error.code === 'ETIMEDOUT'
+    ? new Error(`${what} gave up after ${Math.round(gitTimeoutMs() / 1000)}s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)`)
+    : new Error(`git not found: ${error.message}`);
+}
+
 function git(args, { cwd, input, allowFail = false } = {}) {
-  const r = spawnSync('git', args, { cwd, input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  if (r.error) throw new Error(`git not found: ${r.error.message}`);
+  const r = spawnSync('git', args, { cwd, input, encoding: 'utf8', timeout: gitTimeoutMs(), maxBuffer: 256 * 1024 * 1024 });
+  if (r.error) throw gitSpawnError(args, r.error);
   if (r.status !== 0 && !allowFail) {
     throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${(r.stderr || r.stdout).trim()}`);
   }

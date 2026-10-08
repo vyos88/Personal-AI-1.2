@@ -71,8 +71,8 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
-  DEFAULTS, RESTART_TASKS, appliedStatePath, fetchBranch, findSoftwareRoot, main as applyUpdate, resolveCommit,
-  restartWindows, writeState,
+  DEFAULTS, RESTART_TASKS, appliedStatePath, fetchBranch, findSoftwareRoot, gitSpawnError, gitTimeoutMs,
+  main as applyUpdate, resolveCommit, restartWindows, writeState,
 } from './apply-alpha-update.mjs';
 import {
   NEW_FILE_EXTENSIONS, NEW_FILE_MAX_COUNT, NEW_FILE_SKIP_DIRS, inRepoShape, isCapturableJson, newSourceFiles, scanAddedLines,
@@ -125,8 +125,8 @@ export function parseArgs(argv) {
 }
 
 function git(args, { cwd, allowFail = false, input } = {}) {
-  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  if (r.error) throw new Error(`git not found: ${r.error.message}`);
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, input, encoding: 'utf8', timeout: gitTimeoutMs(), maxBuffer: 256 * 1024 * 1024 });
+  if (r.error) throw gitSpawnError(args, r.error);
   if (r.status !== 0 && !allowFail) throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${(r.stderr || r.stdout).trim()}`);
   return r;
 }

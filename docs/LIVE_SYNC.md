@@ -36,6 +36,16 @@ tried. That is also how a refusal is fixed: push a commit that resolves it.
 The owner chose updates "any time", not a nightly window, because every
 failure puts itself back.
 
+**No git call waits for ever.** Every `git` here is killed after
+`ALPHA_GIT_TIMEOUT_MS` (two minutes by default), because a hang costs more than
+a failure: `Publish-Live` runs at the *end* of an autopilot pass
+(`autopilot.ps1:850`), so a pass stuck in git writes no live report, reaches no
+later action, and the next pass finds the same wedge. Laptop41's live branch
+went 126 minutes without a write on 2026-10-08 — last at 23:29:08Z, read at
+01:35Z — while its separately scheduled doctor kept pushing every ~15 minutes
+from the same machine with the same credentials. A timed-out fetch is reported
+as a fetch failure, which by the rule below leaves the tip for the next pass.
+
 **Only a verdict the patch produced counts as having tried a tip.** A fetch
 that never reached the patch is reported (`STOP: <tip> was not tried`) and the
 same tip is tried again on the next pass. Laptop41 lost a commit to the older

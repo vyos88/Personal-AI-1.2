@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  main, findSoftwareRoot, isTestPath, looksUnauthorized, nearestHunk, needsPackageInstall, readLive, writeLive,
-  sameAsBranch,
+  main, fetchBranch, findSoftwareRoot, gitSpawnError, gitTimeoutMs, isTestPath, looksUnauthorized, nearestHunk,
+  needsPackageInstall, readLive, writeLive, sameAsBranch,
 } from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
@@ -179,6 +179,35 @@ test('an unreachable repository stops with what to do, and writes nothing', asyn
   assert.match(out, /could not fetch alpha-full/);
   assert.match(out, /the repository or the network rather than credentials/);
   assert.doesNotMatch(out, /gh auth login/, 'a machine that was never refused is not told to sign in');
+});
+
+test('a git call that hangs is given up on, and said to have been', { skip: process.platform === 'win32' && 'needs a PATH stub' }, async () => {
+  assert.equal(gitTimeoutMs(), 120_000, 'two minutes unless the machine says otherwise');
+  assert.match(gitSpawnError(['fetch', 'origin', 'live'], { code: 'ETIMEDOUT' }).message,
+    /^git fetch origin live gave up after 120s/);
+  assert.match(gitSpawnError(['status'], { code: 'ENOENT', message: 'spawnSync git ENOENT' }).message, /^git not found/);
+
+  // The real path, with a git that answers nothing: autopilot.ps1:850 publishes
+  // the live report at the end of a pass, so a git that never returns stops
+  // every later pass as well as this one.
+  const dir = mkdtempSync(join(tmpdir(), 'git-hang-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'git'), '#!/bin/sh\nsleep 30\n');
+  chmodSync(join(bin, 'git'), 0o755);
+  const path = process.env.PATH;
+  const was = process.env.ALPHA_GIT_TIMEOUT_MS;
+  process.env.PATH = `${bin}:${path}`;
+  process.env.ALPHA_GIT_TIMEOUT_MS = '400';
+  try {
+    const started = Date.now();
+    assert.throws(() => fetchBranch({ cache: join(dir, 'cache.git'), repo: 'https://example.invalid/x', branch: 'live' }),
+      /gave up after 0s \(raise ALPHA_GIT_TIMEOUT_MS/);
+    assert.ok(Date.now() - started < 10_000, 'it gave up rather than waiting out the stub');
+  } finally {
+    process.env.PATH = path;
+    if (was === undefined) delete process.env.ALPHA_GIT_TIMEOUT_MS; else process.env.ALPHA_GIT_TIMEOUT_MS = was;
+  }
 });
 
 test('only git\'s own words for a refusal are read as one', () => {
