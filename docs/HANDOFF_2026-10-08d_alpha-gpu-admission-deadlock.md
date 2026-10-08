@@ -17,12 +17,20 @@ all `evidence-contract` failures, all the same two messages, roughly every
   `system_cpu_hold_percent` (90% by default, `config/gpu-routing.json` in
   **vyos88/Alpha**).
 - `Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed
-  out without starting` — this one **outlasts the CPU spike**: the only call
-  that schedules a GPU telemetry refresh is itself guarded on
-  `not pressure_reasons`, so while CPU is pinned no refresh is ever
-  scheduled, telemetry never becomes `observed`, and admission keeps
-  refusing even once CPU has dropped. That's a pressure deadlock, not a
-  slow recovery.
+  out without starting` — the telemetry-refresh call that would clear this
+  is itself guarded on `not pressure_reasons`, so while CPU is pinned no
+  refresh gets scheduled.
+
+  **Correction (PR #233):** I originally wrote that this refusal "outlasts
+  the spike" — i.e. that it's a deadlock independent of CPU, not just a
+  symptom of it. The doctor's first two real CPU readings point opposite
+  ways (49% ok, then 90% held), and at 49% the probe's own guard *allows*
+  it to run — so the stronger claim only follows from the code for a brief
+  dip, not a sustained drop below the hold. Whether a sustained low-CPU
+  window actually clears the gate, or the probe itself fails independent of
+  CPU, is still open; a read-only `alpha-runtime` pass is queued on
+  Worker1 to check whether any receipt completed during such a window.
+  Treat "deadlock independent of CPU" as unconfirmed until that comes back.
 
 Net effect: Alpha's Chat Diagnosis and Fixer agents have been failing at
 the admission gate on every scheduled run — not producing wrong output,
@@ -49,6 +57,9 @@ main, full suite green, no live-host or security judgment involved)
   degrades to an explicit "unknown" instead of a truncated, invalid JSON
   tail reported as success. Purely additive to the result shape; no change
   to the pinned interpreter, script path, allowlist or argv construction.
+- **#233** — wording-only correction of the "outlasts the spike" claim
+  above (no logic change), merged after the 90%-hold reading in section 7
+  below came in right after a 49% "ok" reading.
 
 ### Still held: #229
 
@@ -56,4 +67,11 @@ Device-inventory fix remains in draft at the author's own request (full
 suite stalled on an unrelated auth-key-revocation case) — see
 `docs/HANDOFF_2026-10-08c_pr229-device-inventory-held-draft.md`.
 
-Laptop41 telemetry otherwise reads `ok: no problems found` this pass.
+### Update: CPU back down, still unconfirmed whether the gate cleared
+
+Most recent pass: CPU 31% (`ok`), with the 90%-hold hit noted as "fixed
+since last run." That's consistent with the hold itself clearing, but
+doesn't yet confirm whether the telemetry-refresh side resolved on its own
+too — the queued read-only `alpha-runtime` check (see #233 above) is what
+would actually settle that. Laptop41 telemetry otherwise reads
+`ok: no problems found` this pass.
