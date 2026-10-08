@@ -995,7 +995,18 @@ function Publish-Live([string]$md, [string]$json, [string]$headline) {
 }
 if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $now = Get-Date
-  $sh = Read-SelfHeal
+  # autofix.heartbeat is `true` on the machine that runs Alpha, or an object
+  # with alpha:false on one that does not -- the Host, which runs the
+  # coordinator and an agent. Both get a page every pass, because the point of
+  # the page is that a reporter is alive; what differs is what there is to say.
+  # Without this the Host could not have one at all: with no self-heal log the
+  # Alpha row falls through to probing 127.0.0.1:8001 and calls a no-answer
+  # DOWN, so every page would be a red claim about a machine that is not
+  # supposed to run Alpha.
+  $hb = $control.autofix.heartbeat
+  $hbAlpha = $true
+  if ($hb -isnot [bool] -and $null -ne $hb.alpha) { $hbAlpha = [bool]$hb.alpha }
+  $sh = $(if ($hbAlpha) { Read-SelfHeal } else { $null })
   $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
   $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = '' }
   if ($sh) {
@@ -1013,7 +1024,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.verdict = if ($down.Count) { 'DOWN' } else { 'LIVE' }
     $alpha.detail = (($parts.Keys | ForEach-Object { "$_ $(if ($parts[$_]) { $parts[$_].status } else { '?' })" }) -join ', ') + $(if ($down.Count) { "; not answering: $($down -join ', ')" } else { '' })
     $alpha.checked_by = "self-heal, $($sh.age) min ago"
-  } else {
+  } elseif ($hbAlpha) {
     # Self-heal is not watching, so look at the backend directly (only that).
     $code = $null
     try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
@@ -1021,7 +1032,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is not running"
     $alpha.checked_by = 'this pass'
   }
-  if ($heal.state -eq 'STOPPED') {
+  if ($hbAlpha -and $heal.state -eq 'STOPPED') {
     $kickFile = Join-Path $dir 'selfheal-restart.txt'
     $lastKick = [datetime]::MinValue
     if (Test-Path -LiteralPath $kickFile) { [void][datetime]::TryParse((Get-Content -LiteralPath $kickFile -Raw).Trim(), [ref]$lastKick) }
@@ -1036,7 +1047,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   }
   $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
   $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
-  if (Test-Path -LiteralPath $receipt) {
+  if ($hbAlpha -and (Test-Path -LiteralPath $receipt)) {
     try {
       $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
       # One count per deck, not per check: the CrowPanel has two checks (its
@@ -1062,17 +1073,55 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $syncState = (($syncKey -replace '^\d+ ', '') -split ' \| ' | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|STOP)' } | Select-Object -First 1)
   if (-not $syncState) { $syncState = $(if ($sync) { 'no state yet' } else { 'off' }) }
   $syncState = Redact $syncState
-  $headline = "Alpha $($alpha.verdict); self-heal $($heal.state)"
-  $md = @(
-    "# Alpha is $($alpha.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
-    'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
-    '| Check | State | Detail |', '|---|---|---|',
-    "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
-    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
-    "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
-    "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
-  ) -join "`n"
-  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  if ($hbAlpha) {
+    $headline = "Alpha $($alpha.verdict); self-heal $($heal.state)"
+    $md = @(
+      "# Alpha is $($alpha.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
+      'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
+      '| Check | State | Detail |', '|---|---|---|',
+      "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
+      "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+      "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
+      "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
+    ) -join "`n"
+    $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  } else {
+    # The two things this machine can be asked about without a credential, and
+    # the two nothing could see from off it. /healthz is the coordinator's only
+    # unauthenticated GET, so a scheduled pass can read it; and the checkout
+    # note above says whether fixes sent through this repository are still
+    # arriving. That note already exists and says so "in every report" -- but a
+    # report goes out only when a queued id ran, so on a quiet machine it was
+    # never read. The Host sat on e175472 for fifteen hours over one
+    # uncommitted scripts/usb-inventory.ps1 on 2026-10-08, 18 commits behind,
+    # and that line was in a report nobody had reason to open.
+    $port = 8787
+    $n = 0; if ($env:ALPHA_HOST_PORT -and [int]::TryParse($env:ALPHA_HOST_PORT, [ref]$n)) { $port = $n }
+    $hz = $null
+    try { $hz = [string](Invoke-WebRequest -Uri "http://127.0.0.1:$port/healthz" -UseBasicParsing -TimeoutSec 8).Content } catch { $hz = $null }
+    $coord = [ordered]@{ verdict = 'DOWN'; port = $port; detail = 'no answer' }
+    if ($hz -match '"ok"\s*:\s*true') {
+      $coord.verdict = 'LISTENING'
+      $coord.detail = $hz.Substring(0, [math]::Min(160, $hz.Length))
+    } elseif ($hz) {
+      # Something holds the port and is not the coordinator, which sends an
+      # operator somewhere different from nothing listening at all.
+      $coord.detail = 'answered but not ok: ' + $hz.Substring(0, [math]::Min(160, $hz.Length))
+    }
+    $stale = $updateExit -ne 0
+    $note = Redact $checkoutNote
+    $headline = "coordinator $($coord.verdict); checkout $(if ($stale) { 'STALE' } else { 'current' })"
+    $md = @(
+      "# Coordinator is $($coord.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
+      'Written every autopilot pass (5 minutes), whether or not anything changed.',
+      'This machine does not run Alpha, so its rows are the coordinator and this checkout.', '',
+      '| Check | State | Detail |', '|---|---|---|',
+      "| Coordinator (/healthz on $port) | $($coord.verdict) | $($coord.detail) |",
+      "| Checkout | $(if ($stale) { 'STALE' } else { 'CURRENT' }) | $note |",
+      "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
+    ) -join "`n"
+    $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; role = 'coordinator'; coordinator = $coord; checkout = [ordered]@{ stale = $stale; note = $note }; sync = $syncState } | ConvertTo-Json -Depth 5
+  }
   Publish-Live $md $json $headline
 }
 

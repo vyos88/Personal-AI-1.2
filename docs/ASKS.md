@@ -274,13 +274,26 @@ answer, and Claude puts it to V in the next report.
   One thing that is *not* a hazard, since it was the obvious one: the self-heal restart at
   `autopilot.ps1:1023` is gated on `STOPPED`, not `NOT INSTALLED`, so it would never try to start a task
   the Host does not have.
-  **What the fix needs**, and why I am not writing it blind: the heartbeat block has to say "this
-  machine does not run Alpha" rather than "Alpha is down" -- an `autofix.heartbeat` that can be
-  `{ "alpha": false }`, leaving the Alpha and deck rows out and reporting the coordinator, the queue and
-  the agent roster instead. That is an edit to `scripts/autopilot.ps1`, the file whose syntax error
-  stops the standing checks on both machines, and this container has no PowerShell to parse it. It wants
-  a `pwsh` run against `test/autopilot.test.js` before merge. Until then the Host is unwatched, and
-  worth knowing about rather than discovering.
+  **Written 2026-10-09 on V's go-ahead, and it needs one `pwsh` run before merge.**
+  `autofix.heartbeat` now takes `{ "alpha": false }`: `scripts/autopilot.ps1` computes `$hbAlpha` once
+  and four guards keep the Alpha-only work off a machine that has none (the self-heal read, the
+  `127.0.0.1:8001` probe, the self-heal restart, the deck receipt), then the page branches. The
+  no-Alpha page has three rows -- the coordinator's `/healthz` on `ALPHA_HOST_PORT` (its only
+  unauthenticated GET, so no credential is needed), the checkout note as `CURRENT`/`STALE`, and live
+  sync -- and `live.json` carries `role: "coordinator"`. Not the queue or the agent roster after all:
+  both need an admin token the Host does not hold, as the doctor's own section 5 shows
+  (`Not signed in` against `agents`, `stats`, `keys`).
+  **`[!] before merge:** this container has no PowerShell, so
+  `test/autopilot.test.js` skipped here (89 skipped, 0 fail). Its new case -- *a machine that does not
+  run Alpha gets the coordinator and its checkout, not a red Alpha row* -- drives the real script in
+  the idiom of the test beside it and asserts the three rows, the absence of the Alpha/repair/deck
+  rows, `DOWN` on a refused and on a non-coordinator answer, that no self-heal task is started, and
+  that the page is written on a pass where nothing ran. Run `PWSH=pwsh node --test
+  test/autopilot.test.js` on either laptop before merging; a syntax error in this file stops the
+  standing checks on both.
+  **Then, to turn it on:** add `"heartbeat": { "alpha": false }` to `autofix` in
+  `control/host:actions.json`. I have not pushed that -- the config is useless until the code is on
+  the machine, and the machine cannot update (above).
 
 ## Done
 

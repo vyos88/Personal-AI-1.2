@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -1115,4 +1115,70 @@ test("Alpha's deck audit reaches the tunnel once per report", { skip }, () => {
   write('2026-10-07T22:20:00+00:00', 'EMPTY');
   r = run();
   assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 1 empty, 0 broken/);
+});
+
+test('a machine that does not run Alpha gets the coordinator and its checkout, not a red Alpha row', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-host-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/host');
+  // alpha:false is the whole difference from the test above.
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { heartbeat: { alpha: false } } }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/host');
+
+  const ops = join(dir, 'ops');
+  mkdirSync(ops, { recursive: true });
+  // No Alpha root, no self-heal log: exactly the Host. A kick file would mean
+  // the pass tried to start a self-heal task this machine does not have.
+  const kicks = join(dir, 'kicks');
+  const fake = (healthz) => `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; `
+    + `function Invoke-WebRequest { ${healthz} }; `;
+  const run = (healthz) => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${fake(healthz)}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(dir, 'no-alpha', 'software')}' -Channel host; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'LAPTOP-GJ8DFMLK' } });
+  const live = () => git(remote, 'show', 'status/host-live:reports/live.md');
+  const liveJson = () => JSON.parse(git(remote, 'show', 'status/host-live:reports/live.json').replace(/^﻿/, ''));
+
+  const OK = '[pscustomobject]@{ StatusCode = 200; Content = \'{"ok":true,"protocolVersion":1,"version":"1.7.0"}\' }';
+  let r = run(OK);
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /live report: coordinator LISTENING; checkout current/);
+  let md = live();
+  assert.match(md, /^# Coordinator is LISTENING - LAPTOP-GJ8DFMLK/);
+  assert.match(md, /\| Coordinator \(\/healthz on 8787\) \| LISTENING \| \{"ok":true,"protocolVersion":1,"version":"1\.7\.0"\} \|/);
+  assert.match(md, /\| Checkout \| CURRENT \| checkout [0-9a-f]+ is current \|/);
+  // The rows that would be about a machine that is not here.
+  assert.doesNotMatch(md, /Alpha \(backend, site, alpha-ai\.uk\)/);
+  assert.doesNotMatch(md, /Repair agent/);
+  assert.doesNotMatch(md, /Decks/);
+  assert.doesNotMatch(md, /DOWN/, 'nothing is called down just because Alpha is absent');
+  assert.equal(liveJson().role, 'coordinator');
+  assert.equal(liveJson().coordinator.verdict, 'LISTENING');
+  assert.equal(existsSync(kicks), false, 'no self-heal task is started on a machine that has none');
+
+  // A coordinator that is not answering, and one that is something else.
+  run('throw \'refused\'');
+  assert.match(live(), /^# Coordinator is DOWN -/);
+  assert.match(live(), /\| DOWN \| no answer \|/);
+  run('[pscustomobject]@{ StatusCode = 200; Content = \'<html>Apache</html>\' }');
+  assert.match(live(), /\| DOWN \| answered but not ok: <html>Apache<\/html> \|/);
+
+  // Written every pass whether or not anything changed -- the whole point.
+  const commits = () => Number(git(remote, 'rev-list', '--count', 'status/host-live').trim());
+  const before = commits();
+  r = run(OK);
+  assert.match(r.stdout, /nothing new to run/);
+  assert.equal(commits(), before + 1);
 });
