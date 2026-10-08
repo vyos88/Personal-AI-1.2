@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-10-08 01:57 UTC
+Claude (cloud) report, 2026-10-08 02:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 01:47 UTC). Alpha is live. The deck feed is live and the CrowPanel (192.168.2.97) keeps calling the backend. RAM 3.6 of 15.8 GB free, C: 136.7 GB free.
-Worker1's autopilot has pushed nothing since 23:24 UTC (it pushed every few minutes before). If that continues, check the 'Alpha Autopilot' task on Worker1.
+Worker1 (Laptop41) report is fresh (doctor 02:35 UTC). Alpha is live. The deck feed is live and the CrowPanel (192.168.2.97) keeps calling the backend. RAM 1.8 of 15.8 GB free, C: 131.5 GB free. The doctor flags no problems.
+Worker1's autopilot has pushed nothing since 23:24 UTC, 3.5 hours now (it pushed every few minutes before). If that continues, check the 'Alpha Autopilot' task on Worker1.
 
-STILL OPEN, NEEDS V: Ollama is down on Worker1, so Alpha's chat has no model (11 doctor runs, since 23:11 UTC). Start the Ollama app, or run "ollama serve", on Worker1.
+FIXED: Ollama answers on Worker1 again, so Alpha's chat has its model back (it was down 23:11 to about 02:00 UTC). #218 adds alpha-runtime to the autopilot: the two Alpha reads that used to need a person at the keyboard.
 
 Host (laptop-gj8dfmlk), from Codex's jobs at 00:14 UTC:
  - h27 alpha-move-check: RAM 1.4 of 15.8 GB free, C: 53.8 GB free, on AC. Tailnet: NONE; LAN 192.168.1.88 (Ethernet). If Tailscale is down on the Host, agents dialling the coordinator at 100.93.104.24 cannot reach it. NEEDS V: check Tailscale on the Host.
@@ -13,9 +13,9 @@ Alpha move: #217 adds send-alpha-data, which packs Laptop41's memory\ (data only
 Live sync: the last report (23:24 UTC) was waiting for the next route-b commit after 5147fef failed to fetch. Worker1 may need git credentials for the private Alpha repo.
 Alpha#85 (diagnostic playbook checks) targets a draft branch, not main.
 
-Merged since 23:57: #217. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 23:57: #217, #218. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: start Ollama on Worker1; Tailscale on the Host; check Worker1's autopilot if it stays quiet; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Tailscale on the Host; check Worker1's autopilot if it stays quiet; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
