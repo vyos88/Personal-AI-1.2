@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-171409
+﻿# host autopilot 20261008-194410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261008-194410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-08T19:44:14, 4s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-08T17:11:36Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 92 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-171409  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T17:14:14, 3s)
 ```
@@ -290,25 +297,5 @@ ok: .env.agent handlers: alpha-render, alpha-render-inventory, alpha-devices, me
 ok: restarted the agent through task 'alpha-tunnel agent'
 the agent now offers alpha.image
 done: this machine renders images for Alpha through the tunnel
-```
-
-## 20261007-h18-prepare-alpha  prepare-alpha-here  ->  2   (2026-10-07T16:40:12, 145s)
-```
-PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 16:40
-  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
-1. code
-  cloned: 7ca5aa7 10-07 04:20 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
-  NOT READY: no software\backend\main.py in C:\Users\jack\Downloads\VyoS-advance-tech-ai
-2. backend
-  NOT READY: no code yet
-3. site
-  NOT READY: no frontend\package.json yet
-4. chat
-  llama3.2:3b is here
-5. connector (installed only; never started here)
-  installed: C:\Program Files (x86)\cloudflared\cloudflared.exe (not started)
-RAM: 0.4 GB free of 15.8 GB
-STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
-RESULT: not ready: code, backend, site
 ```
 
