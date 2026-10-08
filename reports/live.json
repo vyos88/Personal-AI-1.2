@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-08T06:54:38.8818079+01:00",
+    "at":  "2026-10-08T06:59:25.0821013+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "BACKEND UP",
@@ -8,7 +8,7 @@
               },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  151,
+                     "age_min":  156,
                      "repairs":  0,
                      "restarted":  "restart already tried at 06:39",
                      "snapshot":  ""
@@ -16,7 +16,7 @@
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-08T05:39:40.582284+00:00"
+                  "checked_at":  "2026-10-08T05:59:19.648282+00:00"
               },
     "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
