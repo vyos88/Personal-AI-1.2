@@ -8,7 +8,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { homeAddress, isEntrypoint, summarizeReceipts, summarizeRuntime } from '../scripts/alpha-runtime.mjs';
+import { describeShape, homeAddress, isEntrypoint, summarizeReceipts, summarizeRuntime } from '../scripts/alpha-runtime.mjs';
 
 test('the lane is reported, because a starved cycle looks exactly like a dead one', () => {
   // Alpha's own deck feed, as it answered at 23:04 on Worker1.
@@ -42,44 +42,56 @@ test('a feed with nothing waiting says so rather than inventing a lane', () => {
 });
 
 test('receipts are reported with the reason, not only the class', () => {
+  // The shape `_load_agent_registry` writes: one flat `receipts` list beside
+  // the roster, joined by `agent_id`. The derived `agents[].history` of
+  // `_agent_runtime_view` exists only in an API response, never in the file.
   const registry = {
+    schema_version: 5,
     agents: [
+      { id: 'agent-coding-fixer', name: 'Coding Fixer', deck: 'coding' },
+      { id: 'agent-chat-qc', name: 'Chat Qc', deck: 'chat' },
+    ],
+    receipts: [
       {
-        name: 'Coding Fixer',
+        agent_id: 'agent-coding-fixer',
         role: 'fixer',
-        history: [
-          {
-            recorded_at: '2026-10-07T23:02:00',
-            status: 'incomplete',
-            failure_class: 'evidence-contract',
-            reason: 'the output is missing required heading(s): ROLLBACK, TESTS',
-          },
-          {
-            recorded_at: '2026-10-07T22:30:00',
-            status: 'incomplete',
-            failure_class: 'evidence-contract',
-            // The manager fills a blocker from error when reason is absent.
-            error: 'a scheduled run with no evidence packet must declare EVIDENCE: NONE and this output does not',
-          },
-        ],
+        deck: 'coding',
+        completed_at: '2026-10-07T23:02:00',
+        status: 'incomplete',
+        failure_class: 'evidence-contract',
+        reason: 'the output is missing required heading(s): ROLLBACK, TESTS',
       },
       {
-        name: 'Chat Qc',
+        agent_id: 'agent-coding-fixer',
+        role: 'fixer',
+        deck: 'coding',
+        completed_at: '2026-10-07T22:30:00',
+        status: 'incomplete',
+        failure_class: 'evidence-contract',
+        // The manager fills a blocker from error when reason is absent.
+        error: 'a scheduled run with no evidence packet must declare EVIDENCE: NONE and this output does not',
+      },
+      {
+        agent_id: 'agent-chat-qc',
         role: 'qc',
-        history: [{ recorded_at: '2026-10-07T21:00:00', status: 'completed', outcome: 'success' }],
+        completed_at: '2026-10-07T21:00:00',
+        status: 'completed',
+        outcome: 'success',
       },
     ],
   };
 
   const summary = summarizeReceipts(registry, 3);
   assert.equal(summary.total, 3);
-  // Classes are still counted — that is the deck's view — but the rows carry
+  // Classes are still counted (that is the deck's view), but the rows carry
   // what to change, which is the half that was missing.
   assert.deepEqual(summary.classes, [['evidence-contract', 2]]);
+  // An id alone sends nobody anywhere, so the roster name is joined on.
   assert.equal(summary.newest[0].agent, 'Coding Fixer');
   assert.match(summary.newest[0].reason, /missing required heading\(s\): ROLLBACK, TESTS/);
   assert.match(summary.newest[1].reason, /must declare EVIDENCE: NONE/);
   // A successful receipt has no class and no reason, and is not counted as one.
+  assert.equal(summary.newest[2].agent, 'Chat Qc');
   assert.equal(summary.newest[2].failureClass, null);
   assert.equal(summary.newest[2].reason, '');
 
@@ -87,8 +99,38 @@ test('receipts are reported with the reason, not only the class', () => {
   assert.deepEqual(summary.newest.map((row) => row.at), [
     '2026-10-07T23:02:00', '2026-10-07T22:30:00', '2026-10-07T21:00:00',
   ]);
-  // A registry with no agents is empty, not a crash.
-  assert.deepEqual(summarizeReceipts({}, 3), { total: 0, classes: [], newest: [] });
+  // A receipt naming an agent the roster has lost still reports, by id.
+  const orphan = summarizeReceipts({ agents: [], receipts: [{ agent_id: 'agent-gone', completed_at: '2026-10-07T20:00:00' }] });
+  assert.equal(orphan.newest[0].agent, 'agent-gone');
+});
+
+test('an empty receipt list says whether the file was empty or misread', () => {
+  // The bug this guards: reading `agents[].history` out of the file answered
+  // "0 retained; classes none" from a registry holding two evidence-contract
+  // failures, which reads as a healthy fleet rather than as a bug -- the
+  // `alpha-devices.js` `serialPorts` mistake with a week of receipts behind it.
+  const registry = {
+    schema_version: 5,
+    agents: [{ id: 'agent-coding-fixer', name: 'Coding Fixer' }],
+    receipts: [
+      { agent_id: 'agent-coding-fixer', completed_at: '2026-10-07T23:02:00', status: 'incomplete', failure_class: 'evidence-contract' },
+    ],
+  };
+  assert.equal(summarizeReceipts(registry).total, 1);
+  // The shape line is what makes the difference legible on the next pass: a
+  // genuinely empty ledger names `receipts[0]`, a misread one names the key
+  // that is actually there.
+  assert.match(describeShape(registry), /receipts\[1\]/);
+  assert.match(describeShape({ agents: [], receipts: [] }), /receipts\[0\]/);
+  assert.match(describeShape({ agents: [{ id: 'a', history: [] }] }), /^agents\[1\]$/);
+
+  // A registry with no receipts is empty, not a crash, and carries the shape.
+  const empty = summarizeReceipts({}, 3);
+  assert.equal(empty.total, 0);
+  assert.deepEqual(empty.classes, []);
+  assert.deepEqual(empty.newest, []);
+  assert.equal(empty.shape, 'no keys');
+  assert.equal(summarizeReceipts(null).shape, 'not an object');
 });
 
 test('the feed is asked on a LAN address, never on the tailnet', () => {
