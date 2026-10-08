@@ -1,4 +1,4 @@
-laptop41-doctor 20261008-044112 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 995ce79 2026-10-08)
+laptop41-doctor 20261008-051103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 995ce79 2026-10-08)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261008-044112 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 7s (load 0s, 3.8 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 1.7s (load 0s, 11.9 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,7 +40,7 @@ laptop41-doctor 20261008-044112 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Ready    last run 2026-10-08 00:00 result 0x00041306
   task Alpha Backend    Ready    last run 2026-10-08 00:27 result 0x00041306
-  PROBLEM: self-heal is installed but its log is 19 min old: check the task's last result as Administrator (3 = config unreadable)
+  PROBLEM: self-heal is installed but its log is 48 min old: check the task's last result as Administrator (3 = config unreadable)
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
@@ -88,22 +88,22 @@ laptop41-doctor 20261008-044112 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 9s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 10s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (19 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (37 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.4 of 15.8 GB RAM free
-  ok: C: 136.5 GB free
-  llama-server                  1,935 MB  pid 5468
-  claude                          618 MB  pid 8028
-  MsMpEng                         404 MB  pid 6040
-  explorer                        398 MB  pid 10108
-  Memory Compression              388 MB  pid 3840
-  msedge                          378 MB  pid 21332
-  python                          252 MB  pid 5412
-  msedge                          244 MB  pid 17212
+  ok: 5.3 of 15.8 GB RAM free
+  ok: C: 136.4 GB free
+  llama-server                  1,931 MB  pid 5468
+  claude                          614 MB  pid 8028
+  Memory Compression              406 MB  pid 3840
+  MsMpEng                         381 MB  pid 6040
+  explorer                        351 MB  pid 10108
+  python                          250 MB  pid 5412
+  claude                          211 MB  pid 12912
+  msedge                          197 MB  pid 21108
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -111,20 +111,16 @@ laptop41-doctor 20261008-044112 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)
 
 === SUMMARY ===
-  this pass took 160s
-  - image bridge is not running on 127.0.0.1:7861: images are not shared between machines  (open 3 run(s), since 2026-10-08T04:11:54)
-  - image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)  (open 3 run(s), since 2026-10-08T04:11:54)
-  - music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything  (open 3 run(s), since 2026-10-08T04:11:54)
-  - self-heal is installed but its log is 19 min old: check the task's last result as Administrator (3 = config unreadable)  (open 1 run(s), since 2026-10-08T04:43:46)
-  + fixed since last run: backend /ready does not answer (HTTP 0)
-  + fixed since last run: Alpha's deck feed answered 000
-  + fixed since last run: backend /health answered 000
-  + fixed since last run: /chat without a login answers HTTP 0, expected 401 (route missing or failing)
+  this pass took 29s
+  - NEEDS A PERSON - image bridge is not running on 127.0.0.1:7861: images are not shared between machines  (open 5 run(s), since 2026-10-08T04:11:54)
+  - NEEDS A PERSON - image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)  (open 5 run(s), since 2026-10-08T04:11:54)
+  - NEEDS A PERSON - music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything  (open 5 run(s), since 2026-10-08T04:11:54)
+  - self-heal is installed but its log is 48 min old: check the task's last result as Administrator (3 = config unreadable)  (open 3 run(s), since 2026-10-08T04:43:46)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 3 runs] Share images between machines: queue {"do":"enable-image","bridge":true} on Worker1's autopilot (keeps 7860 as the fallback).
-  2. [open 3 runs] Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.
-  3. [open 3 runs] Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).
+  1. [open 5 runs NEEDS A PERSON] Share images between machines: queue {"do":"enable-image","bridge":true} on Worker1's autopilot (keeps 7860 as the fallback).
+  2. [open 5 runs NEEDS A PERSON] Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.
+  3. [open 5 runs NEEDS A PERSON] Run the music bridge: queue {"do":"enable-music","bridge":true} for the autopilot (it also sets this machine up to make music).
   4. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
   5. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   6. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
