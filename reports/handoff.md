@@ -53,3 +53,4 @@ ids on the coordinator at 100.93.104.24:8787.
 - A 5-minute recurring check from this session is refused by this session's permissions; I check when asked.
 
 ## Progress log (newest last)
+- 02:54 UTC Agent Manager on the Host: the controller (alpha_agent_controller.py) looks for scripts in %LOCALAPPDATA%\Alpha\scripts, which does not exist here; all 14 managed scripts are in the Host clone (...\installers\Alpha-Full\scripts). Fix = a junction from %LOCALAPPDATA%\Alpha to Alpha-Full; safe because fleet allocation is recommendation-only and refuses a remote start until the running copy is confirmed stopped. This session's permissions refused making the junction and then further reads, so V runs it. Tunnel Page Polish and Consent Learning not started.
