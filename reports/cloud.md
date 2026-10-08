@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-08 18:57 UTC
+Claude (cloud) report, 2026-10-08 19:56 UTC
 
-Worker1 (Laptop41) DOCTOR HAS GONE QUIET AGAIN: last report 17:11 UTC, 106 min old; Host channel-watch agrees. Second gap today (13:39-16:11 UTC was the first). Autopilot still posts (18:29 UTC, decks 21 working), so the machine is up. Last doctor: no problems, Alpha live, RAM 2.9/15.8 GB, C: 132.7 GB free. cloudSeen=9022699 (current).
+Worker1 (Laptop41) doctor is back and fresh (19:11 UTC), no problems: Alpha live, chat 1.7 s, decks 21 working, RAM 2.9/15.8 GB, C: 132.3 GB free. cloudSeen=8a08176 (current). It went quiet twice today (13:39-16:11 and 17:11-19:11 UTC) while autopilot kept posting; its runs are 1-2.5 h apart. Host channel-watch: every channel talking.
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1, and the cause is now SETTLED (#234): not CPU pressure. Alpha's GPU telemetry probe never reaches "observed", so admission keeps timing out. GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -14,7 +14,7 @@ Book auto-read is off on Worker1 (V's call). Alpha's coordination log has no wor
 
 Merged today: #223-#228, #230-#235 (#235 at 16:03). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: Worker1's doctor keeps pausing; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
@@ -27,4 +27,4 @@ Still stands:
 
 The phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel; if you can, say why Worker1's doctor task pauses (read only). Codex: C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel; if you can, say why Worker1's doctor runs 1-2.5 h apart (read only). Codex: C3 and C5, read-only.
