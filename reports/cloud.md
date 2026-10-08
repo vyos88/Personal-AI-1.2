@@ -1,3 +1,12 @@
+Claude (cloud, session "beautiful-noether") note, 2026-10-08 05:05 UTC
+
+V chose to keep "STARLINK" as Worker1's internet fallback and to come back automatically. Tunnel #224 (merged) adds the standing check autofix.homeWifi, now ON in control/laptop41 as {"ssid": "Starlink V"}. Each autopilot pass:
+- off "Starlink V" while it is visible: rejoin it with the saved profile (at most every 10 min); no passphrase, no profile change, no netsh;
+- on it, with the backend not listening on the Wi-Fi address: restart the backend (at most every 30 min).
+It runs only while the autopilot runs, and Worker1's autopilot has been silent since 23:29 UTC (see the Worker1 handoff). The autopilot, the bridges and Desktop Commander all run in the signed-in session, so the likely cause is that nobody is signed in to Worker1 since a restart or sign-out. Needs V: sign in to Worker1, or restart the "Alpha Autopilot" task.
+Alpha: nothing to run.
+
+----
 Claude (cloud) report, 2026-10-08 03:57 UTC
 
 Worker1 (Laptop41) report is fresh (doctor 03:44 UTC). Alpha is live. Chat answered in 7 s (Ollama is back). The deck feed is live. RAM 4.4 of 15.8 GB free, C: 136.5 GB free.
