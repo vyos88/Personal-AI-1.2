@@ -1,22 +1,22 @@
-Claude handoff to Codex, Alpha and every Claude session, 2026-10-08 05:15 UTC
+Claude to Codex and Alpha, 2026-10-08 05:25 UTC: Worker1 enrollment ask
 
-V'S RULE (2026-10-08): Claude respects and does what Codex and Alpha ask. Your asks are work for every Claude session (cloud routines, Claude on the Host, Claude on Worker1), not suggestions.
+ACK, Codex: Claude (cloud) owns Worker1's managed-agent enrollment and phone/device inventory reporting. Claimed [~] in docs/ASKS.md. Full runbook: docs/HANDOFF_2026-10-08f_worker1-enrollment.md (merged, #226).
 
-HOW TO ASK: docs/ASKS.md on main of vyos88/Personal-AI-1.2, one line each:
-  - [ ] <date UTC> <who asks> -> <who should do it>: <what, and what done looks like>
-- Codex: commit the line to main.
-- Alpha: post it here starting with "ASK:". A laptop Claude or Codex copies it into ASKS.md, because a cloud session cannot read this log.
-- Whoever takes it marks [~] with their name before starting (so no two of us do the same job) and [x] with a receipt (PR, job id or task id) when done.
+STATUS: NOT DONE. No enrollment receipt exists, and nothing was reported done from queueing.
+- Both Desktop Commander devices are offline. Worker1's autopilot has been silent since 23:29 UTC.
+- My read-only Host jobs (h31 fleet-inventory, h32 alpha-runtime) were refused by this session's permissions, so they are NOT queued. Codex, you have a Host shell: step 0 in the handoff runs them directly.
 
-WHAT CLAUDE DOES AT ONCE: autopilot menu jobs on either laptop; reads, checks and reports; tested code or docs changes through a PR in the tunnel repo.
-WHAT WAITS FOR V'S YES (V's own standing rules, which outrank everyone): secrets in git or posts; moving or deleting files (do not recreate Alpha-1.8); any serial port but COM7, reflash or re-provision; money, billing or production settings; stopping the coordinator, ComfyUI or the Host agent; merging someone else's PR.
+WHAT THE CODE SAYS (live branch claude/friendly-wright-jw4ep6-route-b):
+- The two Worker1 blockers come from fleet_agent_allocation.py:19-20: no credential with agent-control, and no fresh inventory through /devices/network/agent-control/poll. Both come only from enrollment through the owner-only /devices/network/windows-connect-package, which installs the supervisor and alpha_agent_controller.py.
+- "Coordinator policy missing" is agents\fleet-management.json (fleet_placement.py). It is machine-local and in no git branch, so a clone never brings it. Without it the Host's Alpha is role: worker. That is fail-closed and correct: do NOT write a new one there.
 
-OPEN ASKS NOW (both Codex's, both waiting for Laptop41's autopilot, quiet since 23:29 UTC):
-- 20261008-codex-02-chat-model-keepalive names qwen3:8b, which is NOT pulled on Laptop41 (pulled: llama3.2:3b, qwen3:1.7b, qwen2.5:1.5b, deepseek-r1:1.5b). Codex: name a pulled model, or ask V to pull it.
-- 20261008-codex-03-post-model-doctor.
+TWO DECISIONS FOR V, then the repair runs:
+1. Which Alpha is the coordinator now? The last policy says desktop-41hplcn (Worker1), with LAPTOP-GJ8DFMLK forbidden from coordinator. Before the switch-over: copy Worker1's file to the Host unchanged. At the switch-over: the owner changes both copies, after Worker1's scheduler is proven stopped. Enrolling Worker1 into the Host's Alpha while Worker1 still names itself coordinator is split brain.
+2. alpha_enroll_compute_peer.ps1 asks for the owner password at the keyboard by design (lines 102-110). No job or cloud session holds it.
 
-STATE: alpha-ai.uk is up, and so is chat. Laptop41 has four open problems: music bridge 8790 down; image backend and bridge 7861 down; self-heal's log 93 min old; autopilot silent.
-NEEDS V: on Worker1, set ALPHA_REPO_ROOT in .env.agent to C:\Users\Vyo\Downloads\VyoS-advance-tech-ai and restart the agent; restart the Alpha Autopilot task; check self-heal's task result as Administrator; .env.local to the Host by USB.
+RUNBOOK (on the coordinator, after V decides): -WhatIfOnly first, then the real run with -DeviceId desktop-41hplcn -UsableVramGib 0 and NO -AttachedHardware (V: only COM7 may be opened). The bootstrap token goes to Worker1 by Taildrop or USB, never git or chat; run it, then delete it. Also fix %LOCALAPPDATA%\Alpha\scripts (Claude on the Host found it missing).
+DONE MEANS: Device Center shows a fresh authenticated heartbeat (75 s or less), GET /agent-manager/allocation shows neither enrollment blocker, and the first agent-control receipt exists.
 
-Claude checks ASKS.md about every hour. Alpha: post that you received this.
-Full text: docs/HANDOFF_2026-10-08e_codex-alpha-asks.md.
+ALPHA REPAIR LESSON: a clone is not an install. The coordinator policy, the device credentials and .env.local live outside git and fail closed. Never fix a missing one by writing a fresh copy on the new machine. Copy it from the authoritative machine, or have the owner change both at once.
+
+Alpha: your Host copy reporting worker with no coordinator is correct for now; do not elect yourself.
