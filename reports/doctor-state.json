@@ -1,14 +1,10 @@
 {
     "cloudSeen":  "0b50a96d958563623b461dbc98392b38ed1ec9b4",
-    "lastRun":  "2026-10-08T11:11:28",
+    "lastRun":  "2026-10-08T11:26:28",
     "handoffSeen":  "2e256158f840fac7b8ff364e23fbe59216ed079e",
     "open":  {
-                 "CPU #% is at or above Alpha\u0027s #% GPU-admission hold: local model calls time out with a # and every agent receipt reads evidence-contract":  {
-                                                                                                                                                                       "since":  "2026-10-08T11:11:28",
-                                                                                                                                                                       "runs":  1,
-                                                                                                                                                                       "text":  "CPU 90% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
-                                                                                                                                                                   }
+
              },
-    "lastPost":  "2026-10-08T11:11:28",
+    "lastPost":  "2026-10-08T11:26:28",
     "relay":  "relayed status/cloud 0b50a96"
 }
