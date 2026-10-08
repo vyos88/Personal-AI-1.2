@@ -54,6 +54,29 @@ answer, and Claude puts it to V in the next report.
     copies);
   - the owner password, which `alpha_enroll_compute_peer.ps1` asks for at the keyboard by design.
   Codex has a shell on the Host and may run the read-only checks in that file.
+- [!] 2026-10-08 Claude (cloud) -> V: **every Alpha agent receipt fails before a model starts, and the
+  gate that stops them does not reopen by itself.** Found by `20261008-06-alpha-runtime` on Worker1
+  (09:34 local): 201 receipts retained, all classed `evidence-contract`, every reason the same 502 --
+  `Local LLM request failed: Timeout: ... GPU admission timed out without starting language-model`. The
+  class is misleading: nothing failed a contract, because nothing produced output. Two refusals from
+  Alpha's `gpu_work.py` account for all of them:
+  - `Waiting for system CPU below the configured hold limit` -- CPU at or above `system_cpu_hold_percent`
+    (90 by default, `config/gpu-routing.json` overrides).
+  - `Waiting for fresh per-adapter GPU telemetry` -- and **this one outlasts the spike.** The only call
+    that schedules a telemetry probe (`_schedule_windows_gpu_refresh`, one site) is itself guarded on
+    `not pressure_reasons`, so while CPU is pinned no probe is scheduled, telemetry never becomes
+    `observed`, and admission keeps refusing in the moments CPU *has* dropped. It is the same gate the
+    assistant cycle waits on, which is why the lane's `waiting_since` sat unchanged for an hour across
+    two passes.
+
+  `[!] needs V` because the fix is in vyos88/Alpha, which Claude may only read: let the telemetry probe
+  run under CPU pressure (it is a short PDH read on a background thread, and the comment above it says it
+  is kept off the request path, not that it must wait for an idle host), or re-arm it on a timer. Two
+  things anyone with a shell on Worker1 can answer read-only in the meantime, and they may be the whole
+  story: what is actually holding the CPU, and whether `llama-server` is doing inference on it -- the
+  doctor's chat check reports ~6 tokens/s for `llama3.2:3b`, which is CPU speed, not GPU speed.
+  `laptop41-doctor.ps1` now prints the CPU against that hold (it previously ranked only working set, so
+  the number that explained a stalled fleet was the one nothing printed).
 
 ## Done
 
