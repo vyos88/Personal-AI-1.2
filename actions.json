@@ -479,6 +479,11 @@
       "id": "20261008-05-alpha-runtime",
       "do": "alpha-runtime",
       "why": "re-run now that #228 is merged: the first pass printed nothing because the entrypoint guard did not match on Windows, so main() never ran. This one should print the loop states, what the assistant cycle is waiting for, and the newest agent receipts with their reasons."
+    },
+    {
+      "id": "20261008-06-alpha-runtime",
+      "do": "alpha-runtime",
+      "why": "re-run now that #230 is merged. Pass 05 printed its loop lines but reported \"receipts : 0 retained; classes none\" from a reader looking at agents[].history -- a field Alpha only ever puts in an API response, since the file keeps receipts as a flat top-level list joined by agent_id. The evidence-contract failures were in the file the whole time. This pass should print them with the reason each one gives, and \"0 retained\" now carries the registry's own top-level keys beside it so an empty answer can be told from a misread one."
     }
   ],
   "autofix": {
