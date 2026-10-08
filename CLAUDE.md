@@ -575,15 +575,28 @@ call, and two of its refusals explain the lot:
   same gate the assistant cycle waits on, which is why the lane's
   `waiting_since` sat unchanged for an hour.
 
-  **How far that reaches is not settled, and the first draft of this overstated
-  it.** The doctor's first readings were CPU 49% at 10:39 and exactly 90% at
-  11:11, and at 49% the guard *allows* the probe -- so the stall outlasting a
-  brief dip follows from the code, and outlasting a sustained drop does not.
-  Either the gate reopens on its own and sustained CPU is the whole story, or
-  the probe is failing rather than merely unscheduled. What decides it is
-  whether any receipt in a low-CPU window completed; the registry already holds
-  the answer, and `20261008-08-alpha-runtime` is queued to read it. Do not
-  write the stronger claim back in without that evidence.
+  **Settled, and neither of my first two framings was right.** Five of the
+  eight newest receipts carry the *telemetry* message, three the CPU one, and
+  the proof does not use the CPU samples at all -- it is the check order.
+  `admission_reason` tests CPU first and RAM second, returning early, so a
+  receipt reading `Waiting for fresh per-adapter GPU telemetry` proves CPU was
+  below the hold and RAM inside its limits at that moment; the admission loop
+  re-evaluates every 0.25 s and raises with the *last* reason, so it held to the
+  deadline; and with `pressure_reasons` empty `gpu_snapshot()` *does* schedule
+  the probe. It was scheduled, repeatedly, for an hour and a half, and
+  `gpu_telemetry_status` still never reached `observed`.
+
+  So the probe is not unscheduled -- **it is not producing `observed`.**
+  `windows_gpu.py` returns `"observed" if measured else "counter-unavailable"`,
+  where `measured` needs a configured adapter carrying a PDH
+  `utilization_percent`, and `_refresh_windows_gpu` backs off 300 s on failure.
+  I called it a pressure deadlock twice (CPU pinned, so no probe), and that was
+  wrong in the way that matters: **freeing CPU does not fix it.** CPU pressure
+  is real and separate -- `llama-server` resident at 1,932 MB answering chat at
+  6-10 tokens/s is CPU inference, and three receipts blame the hold -- but it is
+  a second problem, not this one. `docs/ASKS.md` carries the live question
+  (why the per-adapter probe never reaches `observed` on that host) and the two
+  read-only checks that would answer it.
 
 That diagnosis is why `laptop41-doctor.ps1` now reads CPU at all (below); the
 fix itself is in Alpha and is V's call, not this repo's.
