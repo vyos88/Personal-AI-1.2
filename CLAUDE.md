@@ -466,29 +466,35 @@ viewer, never a second manager:
   `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
   the "Managed control denied (HTTP=403)" in its supervisor log.
 
-`scripts/fleet-heartbeat.mjs` is a viewer of the same kind, for the one thing
+`scripts/channel-watch.mjs` is a viewer of the same kind, for the one thing
 the autopilot writes every pass and nothing read. `Publish-Live` is the last
 step of a pass (`autopilot.ps1:850`), so a pass stuck in an action publishes
 nothing, and a hung pass cannot report itself — the watchdog's reason for
-asking the host about the laptop, applied to the pass. This asks git instead of
-the coordinator, so it needs no key, no tailnet and no agent: any machine or
-cloud session can run it. Three rules it keeps:
+asking the host about the laptop, applied to the pass. It asks git rather than
+the coordinator, so it needs no key and no tailnet, and it runs as the *other*
+machine's standing check (`autofix.channelWatch` on the Host watches Laptop41).
+Three rules it keeps:
 
-- **The age comes from the report's own `at`, parsed.** That stamp carries the
-  machine's offset (`+01:00`) while the deck receipt inside the same file is
-  UTC, and comparing the two by eye is how a five-minute-old receipt was once
-  reported here as an hour stale. `ageMinutes` is a function with a test for
-  that reason, and `verdict()` is pure and pinned like
-  `alpha-selfheal.mjs`'s `decide()`.
-- **Silence on `status/<channel>-autopilot` is never read as a stall**, and it
-  says so in the output: that branch is pushed only when a queued id ran
-  (`autopilot.ps1:733`), so hours of quiet are ordinary. Only the live branch
-  is a heartbeat.
-- **It names the cost, not just the symptom** — work committed to
-  `control/<machine>` since the last completed pass, which is work nothing is
-  going to pick up. On 2026-10-08 Laptop41's pass went three hours without
-  publishing while its doctor kept pushing from the same machine, and two
-  commits of queued work landed on top.
+- **A verdict line carries no age.** `autopilot.ps1:751` builds its
+  change-detection key from the lines starting `OK`/`SILENT`/`MISSING`, so an
+  age in one of them would re-report the same silence every five minutes. The
+  ages go on a detail line, and anything added to this check belongs there too.
+- **Silence on `status/<channel>-autopilot` is not a channel to watch.** That
+  branch is pushed only when a queued id ran (`autopilot.ps1:733`), so hours of
+  quiet are ordinary; only `-live` and the doctor are heartbeats, which is why
+  the channels and their minutes are configuration rather than a list in code.
+- **A silent `<machine>-live` names the cost, not just the symptom** — the
+  commits pushed to `control/<machine>` since that last write, which are work
+  nothing is going to pick up. On 2026-10-08 Laptop41's pass went four hours
+  without publishing while its doctor kept pushing from the same machine, and
+  three commits of queued work landed on top. An age alone does not tell an
+  operator whether it matters yet.
+
+Two sessions wrote this check 26 minutes apart on 2026-10-08 (`70573bc` and a
+`fleet-heartbeat.mjs` removed in favour of it). It is the shape of duplicate
+this file warns about two paragraphs up, and `control/*` is where to look for a
+standing check before building one — `autofix.channelWatch` was in
+`control/host` before either landed on main.
 
 Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
 that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is

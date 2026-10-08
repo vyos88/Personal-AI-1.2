@@ -153,22 +153,17 @@ changes. They are turned on in the same `actions.json`:
     again, at most once every 30 minutes. While it is stopped, only the
     backend is checked directly. The heartbeat never repairs Alpha itself:
     two repairers would fight over the same processes.
-  - **Somebody has to read it.** `Publish-Live` is the *last* thing a pass does,
-    so a pass stuck in an action publishes nothing — and a hung pass cannot
-    report itself, the same reason `watchdog.mjs` asks the host whether a laptop
-    is attached. `node scripts/fleet-heartbeat.mjs` reads the branch from any
-    machine or any cloud session, needs no key and no tailnet, ages the report
-    from its own `at` (the machine's offset, parsed, not compared by eye),
-    exits 1 past `--stale-min` (15, three missed passes), and names work queued
-    on `control/<machine>` since that last pass, because a queue nothing drains
-    is what a stalled pass actually costs. It never calls silence on
-    `status/<channel>-autopilot` a stall and says why, since that branch is
-    pushed only when a queued id ran.
+  - **Somebody else has to read it.** `Publish-Live` is the *last* thing a pass
+    does, so a pass stuck in an action publishes nothing and a hung pass cannot
+    report itself. That is what `channelWatch` above is for, run on the other
+    machine. When a `<machine>-live` channel is silent it also names the commits
+    pushed to `control/<machine>` since that last write, because work nothing is
+    going to run is what the silence actually costs.
 
     On 2026-10-08 Laptop41's pass stopped publishing at 23:29:08Z and was still
-    silent three hours later while its separately scheduled doctor kept pushing
-    from the same machine, and two commits of queued work landed in the
-    meantime. The heartbeat said so throughout; nothing was reading it.
+    silent four hours later while its separately scheduled doctor kept pushing
+    from the same machine, and three commits of queued work landed in the
+    meantime.
 
 ## Trust
 
