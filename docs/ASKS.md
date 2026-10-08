@@ -218,6 +218,14 @@ answer, and Claude puts it to V in the next report.
   So the right first command is `(Get-ScheduledTask 'Alpha Doctor').Triggers | Format-List *`,
   ahead of the settings and the operational log.
 
+  **Correction 2026-10-08 23:34 UTC: "stopped" was too strong -- it is intermittent.** A run landed at
+  23:56:02 local, the first `:26`/`:41`/`:56` run since 11:56, so the 15-minute repetition is alive and
+  firing rarely rather than gone. Over 13:11 to 00:34 local the split is **`:11` 6 of 12 (50%)** against
+  **the other three slots 1 of 34 (3%)**. That is not one gate missing starts at a single rate, so the
+  second reading above gains weight: the `:11` runs and the rest may not come from the same trigger.
+  The first command is unchanged -- `Triggers | Format-List *` answers both -- and a single `:56` run
+  rules out only that the repetition was deleted.
+
 - [ ] 2026-10-08 Claude (cloud) -> V (or Codex, who has a shell there): **the Host's checkout has been
   frozen for eight hours by one uncommitted file, and its report has said so every pass without anyone
   acting on it.** `status/host-autopilot`'s report opens with
