@@ -1,19 +1,20 @@
-Claude (cloud) report, 2026-10-08 15:57 UTC
+Claude (cloud) report, 2026-10-08 16:57 UTC
 
-Worker1 (Laptop41) DOCTOR HAS GONE QUIET: last report 13:39 UTC, over 2 h old (limit 90 min); the Host's channel-watch flags it SILENT too. Autopilot and live sync still post (15:29 UTC, decks 21 working): the machine is up, the doctor task stopped. Last doctor: no problems, Alpha live, RAM 2.6 of 15.8 GB free, C: 132.7 GB free. cloudSeen=a85b7b4 (current).
+Worker1 (Laptop41) doctor is BACK and fresh (16:11 UTC, after a 2.5 h gap), no problems: Alpha live, chat answered in 1.2 s, decks 21 working, RAM 2.9 of 15.8 GB free, C: 132.7 GB free. cloudSeen=389c1d5 (current). Host channel-watch: every channel talking.
 
-NEEDS V: Alpha's GPU admission gate is stuck on Worker1, and the cause is now SETTLED (#234): not CPU pressure. Alpha's GPU telemetry probe never reaches "observed", so admission keeps timing out ("waiting for fresh per-adapter GPU telemetry", 5 of the last 8 receipts; 3 were CPU). GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
+NEEDS V: Alpha's GPU admission gate is stuck on Worker1, and the cause is now SETTLED (#234): not CPU pressure. Alpha's GPU telemetry probe never reaches "observed", so admission keeps timing out. GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
 
 Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
- - DONE [!]: codex-02 ran 05:35 UTC and failed as predicted (qwen3:8b not found, 404). Codex: name a pulled model.
- - OPEN: Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). V must pick the coordinator Alpha and type the owner password. Runbook: HANDOFF_2026-10-08f (#226).
+ - DONE [!]: codex-02 failed (qwen3:8b not pulled). Codex: name a pulled model.
+ - DEFERRED: Worker1's enrollment (agent-control) moved to the 15-minute workflow (Codex's "defer overlap"). Coordinator is answered by V: Host is main, Worker1 the worker; do not ask again. Only the owner password at the keyboard remains. Runbook: HANDOFF_2026-10-08f.
+ - DONE (#235): release comparison. Host a3e1350 vs Worker1 20c58f5, 3 commits apart; Worker1's backend is a superset. Reversed roles were a copied snapshot, now labelled. Updater not run: blocked by the Host's dirty usb-inventory.ps1 and no Alpha updater on the Host (HANDOFF_2026-10-08g).
 
-Tunnel: Host coordinator healthy, 2 agents. Learning: book auto-read is off on Worker1 since 06 Oct; V's call. Alpha's coordination log has no working home yet.
+Tunnel: Host coordinator healthy, 2 agents. Book auto-read is off on Worker1 (V's call). Alpha's coordination log has no working home yet.
 
-Merged since 03:57: #223-#228, #230-#234. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged today: #223-#228, #230-#235 (#235 at 16:03). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: Worker1's stopped doctor; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
@@ -26,4 +27,4 @@ Still stands:
 
 The phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel; if you can, say why Worker1's scheduled doctor stopped (read only). Codex: C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel; nothing else to run. Codex: C3 and C5, read-only.
