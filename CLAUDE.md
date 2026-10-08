@@ -471,6 +471,52 @@ that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
 not `ALPHA_REPO_ROOT`), then on any machine:
 `node scripts/fleet-agents.mjs --machines host=laptop-gj8dfmlk,worker1=desktop-41hplcn`.
 
+## Reading Alpha's loops from the machine it runs on
+
+`scripts/alpha-runtime.mjs` answers the two questions that kept needing a person
+at the keyboard, and both answers were on the machine with nothing printing
+them. It is read-only -- one unauthenticated GET of the LAN deck feed, one JSON
+file read -- and `autopilot.ps1`'s `alpha-runtime` action is how a laptop with no
+route to this container runs it. Four things it rests on:
+
+- **`awareness` is two different words for two different things, and neither is
+  the loop.** Awareness runs inside the assistant cycle and shares its gate, so
+  `not-started` means the cycle has not had the shared background lane yet --
+  look at free memory, not at awareness. `degraded` is the opposite end:
+  `'ok' if failed == 0 else 'degraded'` over the awareness cycle's *own
+  hardware-test report* (ESP32 sketch compiles against the ports it found), so
+  it means the cycle ran and a board or a compile failed. Reading either as a
+  dead loop sends somebody to restart a loop that is running. The script prints
+  the note for both.
+- **The lane line is the diagnosis.** `waiting_on` plus `waiting_since` is what
+  turns a healthy-but-starved cycle into something actionable; everywhere else
+  it reads as a dead loop. `waiting_on=host busy (systemcpu)` with a fresh
+  heartbeat is a cycle taking its turn, not a stall.
+- **Receipts are one flat top-level list, not a field on an agent.** Alpha's
+  `_load_agent_registry` keeps `agents` and `receipts` side by side and joins
+  them by `agent_id` on read, so the `history` of `_agent_runtime_view` exists
+  only in an API response and never in the file. The first version of this read
+  `agents[].history` out of the file and reported `0 retained; classes none`
+  from a registry holding `evidence-contract` failures -- the `alpha-devices.js`
+  `serialPorts` mistake with a week of receipts behind it, and it reads as a
+  healthy fleet rather than as a bug. Timestamps are `completed_at` for the same
+  reason, and the agent's name is joined from the roster because an id alone
+  sends nobody anywhere.
+- **An empty answer says which kind of empty it is.** `0 retained` is the one
+  line that could mean this reader is wrong, so it never stands alone: the
+  registry's own top-level keys and their lengths are printed beside it. That is
+  the check that would have caught the shape above on the first pass instead of
+  the third.
+
+The reason it is a script and not a handler is the same one `standby-alpha.mjs`
+gives: the deck feed is LAN-only (`homeAddress()` refuses a `100.x` or
+`169.254.x` address deliberately), so it can only be asked from a machine on
+Alpha's network. And its entrypoint guard is a parameter-driven comparison, not
+`resolve(argv[1]) === fileURLToPath(import.meta.url)`: Windows hands the same
+file out as `C:\services` and `C:\Services`, the plain form answered *no*, and a
+guard that answers no is a script that exits 0 having printed nothing -- which
+is exactly what the first real pass on Worker1 did.
+
 ## Adding a handler
 
 Export `type`, `run(payload, { signal, taskId, attempt, log })` and optionally

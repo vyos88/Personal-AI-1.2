@@ -78,31 +78,61 @@ export function summarizeRuntime(feed) {
  * names the reason; a receipt carries both. Counting classes alone is what makes
  * "50 failures, evidence-contract" look like a broken fleet when the detail may
  * be one missing heading.
+ *
+ * **Receipts are one flat top-level list, not a field on an agent.**
+ * `_load_agent_registry` keeps `agents` and `receipts` side by side and joins
+ * them by `agent_id` on read (`_agent_runtime_view`), so the derived `history`
+ * exists only in an API response. The first version of this read
+ * `agents[].history` out of the file and reported `0 retained; classes none`
+ * from a registry holding failures -- the `alpha-devices.js` `serialPorts`
+ * mistake, which reads as a healthy fleet rather than as a bug. Timestamps are
+ * `completed_at` for the same reason.
  */
 export function summarizeReceipts(registry, limit = 8) {
   const agents = Array.isArray(registry?.agents) ? registry.agents : [];
-  const rows = [];
+  const receipts = Array.isArray(registry?.receipts) ? registry.receipts : [];
+  // Receipts name an agent id; the name lives on the roster. Resolved here
+  // because an id alone sends nobody anywhere.
+  const names = new Map();
   for (const agent of agents) {
-    for (const receipt of Array.isArray(agent?.history) ? agent.history : []) {
-      rows.push({
-        agent: String(agent.name ?? agent.id ?? 'unknown'),
-        role: String(agent.role ?? receipt.role ?? ''),
-        at: String(receipt.recorded_at ?? receipt.at ?? ''),
-        status: String(receipt.status ?? ''),
-        outcome: String(receipt.outcome ?? ''),
-        failureClass: receipt.failure_class ?? null,
-        // Any of the three keys the manager fills a blocker from.
-        reason: String(receipt.reason ?? receipt.error ?? receipt.detail ?? '').slice(0, 300),
-      });
-    }
+    if (agent?.id) names.set(String(agent.id), String(agent.name ?? agent.id));
   }
+  const rows = receipts.map((receipt) => ({
+    agent: names.get(String(receipt?.agent_id ?? '')) ?? String(receipt?.agent_id ?? 'unknown'),
+    role: String(receipt?.role ?? ''),
+    deck: String(receipt?.deck ?? ''),
+    at: String(receipt?.completed_at ?? ''),
+    status: String(receipt?.status ?? ''),
+    outcome: String(receipt?.outcome ?? ''),
+    failureClass: receipt?.failure_class ?? null,
+    // The order Alpha's own manager fills a blocker from.
+    reason: String(receipt?.reason ?? receipt?.error ?? receipt?.detail ?? '').slice(0, 300),
+  }));
   rows.sort((a, b) => String(b.at).localeCompare(String(a.at)));
   const classes = new Map();
   for (const row of rows) {
     if (!row.failureClass) continue;
     classes.set(row.failureClass, (classes.get(row.failureClass) ?? 0) + 1);
   }
-  return { total: rows.length, classes: [...classes].sort((a, b) => b[1] - a[1]), newest: rows.slice(0, limit) };
+  return {
+    total: rows.length,
+    classes: [...classes].sort((a, b) => b[1] - a[1]),
+    newest: rows.slice(0, limit),
+    // What an empty answer is: no receipts, or a file shaped unlike this reader
+    // expects. Printed only when there is nothing to show, so the next person
+    // to see "0 retained" can tell which it was without a debugger.
+    shape: describeShape(registry),
+  };
+}
+
+/** The registry's own top-level keys, so emptiness can be told from misreading. */
+export function describeShape(registry) {
+  if (!registry || typeof registry !== 'object') return 'not an object';
+  return (
+    Object.keys(registry)
+      .map((key) => (Array.isArray(registry[key]) ? `${key}[${registry[key].length}]` : key))
+      .join(' ') || 'no keys'
+  );
 }
 
 function parseArgs(argv) {
@@ -153,6 +183,16 @@ async function main() {
       say(`note     : awareness runs inside the assistant cycle, so "not-started" here means`);
       say(`           the cycle has not had the lane yet — look at free memory, not at awareness`);
     }
+    // The other awareness word that gets read as a broken loop. "degraded" is
+    // `'ok' if failed == 0 else 'degraded'` over the awareness cycle's own
+    // hardware-test report (ESP32 sketch compiles against the ports it found),
+    // so it says a board or a compile failed -- the loop ran, and learning is
+    // not what it is about.
+    if (runtime.awareness === 'degraded') {
+      say(`note     : "degraded" is the awareness cycle's hardware-test report, not the loop:`);
+      say(`           it ran and at least one sketch compile or port test failed. Ports it saw:`);
+      say(`           ${feed?.mapping?.ports_detected ?? '?'}; the failing items are in Alpha's awareness deck.`);
+    }
   }
 
   const registryPath = join(root, 'memory', 'local', 'alpha_agent_registry.json');
@@ -165,6 +205,9 @@ async function main() {
   if (registry) {
     const summary = summarizeReceipts(registry, options.limit);
     say(`receipts : ${summary.total} retained; classes ${summary.classes.map(([name, count]) => `${name}=${count}`).join(' ') || 'none'}`);
+    // "0 retained" is the one answer that could mean this reader is wrong, so
+    // it never stands alone.
+    if (summary.total === 0) say(`           registry holds: ${summary.shape}`);
     for (const row of summary.newest) {
       say(`  ${row.at} ${row.agent} (${row.role}) ${row.status}${row.failureClass ? ` [${row.failureClass}]` : ''}`);
       if (row.reason) say(`      ${row.reason}`);
