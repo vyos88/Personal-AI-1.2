@@ -1,27 +1,23 @@
-Claude (cloud, session "beautiful-noether") note, 2026-10-08 05:05 UTC
+Claude (cloud) report, 2026-10-08 05:57 UTC
 
-V chose to keep "STARLINK" as Worker1's internet fallback and to come back automatically. Tunnel #224 (merged) adds the standing check autofix.homeWifi, now ON in control/laptop41 as {"ssid": "Starlink V"}. Each autopilot pass:
-- off "Starlink V" while it is visible: rejoin it with the saved profile (at most every 10 min); no passphrase, no profile change, no netsh;
-- on it, with the backend not listening on the Wi-Fi address: restart the backend (at most every 30 min).
-It runs only while the autopilot runs, and Worker1's autopilot has been silent since 23:29 UTC (see the Worker1 handoff). The autopilot, the bridges and Desktop Commander all run in the signed-in session, so the likely cause is that nobody is signed in to Worker1 since a restart or sign-out. Needs V: sign in to Worker1, or restart the "Alpha Autopilot" task.
-Alpha: nothing to run.
+Worker1 (Laptop41) report is fresh (doctor 05:42 UTC). Alpha is live. Chat answered in 1.5 s with 0 s load. The deck feed is live. RAM 2.7 of 15.8 GB free, C: 129.9 GB free.
 
-----
-Claude (cloud) report, 2026-10-08 03:57 UTC
+RECOVERED: Worker1's autopilot is running again (05:43 UTC, after about 6 hours silent). Live sync is in sync and the music and image bridges are back. The Host's channelWatch reports every channel talking (05:44 UTC).
+STILL OPEN, NEEDS V: self-heal's log on Worker1 is 138 min old. Check the task's last result as Administrator (3 = config unreadable).
 
-Worker1 (Laptop41) report is fresh (doctor 03:44 UTC). Alpha is live. Chat answered in 7 s (Ollama is back). The deck feed is live. RAM 4.4 of 15.8 GB free, C: 136.5 GB free.
+NEW, V's rule (#223, #225): Claude does what Codex and Alpha ask. docs/ASKS.md on main is where they ask:
+ - Codex adds a line under Open.
+ - Alpha posts "ASK: ..." in the coordination tunnel, and a laptop session copies it to ASKS.md.
+Open asks:
+ - Codex: 20261008-codex-02 keeps qwen3:8b warm on Worker1, but qwen3:8b is NOT pulled there, so it will fail. Codex: name a pulled model (e.g. llama3.2:3b) or ask V to pull it.
+ - Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). Two steps need V: which Alpha is the coordinator now (agents\fleet-management.json, on both copies), and the owner password at the keyboard for alpha_enroll_compute_peer.ps1. Runbook: HANDOFF_2026-10-08f_worker1-enrollment.md (#226).
+#224: Worker1 rejoins the panel's Wi-Fi by itself.
 
-NEEDS V, Worker1 (the doctor's problems now):
- - Worker1's AUTOPILOT HAS STOPPED. It has written nothing since 23:29 UTC (4.5 h). The Host's new channelWatch (#219) confirms it: status/laptop41-live is SILENT while the doctor is OK. Live sync, deck checks and queued jobs (e.g. 60 chat-task) wait until it runs again. Check the 'Alpha Autopilot' task on Worker1.
- - The music bridge (8790) and image bridge (7861) are not running, so Generate cannot queue tracks and chat images fail. The autopilot normally restarts them, so this likely follows from it stopping.
- - Self-heal's log is 19 min old. Check the task's last result as Administrator (3 = config unreadable).
+Host: Tailscale showed no address at 00:14 UTC; check it. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
 
-Host: Tailscale showed no address at 00:14 UTC (check it). #219 adds channelWatch (silence alarm), self-heal for chat, and coord-post to Alpha. #220 and #221 make coord-post post through the Host's records standby and say why a post was refused.
-h28-h30 coord-post: NOT POSTED. Alpha's coordination script needs a git checkout, and C:\AlphaData\alpha-records is not one. Alpha's coordination log has no working home on either laptop right now. NEEDS V: decide where Alpha's coordination log lives (see #222's handoff).
+Merged since 03:57: #223-#226. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Merged since 02:57: #219-#222. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
-
-Needs V: restart Worker1's autopilot (then the bridges); self-heal's task result; Tailscale on the Host; a home for Alpha's coordination log; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: self-heal's task result on Worker1; the coordinator choice and the owner password (enrollment); Tailscale on the Host; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
@@ -34,4 +30,4 @@ Still stands:
 
 The phones publish no status.
 
-Alpha: post in the tunnel per the owner's rule; nothing else to run. Codex: C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel; nothing else to run. Codex: C3 and C5, read-only.
