@@ -104,3 +104,18 @@ test('the feed is asked on a LAN address, never on the tailnet', () => {
   // Nothing private at all: loopback, which is where the backend also answers.
   assert.equal(homeAddress({ lo: [{ family: 4, internal: true, address: '127.0.0.1' }] }), '127.0.0.1');
 });
+
+// On Windows URL.pathname is "/C:/...", which never equals the resolved argv
+// path, so a guard built on it skips main() and exits 0 having printed nothing.
+// That is what 20261008-02-alpha-runtime did on Laptop41: "->  0", empty output.
+test('no script decides it was run directly from URL.pathname', async () => {
+  const { readdir, readFile } = await import('node:fs/promises');
+  const dir = new URL('../scripts/', import.meta.url);
+  const offenders = [];
+  for (const name of await readdir(dir)) {
+    if (!name.endsWith('.mjs')) continue;
+    const source = await readFile(new URL(name, dir), 'utf8');
+    if (/new URL\(import\.meta\.url\)\.pathname/.test(source)) offenders.push(name);
+  }
+  assert.deepEqual(offenders, []);
+});
