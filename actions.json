@@ -136,6 +136,16 @@
       "id": "20261008-h25-songs-check",
       "do": "songs-check",
       "why": "confirm songs and memory arrived after h24"
+    },
+    {
+      "id": "20261008-codex-h26-receive-config",
+      "do": "receive-alpha-data",
+      "why": "Owner requested migration to Host. Accept only complete manifest-verified Taildrop data/config; refuses live backend and changes nothing if transfer absent."
+    },
+    {
+      "id": "20261008-codex-h27-migration-readiness",
+      "do": "alpha-move-check",
+      "why": "Check Host readiness after receipt: configuration existence, prepared runtime, memory, tasks and ports. Public switchover remains pending verified readiness."
     }
   ],
   "autofix": {
