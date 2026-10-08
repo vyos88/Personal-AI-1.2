@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-10-08T00:29:06.4847119+01:00",
+    "at":  "2026-10-08T06:39:52.6574292+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "DOWN",
-                  "detail":  "backend 0, site 200, alpha-ai.uk 200; not answering: backend",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "verdict":  "BACKEND UP",
+                  "detail":  "backend 200; site and alpha-ai.uk unchecked while self-heal is not running",
+                  "checked_by":  "this pass"
               },
     "selfheal":  {
-                     "state":  "RUNNING",
-                     "age_min":  1,
-                     "repairs":  1,
-                     "restarted":  "",
+                     "state":  "STOPPED",
+                     "age_min":  136,
+                     "repairs":  0,
+                     "restarted":  "could not start its task: run scripts\\repair-alpha-host.ps1 as Administrator",
                      "snapshot":  ""
                  },
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-07T23:19:11.415357+00:00"
+                  "checked_at":  "2026-10-08T05:39:40.582284+00:00"
               },
-    "sync":  "WAITING: 5147fef was tried here and failed; the next commit on claude/frie...(30) is tried when it comes"
+    "sync":  "DELIVERED: a3e1350..ab67005 of claude/frie...(30)"
 }

@@ -1,11 +1,11 @@
-﻿# Alpha is DOWN - DESKTOP-41HPLCN, 2026-10-08 00:29 +01:00
+﻿# Alpha is BACKEND UP - DESKTOP-41HPLCN, 2026-10-08 06:39 +01:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
 | Check | State | Detail |
 |---|---|---|
-| Alpha (backend, site, alpha-ai.uk) | DOWN | backend 0, site 200, alpha-ai.uk 200; not answering: backend (checked by self-heal, 1 min ago) |
-| Repair agent (self-heal) | RUNNING | last pass 1 min ago, 1 repair(s) in it |
-| Decks | 5 live, 1 static, 1 no feed | all data decks live (checked 2026-10-07T23:19:11.415357+00:00) |
-| Live sync | WAITING | WAITING: 5147fef was tried here and failed; the next commit on claude/frie...(30) is tried when it comes |
+| Alpha (backend, site, alpha-ai.uk) | BACKEND UP | backend 200; site and alpha-ai.uk unchecked while self-heal is not running (checked by this pass) |
+| Repair agent (self-heal) | STOPPED | last pass 136 min ago, 0 repair(s) in it; could not start its task: run scripts\repair-alpha-host.ps1 as Administrator |
+| Decks | 5 live, 1 static, 1 no feed | all data decks live (checked 2026-10-08T05:39:40.582284+00:00) |
+| Live sync | DELIVERED | DELIVERED: a3e1350..ab67005 of claude/frie...(30) |
 
