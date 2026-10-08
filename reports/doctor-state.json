@@ -1,29 +1,29 @@
 {
     "cloudSeen":  "673502ef8f2a40e412822a413654718e6f6a56e9",
-    "lastRun":  "2026-10-08T06:11:39",
-    "handoffSeen":  "e6732fa183159dc0e2134d770d4ebde73f544495",
+    "lastRun":  "2026-10-08T06:26:35",
+    "handoffSeen":  "bf96cbff5a6115e961fcfafec920349b4d4ad971",
     "open":  {
                  "music bridge is not running on #.#.#.#:#: Generate cannot queue anything":  {
                                                                                                   "since":  "2026-10-08T04:11:54",
-                                                                                                  "runs":  9,
+                                                                                                  "runs":  10,
                                                                                                   "text":  "music bridge is not running on 127.0.0.1:8790: Generate cannot queue anything"
                                                                                               },
                  "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
                                                                                                            "since":  "2026-10-08T04:11:54",
-                                                                                                           "runs":  9,
+                                                                                                           "runs":  10,
                                                                                                            "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
                                                                                                        },
                  "self-heal is installed but its log is # min old: check the task\u0027s last result as Administrator (# = config unreadable)":  {
                                                                                                                                                      "since":  "2026-10-08T04:43:46",
-                                                                                                                                                     "runs":  7,
-                                                                                                                                                     "text":  "self-heal is installed but its log is 108 min old: check the task\u0027s last result as Administrator (3 = config unreadable)"
+                                                                                                                                                     "runs":  8,
+                                                                                                                                                     "text":  "self-heal is installed but its log is 123 min old: check the task\u0027s last result as Administrator (3 = config unreadable)"
                                                                                                                                                  },
                  "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
                                                                                                           "since":  "2026-10-08T04:11:54",
-                                                                                                          "runs":  9,
+                                                                                                          "runs":  10,
                                                                                                           "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
                                                                                                       }
              },
     "lastPost":  "2026-10-08T05:56:45",
-    "relay":  "relayed status/claude-laptop41 e6732fa"
+    "relay":  "relayed status/claude-laptop41 bf96cbf"
 }
