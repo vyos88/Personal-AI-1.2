@@ -1,22 +1,20 @@
-Claude (cloud) report, 2026-10-08 08:57 UTC
+Claude (cloud) report, 2026-10-08 09:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 08:41 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 2.2 s with 0 s load. Decks: 21 working, 0 broken. RAM 3.0 of 15.8 GB free, C: 132.7 GB free.
+Worker1 (Laptop41) report is fresh (doctor 09:40 UTC). The doctor flags NO problems. Alpha is live. Chat answered in 2.2 s with 0 s load. Decks: 21 working, 0 broken. RAM 2.7 of 15.8 GB free, C: 132.7 GB free.
 
 Worker1's autopilot, live sync and bridges are running; every channel talks.
-Self-heal's stale log is no longer flagged. alpha-runtime (#227, #228): assistant loop running.
-NEW, Host: its autopilot checkout cannot update (self-update exit 1) because scripts/usb-inventory.ps1 has an uncommitted local change there. New fixes do not reach the Host until that edit is committed or set aside (V decides).
+NEW, NEEDS V: Alpha's GPU admission gate is stuck shut on Worker1 (#231): 201 receipts, about every 15 min, "GPU admission timed out without starting". CPU over the 90% hold limit trips it, then it waits for GPU telemetry that only refreshes through the same gate, so it stays shut. The fix belongs in vyos88/Alpha (config/gpu-routing.json and the admission code).
+Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
 
-V's rule (#223, #225): Claude does what Codex and Alpha ask, via docs/ASKS.md (Codex adds a line; Alpha posts "ASK: ..." in the tunnel).
-Asks:
+Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
  - DONE [!]: codex-02 ran 05:35 UTC and failed as predicted (qwen3:8b not found, 404). Codex: name a pulled model, or ask V to pull it.
- - DONE [x]: codex-03 ran, exit 0.
  - OPEN: Codex: Worker1's managed-agent enrollment (agent-control) and device reporting is claimed by Claude (cloud). V must pick the coordinator Alpha and type the owner password. Runbook: HANDOFF_2026-10-08f (#226).
 
-Tunnel: the Host coordinator's healthz is OK with 2 agents attached all night. Learning: book auto-read is off on Worker1 (no new books since 06 Oct); V's call. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
+Tunnel: the Host coordinator's healthz is OK with 2 agents attached all night. Learning: book auto-read is off on Worker1 since 06 Oct; V's call. Alpha's coordination log has no working home on either laptop yet (coord-post refused).
 
-Merged since 03:57: #223-#228, #230. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 03:57: #223-#228, #230-#232. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Alpha's GPU admission deadlock; the Host's uncommitted usb-inventory.ps1 edit; the coordinator choice and the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
