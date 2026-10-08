@@ -398,3 +398,83 @@ test("Alpha's deck feed: the panel's calls are counted, this machine's own are n
   assert.match(out, /ok: home-network devices that called the backend in the last couple of minutes: 192\.168\.1\.97 \(2 connections\)/);
   assert.doesNotMatch(out, /PROBLEM: (the backend listens on no|no device on the home network)/);
 });
+
+// ---------------------------------------------------------------- CPU pressure
+//
+// The one number section 7 did not print, on the machine it mattered most on.
+//
+// Alpha gates every local model call on system CPU. At or above the hold,
+// gpu_work.py's admission_reason refuses and the caller gets a 502: "Timeout:
+// Waiting for system CPU below the configured hold limit; GPU admission timed
+// out without starting language-model". Worse, the only place that schedules a
+// GPU telemetry probe is itself guarded on being under that hold, so while CPU
+// is pinned the telemetry never becomes "observed" and admission then refuses
+// with "Waiting for fresh per-adapter GPU telemetry" even once CPU drops. On
+// Worker1 that produced 201 agent receipts, every one classed
+// evidence-contract, from models that never started.
+//
+// Section 7 ranked working set and read no CPU at all, so the number that
+// explained a stalled fleet was the one nothing printed.
+//
+// `Read-CpuPressure` is the seam, exposed as `-ReadCpuPressure` the way
+// repair-alpha-host.ps1 exposes `-ReadAgentList`, and answered before the
+// script creates a directory or writes a report.
+const DOCTOR = join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1');
+const readCpu = (percent) => {
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuPressure', percent], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  // The seam must answer before the script touches the machine. On a host with
+  // no C: drive the rest of the doctor cannot run, so a clean stderr is also
+  // the proof that nothing below the seam executed.
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a CPU at or above the hold is a problem that names the consequence', { skip }, () => {
+  for (const value of ['95', '90', '99.9']) {
+    const verdict = readCpu(value);
+    assert.equal(verdict.measured, true, value);
+    assert.equal(verdict.holding, true, value);
+    // The note carries the consequence, or a reader sees a percentage and not
+    // the reason every agent receipt says evidence-contract.
+    assert.match(verdict.note, /GPU-admission hold/, value);
+    assert.match(verdict.note, /evidence-contract/, value);
+  }
+});
+
+test('the CPU hold is inclusive, because Alpha compares with >=', { skip }, () => {
+  // gpu_work.py: `if float(cpu_percent) >= float(cpu_hold_percent)`. Exactly 90
+  // is held, so calling it fine would disagree with the gate this mirrors.
+  assert.equal(readCpu('90').holding, true);
+  assert.equal(readCpu('89.9').holding, false);
+});
+
+test('a CPU below the hold still says what the hold is', { skip }, () => {
+  const verdict = readCpu('12.4');
+  assert.equal(verdict.measured, true);
+  assert.equal(verdict.holding, false);
+  assert.equal(verdict.percent, 12.4);
+  // Without the threshold, 12.4% is a number with nothing to compare against.
+  assert.match(verdict.note, /holds GPU admission at 90%/);
+});
+
+test('an unmeasurable CPU is never read as idle', { skip }, () => {
+  // Win32_Processor.LoadPercentage is absent on some hosts. Calling that 0%
+  // would say "the CPU is free" about the machine least able to prove it --
+  // the rule the coordinator already applies to a missing agent load report.
+  for (const value of ['', '   ']) {
+    const verdict = readCpu(value);
+    assert.equal(verdict.measured, false, JSON.stringify(value));
+    assert.equal(verdict.percent, null, JSON.stringify(value));
+    assert.equal(verdict.holding, null, JSON.stringify(value));
+    assert.match(verdict.note, /unknown is not idle/, JSON.stringify(value));
+  }
+});
+
+test('a CPU reading that is not a number is unreadable, and says what it got', { skip }, () => {
+  const verdict = readCpu('n/a');
+  assert.equal(verdict.measured, false);
+  assert.equal(verdict.holding, null);
+  // The text comes back so a wrong counter can be told from a missing one.
+  assert.match(verdict.note, /unreadable: n\/a/);
+});
