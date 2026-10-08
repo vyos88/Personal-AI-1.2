@@ -48,6 +48,9 @@
 
   Each id runs once. To run something again, queue it under a new id.
 
+  Standing check, every pass: autofix.homeWifi = {"ssid": "<network>"} keeps
+  this machine on the Wi-Fi the CrowPanel is on (see docs/AUTOPILOT.md).
+
   Standing check, every pass, no id needed: when actions.json carries
   {"autofix": {"brainTopology": {"branch": "<alpha branch>"}}}, the brain
   deck's links are checked on each pass and, when this machine serves the old
@@ -81,7 +84,9 @@ param(
   [string]$Plan,
   # Set by a pass that has just updated this checkout and hands the rest of
   # the pass to the new code; such a run does not update again.
-  [switch]$AfterUpdate
+  [switch]$AfterUpdate,
+  # Test seam: a JSON file of facts; prints what the home Wi-Fi check would do.
+  [string]$HomeWifiDecide
 )
 
 $ErrorActionPreference = 'Continue'
@@ -342,6 +347,126 @@ function Redact([string]$t) {
   })
 }
 
+# Home Wi-Fi (autofix.homeWifi): what the standing check does this pass, from
+# facts read on the machine. Pure, so it is tested off Windows (-HomeWifiDecide).
+function Get-HomeWifiAction($f) {
+  $homeSsid = [string]$f.home
+  $now = [datetime]$f.now
+  $sinceMin = { param($at) if ($at) { ($now - [datetime]$at).TotalMinutes } else { [double]::MaxValue } }
+  if ([string]$f.connected -ne $homeSsid) {
+    $where = if ($f.connected) { "on '$($f.connected)'" } else { 'on no Wi-Fi' }
+    if (-not $f.homeVisible) { return @{ action = 'none'; why = "$where; '$homeSsid' is not visible, so this network stays for the internet" } }
+    if ((& $sinceMin $f.lastJoin) -lt 10) { return @{ action = 'none'; why = "$where; rejoining '$homeSsid' was tried less than 10 minutes ago" } }
+    return @{ action = 'rejoin'; why = "$where while '$homeSsid' is visible: rejoining it with its saved profile" }
+  }
+  $ip = [string]$f.wifiIp
+  if (-not $ip) { return @{ action = 'none'; why = "on '$homeSsid' with no address yet" } }
+  $listen = @($f.listeners | ForEach-Object { [string]$_ })
+  if ($listen -contains $ip -or $listen -contains '0.0.0.0' -or $listen -contains '::') { return @{ action = 'none'; why = "on '$homeSsid'; the backend listens on $ip" } }
+  if (-not $listen.Count) { return @{ action = 'none'; why = "on '$homeSsid'; nothing listens on the backend port (self-heal restarts it)" } }
+  if (@($f.hostList | ForEach-Object { [string]$_ }) -notcontains $ip) { return @{ action = 'report'; why = "on '$homeSsid'; $ip is not in the backend's address list: queue panel-host" } }
+  if ((& $sinceMin $f.lastRestart) -lt 30) { return @{ action = 'none'; why = "on '$homeSsid'; the backend does not listen on $ip and was restarted less than 30 minutes ago" } }
+  return @{ action = 'restart'; why = "on '$homeSsid'; the backend does not listen on ${ip}: restarting it" }
+}
+
+if ($HomeWifiDecide) {
+  $f = Get-Content -LiteralPath $HomeWifiDecide -Raw | ConvertFrom-Json
+  Get-HomeWifiAction $f | ConvertTo-Json -Compress
+  exit 0
+}
+
+# The addresses the backend is told to bind: the boot wrapper's --host, which
+# wins (run_server.py), else HOST in the .env.local beside -AlphaRoot.
+function Get-BackendHosts {
+  $hosts = @()
+  $wrapper = Join-Path ([Environment]::GetFolderPath('CommonApplicationData')) 'AlphaBoot\run-alpha-backend.cmd'
+  if (Test-Path -LiteralPath $wrapper) {
+    foreach ($m in [regex]::Matches((Get-Content -LiteralPath $wrapper -Raw), '--host[ =](?:"([^"]*)"|([^\s"]+))')) {
+      $v = if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value }
+      $hosts += @($v -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
+    }
+  }
+  if (-not $hosts.Count) {
+    $envFile = Join-Path (Split-Path -Parent $AlphaRoot) '.env.local'
+    $hit = if (Test-Path -LiteralPath $envFile) { Select-String -LiteralPath $envFile -Pattern '^\s*HOST\s*=' -EA SilentlyContinue | Select-Object -First 1 }
+    if ($hit) { $hosts = @((($hit.Line -split '=', 2)[1]).Trim().Trim('"', "'") -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) }
+  }
+  return $hosts
+}
+
+# Windows' own Wi-Fi API (WinRT), because netsh is the one tool that can also
+# change profiles and this check must never do that. Nothing here reads or
+# writes a passphrase: joining uses the profile Windows already saved.
+function Get-WifiAdapter {
+  Add-Type -AssemblyName System.Runtime.WindowsRuntime
+  $m = [System.WindowsRuntimeSystemExtensions].GetMethods()
+  $script:asOp = ($m | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncOperation`1' })[0]
+  $script:asAct = ($m | Where-Object { $_.Name -eq 'AsTask' -and $_.GetParameters().Count -eq 1 -and $_.GetParameters()[0].ParameterType.Name -eq 'IAsyncAction' })[0]
+  [void][Windows.Devices.WiFi.WiFiAdapter,Windows.Devices.WiFi,ContentType=WindowsRuntime]
+  [void][Windows.Networking.Connectivity.ConnectionProfile,Windows.Networking.Connectivity,ContentType=WindowsRuntime]
+  $acc = $script:asOp.MakeGenericMethod([Windows.Devices.WiFi.WiFiAccessStatus]).Invoke($null, @([Windows.Devices.WiFi.WiFiAdapter]::RequestAccessAsync()))
+  [void]$acc.Wait(10000)
+  $t = $script:asOp.MakeGenericMethod([System.Collections.Generic.IReadOnlyList[Windows.Devices.WiFi.WiFiAdapter]]).Invoke($null, @([Windows.Devices.WiFi.WiFiAdapter]::FindAllAdaptersAsync()))
+  if (-not $t.Wait(10000)) { return $null }
+  return @($t.Result)[0]
+}
+function Get-WifiIp($a) {
+  $nic = Get-NetAdapter -EA SilentlyContinue | Where-Object { $_.InterfaceGuid -eq "{$($a.NetworkAdapter.NetworkAdapterId)}" } | Select-Object -First 1
+  if (-not $nic) { return '' }
+  return [string](Get-NetIPAddress -InterfaceIndex $nic.ifIndex -AddressFamily IPv4 -EA SilentlyContinue | Where-Object { $_.IPAddress -notlike '169.254.*' } | Select-Object -First 1).IPAddress
+}
+function Get-HomeWifiFacts($a, [string]$homeSsid) {
+  $f = @{ connected = ''; homeVisible = $false; wifiIp = ''; listeners = @(); hostList = @() }
+  $p = $script:asOp.MakeGenericMethod([Windows.Networking.Connectivity.ConnectionProfile]).Invoke($null, @($a.NetworkAdapter.GetConnectedProfileAsync()))
+  if ($p.Wait(10000) -and $p.Result -and $p.Result.WlanConnectionProfileDetails) { $f.connected = [string]$p.Result.WlanConnectionProfileDetails.GetConnectedSsid() }
+  if ($f.connected -ne $homeSsid) {
+    [void]$script:asAct.Invoke($null, @($a.ScanAsync())).Wait(20000)
+    $f.homeVisible = [bool]($a.NetworkReport.AvailableNetworks | Where-Object { $_.Ssid -eq $homeSsid })
+  }
+  $f.wifiIp = Get-WifiIp $a
+  $f.listeners = @(Get-NetTCPConnection -LocalPort 8001 -State Listen -EA SilentlyContinue | ForEach-Object { [string]$_.LocalAddress } | Sort-Object -Unique)
+  $f.hostList = @(Get-BackendHosts)
+  return $f
+}
+function Join-HomeWifi($a, [string]$homeSsid) {
+  $net = $a.NetworkReport.AvailableNetworks | Where-Object { $_.Ssid -eq $homeSsid } | Sort-Object NetworkRssiInDecibelMilliwatts -Descending | Select-Object -First 1
+  if (-not $net) { return 'not visible any more' }
+  $c = $script:asOp.MakeGenericMethod([Windows.Devices.WiFi.WiFiConnectionResult]).Invoke($null, @($a.ConnectAsync($net, [Windows.Devices.WiFi.WiFiReconnectionKind]::Automatic)))
+  if (-not $c.Wait(60000)) { return 'no answer within 60 s' }
+  $status = [string]$c.Result.ConnectionStatus
+  if ($status -eq 'Success') { for ($i = 0; $i -lt 12 -and -not (Get-WifiIp $a); $i++) { Start-Sleep -Seconds 5 } }
+  return "$status ($($net.NetworkRssiInDecibelMilliwatts) dBm)"
+}
+
+# Stop whatever listens on the backend port and start it again: the
+# restart-backend action, and the home Wi-Fi check when the backend did not
+# bind the address the panel calls.
+function Restart-Backend {
+  $port = 8001
+  $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
+  if (Test-Path -LiteralPath $portFile) { $n = 0; if ([int]::TryParse((Get-Content -LiteralPath $portFile -Raw).Trim(), [ref]$n)) { $port = $n } }
+  $lines = New-Object System.Collections.ArrayList
+  $held = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
+  if ($held) { Stop-Process -Id $held.OwningProcess -Force -EA SilentlyContinue; [void]$lines.Add("stopped pid $($held.OwningProcess) on $port") }
+  else { [void]$lines.Add("nothing listened on $port") }
+  Start-Sleep -Seconds 5
+  if (-not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) {
+    if (Get-ScheduledTask -TaskName 'Alpha Backend' -EA SilentlyContinue) { Start-ScheduledTask -TaskName 'Alpha Backend'; [void]$lines.Add("started task 'Alpha Backend'") }
+    else {
+      $startLocal = Join-Path (Split-Path -Parent $AlphaRoot) 'scripts\start-local.ps1'
+      if (Test-Path -LiteralPath $startLocal) {
+        Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$startLocal`"") -WindowStyle Minimized -WorkingDirectory (Split-Path -Parent $AlphaRoot)
+        [void]$lines.Add('started scripts\start-local.ps1')
+      } else { [void]$lines.Add('no Alpha Backend task and no start-local.ps1: nothing to start it with') }
+    }
+  } else { [void]$lines.Add('something already restarted it') }
+  $deadline = (Get-Date).AddSeconds(150)
+  while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
+  $up = [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)
+  [void]$lines.Add($(if ($up) { "backend listening on $port" } else { "backend NOT listening on $port after 150s" }))
+  return @{ code = $(if ($up) { 0 } else { 1 }); text = ($lines -join "`n") }
+}
+
 if ($Plan) {
   $doc = Get-Content -LiteralPath $Plan -Raw | ConvertFrom-Json
   $plans = @(@($doc.actions) | Where-Object { $_ } | ForEach-Object { Resolve-Action $_ })
@@ -579,29 +704,7 @@ foreach ($a in $queued) {
       $text = $lines -join "`n"
     }
   } elseif ($p.internal -eq 'restart-backend') {
-    $port = 8001
-    $portFile = Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\backend.port'
-    if (Test-Path -LiteralPath $portFile) { $n = 0; if ([int]::TryParse((Get-Content -LiteralPath $portFile -Raw).Trim(), [ref]$n)) { $port = $n } }
-    $lines = New-Object System.Collections.ArrayList
-    $held = Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue | Select-Object -First 1
-    if ($held) { Stop-Process -Id $held.OwningProcess -Force -EA SilentlyContinue; [void]$lines.Add("stopped pid $($held.OwningProcess) on $port") }
-    else { [void]$lines.Add("nothing listened on $port") }
-    Start-Sleep -Seconds 5
-    if (-not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) {
-      if (Get-ScheduledTask -TaskName 'Alpha Backend' -EA SilentlyContinue) { Start-ScheduledTask -TaskName 'Alpha Backend'; [void]$lines.Add("started task 'Alpha Backend'") }
-      else {
-        $startLocal = Join-Path (Split-Path -Parent $AlphaRoot) 'scripts\start-local.ps1'
-        if (Test-Path -LiteralPath $startLocal) {
-          Start-Process powershell.exe -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$startLocal`"") -WindowStyle Minimized -WorkingDirectory (Split-Path -Parent $AlphaRoot)
-          [void]$lines.Add('started scripts\start-local.ps1')
-        } else { [void]$lines.Add('no Alpha Backend task and no start-local.ps1: nothing to start it with') }
-      }
-    } else { [void]$lines.Add('something already restarted it') }
-    $deadline = (Get-Date).AddSeconds(150)
-    while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 5 }
-    $up = [bool](Get-NetTCPConnection -LocalPort $port -State Listen -EA SilentlyContinue)
-    [void]$lines.Add($(if ($up) { "backend listening on $port" } else { "backend NOT listening on $port after 150s" }))
-    $code = $(if ($up) { 0 } else { 1 }); $text = $lines -join "`n"
+    $r = Restart-Backend; $code = $r.code; $text = $r.text
   } else {
     $errLog = "$log.err"
     try {
@@ -630,7 +733,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -788,12 +891,71 @@ if (Test-Path -LiteralPath $auditFile) {
   } catch { Write-Host "deck audit (Alpha): report unreadable ($($_.Exception.Message))" }
 }
 
+# Home Wi-Fi (autofix.homeWifi = {"ssid": "<the network the CrowPanel is on>"}).
+# The owner, 2026-10-07: "make it automatic". That morning the home network
+# blinked for a moment, Windows moved Worker1 to the router's other network
+# and stayed there, and the panel, which is only on the home one, was dark all
+# day. The other network stays as Windows' fallback on purpose: while the home
+# one is down it is what keeps alpha-ai.uk online. So each pass:
+# - off the home network while it is visible: rejoin it with the profile
+#   Windows already saved, at most every 10 minutes. No passphrase is read or
+#   written and no profile setting is changed;
+# - on it, with the backend not listening on this address: restart the backend
+#   as restart-backend does, at most every 30 minutes, when the address is in
+#   its list; otherwise say to queue panel-host.
+# Reported only when what it found changes, and whenever it acts.
+$wifiKey = if ($state -and $state.homeWifiKey) { [string]$state.homeWifiKey } else { '' }
+$wifiJoinAt = if ($state -and $state.homeWifiJoinAt) { [string]$state.homeWifiJoinAt } else { '' }
+$wifiRestartAt = if ($state -and $state.homeWifiRestartAt) { [string]$state.homeWifiRestartAt } else { '' }
+$wifi = if ($control -and $control.autofix -and $control.autofix.homeWifi -and $control.autofix.homeWifi.ssid) { $control.autofix.homeWifi } else { $null }
+if ($wifi) {
+  $homeSsid = [string]$wifi.ssid
+  $started = Get-Date
+  $wlines = New-Object System.Collections.ArrayList
+  $acted = $false
+  try {
+    $wa = Get-WifiAdapter
+    if (-not $wa) { throw 'no Wi-Fi adapter answered' }
+    $facts = Get-HomeWifiFacts $wa $homeSsid
+    $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = $started; lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt })
+    [void]$wlines.Add($do.why)
+    if ($do.action -eq 'rejoin') {
+      $acted = $true
+      $wifiJoinAt = (Get-Date).ToString('s')
+      [void]$wlines.Add("rejoin: $(Join-HomeWifi $wa $homeSsid)")
+      $facts = Get-HomeWifiFacts $wa $homeSsid
+      $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = (Get-Date); lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt })
+      [void]$wlines.Add($do.why)
+    }
+    if ($do.action -eq 'restart') {
+      $acted = $true
+      $wifiRestartAt = (Get-Date).ToString('s')
+      $r = Restart-Backend
+      foreach ($l in ($r.text -split "`n")) { [void]$wlines.Add($l) }
+      $facts = Get-HomeWifiFacts $wa $homeSsid
+      $after = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = (Get-Date); lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt })
+      [void]$wlines.Add("after: $($after.why)")
+      $do = $after
+    }
+    $key = "$($facts.connected)|$($do.action)|$($do.why)"
+  } catch {
+    [void]$wlines.Add("could not check: $($_.Exception.Message)")
+    $key = 'error'
+  }
+  if ($acted -or $key -ne $wifiKey) {
+    $res = if ($key -eq 'error') { '1 (could not check)' } elseif ($do.action -eq 'report') { '2 (needs panel-host)' } elseif ($do.why -match 'listens on') { '0 (on the home network, backend reachable)' } else { "0 ($($do.action))" }
+    [void]$ran.Add([ordered]@{ id = "auto-home-wifi-$stamp"; do = 'home-wifi (standing)'; result = $res; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = (($wlines | ForEach-Object { Redact $_ }) -join "`n") })
+    Write-Host "home wifi: $res"
+  }
+  $wifiKey = $key
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only
