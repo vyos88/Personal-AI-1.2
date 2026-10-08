@@ -1,14 +1,10 @@
 {
-    "cloudSeen":  "0ad3f6f540f17fe9d808a67dc1054739ba63a2d2",
-    "lastRun":  "2026-10-08T02:47:20",
+    "cloudSeen":  "97bedfdf83c91d284028a34f27a42c197950cfd7",
+    "lastRun":  "2026-10-08T03:30:16",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
-                 "Ollama does not answer at http://#.#.#.#:#":  {
-                                                                    "since":  "2026-10-08T00:11:24",
-                                                                    "runs":  11,
-                                                                    "text":  "Ollama does not answer at http://127.0.0.1:11434"
-                                                                }
+
              },
-    "lastPost":  "2026-10-08T02:47:20",
-    "relay":  "relayed status/cloud 0ad3f6f"
+    "lastPost":  "2026-10-08T03:30:16",
+    "relay":  "relayed status/cloud 97bedfd"
 }
