@@ -733,6 +733,31 @@ test('preparing Alpha finds the software folder where the live branch keeps it, 
   assert.doesNotMatch(r.stdout, /NOT READY: no frontend/);
 });
 
+test('what send-alpha-data packs, receive-alpha-data accepts: leftovers stay behind, no configuration travels', { skip }, () => {
+  const scripts = join(import.meta.dirname, '..', 'scripts');
+  const base = mkdtempSync(join(tmpdir(), 'roundtrip-'));
+  const root = join(base, 'laptop41');
+  mkdirSync(join(root, 'memory', 'local', 'pytest-fleet'), { recursive: true });
+  mkdirSync(join(root, 'memory', 'local', 'agent-manager'), { recursive: true });
+  writeFileSync(join(root, 'memory', 'local', 'agent-manager', 'manager-status.json'), '{"agents":1}');
+  writeFileSync(join(root, 'memory', 'local', 'pytest-fleet', 'junk.bin'), 'x'.repeat(1000));
+  writeFileSync(join(root, '.env.local'), 'OWNER_PASSWORD=do-not-print\n');
+  const outbox = join(base, 'outbox');
+  let r = pwsh([join(scripts, 'send-alpha-data.ps1'), '-Root', root, '-Outbox', outbox, '-NoSend']);
+  assert.equal(r.status, 0, r.stdout);
+  assert.deepEqual(readdirSync(outbox).filter((n) => /env/i.test(n)), [], 'no configuration file is packed');
+  assert.equal(readFileSync(join(root, '.env.local'), 'utf8'), 'OWNER_PASSWORD=do-not-print\n', 'the source is never changed');
+
+  const host = join(base, 'host');
+  mkdirSync(join(host, 'software', 'backend'), { recursive: true });
+  writeFileSync(join(host, 'software', 'backend', 'main.py'), '');
+  r = pwsh([join(scripts, 'receive-alpha-data.ps1'), '-Target', host, '-Inbox', outbox, '-NoFetch']);
+  assert.equal(r.status, 0, r.stdout);
+  assert.equal(readFileSync(join(host, 'memory', 'local', 'agent-manager', 'manager-status.json'), 'utf8'), '{"agents":1}');
+  assert.ok(!readdirSync(join(host, 'memory', 'local')).includes('pytest-fleet'), 'test leftovers are not moved');
+  assert.ok(!readdirSync(host).includes('.env.local'), '.env.local goes by USB, never with the data');
+});
+
 test('the live report is written every pass, and a stopped self-heal is started again, not too often', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-live-'));
   const remote = join(dir, 'remote.git');

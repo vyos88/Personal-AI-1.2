@@ -138,6 +138,50 @@ the router will do. Without it the machine cannot tell "the host is down" from
 "I cannot reach the host", and a dropped link gives you a second live Alpha.
 Demotion is on by default, so it stands down when the host answers again.
 
+### Standing by for Alpha on *another* machine
+
+This fleet is the other way round from the names: Alpha runs on **Worker1**
+(`desktop-41hplcn`) and the coordinator runs on the **Host**
+(`laptop-gj8dfmlk`). So the machine that should take Alpha over is the one
+running the coordinator, and that is where the default probe is a trap:
+
+- **`--probe-url` must name Alpha, not the coordinator.** `standby-alpha.mjs`
+  defaults it to `ALPHA_HOST_URL/healthz`. On the coordinator's own machine that
+  answers from loopback whatever happens to Worker1, so the standby never
+  promotes and the failover silently does not exist.
+  `scripts/install-always-on.ps1` now takes `-ProbeUrl` for this, and says so
+  when it is left out on a machine holding the coordinator port.
+- **`--local-url` is how you learn a promotion started nothing.** Point it at
+  `http://127.0.0.1:8001/health` and the standby checks that what it started is
+  actually serving, instead of counting a dead process as a live Alpha.
+
+On the Host, with Alpha staged there by the autopilot's `prepare-alpha-here`:
+
+```powershell
+cd C:\services\alpha-tunnel
+powershell -ExecutionPolicy Bypass -File .\scripts\install-always-on.ps1 `
+  -AlphaRoot C:\Users\<user>\Downloads\VyoS-advance-tech-ai `
+  -ProbeUrl http://100.69.243.25:8001/health `
+  -LocalUrl http://127.0.0.1:8001/health `
+  -ControlUrl https://github.com -CloudflareTunnel <tunnel name> -WhatIfOnly
+```
+
+Drop `-WhatIfOnly` once the printed argv is what you want.
+
+**Two things it cannot start Alpha without, and neither is in the staged
+clone.** `prepare-alpha-here` deliberately copies no secrets and no data:
+
+1. **`.env.local`** — Alpha's settings and credentials. Without it the backend
+   starts without its login, its model configuration and its trusted hosts.
+2. **`memory\`** — what Alpha knows. A promoted Alpha with an empty knowledge
+   store is a different assistant wearing the same name, and the records it
+   writes while promoted are the ones Worker1 then has to reconcile.
+
+Until those are carried across, installing the standby on the Host buys a
+*tested* failover path and an unarmed one: it will promote, and Alpha will fail
+to come up — which `--local-url` is what reports. That is the honest state to
+leave it in rather than a standby nobody has ever seen promote.
+
 ## When the host comes back
 
 Nothing to undo: the agents move home by themselves, and so does the panel if
