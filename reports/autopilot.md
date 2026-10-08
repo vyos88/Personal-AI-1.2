@@ -1,8 +1,36 @@
-﻿# laptop41 autopilot 20261008-092845
+﻿# laptop41 autopilot 20261008-093353
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout e175472 is current
+checkout 2f7e152 is current
+
+## 20261008-06-alpha-runtime  alpha-runtime  ->  0   (2026-10-08T09:34:18, 1s)
+```
+loops    : assistant=ok awareness=degraded thoughts=active
+beat     : 19s old, stale=false
+lane     : waiting_on=host busy (systemcpu) since=2026-10-08T07:33:45.212682 step=-
+advice   : feed live - waiting: host busy (systemcpu)
+note     : "degraded" is the awareness cycle's hardware-test report, not the loop:
+           it ran and at least one sketch compile or port test failed. Ports it saw:
+           2; the failing items are in Alpha's awareness deck.
+receipts : 201 retained; classes evidence-contract=201
+  2026-10-08T08:24:16.064223Z Chat Diagnosis (diagnosis) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
+  2026-10-08T08:08:45.277508Z Alpha Fixer (fixer) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T07:53:14.838080Z Chat Qc (qc) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for system CPU below the configured hold limit; GPU admission timed out without starting language-model
+  2026-10-08T07:37:44.460916Z Alpha Qc (qc) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T07:22:14.138129Z Coding Diagnosis (diagnosis) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T07:13:16.950965Z Alpha Solutions (solutions) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T06:57:46.572066Z Coding Qc (qc) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+  2026-10-08T06:42:16.237802Z Coding Fixer (fixer) incomplete [evidence-contract]
+      HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
+```
 
 ## auto-deck-audit-20261008-092845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T09:29:13, 0s)
 ```
@@ -455,12 +483,5 @@ pushed to status/laptop41 - tell Claude 'doctor pushed'
 task 'Alpha Ollama': C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama.exe serve, as DESKTOP-41HPLCN\Vyo, at startup
 self-heal now probes http://127.0.0.1:11434/api/tags and restarts chat through 'Alpha Ollama' (C:\AlphaData\alpha-ops\selfheal.json)
 Ollama answers now; nothing started
-```
-
-## auto-brain-topology-20261008-063351  brain-topology (standing)  ->  0 (deck ok)   (2026-10-08T06:36:14, 1s)
-```
-OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
-OK: the deck's source draws the links the backend sends and checks them (Region links)
-OK: the site serves the fixed deck (BrainNeuralModel-BizulwOh.js, Brai...(25).js)
 ```
 
