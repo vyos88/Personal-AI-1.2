@@ -31,7 +31,7 @@ test('the message reaches Alpha\'s script whole, as one argument, quotes and all
   const r = spawnSync(process.execPath, [SCRIPT, '--message-b64', b64(message), '--actor', 'cloud-claude', '--env', join(root, 'none')],
     { encoding: 'utf8', env: { ...process.env, ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: PWSH, ALPHA_COORDINATION_ACTIONS: '' } });
   assert.equal(r.status, 0, r.stdout + r.stderr);
-  assert.match(r.stdout, /posted to Alpha's coordination log as cloud-claude: exit 0/);
+  assert.match(r.stdout, /^posted to Alpha's coordination log as cloud-claude$/m);
   assert.match(r.stdout, /ACTION=Post/);
   assert.match(r.stdout, /ACTOR=cloud-claude/);
   assert.ok(r.stdout.includes(`MESSAGE=${message}`), r.stdout);
@@ -44,4 +44,16 @@ test('a coordination root that is gone is refused and never created', () => {
   assert.equal(r.status, 1);
   assert.match(r.stdout, /REFUSED: ALPHA_REPO_ROOT does not exist: .*Alpha-1\.8 \(not created/);
   assert.equal(existsSync(missing), false);
+});
+
+test('a script that refuses says why, and is not called a post', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'coord-refuse-'));
+  mkdirSync(join(root, 'scripts'));
+  writeFileSync(join(root, 'scripts', 'alpha_coordination_tunnel.ps1'),
+    'param($Action, $Actor, $Message, $Paths)\n[Console]::Error.WriteLine("actor cloud-claude is not registered")\nexit 3\n');
+  const r = spawnSync(process.execPath, [SCRIPT, '--message-b64', b64('hello'), '--env', join(root, 'none')],
+    { encoding: 'utf8', env: { ...process.env, ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: PWSH, ALPHA_COORDINATION_ACTIONS: '' } });
+  assert.equal(r.status, 3, r.stdout);
+  assert.match(r.stdout, /^NOT POSTED: Alpha's coordination script exited 3/);
+  assert.match(r.stdout, /actor cloud-claude is not registered/);
 });
