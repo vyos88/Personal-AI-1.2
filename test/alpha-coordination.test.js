@@ -12,6 +12,7 @@ import {
   configuredActions,
   requireOffered,
   run,
+  statusEvidence,
   validateAck,
   validateAction,
   validateActor,
@@ -45,7 +46,7 @@ const psLiteral = (value) => `'${String(value).replace(/'/g, "''")}'`;
  * itself and the script sees only what follows. They are still pinned on
  * Windows -- by the buildArgs test above, and by the script running at all.
  */
-async function fixture({ exitCode = 0, stderr = '' } = {}) {
+async function fixture({ exitCode = 0, stderr = '', stdout = 'stub ok' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'alpha-repo-'));
   await mkdir(join(root, 'scripts'), { recursive: true });
   const scriptPath = join(root, 'scripts', 'alpha_coordination_tunnel.ps1');
@@ -60,7 +61,7 @@ async function fixture({ exitCode = 0, stderr = '' } = {}) {
       scriptPath,
       `$items = @($args | ForEach-Object { $_ | ConvertTo-Json -Compress })
 [System.IO.File]::WriteAllText(${psLiteral(argvLog)}, '[' + ($items -join ',') + ']')
-[Console]::Out.Write('stub ok')
+[Console]::Out.Write(${psLiteral(stdout)})
 ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode}
 `,
     );
@@ -75,7 +76,7 @@ ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode
     `#!/usr/bin/env node
 const { writeFileSync } = require('node:fs');
 writeFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)));
-process.stdout.write('stub ok');
+process.stdout.write(${JSON.stringify(stdout)});
 ${stderr ? `process.stderr.write(${JSON.stringify(stderr)});\n` : ''}// Set the code rather than calling process.exit(), which would not wait for
 // those writes to flush when stdout is a pipe.
 process.exitCode = ${exitCode};
@@ -106,6 +107,68 @@ function withEnv(vars, fn) {
     }
   });
 }
+
+test('a large real PowerShell status preserves ownership before the diagnostic tail is clipped', async () => {
+  const snapshot = {
+    schema: 'alpha.coordination.status.v1', generated_at: '2026-10-08T09:00:00Z',
+    tunnel_identity: { host_id: 'worker1', workspace_id: 'different-install' },
+    claims: { 'software/backend/main.py': { actor: 'claude', state: 'current' } },
+    claims_lifecycle: { records: 1, current: 1, details: [{ path: 'software/backend/main.py' }] },
+    recent_events: [{ message: 'x'.repeat(20_000) }],
+  };
+  const raw = JSON.stringify(snapshot);
+  const { root, stub } = await fixture({ stdout: raw, stderr: 'y'.repeat(17_000) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const result = await run({ action: 'Status', actor: 'codex' });
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.sourceRoot, root);
+    assert.equal(result.stdout, raw.slice(-16_000));
+    assert.equal(result.stdoutTruncated, true);
+    assert.equal(result.stderrTruncated, true);
+    assert.equal(result.statusError, null);
+    assert.deepEqual(result.status.claims, snapshot.claims);
+    assert.equal(result.status.claimsLifecycle.current, 1);
+    assert.equal(result.status.tunnelIdentity.workspace_id, 'different-install');
+    assert.equal(result.status.claimsComplete, true);
+  });
+});
+
+test('malformed or missing status evidence never becomes an empty ownership result', () => {
+  for (const raw of ['tail of JSON}', '{}', '{"schema":"alpha.coordination.status.v1"}']) {
+    const result = statusEvidence(raw);
+    assert.equal(result.status, null);
+    assert.match(result.statusError, /ownership is unknown/);
+  }
+  const result = statusEvidence('\uFEFF' + JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {},
+  }));
+  assert.equal(result.status.claimsLifecycle.current, undefined);
+  assert.equal(result.status.tunnelIdentity, null);
+});
+
+test('bounded status claims explicitly report incomplete lists and retain exact counts', () => {
+  const claims = Object.fromEntries(Array.from({ length: 65 }, (_, i) => ['file' + i, { actor: 'claude' }]));
+  const result = statusEvidence(JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims,
+    claims_lifecycle: { records: 65, current: 65, details: Object.keys(claims).map(path => ({ path })) },
+  }));
+  assert.equal(result.status.claimEntries, 65);
+  assert.equal(Object.keys(result.status.claims).length, 64);
+  assert.equal(result.status.claimsComplete, false);
+  assert.equal(result.status.lifecycleDetailsComplete, false);
+  assert.equal(result.status.claimsLifecycle.current, 65);
+});
+
+test('a failed status command never attaches parsed ownership evidence', async () => {
+  const { root, stub } = await fixture({ exitCode: 1, stdout: JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: { current: 0 },
+  }) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const result = await run({ action: 'Status', actor: 'codex' });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.status, undefined);
+  });
+});
 
 // ------------------------------------------------------------- validation
 
