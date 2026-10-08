@@ -43,7 +43,7 @@
     receive-alpha-data  receive-alpha-data.ps1: Alpha's data and .env.local from Laptop41 over Taildrop, checked by SHA-256; starts nothing
     alpha-data-in       alpha-data-in.ps1: Alpha's memory\ and artifacts\ from an alpha-move-* folder on a plugged-in drive; adds only, no .env files; starts nothing
     chat-task        chat-task.ps1: the 'Alpha Ollama' task and "chat" in selfheal.json, so self-heal restarts chat
-    coord-post       coord-post.mjs: one message to Alpha's coordination log  ("message", "actor")
+    coord-post       coord-post.mjs: one message to Alpha's coordination log  ("message", "actor", "via": "records-standby")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
 
   Each id runs once. To run something again, queue it under a new id.
@@ -296,6 +296,15 @@ function Resolve-Action($a) {
       if ($a.actor) {
         if ([string]$a.actor -notmatch '^[A-Za-z0-9._-]{1,64}$') { $out.reason = 'actor must be 1-64 letters, digits, dot, dash or underscore'; return $out }
         $rest += @('--actor', [string]$a.actor)
+      }
+      # "via" picks whose coordination root, from a fixed list, never a path:
+      # the Host's records standby (HANDOFF_2026-10-05g) holds Alpha's notes
+      # while Worker1's log is unavailable; this checkout's own .env.agent may
+      # set no ALPHA_REPO_ROOT at all.
+      if ($a.via) {
+        $vias = @{ 'records-standby' = 'C:\services\alpha-records-standby\.env.agent' }
+        if (-not $vias.ContainsKey([string]$a.via)) { $out.reason = "via must be one of: $($vias.Keys -join ', ')"; return $out }
+        $rest += @('--env', $vias[[string]$a.via])
       }
       $spec = @{ exe = 'node'; args = $rest }; $out.timeoutMin = 3
     }

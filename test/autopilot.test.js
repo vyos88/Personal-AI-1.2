@@ -58,6 +58,8 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
     { id: 'j2', do: 'coord-post', message: 'Phase 2 "done"; $(x)', actor: 'cloud-claude' },
     { id: 'j3', do: 'coord-post', message: '   ' },
     { id: 'j4', do: 'coord-post', message: 'hi', actor: 'a b' },
+    { id: 'j5', do: 'coord-post', message: 'hi', via: 'records-standby' },
+    { id: 'j6', do: 'coord-post', message: 'hi', via: 'C:\\evil\\.env' },
     { id: 'p1', do: 'panel-endpoint', url: 'http://evil:1' },
     { id: 'p2', do: 'panel-identify', port: 'COM3' },
     { id: 'r1', do: 'alpha-runtime', root: 'C:\\Windows' },
@@ -69,7 +71,7 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software']);
   assert.equal(r.status, 0, r.stderr);
   const plan = Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
-  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'j1', 'j2', 'p1', 'p2', 'r1', 's1', 's2', 's3', 's4']);
+  assert.deepEqual(Object.values(plan).filter((p) => p.ok).map((p) => p.id), ['a1', 'a2', 'a4', 'a7', 'a9', 'b1', 'c1', 'c2', 'd1', 'd2', 'e1', 'e2', 'f1', 'g1', 'g2', 'h1', 'h2', 'i1', 'i2', 'i3', 'i4', 'j1', 'j2', 'j5', 'p1', 'p2', 'r1', 's1', 's2', 's3', 's4']);
   assert.match(plan.s1.args.at(-1), /stop-stray-site\.ps1$/, 'no pid or port from the payload: the live tree is read off the machine');
   assert.match(plan.s2.args.at(-1), /comfyui-off\.ps1$/, 'nothing from the payload: what is ComfyUI is read off the machine');
   assert.deepEqual(plan.s3.args.slice(-3).map(String), [plan.s3.args.at(-3), '-AlphaRoot', 'C:\\A\\software'], 'only the autopilot\'s own AlphaRoot, nothing from the payload');
@@ -113,6 +115,8 @@ test('only actions on the menu, with checked arguments, are planned', { skip }, 
   assert.deepEqual(plan.j2.args.slice(-2), ['--actor', 'cloud-claude']);
   assert.match(plan.j3.reason, /message must be 1 to 2000/);
   assert.match(plan.j4.reason, /actor must be/);
+  assert.deepEqual(plan.j5.args.slice(-2), ['--env', 'C:\\services\\alpha-records-standby\\.env.agent'], 'a name from a fixed list');
+  assert.match(plan.j6.reason, /via must be one of: records-standby/, 'never a path from the payload');
   assert.equal(plan.d1.args.at(-1), '-Bridge');
   assert.match(plan.d1.args.at(-2), /enable-music\.ps1$/);
   assert.equal(plan.d2.args.at(-1), '-DryRun', 'only a real true turns a switch on');
