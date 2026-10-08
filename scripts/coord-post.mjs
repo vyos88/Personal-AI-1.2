@@ -58,9 +58,16 @@ async function main(argv) {
     else throw new Error(`unknown argument ${argv[i]}`);
   }
   const result = await post(args);
-  const said = `${result.stdout}`.trim().split(/\r?\n/).slice(-5).join('\n');
-  process.stdout.write(`posted to Alpha's coordination log as ${result.actor}: exit ${result.exitCode}\n${said ? `${said}\n` : ''}`);
-  return Number(result.exitCode) || 0;
+  const tail = (text) => `${text}`.trim().split(/\r?\n/).filter(Boolean).slice(-5).join('\n');
+  const code = Number(result.exitCode) || 0;
+  // A non-zero exit is the script's own answer; its stderr says why. The first
+  // real failure (h29, 2026-10-08) printed only "exit 1", which helps nobody.
+  const said = [tail(result.stdout), code ? tail(result.stderr) : ''].filter(Boolean).join('\n');
+  const head = code
+    ? `NOT POSTED: Alpha's coordination script exited ${code} (actor ${result.actor})`
+    : `posted to Alpha's coordination log as ${result.actor}`;
+  process.stdout.write(`${head}\n${said ? `${said}\n` : ''}`);
+  return code;
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
