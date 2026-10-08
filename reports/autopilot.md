@@ -1,8 +1,34 @@
-﻿# laptop41 autopilot 20261008-145845
+﻿# laptop41 autopilot 20261008-152846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout dc48760 is current
+
+## auto-deck-audit-20261008-152846  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T15:29:22, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-08T14:26:21.635594+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 3, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
+WORKING terminal: answers with data (logs 100)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
 
 ## auto-deck-audit-20261008-145845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-08T14:59:17, 0s)
 ```
@@ -559,69 +585,5 @@ WORKING terminal: answers with data (logs 43)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## 20261008-03-repair-host  repair-host  ->  1   (2026-10-08T08:19:10, 167s)
-```
-  ok: npm run preview   (vite preview)
-  adding: --host 127.0.0.1 --port 4173 --strictPort
-  (listens on this machine only; phones and laptops reach it through alpha-ai.uk)
-  ok: npm: C:\Program Files\nodejs\npm.cmd
-=== 3. Boot task 'Alpha' ===
-  ok: wrapper: C:\ProgramData\AlphaBoot\run-alpha.cmd
-  stopped the previous boot-task copy (1)
-  ok: registered: runs at boot as DESKTOP-41HPLCN\Vyo, whether or not anyone logs in
-=== 4. Starting it now ===
-  ok: Alpha answers on https://127.0.0.1:4173/
-  Server log: C:\ProgramData\AlphaBoot\alpha.log
-=== VERDICT ===
-Done.
-Log: C:\services\alpha-tunnel\scripts\start-alpha-at-boot-log.txt
-  ok: https://127.0.0.1:4173/ serves Alpha
-  ok: frontend also serves Alpha for Host: alpha-ai.uk (what cloudflared sends)
-  ok: dist snapshotted as dist.last-good (what self-heal rolls back to)
-=== 4. Cloudflare connector ===
-  ok: 'cloudflared' starts at boot and restarts on crash
-  CHANGED: started stopped 'cloudflared' service
-  https://alpha-ai.uk/ -> 200
-  ok: public answers 200 (302/401/403 here is Cloudflare Access or bot protection in front of a working tunnel)
-  ok: cloudflared config and credentials byte-identical before and after (SHA-256)
-=== 5. Power ===
-=== 6. Self-heal ===
-  dry run: {"at":"2026-10-08T07:21:51.053Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[{"component":"frontend","action":"snapshot","fingerprint":"1791437884445:9073","dryRun":true}],"events":[],"dryRun":true}
-  CHANGED: 'Alpha Self-Heal' runs every 2 minutes as SYSTEM; log C:\AlphaData\alpha-ops\logs\selfheal.jsonl; status: node "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --config "C:\AlphaData\alpha-ops\selfheal.json" --status
-=== 7. Verification ===
-  backendHealth      200
-  frontendLocal      200 + app root
-  route /login       served
-  route /chat        405
-  route /decks       404
-  route /brain       served
-  route /agents      served
-  route /network     404
-  route /crown       served
-  public             200
-  jackAttached       False
-node : Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or 
-ALPHA_BOOTSTRAP_TOKEN on a fresh install).
-At C:\services\alpha-tunnel\scripts\repair-alpha-host.ps1:561 char:11
-+ $agents = node src/admin/run.js agents 2>&1 | Out-String
-+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (Not signed in. ...fresh install).:String) [], RemoteException
-    + FullyQualifiedErrorId : NativeCommandError
-  PROBLEM: No agent named like 'jack' is attached. On Jack's laptop: node scripts\setup-agent.mjs, then run keep-agent.mjs (docs\MASTER_HOST_REPAIR.md, section Jack).
-  In a browser, signed in through Cloudflare Access, still check by hand: login, Chat sends and answers,
-  Decks, Brain, Agents, Network Hub and Crown Panel open without a red error. A script cannot sign in through Access.
-=== VERDICT ===
-Changed:
-  - boot task 'Alpha Backend' runs the backend at boot as DESKTOP-41HPLCN\Vyo, whether or not anyone logs in
-  - backend now supervised by 'Alpha Backend' - /health answered after handover
-  - started stopped 'cloudflared' service
-  - 'Alpha Self-Heal' runs every 2 minutes as SYSTEM; log C:\AlphaData\alpha-ops\logs\selfheal.jsonl; status: node "C:\services\alpha-tunnel\scripts\alpha-selfheal.mjs" --config "C:\AlphaData\alpha-ops\selfheal.json" --status
-1 open problem(s):
-  1. No agent named like 'jack' is attached. On Jack's laptop: node scripts\setup-agent.mjs, then run keep-agent.mjs (docs\MASTER_HOST_REPAIR.md, section Jack).
-Log:      C:\AlphaData\alpha-ops\logs\repair-20261008-081912.log
-Evidence: C:\AlphaData\alpha-ops\logs\evid...(24).json
-Undo:     .\repair-alpha-host.ps1 -Rollback
 ```
 
