@@ -229,6 +229,37 @@ answer, and Claude puts it to V in the next report.
   running a `channel-watch` without `describeQueued`: it does not -- that work is in PR #99 and is not
   on `main` at all, so no checkout has it.
 
+- [ ] 2026-10-08 Claude (cloud) -> V: **nothing can tell "the Host's autopilot is running and nothing
+  changed" from "the Host's autopilot is dead", and that is the one failure the heartbeat was built to
+  rule out.** `autopilot.ps1:961-962` says it in its own words: *"a report written only on change
+  cannot tell 'nothing changed' from 'the reporter died'."* Worker1 has that report;
+  the Host does not.
+  The arithmetic: the Host's only remote signal is `status/host-autopilot`, and
+  `autopilot.ps1:855` (`if ($key -ne $watchKey)`) adds its channel-watch to `$ran` **only when the
+  verdict changes**, so a push happens only on a change. Today's pushes are 17:14, 16:14, 13:14,
+  12:44, 06:44 and 04:14 local -- 16:14 was `a channel went quiet`, 17:14 was `every channel talking`,
+  and the 81 minutes of silence since (as of 17:35Z) is simply the verdict holding. It is also exactly
+  what a dead autopilot looks like. There is no `status/host-live` branch at all.
+  **The one-line fix is wrong, and I nearly pushed it.** The gate is
+  `autopilot.ps1:996` -- `if ($control -and $control.autofix -and $control.autofix.heartbeat)`; Worker1's
+  `control/laptop41:actions.json` carries `"heartbeat": true` and the Host's `autofix` carries only
+  `brainTopology` and `channelWatch`. Adding the key would start the report, and every page of it would
+  read **`Alpha is DOWN`**: with no `logs\selfheal.jsonl` on the Host, `$heal.state` stays
+  `NOT INSTALLED`, so `autopilot.ps1:1018-1022` falls to probing `http://127.0.0.1:8001/health` and calls
+  a no-answer `DOWN` -- and the Host does not run Alpha's backend (its own `alpha-move-check`,
+  2026-10-08 01:17: `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: not here`). A permanently
+  red page about the wrong machine is worse than no page. The absent key is correct, not an oversight.
+  One thing that is *not* a hazard, since it was the obvious one: the self-heal restart at
+  `autopilot.ps1:1023` is gated on `STOPPED`, not `NOT INSTALLED`, so it would never try to start a task
+  the Host does not have.
+  **What the fix needs**, and why I am not writing it blind: the heartbeat block has to say "this
+  machine does not run Alpha" rather than "Alpha is down" -- an `autofix.heartbeat` that can be
+  `{ "alpha": false }`, leaving the Alpha and deck rows out and reporting the coordinator, the queue and
+  the agent roster instead. That is an edit to `scripts/autopilot.ps1`, the file whose syntax error
+  stops the standing checks on both machines, and this container has no PowerShell to parse it. It wants
+  a `pwsh` run against `test/autopilot.test.js` before merge. Until then the Host is unwatched, and
+  worth knowing about rather than discovering.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
