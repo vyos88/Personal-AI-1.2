@@ -23,8 +23,9 @@
  * `AGENT_REGISTRY` names, `memory/local/alpha_agent_registry.json` under it.
  */
 
+import { realpathSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { join, posix as posixPath, resolve, win32 as winPath } from 'node:path';
 import { networkInterfaces } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
@@ -174,8 +175,46 @@ async function main() {
 // fileURLToPath, not URL.pathname: on Windows the pathname is "/C:/...", which
 // never equals the resolved argv path, so the job printed nothing and exited 0
 // (Laptop41, 20261008-02-alpha-runtime).
-const invokedDirectly = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
-if (invokedDirectly) {
+/**
+ * Was this file run, rather than imported?
+ *
+ * The plain `resolve(process.argv[1]) === fileURLToPath(import.meta.url)` form
+ * silently answers *no* on Windows when the two spellings of the same file
+ * differ, and a guard that answers no is a script that exits 0 having printed
+ * nothing — exactly what the first real `alpha-runtime` pass on Worker1 did:
+ * `-> 0` in 0 s with an empty block. Windows hands the same file out two ways:
+ * `C:\\services\\...` against `C:\\Services\\...` (its paths are
+ * case-insensitive, JavaScript string comparison is not, and the ESM loader
+ * reports the on-disk casing), and a path reached through a symlink or a short
+ * `PROGRA~1` segment, which `realpath` resolves and `argv[1]` may not.
+ *
+ * `platform` is a parameter rather than a read of `process.platform` because the
+ * whole comparison is platform-specific — separators, drive letters and case
+ * folding all differ — and a rule that can only be exercised on the machine it
+ * is wrong on is a rule nothing checks. The real-path step is taken only when
+ * the asked-for platform is this one; off it there is nothing to resolve
+ * against.
+ */
+export function isEntrypoint(argv1, moduleUrl, platform = process.platform) {
+  if (!argv1) return false;
+  const windows = platform === 'win32';
+  const rules = windows ? winPath : posixPath;
+  const real = (value) => {
+    // Only meaningful for the host: resolving a Windows path on POSIX would
+    // answer about a file that is not there either way.
+    if (platform !== process.platform) return value;
+    try {
+      return realpathSync(value);
+    } catch {
+      return value;
+    }
+  };
+  const left = real(rules.resolve(argv1));
+  const right = real(fileURLToPath(moduleUrl, { windows }));
+  return windows ? left.toLowerCase() === right.toLowerCase() : left === right;
+}
+
+if (isEntrypoint(process.argv[1], import.meta.url)) {
   main().catch((error) => {
     process.stderr.write(`alpha-runtime: ${error.stack ?? error.message}\n`);
     process.exit(1);
