@@ -59,8 +59,65 @@ param(
   [string]$BackendDir = '',
   [switch]$NoHandover,
   [switch]$ReportOnly,
-  [switch]$Rollback
+  [switch]$Rollback,
+  # Test seam: read one `alpha-admin agents` result -- its output and its exit
+  # code -- and print the verdict as JSON, without touching this machine. See
+  # test/repair-alpha-host.test.js.
+  [string]$ReadAgentList,
+  [int]$ReadAgentListExitCode = 0
 )
+
+# Three answers, not two: found, not found, and *could not ask*.
+#
+# This captured `node src/admin/run.js agents 2>&1`, threw the exit code away
+# and tested the string for /jack/. So "Not signed in. Run `node
+# src/admin/run.js login ...`" -- stderr, folded into the same string -- read as
+# "jack is not attached" and sent a person to set up a laptop that may have been
+# attached the whole time. A scheduled run holds no admin token by default, so
+# that was the usual case, not the rare one: it is what made the 08:19 pass on
+# Laptop41 exit 1. Same shape as alpha-devices.js reading a field name that does
+# not exist and calling a full machine empty.
+#
+# The decision is the **exit code**, because that is the part of the CLI's
+# contract that cannot drift. `fail()` in src/admin/cli.js writes to stderr and
+# exits 1 for every way the question can go unanswered -- no token, a saved
+# sign-in no longer accepted, HTTP 401, and a coordinator that did not answer at
+# all, which on this fleet is the whole premise of the standby. Matching the
+# wording would have to be revisited every time one of those four sentences is
+# reworded; the text is read only to say *why*, never to decide.
+function Read-AgentList([string]$Output, $ExitCode = 0, [string]$Name = 'jack') {
+  $text = [string]$Output
+  $code = 0
+  # An unset $LASTEXITCODE (nothing native has run yet) is not a failure.
+  if ($null -ne $ExitCode -and $ExitCode -ne '') { $code = [int]$ExitCode }
+
+  if ($code -ne 0) {
+    $why =
+      if     ($text -match '(?im)^\s*(node\s*:\s*)?Not signed in\b')     { 'not signed in to the coordinator' }
+      elseif ($text -match '(?i)saved sign-in is no longer accepted')     { 'the saved sign-in was rejected (expired or ended)' }
+      elseif ($text -match '(?i)\bHTTP 401\b')                           { 'the coordinator rejected the key (401)' }
+      # Anything else: hand back the CLI's own first line rather than a guess.
+      else {
+        $first = ($text -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 1)
+        if ($first) { "alpha-admin agents exited $code" + ": " + $first.Trim() } else { "alpha-admin agents exited $code" }
+      }
+    return [ordered]@{ asked = $false; found = $false; reason = $why }
+  }
+
+  # Exit 0 and nothing on stdout is not an empty fleet: the real empty case
+  # still prints the table's header row.
+  if (-not $text.Trim()) {
+    return [ordered]@{ asked = $false; found = $false; reason = 'alpha-admin agents printed nothing' }
+  }
+  return [ordered]@{ asked = $true; found = [bool]($text -match "(?i)$([regex]::Escape($Name))"); reason = '' }
+}
+
+# Answered before the script creates a directory or opens a transcript: a test
+# seam that touches the machine is not one.
+if ($PSBoundParameters.ContainsKey('ReadAgentList')) {
+  Read-AgentList $ReadAgentList $ReadAgentListExitCode | ConvertTo-Json -Compress
+  exit 0
+}
 
 $ErrorActionPreference = 'Continue'
 $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -559,11 +616,20 @@ foreach ($r in @('login', 'chat', 'decks', 'brain', 'agents', 'network', 'crown'
 $v.public = Code "https://$PublicHost/"
 Push-Location $tunnel
 $agents = node src/admin/run.js agents 2>&1 | Out-String
+# Captured before anything else can overwrite it: this is the whole decision.
+$agentsExit = $LASTEXITCODE
 Pop-Location
-$v.jackAttached = [bool]($agents -match '(?i)jack')
+$jack = Read-AgentList $agents $agentsExit 'jack'
+$v.jackAttached = if ($jack.asked) { [bool]$jack.found } else { "unknown ($($jack.reason))" }
 $v.GetEnumerator() | ForEach-Object { Note ("{0,-18} {1}" -f $_.Key, $_.Value) }
 Write-Host $agents
-if (-not $v.jackAttached) { Problem "No agent named like 'jack' is attached. On Jack's laptop: node scripts\setup-agent.mjs, then run keep-agent.mjs (docs\MASTER_HOST_REPAIR.md, section Jack)." }
+if (-not $jack.asked) {
+  # Still a problem -- a verification that cannot run is one -- but the remedy
+  # is a credential on this machine, not a trip to Jack's laptop.
+  Problem "Could not check whether Jack's agent is attached: $($jack.reason). Store the key for this user once: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')."
+} elseif (-not $jack.found) {
+  Problem "No agent named like 'jack' is attached. On Jack's laptop: node scripts\setup-agent.mjs, then run keep-agent.mjs (docs\MASTER_HOST_REPAIR.md, section Jack)."
+}
 $evidence.verification = $v
 $evidence.tasksAfter = @(Get-ScheduledTask -TaskName $BackendTask, $FrontendTask, $SelfHealTask -EA SilentlyContinue |
   ForEach-Object { "$($_.TaskName)=$($_.State)" })

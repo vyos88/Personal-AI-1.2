@@ -426,6 +426,31 @@ on. Its policy lives in the pure `decide()` and is pinned by
   SYSTEM, and an Ollama started as SYSTEM finds no models. A `chat` with no
   task is reported once as needing a person, and no budget is spent on it.
 
+**A verification that could not run is reported as that, never as a failure.**
+`repair-alpha-host.ps1`'s roster check captured
+`node src/admin/run.js agents 2>&1`, threw the exit code away and tested the
+string for the name. A scheduled run holds no admin token, so the string it
+tested was `Not signed in. Run ...` on stderr -- which does not contain the
+name, so the pass reported "No agent named like 'jack' is attached" and sent a
+person to a laptop that may have been attached the whole time. That one false
+problem is what made the 08:19 pass on Laptop41 exit 1. Three rules now:
+
+- **The exit code decides, and the text only says why.** `fail()` in
+  `src/admin/cli.js` exits 1 for every way the question goes unanswered -- no
+  token, a saved sign-in no longer accepted, HTTP 401, and a coordinator that
+  did not answer at all, which on this fleet is the whole premise of the
+  standby. Matching the four sentences would have to be revisited every time one
+  is reworded, and a bare `401` in a roster's own MEM column is not a 401. An
+  unrecognised exit 1 hands back the CLI's first line rather than a guess.
+- **Could-not-ask is still a problem, with a different remedy.** The pass still
+  exits 1, because a verification that cannot run is one -- but it asks for
+  `ALPHA_ADMIN_TOKEN` on *this* machine instead of a trip to Jack's laptop, and
+  `jackAttached` reads `unknown (<reason>)` rather than `False`.
+- **The seam answers before the script touches the machine.**
+  `-ReadAgentList` sits above the directory creation and the transcript, as
+  `panel-endpoint.ps1`'s `-ParseStatus` does: a test seam that touches the
+  machine is not one.
+
 ## Alpha's Agent Manager, seen from any machine
 
 Alpha's Agent Manager (`scripts/alpha_agent_manager.ps1` in vyos88/Alpha) runs
