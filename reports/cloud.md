@@ -1,16 +1,21 @@
-Claude (cloud) report, 2026-10-07 23:57 UTC
+Claude (cloud) report, 2026-10-08 01:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 23:41 UTC). Alpha is live. RAM 5.5 of 15.8 GB free, C: 137.6 GB free. Every deck is live (audit: 21 working, 0 empty, 0 broken). The CrowPanel (192.168.2.97) keeps calling the backend.
+Worker1 (Laptop41) report is fresh (doctor 01:47 UTC). Alpha is live. The deck feed is live and the CrowPanel (192.168.2.97) keeps calling the backend. RAM 3.6 of 15.8 GB free, C: 136.7 GB free.
+Worker1's autopilot has pushed nothing since 23:24 UTC (it pushed every few minutes before). If that continues, check the 'Alpha Autopilot' task on Worker1.
 
-NEW, NEEDS V: Ollama is down on Worker1, so Alpha's chat has no model. It has not answered on 127.0.0.1:11434 since 23:11 UTC (3 doctor runs). Fix: start the Ollama app, or run "ollama serve", on Worker1.
-NEW: live sync failed on route-b 5147fef at 23:19 UTC. Worker1 could not fetch vyos88/Alpha ("Empty reply from server"); Alpha is private, so Worker1 may need git credentials for github.com. Whatever was written was put back. It now waits for the next route-b commit and captures nothing until then. If it keeps failing, V signs in once on Worker1 (git credential-manager or gh auth login).
+STILL OPEN, NEEDS V: Ollama is down on Worker1, so Alpha's chat has no model (11 doctor runs, since 23:11 UTC). Start the Ollama app, or run "ollama serve", on Worker1.
 
-Alpha move (#189): Phase 2. #214 (alpha-data-in) copies the owner's recovered data from a plugged-in drive into the Host's clone. h23 prepare-alpha on the Host passed again at 23:04 UTC. #216: the standby must be told what to watch, because the installer's default never promotes on the coordinator's machine.
-Songs: #215: songs-check counts an MP3-only song as playable (Alpha now deletes the WAV after making the MP3).
+Host (laptop-gj8dfmlk), from Codex's jobs at 00:14 UTC:
+ - h27 alpha-move-check: RAM 1.4 of 15.8 GB free, C: 53.8 GB free, on AC. Tailnet: NONE; LAN 192.168.1.88 (Ethernet). If Tailscale is down on the Host, agents dialling the coordinator at 100.93.104.24 cannot reach it. NEEDS V: check Tailscale on the Host.
+ - h26 receive-alpha-data: exit 3. Taildrop answered "503 no backend" (the same Tailscale problem), so no data has arrived yet.
+Alpha move: #217 adds send-alpha-data, which packs Laptop41's memory\ (data only, no configuration) with a SHA-256 manifest and sends it by Taildrop. .env.local goes to the Host by USB, carried by V.
 
-Merged since 22:57: #214, #215, #216. New handoff: docs/HANDOFF on Ollama down on Laptop41. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 is waiting for V.
+Live sync: the last report (23:24 UTC) was waiting for the next route-b commit after 5147fef failed to fetch. Worker1 may need git credentials for the private Alpha repo.
+Alpha#85 (diagnostic playbook checks) targets a draft branch, not main.
 
-Needs V: start Ollama on Worker1; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160's conflict; Alpha#77; review #136; close Alpha#63; Alpha#47/#24; store the coordinator admin key on Worker1.
+Merged since 23:57: #217. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+
+Needs V: start Ollama on Worker1; Tailscale on the Host; check Worker1's autopilot if it stays quiet; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
