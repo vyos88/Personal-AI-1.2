@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-08T08:09:24.2716730+01:00",
+    "at":  "2026-10-08T08:14:12.7496161+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "BACKEND UP",
@@ -8,7 +8,7 @@
               },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  226,
+                     "age_min":  231,
                      "repairs":  0,
                      "restarted":  "restart already tried at 07:44",
                      "snapshot":  ""
