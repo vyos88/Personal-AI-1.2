@@ -1,21 +1,18 @@
-Claude (cloud) report, 2026-10-08 02:57 UTC
+Claude (cloud) report, 2026-10-08 03:57 UTC
 
-Worker1 (Laptop41) report is fresh (doctor 02:35 UTC). Alpha is live. The deck feed is live and the CrowPanel (192.168.2.97) keeps calling the backend. RAM 1.8 of 15.8 GB free, C: 131.5 GB free. The doctor flags no problems.
-Worker1's autopilot has pushed nothing since 23:24 UTC, 3.5 hours now (it pushed every few minutes before). If that continues, check the 'Alpha Autopilot' task on Worker1.
+Worker1 (Laptop41) report is fresh (doctor 03:44 UTC). Alpha is live. Chat answered in 7 s (Ollama is back). The deck feed is live. RAM 4.4 of 15.8 GB free, C: 136.5 GB free.
 
-FIXED: Ollama answers on Worker1 again, so Alpha's chat has its model back (it was down 23:11 to about 02:00 UTC). #218 adds alpha-runtime to the autopilot: the two Alpha reads that used to need a person at the keyboard.
+NEEDS V, Worker1 (the doctor's problems now):
+ - Worker1's AUTOPILOT HAS STOPPED. It has written nothing since 23:29 UTC (4.5 h). The Host's new channelWatch (#219) confirms it: status/laptop41-live is SILENT while the doctor is OK. Live sync, deck checks and queued jobs (e.g. 60 chat-task) wait until it runs again. Check the 'Alpha Autopilot' task on Worker1.
+ - The music bridge (8790) and image bridge (7861) are not running, so Generate cannot queue tracks and chat images fail. The autopilot normally restarts them, so this likely follows from it stopping.
+ - Self-heal's log is 19 min old. Check the task's last result as Administrator (3 = config unreadable).
 
-Host (laptop-gj8dfmlk), from Codex's jobs at 00:14 UTC:
- - h27 alpha-move-check: RAM 1.4 of 15.8 GB free, C: 53.8 GB free, on AC. Tailnet: NONE; LAN 192.168.1.88 (Ethernet). If Tailscale is down on the Host, agents dialling the coordinator at 100.93.104.24 cannot reach it. NEEDS V: check Tailscale on the Host.
- - h26 receive-alpha-data: exit 3. Taildrop answered "503 no backend" (the same Tailscale problem), so no data has arrived yet.
-Alpha move: #217 adds send-alpha-data, which packs Laptop41's memory\ (data only, no configuration) with a SHA-256 manifest and sends it by Taildrop. .env.local goes to the Host by USB, carried by V.
+Host: Tailscale showed no address at 00:14 UTC (check it). #219 adds channelWatch (silence alarm), self-heal for chat, and coord-post to Alpha. #220 and #221 make coord-post post through the Host's records standby and say why a post was refused.
+h28-h30 coord-post: NOT POSTED. Alpha's coordination script needs a git checkout, and C:\AlphaData\alpha-records is not one. Alpha's coordination log has no working home on either laptop right now. NEEDS V: decide where Alpha's coordination log lives (see #222's handoff).
 
-Live sync: the last report (23:24 UTC) was waiting for the next route-b commit after 5147fef failed to fetch. Worker1 may need git credentials for the private Alpha repo.
-Alpha#85 (diagnostic playbook checks) targets a draft branch, not main.
+Merged since 02:57: #219-#222. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Merged since 23:57: #217, #218. Open: #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
-
-Needs V: Tailscale on the Host; check Worker1's autopilot if it stays quiet; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: restart Worker1's autopilot (then the bridges); self-heal's task result; Tailscale on the Host; a home for Alpha's coordination log; git credentials on Worker1 if live sync keeps failing; keep Worker1 on "Starlink V"; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
