@@ -56,8 +56,62 @@ param(
   [switch]$UninstallSchedule,
   [int]$EveryMinutes = 15,
   # A problem open this many consecutive runs is marked NEEDS A PERSON.
-  [int]$EscalateAfterRuns = 4
+  [int]$EscalateAfterRuns = 4,
+  # Test seam: judge one CPU reading and print the verdict as JSON, without
+  # touching this machine. Empty string means 'unmeasurable'. See
+  # test/laptop41-doctor.test.js.
+  [string]$ReadCpuPressure
 )
+
+# Is the CPU holding Alpha's own GPU admission shut?
+#
+# Alpha gates every local model call on system CPU: gpu_work.py's
+# admission_reason refuses at or above its hold and the caller gets
+# "Timeout: Waiting for system CPU below the configured hold limit; GPU
+# admission timed out without starting language-model" as a 502. Worse, the one
+# place that schedules a GPU telemetry probe (gpu_work.py, the
+# _schedule_windows_gpu_refresh call) is itself guarded on the host being under
+# that hold -- so while CPU is pinned the telemetry never becomes "observed",
+# and admission then refuses with "Waiting for fresh per-adapter GPU telemetry"
+# even in the moments CPU has dropped. On Worker1 that produced 201 agent
+# receipts, every one classed evidence-contract, from models that never started.
+#
+# This section had no CPU reading at all -- it ranked the heaviest processes by
+# working set, so the one number that explained a stalled fleet was the one
+# nothing printed.
+#
+# $HoldPercent mirrors `system_cpu_hold_percent` -- not an environment
+# variable: gpu_work.py's _routing_limits() defaults it to 90 and lets
+# config/gpu-routing.json override it. If that default moves, move this with it,
+# and a host that has set it in that file is held at its own number, not this
+# one.
+function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
+  $text = [string]$Percent
+  # Unmeasurable is never idle -- the same rule the coordinator applies to an
+  # agent's load report. Reading a missing counter as 0% would say "the CPU is
+  # free" about the machine least able to prove it.
+  if (-not $text.Trim()) {
+    return [ordered]@{ measured = $false; percent = $null; holding = $null
+      note = 'CPU load could not be measured (unknown is not idle)' }
+  }
+  $value = 0.0
+  if (-not [double]::TryParse($text.Trim(), [ref]$value)) {
+    return [ordered]@{ measured = $false; percent = $null; holding = $null
+      note = "CPU load unreadable: $($text.Trim())" }
+  }
+  $holding = $value -ge $HoldPercent
+  return [ordered]@{ measured = $true; percent = [math]::Round($value, 1); holding = $holding
+    note = $(if ($holding) {
+      "CPU $([math]::Round($value,1))% is at or above Alpha's $HoldPercent% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
+    } else { "CPU $([math]::Round($value,1))% (Alpha holds GPU admission at $HoldPercent%)" }) }
+}
+
+# Answered before the script opens a transcript or writes a report: a test seam
+# that touches the machine is not one.
+if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
+  Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
 
 $ErrorActionPreference = 'Continue'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -756,6 +810,16 @@ function Run-Checks {
   # TEMP on a drive that is gone breaks every installer and build that uses it.
   $tq = [IO.Path]::GetPathRoot("$env:TEMP")
   if ($tq -and -not (Test-Path $tq)) { Problem "TEMP points at $env:TEMP, on a drive that is not there (the removed USB?)" }
+  # Win32_Processor.LoadPercentage is a short average and is absent on some
+  # hosts; an absent reading stays absent rather than becoming 0.
+  $cpuRaw = ''
+  try {
+    $load = Get-CimInstance Win32_Processor -EA Stop |
+      Measure-Object -Property LoadPercentage -Average
+    if ($null -ne $load.Average) { $cpuRaw = [string]$load.Average }
+  } catch { $cpuRaw = '' }
+  $cpu = Read-CpuPressure $cpuRaw
+  if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
 
@@ -954,6 +1018,7 @@ $rules = @(
   @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
+  @{ m = "at or above Alpha's";                                                                  r = "Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7 names the heaviest processes; llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so the stall outlasts the spike." },
   @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },

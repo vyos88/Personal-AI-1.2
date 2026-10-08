@@ -451,6 +451,31 @@ problem is what made the 08:19 pass on Laptop41 exit 1. Three rules now:
   `panel-endpoint.ps1`'s `-ParseStatus` does: a test seam that touches the
   machine is not one.
 
+**The doctor reads CPU, because that is the number a stalled fleet is stalled
+on.** `laptop41-doctor.ps1`'s "Memory, disk, heaviest processes" ranked working
+set and read no CPU at all -- so on the day 201 agent receipts failed because
+Alpha's GPU admission was held at its 90% CPU limit (above), the one figure that
+explained it was the one nothing printed. `Read-CpuPressure` now prints it
+against the hold and raises a problem at or above it, with the consequence in
+the line rather than a bare percentage. Three rules, pinned by
+`test/laptop41-doctor.test.js`:
+
+- **Unmeasurable is never idle.** `Win32_Processor.LoadPercentage` is a short
+  average and is absent on some hosts; reading a missing counter as 0% would say
+  "the CPU is free" about the machine least able to prove it. That is the rule
+  the coordinator already applies to an agent's missing load report, and an
+  unparseable reading is handed back as its own text so a wrong counter can be
+  told from a missing one.
+- **The hold is inclusive, because Alpha's is.** `gpu_work.py` compares
+  `cpu_percent >= cpu_hold_percent`, so exactly 90 is held; calling it fine
+  would disagree with the gate this mirrors. The 90 mirrors
+  `system_cpu_hold_percent`, which is *not* an environment variable:
+  `_routing_limits()` defaults it and `config/gpu-routing.json` overrides it, so
+  a host that has set its own number is held at that one, not at this.
+- **The seam answers above the report directory**, like `-ReadAgentList`. Its
+  test asserts the absence of `Cannot find drive` on a host with no `C:`, which
+  is also the proof that nothing below the seam ran.
+
 ## Alpha's Agent Manager, seen from any machine
 
 Alpha's Agent Manager (`scripts/alpha_agent_manager.ps1` in vyos88/Alpha) runs
@@ -532,6 +557,26 @@ route to this container runs it. Four things it rests on:
   registry's own top-level keys and their lengths are printed beside it. That is
   the check that would have caught the shape above on the first pass instead of
   the third.
+
+**What it found, so the answer is not re-derived: every agent receipt fails
+before a model starts.** The first pass with the reader fixed read 201 receipts,
+all classed `evidence-contract`, and every reason was the same 502 --
+`Local LLM request failed: Timeout: ... GPU admission timed out without
+starting language-model`. So the class is misleading: nothing failed a contract,
+because nothing produced output. Alpha's `gpu_work.py` gates every local model
+call, and two of its refusals explain the lot:
+
+- `Waiting for system CPU below the configured hold limit` -- CPU at or above
+  the hold (90%).
+- `Waiting for fresh per-adapter GPU telemetry` -- and this one outlasts the
+  spike, because the *only* call that schedules a telemetry probe is itself
+  guarded on `not pressure_reasons`. While CPU is pinned no probe is scheduled,
+  so telemetry never becomes `observed`, and admission keeps refusing in the
+  moments CPU *has* dropped. It is the same gate the assistant cycle waits on,
+  which is why the lane's `waiting_since` sat unchanged for an hour.
+
+That diagnosis is why `laptop41-doctor.ps1` now reads CPU at all (below); the
+fix itself is in Alpha and is V's call, not this repo's.
 
 The reason it is a script and not a handler is the same one `standby-alpha.mjs`
 gives: the deck feed is LAN-only (`homeAddress()` refuses a `100.x` or
