@@ -204,6 +204,20 @@ answer, and Claude puts it to V in the next report.
   The proposed `laptop41-doctor.ps1:656` one-liner below stands unchanged, and matters more now:
   a report that listed its own task would have shown `NumberOfMissedRuns` climbing hours ago.
 
+  **Update 2026-10-08 19:34 UTC: the drops are not random, and only one slot still works.** Since
+  13:11 local the only runs are 14:39 (my forced one), 17:11, 18:11 and 20:11 -- so **4 of the 8
+  `:11` opportunities fired, and 0 of the 22 `:26`/`:41`/`:56` ones**. Earlier in the day those three
+  slots did fire (01:26, 01:41, 06:26, 06:41, 07:41, 07:56, 09:26, 09:41, 09:56, 11:26, 11:56 among
+  them), so the 15-minute repetition was alive and has produced nothing for over seven hours while
+  the hourly `:11` run mostly survives. Two readings fit, and the same elevated session settles both:
+  either the task's **repetition** stopped while its parent trigger lives -- look at the trigger's
+  `Repetition` (`Interval`, `Duration`, `StopAtDurationEnd`) -- or the `:11` runs come from a second
+  mechanism and the 15-minute task is wholly dead, in which case
+  `Get-ScheduledTask | Where TaskName -like '*Doctor*'` shows more than one. None of the `:11` runs
+  came from the autopilot: its reports over that window list only `auto-deck-audit-*`.
+  So the right first command is `(Get-ScheduledTask 'Alpha Doctor').Triggers | Format-List *`,
+  ahead of the settings and the operational log.
+
 - [ ] 2026-10-08 Claude (cloud) -> V (or Codex, who has a shell there): **the Host's checkout has been
   frozen for eight hours by one uncommitted file, and its report has said so every pass without anyone
   acting on it.** `status/host-autopilot`'s report opens with
