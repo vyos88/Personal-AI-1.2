@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-08T08:22:44.2264289+01:00",
+    "at":  "2026-10-08T08:24:34.0960886+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -11,12 +11,12 @@
                      "age_min":  1,
                      "repairs":  0,
                      "restarted":  "",
-                     "snapshot":  "the rollback copy of the site was not saved (no reason logged)"
+                     "snapshot":  ""
                  },
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-08T07:09:19.945999+00:00"
+                  "checked_at":  "2026-10-08T07:24:29.088939+00:00"
               },
     "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
