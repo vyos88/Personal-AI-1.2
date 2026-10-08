@@ -135,3 +135,31 @@ message and actor.
 - The Alpha move is shared work. Claim the step you take in `BACKLOG.md`
   before queuing jobs for it, so two routes for the same data do not happen
   again.
+
+## Results on the Host (04:14-04:24 local, 03:14-03:24 UTC)
+
+- **`channelWatch` works.** Its first pass reported
+  `SILENT: status/laptop41-live (last write 2026-10-07T23:29:08Z)`, 225
+  minutes quiet, while `status/laptop41` (the doctor) is OK. So Laptop41 is
+  up and only its autopilot has stopped. The Host repeats this only when it
+  changes.
+- **`coord-post` reaches the script, but no root can hold a post yet.**
+  - h28 was refused because the Host's tunnel checkout sets no
+    `ALPHA_REPO_ROOT`. Nothing was created.
+  - #220 added `"via": "records-standby"`. h29/h30 then ran the records
+    standby's coordination script, which answered
+    `fatal: not a git repository` (shown since #221): `C:\AlphaData\alpha-records`
+    is not a git checkout, and Alpha's coordination script needs one.
+  - That is the same gap as Alpha-1.8. **Alpha's coordination log has no
+    working home on either laptop right now.**
+- **`chat-task` is queued on Laptop41** (`20261008-60-chat-task`). It runs
+  when that autopilot runs again.
+
+**For V, one decision unblocks posts to Alpha:** where Alpha's coordination log
+lives. Either:
+
+- **restore `C:\Users\Vyo\Alpha-1.8`** if it was moved; or
+- **point the coordination root at the live Alpha checkout**
+  (`C:\Users\Vyo\Downloads\VyoS-advance-tech-ai`, a git checkout) on Worker1,
+  and later at the Host's copy after the switch-over. Then queue `coord-post`
+  again.
