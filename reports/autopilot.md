@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-131410
+﻿# host autopilot 20261008-161409
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261008-161409  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-08T16:14:13, 5s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-08T13:39:41Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 94 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-131410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T13:14:15, 3s)
 ```
@@ -317,33 +324,6 @@ TOOLS:
   ollama models: qwen2.5:3b
   cloudflared: service none; 0 process(es); config folders hold 0 .yml and 0 .json file(s) (not opened)
 PORTS: 8001 backend=-, 4173 site=-, 8787 coordinator=up, 8790 music bridge=-, 7861 image bridge=-, 11434 ollama=up, 8188 comfyui=-
-TASKS: Alpha=-, Alpha Backend=-, Alpha Self-Heal=-, Alpha Doctor=-, alpha-music bridge=-, alpha-image bridge=-, alpha-coordinator=Running, alpha-tunnel agent=Running, Alpha Autopilot=Running
-AGENT MANAGER: not running here
-MISSING TO RUN ALPHA HERE (3):
-  - no Alpha copy with backend\main.py (clone vyos88/Alpha, branch claude/frie...(30), the one Laptop41 runs)
-  - Ollama model llama3.2:3b (Alpha's chat model on Laptop41)
-  - cloudflared, and the alpha-ai.uk tunnel connector (only one machine may run it at a time)
-```
-
-## 20261007-h15-alpha-move-check  alpha-move-check  ->  0   (2026-10-07T15:59:19, 39s)
-```
-ALPHA MOVE CHECK LAPTOP-GJ8DFMLK 2026-10-07 15:59
-MACHINE: RAM 1.0 GB free of 15.8 GB; C: 65.1 GB free; on AC
-  GPU: NVIDIA GeForce RTX 3050 Laptop GPU; Intel(R) UHD Graphics
-  addresses: tailnet 100.93.104.24; LAN 192.168.1.88 (Ethernet)
-ALPHA COPY:
-  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: not here
-TOOLS:
-  git: git version 2.55.0.windows.4
-  node: v24.19.0
-  python: Python 3.12.10
-  py: Python 3.12.10
-  ollama: Warning: could not connect to a running Ollama instance
-  cloudflared: MISSING
-  tailscale: 1.102.4
-  ollama models: none
-  cloudflared: service none; 0 process(es); config folders hold 0 .yml and 0 .json file(s) (not opened)
-PORTS: 8001 backend=-, 4173 site=-, 8787 coordinator=up, 8790 music bridge=-, 7861 image bridge=-, 11434 ollama=-, 8188 comfyui=up
 TASKS: Alpha=-, Alpha Backend=-, Alpha Self-Heal=-, Alpha Doctor=-, alpha-music bridge=-, alpha-image bridge=-, alpha-coordinator=Running, alpha-tunnel agent=Running, Alpha Autopilot=Running
 AGENT MANAGER: not running here
 MISSING TO RUN ALPHA HERE (3):
