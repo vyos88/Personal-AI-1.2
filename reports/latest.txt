@@ -1,4 +1,4 @@
-laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ ae2f3fd 2026-10-08)
+laptop41-doctor 20261008-074102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ b48d0d9 2026-10-08)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 1.3s (load 0s, 9.1 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 1s (load 0s, 11.1 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,7 +40,7 @@ laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-08 06:38 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-08 06:38 result 0x00041301 (still running)
-  PROBLEM: self-heal is installed but its log is 168 min old: check the task's last result as Administrator (3 = config unreadable)
+  PROBLEM: self-heal is installed but its log is 198 min old: check the task's last result as Administrator (3 = config unreadable)
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
@@ -76,7 +76,7 @@ laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 6. CrowPanel ===
     COM7
-    COM24   in use by another program?
+    COM24
   device: USB-SERIAL CH340 (COM24)
   device: USB Serial Device (COM7)
   --- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)
@@ -88,22 +88,22 @@ laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 46s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 40s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (39 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (38 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.1 of 15.8 GB RAM free
+  ok: 3.9 of 15.8 GB RAM free
   ok: C: 132.7 GB free
   llama-server                  1,932 MB  pid 1040
-  Memory Compression            1,352 MB  pid 3840
-  claude                          739 MB  pid 8028
-  MsMpEng                         407 MB  pid 6040
-  explorer                        305 MB  pid 10108
-  python                          288 MB  pid 13364
-  claude                          248 MB  pid 12912
-  msedge                          215 MB  pid 16224
+  Memory Compression            1,913 MB  pid 3840
+  claude                          474 MB  pid 8028
+  MsMpEng                         390 MB  pid 6040
+  explorer                        329 MB  pid 10108
+  python                          267 MB  pid 13364
+  claude                          235 MB  pid 12912
+  msedge                          210 MB  pid 16224
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -112,7 +112,7 @@ laptop41-doctor 20261008-071102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === SUMMARY ===
   this pass took 24s
-  - self-heal is installed but its log is 168 min old: check the task's last result as Administrator (3 = config unreadable)  (open 3 run(s), since 2026-10-08T06:41:50)
+  - NEEDS A PERSON - self-heal is installed but its log is 198 min old: check the task's last result as Administrator (3 = config unreadable)  (open 5 run(s), since 2026-10-08T06:41:50)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.
