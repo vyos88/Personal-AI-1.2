@@ -1,24 +1,14 @@
 {
     "cloudSeen":  "0ad3f6f540f17fe9d808a67dc1054739ba63a2d2",
-    "lastRun":  "2026-10-08T01:30:54",
+    "lastRun":  "2026-10-08T01:41:32",
     "handoffSeen":  "1e9338e406f9d8771ff9ac692644eb3cbdcccb53",
     "open":  {
                  "Ollama does not answer at http://#.#.#.#:#":  {
                                                                     "since":  "2026-10-08T00:11:24",
-                                                                    "runs":  6,
+                                                                    "runs":  7,
                                                                     "text":  "Ollama does not answer at http://127.0.0.1:11434"
-                                                                },
-                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
-                                                                                                           "since":  "2026-10-08T01:30:54",
-                                                                                                           "runs":  1,
-                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
-                                                                                                       },
-                 "no coordinator answering at http://#.#.#.#:#":  {
-                                                                      "since":  "2026-10-08T01:30:54",
-                                                                      "runs":  1,
-                                                                      "text":  "no coordinator answering at http://100.93.104.24:8787"
-                                                                  }
+                                                                }
              },
-    "lastPost":  "2026-10-08T01:30:54",
+    "lastPost":  "2026-10-08T01:41:32",
     "relay":  "relayed status/cloud 0ad3f6f"
 }
