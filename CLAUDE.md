@@ -598,12 +598,22 @@ call, and two of its refusals explain the lot:
 
 - `Waiting for system CPU below the configured hold limit` -- CPU at or above
   the hold (90%).
-- `Waiting for fresh per-adapter GPU telemetry` -- and this one outlasts the
-  spike, because the *only* call that schedules a telemetry probe is itself
-  guarded on `not pressure_reasons`. While CPU is pinned no probe is scheduled,
-  so telemetry never becomes `observed`, and admission keeps refusing in the
-  moments CPU *has* dropped. It is the same gate the assistant cycle waits on,
-  which is why the lane's `waiting_since` sat unchanged for an hour.
+- `Waiting for fresh per-adapter GPU telemetry` -- the *only* call that
+  schedules a telemetry probe is itself guarded on `not pressure_reasons`, so
+  while CPU is pinned no probe is scheduled, telemetry never becomes `observed`,
+  and a call landing just after CPU drops is refused for want of it. It is the
+  same gate the assistant cycle waits on, which is why the lane's
+  `waiting_since` sat unchanged for an hour.
+
+  **How far that reaches is not settled, and the first draft of this overstated
+  it.** The doctor's first readings were CPU 49% at 10:39 and exactly 90% at
+  11:11, and at 49% the guard *allows* the probe -- so the stall outlasting a
+  brief dip follows from the code, and outlasting a sustained drop does not.
+  Either the gate reopens on its own and sustained CPU is the whole story, or
+  the probe is failing rather than merely unscheduled. What decides it is
+  whether any receipt in a low-CPU window completed; the registry already holds
+  the answer, and `20261008-08-alpha-runtime` is queued to read it. Do not
+  write the stronger claim back in without that evidence.
 
 That diagnosis is why `laptop41-doctor.ps1` now reads CPU at all (below); the
 fix itself is in Alpha and is V's call, not this repo's.

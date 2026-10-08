@@ -62,12 +62,22 @@ answer, and Claude puts it to V in the next report.
   Alpha's `gpu_work.py` account for all of them:
   - `Waiting for system CPU below the configured hold limit` -- CPU at or above `system_cpu_hold_percent`
     (90 by default, `config/gpu-routing.json` overrides).
-  - `Waiting for fresh per-adapter GPU telemetry` -- and **this one outlasts the spike.** The only call
-    that schedules a telemetry probe (`_schedule_windows_gpu_refresh`, one site) is itself guarded on
-    `not pressure_reasons`, so while CPU is pinned no probe is scheduled, telemetry never becomes
-    `observed`, and admission keeps refusing in the moments CPU *has* dropped. It is the same gate the
-    assistant cycle waits on, which is why the lane's `waiting_since` sat unchanged for an hour across
-    two passes.
+  - `Waiting for fresh per-adapter GPU telemetry` -- the only call that schedules a telemetry probe
+    (`_schedule_windows_gpu_refresh`, one site) is itself guarded on `not pressure_reasons`, so while
+    CPU is pinned no probe is scheduled, telemetry never becomes `observed`, and a call landing just
+    after CPU drops is refused for want of it. It is the same gate the assistant cycle waits on, which
+    is why the lane's `waiting_since` sat unchanged for an hour across two passes.
+
+  **Update 2026-10-08 11:1x, and a correction to the line above as first written.** The doctor now
+  reads CPU (PR #231) and its first two readings point both ways: `ok: CPU 49%` at 10:39 and
+  `PROBLEM: CPU 90% is at or above Alpha's 90% GPU-admission hold` at 11:11. So CPU does reach the
+  hold -- but at 49% the guard *allows* the probe, so "the stall outlasts the spike" follows for a
+  brief dip and **not** for a sustained drop. `llama-server` is the heaviest process either way
+  (1,932 MB, pid 1040, resident all day) and chat answers at 10 tokens/s, which is CPU-speed
+  inference. `20261008-08-alpha-runtime` is queued to read the receipts in the low-CPU window, which
+  is what decides between "the gate reopens on its own and sustained CPU is the whole story" and "the
+  probe is failing rather than merely unscheduled". **The Alpha-side change still waits on V either
+  way, and the stronger claim should not be written back in without that evidence.**
 
   `[!] needs V` because the fix is in vyos88/Alpha, which Claude may only read: let the telemetry probe
   run under CPU pressure (it is a short PDH read on a background thread, and the comment above it says it
