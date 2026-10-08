@@ -165,6 +165,25 @@ changes. They are turned on in the same `actions.json`:
     from the same machine, and three commits of queued work landed in the
     meantime.
 
+- `homeWifi` (`{ "ssid": "Starlink V" }`): keeps this machine on the Wi-Fi
+  the CrowPanel is on. On 2026-10-07 that network blinked for a moment at
+  04:54. Windows moved Worker1 to the router's other network ("STARLINK") and
+  stayed there, and the panel was dark all day. The other network stays as
+  Windows' fallback on purpose: while the home one is down, it keeps
+  alpha-ai.uk online. Each pass:
+  - **Off the home network while it is visible:** rejoins it with the profile
+    Windows already saved, at most every 10 minutes. It uses Windows' own
+    Wi-Fi API. No passphrase is read or written, and no profile setting
+    (auto-connect, order) is changed.
+  - **Off it and it is not visible:** stays where it is, for the internet.
+  - **On it, but the backend does not listen on this address:** restarts the
+    backend as `restart-backend` does, at most every 30 minutes, when the
+    address is in the backend's own list (the boot wrapper's `--host`, else
+    `HOST`). An address not in that list is reported: queue `panel-host`.
+    A backend that is down is left to self-heal.
+  - It reports when what it found changes and whenever it acts. If the Wi-Fi
+    API itself fails, it reports "could not check" once and changes nothing.
+
 ## Trust
 
 The task runs as the owner, elevated, while the owner is logged on. Anyone

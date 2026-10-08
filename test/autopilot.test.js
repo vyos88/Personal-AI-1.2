@@ -417,6 +417,48 @@ test('interactive-first-off edits the env file beside Alpha, and takes nothing f
   assert.ok(!/evil|true/.test(p.args.join(' ')), 'nothing from the action reaches the script');
 });
 
+test('home Wi-Fi: rejoins the home network only while it is visible, and restarts the backend only for an address it was told to bind', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-wifi-'));
+  let n = 0;
+  const decide = (facts) => {
+    const file = join(dir, `facts-${n++}.json`);
+    writeFileSync(file, JSON.stringify({ home: 'Starlink V', now: '2026-10-07T23:30:00', listeners: [], hostList: [], ...facts }));
+    const r = pwsh([SCRIPT, '-HomeWifiDecide', file]);
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+  // Off the home network: what Worker1 did at 04:54 on 2026-10-07.
+  assert.equal(decide({ connected: 'STARLINK', homeVisible: true }).action, 'rejoin');
+  assert.equal(decide({ connected: '', homeVisible: true }).action, 'rejoin');
+  const away = decide({ connected: 'STARLINK', homeVisible: false });
+  assert.equal(away.action, 'none');
+  assert.match(away.why, /'Starlink V' is not visible, so this network stays for the internet/);
+  assert.equal(decide({ connected: 'STARLINK', homeVisible: true, lastJoin: '2026-10-07T23:25:00' }).action, 'none', 'at most every 10 minutes');
+  assert.equal(decide({ connected: 'STARLINK', homeVisible: true, lastJoin: '2026-10-07T23:15:00' }).action, 'rejoin');
+
+  // On it: the backend has to listen on this address for the panel to reach it.
+  const hosts = ['127.0.0.1', '100.69.243.25', '192.168.2.151', '192.168.1.151'];
+  const on = { connected: 'Starlink V', wifiIp: '192.168.2.151', hostList: hosts };
+  assert.equal(decide({ ...on, listeners: ['127.0.0.1', '192.168.2.151'] }).action, 'none');
+  assert.equal(decide({ ...on, listeners: ['0.0.0.0'] }).action, 'none');
+  const stale = decide({ ...on, listeners: ['127.0.0.1', '100.69.243.25', '192.168.1.151'] });
+  assert.equal(stale.action, 'restart');
+  assert.match(stale.why, /the backend does not listen on 192\.168\.2\.151: restarting it/);
+  assert.equal(decide({ ...on, listeners: ['127.0.0.1'], lastRestart: '2026-10-07T23:10:00' }).action, 'none', 'at most every 30 minutes');
+  assert.equal(decide({ ...on, listeners: [] }).action, 'none', "a backend that is down is self-heal's to restart");
+  const unlisted = decide({ ...on, listeners: ['127.0.0.1'], hostList: ['127.0.0.1'] });
+  assert.equal(unlisted.action, 'report');
+  assert.match(unlisted.why, /192\.168\.2\.151 is not in the backend's address list: queue panel-host/);
+  assert.equal(decide({ connected: 'Starlink V', wifiIp: '' }).action, 'none');
+
+  // It joins with the profile Windows saved and changes no Wi-Fi setting.
+  const text = readFileSync(SCRIPT, 'utf8');
+  const code = text.split(/\r?\n/).filter((line) => !/^\s*#/.test(line)).join('\n');
+  assert.ok(!/netsh/i.test(code), 'netsh can change profiles; this script must not run it');
+  assert.ok(!/PasswordCredential|ConnectAsync\([^)]*,[^)]*,/.test(text), 'no passphrase is ever passed');
+  assert.match(text, /ConnectAsync\(\$net, \[Windows\.Devices\.WiFi\.WiFiReconnectionKind\]::Automatic\)/);
+});
+
 test('the standing live sync passes its settings on and reports only a change', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-sync-'));
   const remote = join(dir, 'remote.git');
