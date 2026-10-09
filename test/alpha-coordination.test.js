@@ -4,6 +4,10 @@ import { mkdtemp, mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { createHost } from '../src/host/server.js';
+import { TunnelAgent } from '../src/agent/agent.js';
+import { HandlerRegistry } from '../src/agent/handlers/index.js';
+import { fetchJson } from '../src/common/http.js';
 
 import {
   ALLOWED_ACTIONS,
@@ -41,12 +45,14 @@ const psLiteral = (value) => `'${String(value).replace(/'/g, "''")}'`;
  * itself and the script sees only what follows. They are still pinned on
  * Windows -- by the buildArgs test above, and by the script running at all.
  */
-async function fixture({ exitCode = 0, stderr = '' } = {}) {
+async function fixture({ exitCode = 0, stderr = '', stdout = 'stub ok' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'alpha-repo-'));
   await mkdir(join(root, 'scripts'), { recursive: true });
   const scriptPath = join(root, 'scripts', 'alpha_coordination_tunnel.ps1');
   const argvLog = join(root, 'argv.json');
 
+  const outputPath = join(root, 'output.txt');
+  await writeFile(outputPath, stdout);
   if (isWindows) {
     // WriteAllText avoids the BOM that Set-Content -Encoding UTF8 emits on
     // Windows PowerShell 5.1, which JSON.parse would choke on. The join
@@ -56,7 +62,7 @@ async function fixture({ exitCode = 0, stderr = '' } = {}) {
       scriptPath,
       `$items = @($args | ForEach-Object { $_ | ConvertTo-Json -Compress })
 [System.IO.File]::WriteAllText(${psLiteral(argvLog)}, '[' + ($items -join ',') + ']')
-[Console]::Out.Write('stub ok')
+[Console]::Out.Write([System.IO.File]::ReadAllText(${psLiteral(outputPath)}))
 ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode}
 `,
     );
@@ -71,7 +77,7 @@ ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode
     `#!/usr/bin/env node
 const { writeFileSync } = require('node:fs');
 writeFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)));
-process.stdout.write('stub ok');
+process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(outputPath)}));
 ${stderr ? `process.stderr.write(${JSON.stringify(stderr)});\n` : ''}// Set the code rather than calling process.exit(), which would not wait for
 // those writes to flush when stdout is a pipe.
 process.exitCode = ${exitCode};
@@ -224,6 +230,100 @@ test('a non-zero exit is reported as data, not thrown', async () => {
   // succeed while reporting what happened.
   assert.equal(result.exitCode, 3);
   assert.match(result.stderr, /claim refused/);
+});
+
+function largeStatus() {
+  return { claims: Object.fromEntries(Array.from({ length: 900 }, (_, i) =>
+    [`software/file-${i}.js`, { actor: `owner-${i}`, note: 'Preserve this active owner and its work.' }])) };
+}
+
+test('Status preserves complete ownership JSON beyond the diagnostic tail', async () => {
+  const status = largeStatus();
+  const stdout = JSON.stringify(status);
+  assert.ok(stdout.length > 16_000);
+  const { root, stub } = await fixture({ stdout });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Status', actor: 'audit' }));
+  assert.equal(result.statusComplete, true);
+  assert.equal(result.stdoutTruncated, false);
+  assert.equal(result.sourceRoot, root);
+  assert.equal(result.statusError, undefined);
+  assert.deepEqual(JSON.parse(result.stdout), status);
+});
+
+test('invalid, oversized and failed Status never claim complete ownership', async (t) => {
+  for (const [name, stdout, exitCode, expected] of [
+    ['malformed', 'x'.repeat(17_000) + '{"claims":', 0, 'invalid_status'],
+    ['missing claims', '{}', 0, 'invalid_status'],
+    ['array claims', '{"claims":[]}', 0, 'invalid_status'],
+    ['oversized escaped envelope', JSON.stringify({ claims: {}, note: '\\'.repeat(400_000) }), 0, 'status_too_large'],
+    ['nonzero script', JSON.stringify(largeStatus()), 3, 'script_failed'],
+  ]) {
+    await t.test(name, async () => {
+      const { root, stub } = await fixture({ stdout, exitCode });
+      const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+        run({ action: 'Status', actor: 'audit' }));
+      assert.equal(result.statusComplete, false);
+      assert.equal(result.statusError, expected);
+      assert.equal(result.exitCode, exitCode);
+      assert.ok(result.stdout.length <= 16_000);
+      assert.ok(Buffer.byteLength(JSON.stringify({ result }), 'utf8') < 1_000_000);
+    });
+  }
+});
+
+test('a PowerShell BOM cannot make a complete status unreadable', async () => {
+  const { root, stub } = await fixture({ stdout: '\uFEFF{"claims":{}}' });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Status', actor: 'audit' }));
+  assert.equal(result.statusComplete, true);
+  assert.deepEqual(JSON.parse(result.stdout), { claims: {} });
+});
+
+test('ordinary coordination diagnostics retain the bounded tail with explicit truncation', async () => {
+  const stdout = 'a'.repeat(20_000) + 'end';
+  const { root, stub } = await fixture({ stdout });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Post', actor: 'audit', message: 'receipt' }));
+  assert.equal(result.stdout, stdout.slice(-16_000));
+  assert.equal(result.stdoutTruncated, true);
+  assert.equal(result.statusComplete, undefined);
+});
+
+test('complete Status travels through a real leased task and result endpoint', { timeout: 30_000 }, async () => {
+  const status = largeStatus();
+  const { root, stub } = await fixture({ stdout: JSON.stringify(status) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const token = 'coordination-status-test-token';
+    const host = createHost({ token });
+    await new Promise(resolve => host.server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${host.server.address().port}`;
+    const agent = new TunnelAgent({ hostUrl: url, token, name: 'status-auditor', pollWaitMs: 500,
+      handlers: new HandlerRegistry([{ type: 'alpha.coordination', run }]) });
+    const running = agent.start();
+    try {
+      const { body: created } = await fetchJson(`${url}/tasks`, { method: 'POST', token,
+        body: { type: 'alpha.coordination', maxAttempts: 1, payload: { action: 'Status', actor: 'audit' } } });
+      let finished;
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline) {
+        const { body } = await fetchJson(`${url}/tasks/${created.id}`, { token });
+        if (!['queued', 'leased'].includes(body.status)) { finished = body; break; }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      assert.ok(finished, 'original task must reach a terminal state');
+      assert.equal(finished.status, 'succeeded');
+      assert.equal(finished.attempts, 1);
+      assert.equal(finished.result.statusComplete, true);
+      assert.equal(finished.result.stdoutTruncated, false);
+      assert.equal(finished.result.sourceRoot, root);
+      assert.deepEqual(JSON.parse(finished.result.stdout), status);
+    } finally {
+      await agent.stop();
+      await running;
+      await host.close();
+    }
+  });
 });
 
 // ---------------------------------------------------------- configuration
