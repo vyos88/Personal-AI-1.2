@@ -504,7 +504,58 @@ function Find-Layout {
   }
 }
 
+function Check-Resources {
+  Section '7. Memory, disk, heaviest processes'
+  $os = Get-CimInstance Win32_OperatingSystem
+  $free = [math]::Round($os.FreePhysicalMemory / 1MB, 1); $total = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
+  if ($free / $total -lt 0.1) { Problem "only $free of $total GB RAM free" } else { OK "$free of $total GB RAM free" }
+  $c = Get-PSDrive C -EA SilentlyContinue
+  if ($c) { $g = [math]::Round($c.Free / 1GB, 1); if ($g -lt 5) { Problem "C: only $g GB free" } else { OK "C: $g GB free" } }
+  # TEMP on a drive that is gone breaks every installer and build that uses it.
+  $tq = [IO.Path]::GetPathRoot("$env:TEMP")
+  if ($tq -and -not (Test-Path $tq)) { Problem "TEMP points at $env:TEMP, on a drive that is not there (the removed USB?)" }
+  # Win32_Processor.LoadPercentage is a short average and is absent on some
+  # hosts; an absent reading stays absent rather than becoming 0.
+  $cpuRaw = ''
+  try {
+    $load = Get-CimInstance Win32_Processor -EA Stop |
+      Measure-Object -Property LoadPercentage -Average
+    if ($null -ne $load.Average) { $cpuRaw = [string]$load.Average }
+  } catch { $cpuRaw = '' }
+  $cpu = Read-CpuPressure $cpuRaw
+  if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
+  Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
+    ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+}
+
+# A standby (role.json, written by alpha-standdown.ps1) serves nothing here on
+# purpose, so the sections that check a serving Alpha would all read as
+# outages. What matters instead: does the primary serve alpha-ai.uk, and is
+# anything of Alpha serving here too? Two Alphas write two histories, and two
+# connectors on one tunnel split its traffic between them.
+function Standby-Checks {
+  $primary = if ($script:role.primary) { [string]$script:role.primary } else { 'another machine' }
+  Section "0. Standby: Alpha serves from $primary"
+  Note "role.json says standby$(if ($script:role.since) { " since $($script:role.since)" }) (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)"
+  $pub = Http "https://$PublicHost/"
+  if ($pub -like '2*' -or $pub -like '3*') { OK "https://$PublicHost/ answers $pub, served from $primary" }
+  else { Problem "https://$PublicHost/ answers $pub and this machine is standby: nobody serves Alpha. If $primary stays down, queue alpha-standup here" }
+  foreach ($pair in @(@('backend', $BackendPort), @('site', $FrontendPort))) {
+    $o = Owner $pair[1]
+    if ($o) { Problem "standby, but the $($pair[0]) runs here ($(Describe $o)): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here" }
+    else { OK "no $($pair[0]) here (port $($pair[1]) free)" }
+  }
+  $cfp = @(Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" -EA SilentlyContinue)
+  if ($cfp.Count) { Problem "standby, but $($cfp.Count) cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines" }
+  else { OK 'no connector here' }
+  foreach ($t in 'Alpha', 'Alpha Backend', 'Alpha Self-Heal', 'Alpha Server - Health Guard') {
+    $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
+    if ($st -and [string]$st.State -ne 'Disabled') { Problem "standby, but task '$t' is enabled: it starts Alpha here again" }
+  }
+}
+
 function Run-Checks {
+  if ($script:standby) { Standby-Checks; Check-Resources; return }
   Find-Layout
 
   # ------------------------------------------------------------ backend
@@ -852,27 +903,7 @@ function Run-Checks {
   Check-DeckFeed
 
   # ------------------------------------------------------------ resources
-  Section '7. Memory, disk, heaviest processes'
-  $os = Get-CimInstance Win32_OperatingSystem
-  $free = [math]::Round($os.FreePhysicalMemory / 1MB, 1); $total = [math]::Round($os.TotalVisibleMemorySize / 1MB, 1)
-  if ($free / $total -lt 0.1) { Problem "only $free of $total GB RAM free" } else { OK "$free of $total GB RAM free" }
-  $c = Get-PSDrive C -EA SilentlyContinue
-  if ($c) { $g = [math]::Round($c.Free / 1GB, 1); if ($g -lt 5) { Problem "C: only $g GB free" } else { OK "C: $g GB free" } }
-  # TEMP on a drive that is gone breaks every installer and build that uses it.
-  $tq = [IO.Path]::GetPathRoot("$env:TEMP")
-  if ($tq -and -not (Test-Path $tq)) { Problem "TEMP points at $env:TEMP, on a drive that is not there (the removed USB?)" }
-  # Win32_Processor.LoadPercentage is a short average and is absent on some
-  # hosts; an absent reading stays absent rather than becoming 0.
-  $cpuRaw = ''
-  try {
-    $load = Get-CimInstance Win32_Processor -EA Stop |
-      Measure-Object -Property LoadPercentage -Average
-    if ($null -ne $load.Average) { $cpuRaw = [string]$load.Average }
-  } catch { $cpuRaw = '' }
-  $cpu = Read-CpuPressure $cpuRaw
-  if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
-  Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
-    ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+  Check-Resources
 
   # ------------------------------------------------------------ images
   # Chat image requests go to IMAGE_GEN_URL (an AUTOMATIC1111 /sdapi/v1/txt2img
@@ -982,6 +1013,11 @@ $script:startedAt = Get-Date
 # yesterday's advice, and nothing else in the report would say so.
 $doctorRev = (git -C $repo log -1 --format='%h %cs' 2>$null | Plain | Out-String).Trim()
 Out1 "laptop41-doctor $stamp on $env:COMPUTERNAME  (alpha root $AlphaRoot, checkout $repo @ $doctorRev)"
+# role.json (alpha-standdown.ps1): "standby" while another machine serves Alpha.
+$script:role = $null
+$roleFile = Join-Path $OpsDir 'role.json'
+if (Test-Path -LiteralPath $roleFile) { try { $script:role = (Get-Content -LiteralPath $roleFile -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json } catch { } }
+$script:standby = [bool]($script:role -and [string]$script:role.role -eq 'standby')
 Run-Checks
 
 if ($Fix) {

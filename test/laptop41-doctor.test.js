@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { delimiter, join } from 'node:path';
+import { delimiter, dirname, join } from 'node:path';
 
 // scripts/laptop41-doctor.ps1 needs PowerShell. Set PWSH to its path, or have
 // pwsh on PATH; without it these tests are skipped, not failed.
@@ -133,7 +133,10 @@ async function doctorAgainst(handler, { env: extraEnv = {}, files = {}, curlExe 
   const port = server.address().port;
   const dir = mkdtempSync(join(tmpdir(), 'doctor-chat-'));
   mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
-  for (const [path, text] of Object.entries(files)) writeFileSync(join(dir, path), text);
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
   const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ALPHA_PANEL_LAN_READ: '', ...extraEnv };
   if (curlExe) {
     // The doctor calls curl.exe by name and discards bodies to NUL.
@@ -533,4 +536,34 @@ test('self-heal whose passes keep not finishing is a problem even with a fresh l
   const v = explainSelfHeal(ops);
   assert.equal(v.ok, false);
   assert.match(v.text, /last 3 passes did not finish \(latest: still running after 240 s, at restart backend\)/);
+});
+
+// A standby (alpha-standdown.ps1 wrote role.json) serves nothing on purpose:
+// the doctor asks whether the primary serves alpha-ai.uk and whether anything
+// of Alpha is serving here too, instead of reading every stopped part as an
+// outage. curl.exe as a function stands in for the public answer.
+const standbyRole = { 'ops/role.json': JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:00:00Z' }) };
+const publicAnswers = "function curl.exe { if ($args[-1] -like 'https://alpha-ai.uk*') { '200' } }";
+
+test('a standby is checked as a standby: who serves, and nothing of Alpha here', { skip, timeout: 300_000 }, async () => {
+  const { status, out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: publicAnswers });
+  assert.equal(status, 0, out);
+  assert.match(out, /=== 0\. Standby: Alpha serves from laptop-gj8dfmlk ===/);
+  assert.match(out, /ok: https:\/\/alpha-ai\.uk\/ answers 200, served from laptop-gj8dfmlk/);
+  assert.match(out, /ok: no backend here/);
+  assert.match(out, /ok: no connector here/);
+  assert.match(out, /=== 7\. Memory, disk, heaviest processes ===/);
+  assert.doesNotMatch(out, /=== 1\. Backend|=== 2\. Chat|=== 4\. Public/, 'the serving checks would all read as outages');
+  assert.doesNotMatch(out, /PROBLEM: (standby|https)/);
+});
+
+test('a standby with Alpha still serving here is two Alphas, and says so', { skip, timeout: 300_000 }, async () => {
+  const stubs = `${publicAnswers}
+function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }
+function Get-CimInstance { param($ClassName, $Filter)
+  if ("$Filter" -like 'ProcessId=*') { [pscustomobject]@{ ProcessId = 4242; Name = 'python.exe'; CommandLine = 'python run_server.py' } }
+  elseif ("$Filter" -like "Name='cloudflared.exe'") { [pscustomobject]@{ ProcessId = 99; Name = 'cloudflared.exe' } } }`;
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs });
+  assert.match(out, /PROBLEM: standby, but the backend runs here \(pid 4242 python\.exe: python run_server\.py\): two Alphas/);
+  assert.match(out, /PROBLEM: standby, but 1 cloudflared process\(es\) run here: alpha-ai\.uk's traffic is split between two machines/);
 });
