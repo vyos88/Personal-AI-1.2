@@ -49,7 +49,7 @@
     alpha-standup    alpha-standdown.ps1 -Undo: serve Alpha here again, as it was  ("reportOnly": true, "force": true)
     standby-install  install-alpha-standby.ps1: Phase 3, cover for the primary automatically (a SYSTEM pass every minute)  ("primary", "primaryUrl")
     standby-uninstall  install-alpha-standby.ps1 -Uninstall: remove that task (its standby.json stays)
-    data-sync        alpha-data-sync.ps1 once: send what changed in memory\ here (while serving) and apply what arrived (while not)  ("peer", "since")
+    data-sync        alpha-data-sync.ps1 once: send what changed in memory\ here (while serving) and apply what arrived (while not)  ("peer", "since", "resend")
     data-apply       alpha-data-sync.ps1 -ApplyHeld: stop the backend, apply what was held, start it
     tailnet-peers    tailnet-peers.ps1: the machines on the tailnet (name, address, OS, online), no accounts (takes no arguments)
 
@@ -378,6 +378,12 @@ function Resolve-Action($a) {
         if ((Iso-Text $a.since) -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') { $out.reason = 'since must be a UTC time like 2026-10-07T21:00:00Z'; return $out }
         if (-not $a.peer) { $out.reason = 'since needs a peer to send to'; return $out }
         $rest += @('-Since', (Iso-Text $a.since))
+      }
+      # "resend": forget what was sent, so everything after "since" goes again
+      # (files an older script counted as sent but could not pack).
+      if ($a.resend) {
+        if (-not $a.since) { $out.reason = 'resend needs a since to send again from'; return $out }
+        $rest += @('-Resend')
       }
       # A full copy (an old "since") is gigabytes, so the job sends its first
       # part, up to the same cap as the standing check, and the check sends
@@ -1237,7 +1243,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $dsFile) { try { $dsState = Get-Content -LiteralPath $dsFile -Raw | ConvertFrom-Json } catch { } }
   if ($dsState) {
     $parts = @()
-    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)$(if ([int64]$dsState.lastSend.leftBytes) { " ($([math]::Round([int64]$dsState.lastSend.leftBytes / 1MB)) MB still to send)" })" }
+    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)$(if ([int64]$dsState.lastSend.leftBytes) { " ($([math]::Round([int64]$dsState.lastSend.leftBytes / 1MB)) MB still to send)" })$(if ([int]$dsState.lastSend.notPacked) { " ($($dsState.lastSend.notPacked) file(s) not packed yet, tried again each pass)" })" }
     if ($dsState.lastApply) { $parts += "applied $($dsState.lastApply.files) from $($dsState.lastApply.from) at $(Iso-Text $dsState.lastApply.at)$(if ([int]$dsState.lastApply.keptNewerHere) { " ($($dsState.lastApply.keptNewerHere) newer here kept)" })" }
     if ([int]$dsState.held) { $parts += "$($dsState.held) package(s) HELD: queue data-apply" }
     $data.state = if ([int]$dsState.held) { 'HELD' } else { 'ON' }

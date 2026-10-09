@@ -72,7 +72,7 @@ reported.
 | `alpha-standup` | `alpha-standdown.ps1 -Undo`: serve Alpha here again. It enables only what the record says was enabled, restores the connector's start type, starts the servers before the watchers, sets `role.json` aside and waits for `/health`. It refuses (exit 3) while alpha-ai.uk answers and no connector runs here, because then another machine serves Alpha; `"force": true` overrides that. `"reportOnly": true` changes nothing |
 | `standby-install` | `install-alpha-standby.ps1`: Phase 3's automatic cover. It writes `standby.json` and registers `Alpha Standby`, which runs `alpha-standby.mjs` every minute and at startup, as SYSTEM. It acts only while `role.json` says standby or covering, so it is safe on a machine that still serves. `"primary"` names the machine it covers for (default `laptop-gj8dfmlk`), and `"primaryUrl"` that machine's Alpha health over the tailnet (default `http://100.93.104.24:8001/health`) |
 | `standby-uninstall` | `install-alpha-standby.ps1 -Uninstall`: removes `Alpha Standby`; `standby.json` stays |
-| `data-sync` | `alpha-data-sync.ps1` once. It sends what changed in `memory\` here to `"peer"` while this machine serves Alpha, and applies what arrived while it does not. `"since"` (a UTC time) starts the sending from an older copy instead of from now. See the standing check `dataSync` below |
+| `data-sync` | `alpha-data-sync.ps1` once. It sends what changed in `memory\` here to `"peer"` while this machine serves Alpha, and applies what arrived while it does not. `"since"` (a UTC time) starts the sending from an older copy instead of from now. `"resend": true` (with `"since"`) forgets what was sent, so it all goes again. See the standing check `dataSync` below |
 | `data-apply` | `alpha-data-sync.ps1 -ApplyHeld`: applies what was held because Alpha serves here. It stops `Alpha Backend`, applies, and starts it again |
 | `tailnet-peers` | `tailnet-peers.ps1`: the machines on the tailnet as this one sees them: name, tailnet IPv4, OS, online or last seen. It reads `tailscale status --json` and prints no account (login names are e-mail addresses). Takes no arguments. It is how a new machine's name and address are found (alpha-server-01, 2026-10-09) |
 
@@ -227,6 +227,10 @@ has stopped, or cannot see the primary.
   - **Writing.** Newer wins, and the file it replaces is kept under
     `data-sync\replaced\`. Nothing is deleted.
   - **Transport.** Taildrop, never git.
+  - **Nothing is lost in silence.** A file that cannot be packed is never
+    counted as sent; it rides with the next pass (`NOT IN THIS PART`). A
+    folder that cannot be read is named (`SKIPPED`). A file that cannot be
+    written keeps its package for the next pass (`FAILED`).
 
   The live page's **Data copy** row shows the last send, the last apply and
   anything held.
