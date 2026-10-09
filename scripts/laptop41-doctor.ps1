@@ -60,7 +60,10 @@ param(
   # Test seam: judge one CPU reading and print the verdict as JSON, without
   # touching this machine. Empty string means 'unmeasurable'. See
   # test/laptop41-doctor.test.js.
-  [string]$ReadCpuPressure
+  [string]$ReadCpuPressure,
+  # Test seam: judge self-heal from what it left in -OpsDir (log, lock, config
+  # error) and print the verdict as JSON. Writes nothing.
+  [switch]$ExplainSelfHeal
 )
 
 # Is the CPU holding Alpha's own GPU admission shut?
@@ -106,10 +109,63 @@ function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
     } else { "CPU $([math]::Round($value,1))% (Alpha holds GPU admission at $HoldPercent%)" }) }
 }
 
+# Is self-heal running, and if its log went quiet, why?
+#
+# Its task is SYSTEM and hidden from the account the doctor runs as, so its log
+# is the evidence, and a stale log used to come with a guess: "check the task's
+# last result as Administrator (3 = config unreadable)". On 2026-10-09 the log
+# stopped at 13:22 and the cause was not a config at all: a pass that dies
+# holding the lock silences every pass after it. alpha-selfheal.mjs now leaves
+# the reason on disk -- selfheal.json.error.json for a config it cannot read,
+# the lock file naming its holder, and an `unfinished` line for a pass that
+# could not finish -- so the doctor reads those before it guesses.
+function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
+  $log = Join-Path $Ops 'logs\selfheal.jsonl'
+  $logAt = if (Test-Path -LiteralPath $log) { (Get-Item -LiteralPath $log).LastWriteTime } else { $null }
+  $why = ''
+  $cfgErr = Join-Path $Ops 'selfheal.json.error.json'
+  if ((Test-Path -LiteralPath $cfgErr) -and (-not $logAt -or (Get-Item -LiteralPath $cfgErr).LastWriteTime -gt $logAt)) {
+    $e = try { (Get-Content -LiteralPath $cfgErr -Raw | ConvertFrom-Json).error } catch { 'unreadable' }
+    $why = "it cannot read selfheal.json ($e): run scripts\repair-alpha-host.ps1 as Administrator, which rewrites it"
+  } else {
+    $stateDir = try { [string]((Get-Content -LiteralPath (Join-Path $Ops 'selfheal.json') -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json).stateDir } catch { '' }
+    if (-not $stateDir) { $stateDir = Join-Path $Ops 'selfheal' }
+    $lock = Join-Path $stateDir 'selfheal.lock'
+    if (Test-Path -LiteralPath $lock) {
+      $mins = [int]((Get-Date) - (Get-Item -LiteralPath $lock).LastWriteTime).TotalMinutes
+      $holderPid = try { [int](Get-Content -LiteralPath $lock -Raw | ConvertFrom-Json).pid } catch { 0 }
+      $alive = $holderPid -and (Get-Process -Id $holderPid -EA SilentlyContinue)
+      $why = "a pass has held its lock for $mins min (pid $(if ($holderPid) { $holderPid } else { '?' }), $(if ($alive) { 'still running: it stops itself at its deadline' } else { 'gone: the next pass takes the lock' }))"
+    }
+  }
+  $unfinished = @()
+  if ($logAt) {
+    $unfinished = @(Get-Content -LiteralPath $log -Tail 3 -EA SilentlyContinue | ForEach-Object { try { ($_ | ConvertFrom-Json).unfinished } catch { $null } } | Where-Object { $_ })
+  }
+  if (-not $logAt) {
+    $text = 'self-heal is installed but has never written its log: ' + $(if ($why) { $why } else { 'check its task as Administrator (last result 3 = config unreadable)' })
+    return [ordered]@{ ok = $false; age = $null; text = $text }
+  }
+  $age = [int]((Get-Date) - $logAt).TotalMinutes
+  if ($age -gt $FreshMinutes) {
+    $text = "self-heal is installed but its log is $age min old: " + $(if ($why) { $why } else { "its task is not starting passes: check its last result as Administrator (0x00041301 = still running, 3 = config unreadable, 4 = a pass did not finish)" })
+    return [ordered]@{ ok = $false; age = $age; text = $text }
+  }
+  if ($unfinished.Count -ge 3) {
+    $u = $unfinished[-1]
+    return [ordered]@{ ok = $false; age = $age; text = "self-heal runs but its last 3 passes did not finish (latest: $($u.why), at $($u.stage)): it is not repairing anything" }
+  }
+  return [ordered]@{ ok = $true; age = $age; text = "self-heal runs (task is SYSTEM, not visible here; its log was written $age min ago)" }
+}
+
 # Answered before the script opens a transcript or writes a report: a test seam
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
+if ($ExplainSelfHeal) {
+  Read-SelfHeal $OpsDir | ConvertTo-Json -Compress
   exit 0
 }
 
@@ -655,25 +711,20 @@ function Run-Checks {
   if ($p -like '2*' -or $p -like '3*') { OK "https://$PublicHost/ answers $p" } else { Problem "https://$PublicHost/ answers $p" }
   foreach ($t in 'Alpha', 'Alpha Backend', 'Alpha Self-Heal') {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
-    if ($st) { $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult)) }
-    elseif ($t -eq 'Alpha Self-Heal' -and (SelfHealFresh)) {
-      # Registered elevated by repair-alpha-host, the task can be invisible to
-      # the account the scheduled doctor runs as, while its log shows it running
-      # every 2 minutes. That read as "not registered" on every pass (BACKLOG F8).
-      OK "self-heal is running (its log was written $(SelfHealAge) min ago); task $t is not visible to this account"
+    if ($st) {
+      $i = $st | Get-ScheduledTaskInfo; Note ("task {0,-16} {1,-8} last run {2:yyyy-MM-dd HH:mm} result {3}" -f $t, $st.State, $i.LastRunTime, (TaskResult $i.LastTaskResult))
+      # A task that is registered and quiet is still quiet.
+      if ($t -eq 'Alpha Self-Heal') { $v = Read-SelfHeal $OpsDir; if (-not $v.ok) { Problem $v.text } }
     }
-    elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
-    elseif ($t -eq 'Alpha Self-Heal' -and (Test-Path (Join-Path $OpsDir 'selfheal.json'))) {
+    elseif ($t -eq 'Alpha Self-Heal' -and ((SelfHealFresh) -or (Test-Path (Join-Path $OpsDir 'selfheal.json')))) {
       # The repair registers it as SYSTEM, and a SYSTEM task is hidden from a
       # non-elevated Get-ScheduledTask, which is how the scheduled doctor runs.
-      # Its log is the evidence this user can read.
-      $shLog = Join-Path $OpsDir 'logs\selfheal.jsonl'
-      if (Test-Path $shLog) {
-        $age = [int]((Get-Date) - (Get-Item $shLog).LastWriteTime).TotalMinutes
-        if ($age -le 10) { OK "self-heal runs (task is SYSTEM, not visible here; its log was written $age min ago)" }
-        else { Problem "self-heal is installed but its log is $age min old: check the task's last result as Administrator (3 = config unreadable)" }
-      } else { Problem 'self-heal is installed but has never written its log: check the task as Administrator (last result 3 = config unreadable)' }
+      # That read as "not registered" on every pass (BACKLOG F8). Its log, lock
+      # and config error are the evidence this user can read.
+      $v = Read-SelfHeal $OpsDir
+      if ($v.ok) { OK $v.text } else { Problem $v.text }
     }
+    elseif ($t -eq 'Alpha') { Problem "task $t is not registered: nothing serves the frontend after a reboot" }
     else { Problem "task $t is not registered: repair-alpha-host.ps1 has never completed on this machine" }
   }
   $cfs = Get-Service -Name cloudflared -EA SilentlyContinue
@@ -1030,7 +1081,7 @@ $rules = @(
   @{ m = 'not answering|answered 0|answers [45]';                                               r ='An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.' }
 )
 $standing = @(
-  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
+  @{ done = { (Get-ScheduledTask -TaskName 'Alpha Self-Heal' -EA SilentlyContinue) -or (SelfHealFresh) -or (Test-Path (Join-Path $OpsDir 'selfheal.json')) };  r = 'Install the self-heal (repair-alpha-host.ps1): it repairs with streaks, cooldowns and budgets, which a 15-minute checker must not.' },
   @{ done = { $env:ALPHA_ADMIN_TOKEN };                                               r = "Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User')." },
   @{ done = { Test-Path (Join-Path $repo '.git') -PathType Container };                r = 'Run this doctor from the real checkout (C:\services\alpha-tunnel, git pull first), then -InstallSchedule -AlphaRoot <the running copy> again from there and remove C:\AlphaData\doctor.' },
   @{ done = { (Get-Service cloudflared -EA SilentlyContinue).StartType -eq 'Automatic' }; r = 'Set the cloudflared service to Automatic start so the public hostname survives a reboot.' },

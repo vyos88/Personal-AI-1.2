@@ -969,6 +969,24 @@ test('the live report is written every pass, and a stopped self-heal is started 
   run();
   assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
   assert.match(live(), /restart already tried at/);
+
+  // Quiet, with the reason on disk: a lock left by a pass that is gone, then
+  // a config self-heal cannot read. "STOPPED" alone sent a person to Task Scheduler.
+  mkdirSync(join(ops, 'selfheal'), { recursive: true });
+  writeFileSync(join(ops, 'selfheal', 'selfheal.lock'), JSON.stringify({ pid: 999999, at: 0 }));
+  run();
+  assert.match(live(), /\| STOPPED \| last pass 20 min ago[^|]*; a pass has held its lock for \d+ min \(pid 999999, gone\)/);
+  writeFileSync(join(ops, 'selfheal.json.error.json'), JSON.stringify({ at: '2026-10-09T12:24:00Z', error: 'Unexpected end of JSON input' }));
+  run();
+  assert.match(live(), /; it cannot read selfheal\.json \(Unexpected end of JSON input\): run scripts\\repair-alpha-host\.ps1/);
+
+  // A pass that could not finish wrote its line: the page says where it
+  // stopped, and does not call the site live on a pass that never probed it.
+  writeFileSync(log, `${JSON.stringify({ at: '2026-10-09T12:24:00Z', actions: [], events: [], unfinished: { why: 'still running after 240 s', stage: 'probe', afterSec: 240 } })}\n`);
+  run();
+  md = live();
+  assert.match(md, /\| RUNNING \| last pass 0 min ago, 0 repair\(s\) in it; the last pass did not finish \(still running after 240 s, at probe\)/);
+  assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not finishing its passes/);
 });
 
 test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {

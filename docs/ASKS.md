@@ -123,10 +123,16 @@ answer, and Claude puts it to V in the next report.
   `loadConfig` *before* it looks at `--status`, so running it by hand hits the same exit-3 path with
   stderr on the console -- you get the config error, or the usage line, or it simply works, and that
   third outcome means the task's stored arguments differ from the ones you typed, which is cause 1.
-  **Proposed, not pushed:** change the two hints to `3 = bad arguments or unreadable config -- run
-  the --status command above to see which`. `[!] needs V` only because it edits
-  `scripts/laptop41-doctor.ps1` and wants the same `pwsh` run as the CPU-ranking change above; the two
-  are one commit's worth of work in the same file if you want them together.
+  **Superseded 2026-10-09 16:35 UTC by #238, and better than my version.** Another session
+  (`a8fc8cb`) found the likelier cause: **the lock**. A pass that dies holding it made every later
+  pass skip silently for `lockStaleMs`, each writing nothing and exiting 0 -- which is why the
+  autopilot's 13:30 restart changed nothing. Their fix names the pid in the lock and takes one whose
+  process is gone, adds `guardPass()` at `passDeadlineMs` (4 min, under Task Scheduler's 5-minute
+  kill), bounds every probe as a whole, and writes `selfheal.json.error.json` **because a scheduled
+  task's stderr goes nowhere** -- the same observation I made, acted on properly. The doctor gets an
+  `-ExplainSelfHeal` seam that reads the lock and the config error *before guessing*, which retires
+  the hint I was proposing to reword. Nothing left for me here; my exit-3 reading stands only as the
+  narrower point that `3` was never one cause.
 
 ## Done
 

@@ -585,8 +585,10 @@ if (Get-ScheduledTask -TaskName 'Alpha Ollama' -EA SilentlyContinue) {
 }
 $shBody | ConvertTo-Json -Depth 4 | ForEach-Object {
   # Windows PowerShell's -Encoding utf8 writes a BOM, and JSON.parse refuses it:
-  # every self-heal pass exited 3 before checking anything.
-  [IO.File]::WriteAllText($shConfig, $_, (New-Object Text.UTF8Encoding $false))
+  # every self-heal pass exited 3 before checking anything. Written beside and
+  # moved into place, so a pass starting mid-write never reads half a file.
+  [IO.File]::WriteAllText("$shConfig.tmp", $_, (New-Object Text.UTF8Encoding $false))
+  Move-Item -LiteralPath "$shConfig.tmp" -Destination $shConfig -Force
 }
 $selfheal = Join-Path $tunnel 'scripts\alpha-selfheal.mjs'
 $dry = & $node $selfheal --config $shConfig --dry-run 2>&1 | Out-String
