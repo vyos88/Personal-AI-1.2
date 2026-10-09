@@ -64,6 +64,9 @@ param(
   # Test seam: a JSON file of { before, after, seconds, cores }; prints which
   # processes used the CPU across that window.
   [string]$ReadCpuBusiest,
+  # Test seam: a JSON file of { files: [{path, at}], built }; prints whether
+  # the build predates anything it would have shipped.
+  [string]$ReadStaleBuild,
   # Test seam: judge self-heal from what it left in -OpsDir (log, lock, config
   # error) and print the verdict as JSON. Writes nothing.
   [switch]$ExplainSelfHeal
@@ -145,6 +148,42 @@ function Read-CpuBusiest($Before, $After, [double]$Seconds, [int]$Cores = 1, [in
   return [ordered]@{ seconds = $Seconds; cores = $Cores; rows = $rows; unknown = @($unknown) }
 }
 
+# Does the build predate anything it would actually have shipped?
+#
+# This compared dist\index.html against the newest file anywhere under src\,
+# unfiltered. So on 2026-10-09 src\liveCoordinationLabels.test.js, written at
+# 22:55, raised "the build is older than the source: the site shows the old
+# Alpha until dist is rebuilt" and held it open for seven runs into NEEDS A
+# PERSON -- while the three lines printed under it had dist, :4173 and the
+# public site all serving index-DrRVpMIZ.js. A test file is not something a
+# build ships, and the remedy that problem points at is a 45-minute rebuild of
+# a site that was already serving the right bundle.
+#
+# The filter says what a build cannot ship rather than what it can: an
+# inclusion list has to be revisited every time the toolchain learns an
+# extension, and a too-short one fails silently as an OK. A skipped file that
+# is newer is counted and said, because "build is newer than every source
+# file" would otherwise contradict somebody who just saved one.
+#
+# Pure, so it is tested off Windows: $Files is a list of { path, at }.
+function Read-StaleBuild($Files, [datetime]$Built) {
+  $inputs = @(); $skippedNewer = 0
+  foreach ($f in @($Files)) {
+    $path = [string]$f.path
+    $at = [datetime]$f.at
+    $isTest = $path -match '\.(test|spec)\.[A-Za-z0-9]+$' -or $path -match '(^|[\\/])(__tests__|__snapshots__|__mocks__)([\\/]|$)'
+    if ($isTest) { if ($at -gt $Built.AddMinutes(1)) { $skippedNewer++ }; continue }
+    $inputs += [ordered]@{ path = $path; at = $at }
+  }
+  $newest = @($inputs | Sort-Object { $_.at } -Descending | Select-Object -First 1)[0]
+  $stale = [bool]($newest -and $newest.at -gt $Built.AddMinutes(1))
+  $note = if (-not $newest) { 'no build input under src\ (only tests and fixtures)' }
+    elseif ($stale) { 'the build is older than the source: the site shows the old Alpha until dist is rebuilt' }
+    else { 'build is newer than every source file' }
+  if ($skippedNewer -gt 0) { $note += "; $skippedNewer newer file(s) under src\ are tests, which a build does not ship" }
+  return [ordered]@{ stale = $stale; newest = $newest; skippedNewer = $skippedNewer; note = $note }
+}
+
 # Is self-heal running, and if its log went quiet, why?
 #
 # Its task is SYSTEM and hidden from the account the doctor runs as, so its log
@@ -198,6 +237,11 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadStaleBuild')) {
+  $f = Get-Content -LiteralPath $ReadStaleBuild -Raw | ConvertFrom-Json
+  Read-StaleBuild $f.files ([datetime]$f.built) | ConvertTo-Json -Depth 5 -Compress
   exit 0
 }
 if ($PSBoundParameters.ContainsKey('ReadCpuBusiest')) {
@@ -791,16 +835,12 @@ function Run-Checks {
     } else {
       $fileBundle = BundleOf (Get-Content $distIndex -Raw)
       $built = (Get-Item $distIndex).LastWriteTime
-      $newest = Get-ChildItem (Join-Path $script:frontend 'src') -Recurse -File -EA SilentlyContinue |
-                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      $srcFiles = @(Get-ChildItem (Join-Path $script:frontend 'src') -Recurse -File -EA SilentlyContinue |
+                    ForEach-Object { [ordered]@{ path = $_.FullName.Substring($script:frontend.Length + 1); at = $_.LastWriteTime } })
+      $verdict = Read-StaleBuild $srcFiles $built
       Note ("dist built     {0:yyyy-MM-dd HH:mm}" -f $built)
-      if ($newest) {
-        Note ("newest source  {0:yyyy-MM-dd HH:mm}  {1}" -f $newest.LastWriteTime, $newest.FullName.Substring($script:frontend.Length + 1))
-        if ($newest.LastWriteTime -gt $built.AddMinutes(1)) {
-          $script:frontendStale = $true
-          Problem 'the build is older than the source: the site shows the old Alpha until dist is rebuilt'
-        } else { OK 'build is newer than every source file' }
-      }
+      if ($verdict.newest) { Note ("newest source  {0:yyyy-MM-dd HH:mm}  {1}" -f $verdict.newest.at, $verdict.newest.path) }
+      if ($verdict.stale) { $script:frontendStale = $true; Problem $verdict.note } else { OK $verdict.note }
     }
   }
   # The cloudflared ingress on Laptop41 is https://127.0.0.1:4173: Vite preview
