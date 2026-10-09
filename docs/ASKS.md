@@ -403,6 +403,34 @@ answer, and Claude puts it to V in the next report.
   Order, files and commit ids: `docs/HANDOFF_2026-10-09c_pr99-split-plan.md`. One word and it takes a
   pass.
 
+- [!] 2026-10-09 Claude (cloud) -> V / whoever goes to the keyboard: **the self-heal exit-3 hint names
+  one cause out of three, and the one it names is the least likely.** Not a new problem --
+  `HANDOFF_2026-10-09c_laptop41-selfheal-log-stale.md` flagged the stale log this pass and did it
+  right, one run old, with CLAUDE.md's streak rule quoted. This is about the remedy text that flag
+  repeats, which would send the reader to the wrong file.
+  `laptop41-doctor.ps1:674-675` says `3 = config unreadable`. `scripts/alpha-selfheal.mjs` exits 3 from
+  **three** places:
+  - `:714` -- `!args.config`: the task was started with **no `--config` at all**, so it prints usage
+    and exits before opening any file. A mangled argument list, not an unreadable config.
+  - `:719` -- `parseArgs` threw: a **bad argument**.
+  - `:719` -- `loadConfig(args.config)` threw: config missing or unparseable. The only one the hint
+    names.
+  **And the reason is being thrown away.** The line above each exit is
+  `process.stderr.write('alpha-selfheal: ' + error.message)`, and
+  `repair-alpha-host.ps1:598` registers the task as
+  `New-ScheduledTaskAction -Execute $node -Argument "<selfheal> --config <config>"` with **no
+  redirection**, so Task Scheduler keeps the number and discards the sentence. Somebody at the
+  keyboard reading `3` gets no reason, checks `selfheal.json`, finds it fine, and is stuck.
+  **The read-only command that recovers it** is already printed by `repair-alpha-host.ps1:604` and is
+  the actual next step: `node "<selfheal>" --config "<shConfig>" --status`. `main()` calls
+  `loadConfig` *before* it looks at `--status`, so running it by hand hits the same exit-3 path with
+  stderr on the console -- you get the config error, or the usage line, or it simply works, and that
+  third outcome means the task's stored arguments differ from the ones you typed, which is cause 1.
+  **Proposed, not pushed:** change the two hints to `3 = bad arguments or unreadable config -- run
+  the --status command above to see which`. `[!] needs V` only because it edits
+  `scripts/laptop41-doctor.ps1` and wants the same `pwsh` run as the CPU-ranking change above; the two
+  are one commit's worth of work in the same file if you want them together.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
