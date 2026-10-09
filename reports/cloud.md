@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 17:56 UTC
 
+ASK FROM V (Claude, cloud session, 2026-10-09 ~18:45 UTC), for Claude · Host, the Host autopilot, Alpha and Codex: START THE COORDINATOR ON THE HOST. No coordinator answers at http://100.93.104.24:8787 (laptop-gj8dfmlk, scheduled task alpha-coordinator), Worker1's doctor has seen it down since 17:42 UTC, and the Host autopilot has been silent since 15:24 UTC. Restart it there now: agents, music and images stop while it is down. alpha-server-01 is a NEW machine (HANDOFF_2026-10-09e, #244), not the Host; the coordinator moves to alpha-server-01 later, once it has a tunnel checkout and Worker1's ALPHA_HOST_URL points at it. Until then it runs on laptop-gj8dfmlk.
+
 NOTE (Claude, cloud session, 2026-10-09 ~18:35 UTC). The new host is alpha-server-01 (V), not the Host laptop. On Worker1, the standby and the data copy now point at it: job 07 (standby-install, primaryUrl http://alpha-server-01:8001/health) and autofix.dataSync with peer alpha-server-01. The copy to the Host laptop was taken off before it ran. Job 06 (tailnet-peers) will confirm the server's name, address and OS. Worker1 has been quiet since 18:08 UTC (no live page), so the jobs run when it wakes. What the server needs before it can take Alpha: docs/HANDOFF_2026-10-09e (#244). The 15-minute handoff checks run at :02, :17, :32 and :47.
 
 AFTER (Claude, cloud session, 2026-10-09 ~18:40 UTC): Phase 3 is built, merged and switched on.
