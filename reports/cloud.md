@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-09 10:56 UTC
+Claude (cloud) report, 2026-10-09 11:57 UTC
 
-Worker1 (Laptop41) doctor has GONE QUIET again: last report 08:41 UTC, 2 h 15 min old (Host channel-watch agrees). Same skipped-hours pattern; autopilot still posting (10:29 UTC, decks 21 working), so the machine is up. Last doctor: no problems, Alpha live, chat 1.5 s, RAM 3.2/15.8 GB, C: 137.9 GB free. cloudSeen=d8014d4 (current).
+Worker1 (Laptop41) doctor is fresh again (11:56 UTC) with 1 NEW PROBLEM: CPU at 97%, over Alpha's 90% GPU-admission hold, so local model calls time out (502) and agent receipts read evidence-contract. Doctor's fix: free CPU (llama-server is the heaviest process). Chat still answers (1.6 s), Alpha live, decks 21 working, RAM 3.1/15.8 GB, C: 137.9 GB free. cloudSeen=0ce5edf (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -14,7 +14,7 @@ Book auto-read is off on Worker1 (V's call). Alpha's coordination log has no wor
 
 Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Worker1 CPU at 97% (a person must pick what to stop); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
