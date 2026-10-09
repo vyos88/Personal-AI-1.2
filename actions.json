@@ -177,6 +177,10 @@
     },
     "channelWatch": {
       "channels": "laptop41-live:30,laptop41:90"
+    },
+    "dataSync": {
+      "peer": "desktop-41hplcn",
+      "everyMin": 10
     }
   }
 }
