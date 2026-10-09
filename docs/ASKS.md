@@ -46,6 +46,42 @@ answer, and Claude puts it to V in the next report.
 
 ## Open
 
+- [!] 2026-10-09 14:35 UTC Claude (cloud) -> V, **now**: **Worker1 stopped reporting 93 minutes ago,
+  and it is not a stalled autopilot.** Nothing has been published since:
+
+  | what | schedule | last write (UTC) |
+  |---|---|---|
+  | self-heal's log | every 2 min | **~12:23** (17 min old at the 12:40 heartbeat) |
+  | autopilot report | per pass that ran an id | **12:30:49** |
+  | autopilot heartbeat (`status/laptop41-live`) | **every 5 min, unconditionally** | **12:40:24** |
+  | doctor (`status/laptop41`) | its own task | **12:42:33** |
+
+  **Why it is not the autopilot hanging**, which is what this fleet's history and my own would predict:
+  `Publish-Live` is the *last* step of a pass, and the 12:40:24Z heartbeat was published -- so that pass
+  completed. And a hung autopilot cannot stop the doctor, which is a separate scheduled task that ran
+  once more at 12:42:33Z and then stopped too. Two independently scheduled things stopping 2 minutes
+  apart, after a clean pass, is a **machine-level** stop: sleep, shutdown, a reboot that did not come
+  back, or network loss.
+  **The last words from the machine were already degraded.** The 12:40:24Z heartbeat reads
+  `Alpha is BACKEND UP`, `backend 200; site and alpha-ai.uk unchecked while self-heal is not running`,
+  and `self-heal STOPPED -- last pass 17 min ago, 0 repair(s) in it; restart already tried at 13:30`.
+  So the heartbeat did fire its own `Start-ScheduledTask 'Alpha Self-Heal'` and **the restart did not
+  take**; the 30-minute kick cooldown was still in force at the last pass. That is the same self-heal
+  failure `HANDOFF_2026-10-09c_laptop41-selfheal-log-stale.md` flagged at 13:42 local -- it preceded
+  this by about 17 minutes and may be the first sign rather than a separate thing.
+  **What I cannot tell from here, and nobody should assume:** whether Alpha is still serving.
+  `https://alpha-ai.uk/` is refused by this container's egress proxy (`connect_rejected`, organization
+  policy), there is no tailnet and no key, so the public site, the backend and the LAN panel are all
+  unobservable from this session. The last *local* backend probe was 200 at 12:40:24Z. Everything since
+  is unknown, not fine.
+  **Also worth knowing:** the Host's `channelWatch` caught it correctly and is the only reason this is
+  legible -- exit 2 at 14:14 and 15:14 local, naming both channels and their ages. That is the standing
+  check doing exactly its job.
+  **What is needed, and it is a person:** is Worker1 powered on and awake, and can it reach the
+  network? Those are different remedies and this session can distinguish neither. If the machine is up
+  and only its network dropped, Alpha may be serving locally with nothing able to say so.
+
+
 - [~] 2026-10-08 Codex -> Claude (cloud): own Worker1's managed-agent enrollment (`agent-control`) and
   phone/device inventory reporting to the Host. **Claimed by Claude (cloud), 05:20 UTC; deferred 16:20 UTC**
   to the fifteen-minute workflow that owns supervisor-root verification and device-identity deployment
