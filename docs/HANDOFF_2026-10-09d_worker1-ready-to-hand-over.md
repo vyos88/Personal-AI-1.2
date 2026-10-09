@@ -120,6 +120,28 @@ cloudflared process** ran. So the connector on Worker1 is started by something
 other than the service. The rehearsal names its parent process and any task
 that runs cloudflared.
 
+**What the rehearsal found (17:54 local, exit 0, nothing changed):**
+
+- **Watchers.**
+  - `Alpha Self-Heal` is enabled.
+  - `Alpha Server - Health Guard` is already disabled.
+  - So is `AlphaGalaxy Public Tunnel`, a task that runs cloudflared.
+- **Servers.**
+  - The backend is python 7228 on 8001.
+  - The site is node 11700 on 4173.
+  - Both would be stopped.
+- **The connector.**
+  - The service is **Stopped, start Automatic**.
+  - The connector actually serving is cloudflared 11956, and **its parent is gone**: whatever started it has already exited.
+  - The stand-down stops it and sets the service to Manual, so a reboot does not bring it back.
+- **Alpha's own runtime is running:** `alpha_runtime_always_on.ps1` and `alpha_runtime_watchdog.ps1`.
+  - An always-on script is the likeliest thing that starts a detached connector, and it may restart the backend and site too.
+  - **So step 2 below must be done before step 3.** Otherwise the stand-down sees Alpha come back, names what holds the port, and exits 1.
+- **Self-heal on #238's code.**
+  - Its task last result is success.
+  - Its log is written every 2 minutes.
+  - The doctor reports no problems.
+
 ## 4. The switch-over, in order (V present, about 20 minutes)
 
 1. **Host: `.env.local` by USB.** This is the one thing `alpha-move-check`
