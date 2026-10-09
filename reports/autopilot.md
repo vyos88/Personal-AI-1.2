@@ -1,8 +1,23 @@
-﻿# laptop41 autopilot 20261009-225732
+﻿# laptop41 autopilot 20261009-231346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout ac1686a is current
+
+## auto-live-sync-20261009-231346  live-sync (standing)  ->  0 (in sync)   (2026-10-09T23:14:13, 67s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
+CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 6795e6a on claude/frie...(30)
+```
+
+## auto-data-sync-20261009-231346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:15:26, 108s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:15 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 21 file(s), 13.1 MB written since 2026-08-13T00:20:21Z, to alpha-serv-01
+  PART of a backlog: 9046 file(s), 3,422.0 MB still to send, from 2026-08-13T03:36:01Z; the next pass carries on
+```
 
 ## auto-deck-liveness-20261009-225732  deck-liveness (standing)  ->  0 (every deck live)   (2026-10-09T23:01:58, 14s)
 ```
@@ -295,23 +310,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:20 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 41 file(s), 89.9 MB written since 2021-03-16T17:19:28Z, to alpha-serv-01
   PART of a backlog: 13177 file(s), 4,328.2 MB still to send, from 2022-03-23T16:18:40Z; the next pass carries on
-```
-
-## auto-data-sync-20261009-210851  data-sync (standing)  ->  1 (failed)   (2026-10-09T21:10:37, 370s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  FAILED: packing: 
-  NOT SENT: 41 file(s) wait for the next pass (nothing is lost: the next send starts from 2021-03-16T17:19:28Z)
-```
-
-## 20261009-14-full-memory-resend  data-sync  ->  0   (2026-10-09T20:55:23, 403s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 20:55 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  baseline set to 2000-01-01T00:00:00Z (-Since): everything written here after it goes to alpha-serv-01
-  -Resend: what was sent before is forgotten, so everything written here after 2000-01-01T00:00:00Z goes again
-  SENT 432 file(s), 80.2 MB written since 2000-01-01T00:00:00Z, to alpha-serv-01
-  PART of a backlog: 13218 file(s), 4,417.7 MB still to send, from 2021-03-16T17:19:28Z; the next pass carries on
 ```
 
