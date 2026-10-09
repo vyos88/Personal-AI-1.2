@@ -474,6 +474,13 @@ on. Its policy lives in the pure `decide()` and is pinned by
   Windows' tar.exe failed a part over PDFs named in Chinese, which would have
   stuck the copy there for good. JSON is read as UTF-8 for the same names,
   because Windows PowerShell reads a file with no BOM as ANSI.
+  A backlog of big files goes as its own task: `install-alpha-data-sync.ps1`
+  registers `Alpha Data Copy` (SYSTEM, IgnoreNew, 4 hours a run, output in
+  `data-sync\task-last.log`), and while it exists the autopilot's standing
+  check only reports its finished runs. Inside a 5-minute pass, a 300 MB file
+  at 400 KB/s timed out every pass and held the live page for 15 minutes,
+  and killing only PowerShell left its `tailscale file cp` uploading beside
+  the next one. A lock keeps one copy at a time.
 - **A standby repairs nothing.** `role.json` beside the config, written by
   `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
   log one `standby` line and stop. The stand-down disables the task too; this

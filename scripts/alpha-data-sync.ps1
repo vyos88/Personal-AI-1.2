@@ -110,6 +110,11 @@ if (-not $StageRoot) { $StageRoot = Join-Path (Split-Path -Parent $OpsDir) 'ds' 
 $tar =if (Get-Command tar.exe -EA SilentlyContinue) { 'tar.exe' } else { 'tar' }
 $skip = '^memory/local/(pytest-[^/]*|test-temp|uno-q-recovery|android-sdk|books)(/|$)|(^|/)__pycache__(/|$)'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
+# One copy at a time on this machine: the 'Alpha Data Copy' task and an
+# autopilot job would otherwise pack, send and write state.json together. The
+# handle goes with the process, so a run that was killed leaves no lock behind.
+try { $script:lock = [IO.File]::Open((Join-Path $dir 'sync.lock'), 'OpenOrCreate', 'ReadWrite', 'None') }
+catch { Write-Output "DATA SYNC $machine busy: another data sync is running here, so this one did nothing"; exit 0 }
 
 # Where Alpha's memory\ is: beside -AlphaRoot when that is a real Alpha, else
 # where prepare-alpha-here put it (the Host's nested Alpha-Full), the same rule

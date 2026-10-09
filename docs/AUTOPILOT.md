@@ -74,6 +74,8 @@ reported.
 | `standby-uninstall` | `install-alpha-standby.ps1 -Uninstall`: removes `Alpha Standby`; `standby.json` stays |
 | `data-sync` | `alpha-data-sync.ps1` once. It sends what changed in `memory\` here to `"peer"` while this machine serves Alpha, and applies what arrived while it does not. `"since"` (a UTC time) starts the sending from an older copy instead of from now. `"resend": true` (with `"since"`) forgets what was sent, so it all goes again. See the standing check `dataSync` below |
 | `data-apply` | `alpha-data-sync.ps1 -ApplyHeld`: applies what was held because Alpha serves here. It stops `Alpha Backend`, applies, and starts it again |
+| `data-sync-install` | `install-alpha-data-sync.ps1`: the copy as its own task, `Alpha Data Copy`, every `"everyMin"` (10) minutes as SYSTEM, with 4 hours to a run. For a backlog with files too big for the standing check's 15 minutes. While the task exists, the standing check only reports it: each finished run, once, with its output and result |
+| `data-sync-uninstall` | removes that task; the copy's state stays, and the standing check copies again |
 | `tailnet-peers` | `tailnet-peers.ps1`: the machines on the tailnet as this one sees them: name, tailnet IPv4, OS, online or last seen. It reads `tailscale status --json` and prints no account (login names are e-mail addresses). Takes no arguments. It is how a new machine's name and address are found (alpha-server-01, 2026-10-09) |
 
 ## Long queues
@@ -227,6 +229,11 @@ has stopped, or cannot see the primary.
   - **Writing.** Newer wins, and the file it replaces is kept under
     `data-sync\replaced\`. Nothing is deleted.
   - **Transport.** Taildrop, never git.
+  - **Big files go as their own task.** A file too big for the 15 minutes
+    timed out every pass on 2026-10-09, held the pass and its live page, and
+    left the killed pass's upload running. `data-sync-install` moves the copy
+    into `Alpha Data Copy`; a timeout now kills the whole tree; and one copy
+    at a time holds a lock.
   - **Nothing is lost in silence.** A file that cannot be packed is never
     counted as sent; it rides with the next pass (`NOT IN THIS PART`). A
     folder that cannot be read is named (`SKIPPED`). A file that cannot be
