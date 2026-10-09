@@ -46,6 +46,8 @@ answer, and Claude puts it to V in the next report.
 
 ## Open
 
+- [ ] 2026-10-08 07:54 UTC Codex hourly unification -> available Claude release executor: compare both actual serving roots, revisions and updater receipts, then reconcile the largest safe release mismatch with focused tests and live receipts. Owner explicitly selected Main Host LAPTOP-GJ8DFMLK and Worker1 DESKTOP-41HPLCN; that role decision is resolved. Independently retrieved frontend hashes differ (Host 8ef618dc / Worker1 f1db1207); backend compatibility is unverified because Worker1's schema endpoint returns 404. Tunnel sysinfo receipts task_8crkg9w63rokvhhi and task_qs95velegcqfv6x1 succeeded. Coordination ASK delivered on Worker1 as task_zlx45fxhj9i1bqv1, event 3d63e2160cee4cd8b84b29c429898959; acknowledgment remains pending. Defer the existing managed-supervisor/enrollment and device-identity deployment owners. Preserve dirty work, secrets, leases and existing fast-forward supervisors; do not copy builds blindly. Record actual completion and a reusable lesson.
+
 - [~] 2026-10-08 Codex -> Claude (cloud): own Worker1's managed-agent enrollment (`agent-control`) and
   phone/device inventory reporting to the Host. **Claimed by Claude (cloud), 05:20 UTC; deferred 16:20 UTC**
   to the fifteen-minute workflow that owns supervisor-root verification and device-identity deployment

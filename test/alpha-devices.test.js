@@ -7,15 +7,17 @@
 // arguments it refuses to build.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { mkdtemp, writeFile, chmod, readFile } from 'node:fs/promises';
+import { spawn, execFile } from 'node:child_process';
+import { mkdtemp, writeFile, chmod, readFile, copyFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
+import { promisify } from 'node:util';
 
 import {
   available,
   buildArgs,
+  parseInventory,
   rejectArguments,
   run,
   type,
@@ -28,6 +30,36 @@ import { ProtocolError } from '../src/common/protocol.js';
 const isWindows = process.platform === 'win32';
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'scripts/usb-inventory.json');
+
+test('inventory JSON accepts the BOM emitted by older Windows PowerShell', () => {
+  const inventory = { machine: 'HOST', usb: [], serialPorts: [{ port: 'COM7' }] };
+  assert.deepEqual(parseInventory('\uFEFF' + JSON.stringify(inventory)), inventory);
+  assert.deepEqual(parseInventory(JSON.stringify(inventory)), inventory);
+  assert.throws(() => parseInventory('\uFEFF{broken'), SyntaxError);
+});
+
+test('Windows PowerShell producer writes JSON consumable by an existing agent', { skip: !isWindows }, async (t) => {
+  const dir = await mkdtemp(join(tmpdir(), 'alpha-inventory-utf8-'));
+  assert.ok(resolve(dir).startsWith(resolve(tmpdir()) + sep));
+  t.after(() => rm(dir, { recursive: true, force: true }));
+  const script = join(dir, 'usb-inventory.ps1');
+  await copyFile(resolve(ROOT, 'scripts/usb-inventory.ps1'), script);
+  await promisify(execFile)('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script],
+    { timeout: 120000, windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+  const bytes = await readFile(join(dir, 'usb-inventory.json'));
+  assert.notDeepEqual([...bytes.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
+  // Plain JSON.parse is what an already-running agent still uses.
+  const report = JSON.parse(bytes.toString('utf8'));
+  assert.equal(report.machine, process.env.COMPUTERNAME);
+  assert.ok(Number.isFinite(Date.parse(report.collectedAt)));
+  assert.ok(Array.isArray(report.usb));
+  assert.ok(Array.isArray(report.serialPorts));
+  assert.ok(report.usb.every(device => device && typeof device === 'object'));
+  for (const device of report.usb) {
+    const expected = /PID_([0-9A-Fa-f]{4})/.exec(device.instanceId)?.[1].toUpperCase() ?? null;
+    assert.equal(device.pid, expected);
+  }
+});
 
 /**
  * A stub interpreter standing in for PowerShell: it records the argv it was

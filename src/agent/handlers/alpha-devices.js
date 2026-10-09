@@ -164,6 +164,11 @@ function summarize(inventory) {
   };
 }
 
+export function parseInventory(text) {
+  // Accept reports from older Windows PowerShell producers as well.
+  return JSON.parse(text.replace(/^\uFEFF/, ''));
+}
+
 export async function run(payload, { signal, log } = {}) {
   rejectArguments(payload);
   const script = scriptPath();
@@ -228,7 +233,7 @@ export async function run(payload, { signal, log } = {}) {
 
   let inventory;
   try {
-    inventory = JSON.parse(readFileSync(output, 'utf8'));
+    inventory = parseInventory(readFileSync(output, 'utf8'));
   } catch (error) {
     throw new ProtocolError(`${OUTPUT} is not readable JSON: ${error.message}`, {
       status: 500,
