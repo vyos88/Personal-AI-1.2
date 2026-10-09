@@ -1,8 +1,13 @@
-﻿# host autopilot 20261009-071409
+﻿# host autopilot 20261009-110909
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-110909  channel-watch (standing)  ->  1 (could not run)   (2026-10-09T11:09:12, 26s)
+```
+could not run: git fetch status/laptop41 failed: fatal: unable to access 'https://github.com/vyos88/Personal-AI-1.2/': Failed to connect to github.com:443 after 21148 ms: Could not connect to server
+```
 
 ## auto-channel-watch-20261009-071409  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-09T07:14:12, 2s)
 ```
@@ -152,21 +157,5 @@ TASKS: Alpha=-, Alpha Backend=-, Alpha Self-Heal=-, Alpha Doctor=-, alpha-music 
 AGENT MANAGER: snapshot here, written 10-07 23:35
 MISSING TO RUN ALPHA HERE (1):
   - the backend's .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)
-```
-
-## 20261008-h24-alpha-data-in  alpha-data-in  ->  0   (2026-10-08T00:54:18, 391s)
-```
-drives searched: D:\
-source: D:\alpha-move-20261007
-target: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full
-copying memory: 32472 files, 4.37 GB
-  robocopy exit 1 (ok) in 343 s
-copying artifacts: 304 files, 3.79 GB
-  robocopy exit 0 (ok) in 0 s
-memory here now: 32472 files, 4.37 GB; 0 from the drive missing
-artifacts here now: 304 files, 3.79 GB; 0 from the drive missing
-MISSING: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\.env.local (contents not read; copied by hand only)
-MISSING: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software\frontend\.env.local (contents not read; copied by hand only)
-done: the data is in place; next songs-check, then the local test start
 ```
 
