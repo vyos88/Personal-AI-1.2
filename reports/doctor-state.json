@@ -1,29 +1,24 @@
 {
     "cloudSeen":  "ba5a4493dc3175b3ad0bb0a0d0b5a35cbe126c5f",
-    "lastRun":  "2026-10-10T00:12:53",
+    "lastRun":  "2026-10-10T00:27:59",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-10-09T23:57:52",
-                                                     "runs":  2,
-                                                     "text":  "only 1.4 of 15.8 GB RAM free"
-                                                 },
                  "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
                                                                                                            "since":  "2026-10-09T18:42:20",
-                                                                                                           "runs":  22,
+                                                                                                           "runs":  23,
                                                                                                            "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
                                                                                                        },
                  "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
                                                                                                                 "since":  "2026-10-09T23:02:27",
-                                                                                                                "runs":  6,
+                                                                                                                "runs":  7,
                                                                                                                 "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
                                                                                                             },
                  "no coordinator answering at http://#.#.#.#:#":  {
                                                                       "since":  "2026-10-09T18:42:20",
-                                                                      "runs":  22,
+                                                                      "runs":  23,
                                                                       "text":  "no coordinator answering at http://100.93.104.24:8787"
                                                                   }
              },
-    "lastPost":  "2026-10-10T00:12:53",
+    "lastPost":  "2026-10-10T00:27:59",
     "relay":  "relayed status/cloud ba5a449"
 }
