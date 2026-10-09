@@ -70,6 +70,8 @@ reported.
 | `start-task` | `Start-ScheduledTask` for `Alpha`, `Alpha Backend`, `Alpha Self-Heal` or `Alpha Doctor` |
 | `alpha-standdown` | `alpha-standdown.ps1`, this machine's half of the Alpha switch-over (`HANDOFF_2026-10-07d` Phase 2 steps 1 and 3). It writes `role.json` (standby) first. Then it disables `Alpha Self-Heal` and `Alpha Server - Health Guard` before anything is stopped, stops and disables `Alpha Backend` and `Alpha`, stops their wrapper trees and the node/python holding 8001 and 4173 (anything else there is named and left), stops the cloudflared service and sets it to Manual, disables a task that runs cloudflared, and stops a cloudflared left running. Command lines are never printed or saved (cloudflared takes `--token` on one). Every change goes to `standdown\standdown-<time>.json`. Alpha's own runtime (Agent Manager, always-on, watchdog) is named, never stopped: Alpha stops it through its manager. Needs `"confirm": "hand-over"` (V present); `"reportOnly": true` rehearses and changes nothing; `"primary"` names the machine taking over (default `laptop-gj8dfmlk`). Exit 0 done, 1 something still serves here (named), 2 only Alpha's runtime is left |
 | `alpha-standup` | `alpha-standdown.ps1 -Undo`: serve Alpha here again. It enables only what the record says was enabled, restores the connector's start type, starts the servers before the watchers, sets `role.json` aside and waits for `/health`. It refuses (exit 3) while alpha-ai.uk answers and no connector runs here, because then another machine serves Alpha; `"force": true` overrides that. `"reportOnly": true` changes nothing |
+| `standby-install` | `install-alpha-standby.ps1`: Phase 3's automatic cover. It writes `standby.json` and registers `Alpha Standby`, which runs `alpha-standby.mjs` every minute and at startup, as SYSTEM. It acts only while `role.json` says standby or covering, so it is safe on a machine that still serves. `"primary"` names the machine it covers for (default `laptop-gj8dfmlk`), and `"primaryUrl"` that machine's Alpha health over the tailnet (default `http://100.93.104.24:8001/health`) |
+| `standby-uninstall` | `install-alpha-standby.ps1 -Uninstall`: removes `Alpha Standby`; `standby.json` stays |
 
 ## Long queues
 
@@ -224,6 +226,23 @@ serves Alpha and this one must not start a second:
 - the doctor checks the standby instead of a serving Alpha: alpha-ai.uk
   answers, and no backend, site, connector or Alpha task is running or enabled
   here. Each of those is a problem, because two Alphas write two histories.
+
+**Automatic cover (Phase 3).** `Alpha Standby` (`standby-install`) covers
+for the primary by itself. It needs three signals at once, each from a
+different path, before it covers:
+
+- the primary's Alpha has missed three passes over the tailnet;
+- alpha-ai.uk is served by nobody (no answer, a 5xx, or Cloudflare's 1033);
+- this machine's own internet answers.
+
+Then it runs `alpha-standup` with `-StartConnector` and writes role
+`covering`. Once the primary's Alpha answers two passes in a row, it hands
+Alpha back with `alpha-standdown` and records what changed in `memory\`
+while it covered (`standby\handback-*.json`).
+
+The live page's **Role** row says PRIMARY, STANDBY or COVERING and shows
+the cover's last pass. The doctor reports a cover that is not installed,
+has stopped, or cannot see the primary.
 
 ## Trust
 
