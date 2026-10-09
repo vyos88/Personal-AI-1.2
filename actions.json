@@ -510,6 +510,17 @@
       "id": "20261009-02-doctor",
       "do": "doctor",
       "why": "a fresh pass on the merged self-heal fix (#238): its log, lock and config error are now read before guessing"
+    },
+    {
+      "id": "20261009-03-standby-install",
+      "do": "standby-install",
+      "why": "V 2026-10-09: build Phase 3 automatic standby (tunnel #241, HANDOFF_2026-10-09e). Registers 'Alpha Standby' (every minute, SYSTEM). Idle while this machine is the primary; it arms itself when the switch-over writes role.json"
+    },
+    {
+      "id": "20261009-04-standdown-rehearsal",
+      "do": "alpha-standdown",
+      "reportOnly": true,
+      "why": "report only, with #241's service details: does the cloudflared service start (last exit code), and was it installed with a token (yes/no). A cover needs it"
     }
   ],
   "autofix": {
