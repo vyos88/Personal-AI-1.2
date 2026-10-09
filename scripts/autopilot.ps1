@@ -51,6 +51,7 @@
     standby-uninstall  install-alpha-standby.ps1 -Uninstall: remove that task (its standby.json stays)
     data-sync        alpha-data-sync.ps1 once: send what changed in memory\ here (while serving) and apply what arrived (while not)  ("peer", "since")
     data-apply       alpha-data-sync.ps1 -ApplyHeld: stop the backend, apply what was held, start it
+    tailnet-peers    tailnet-peers.ps1: the machines on the tailnet (name, address, OS, online), no accounts (takes no arguments)
 
   Standing check, every pass: autofix.dataSync = {"peer": "<other machine>",
   "everyMin": 10} keeps the other machine's memory\ in step (Phase 3).
@@ -380,6 +381,9 @@ function Resolve-Action($a) {
       }
       $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 60
     }
+    # A machine joins the fleet by joining the tailnet; its name and address
+    # are what the other settings point at. Read-only, and it prints no account.
+    'tailnet-peers' { $spec = Ps1 'tailnet-peers.ps1' @(); $out.timeoutMin = 2 }
     'data-apply' { $spec = Ps1 'alpha-data-sync.ps1' @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot, '-ApplyHeld', '-NoSend'); $out.timeoutMin = 20 }
     'alpha-standup' {
       $rest = @('-OpsDir', $OpsDir, '-Undo')

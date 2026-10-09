@@ -74,6 +74,7 @@ reported.
 | `standby-uninstall` | `install-alpha-standby.ps1 -Uninstall`: removes `Alpha Standby`; `standby.json` stays |
 | `data-sync` | `alpha-data-sync.ps1` once. It sends what changed in `memory\` here to `"peer"` while this machine serves Alpha, and applies what arrived while it does not. `"since"` (a UTC time) starts the sending from an older copy instead of from now. See the standing check `dataSync` below |
 | `data-apply` | `alpha-data-sync.ps1 -ApplyHeld`: applies what was held because Alpha serves here. It stops `Alpha Backend`, applies, and starts it again |
+| `tailnet-peers` | `tailnet-peers.ps1`: the machines on the tailnet as this one sees them: name, tailnet IPv4, OS, online or last seen. It reads `tailscale status --json` and prints no account (login names are e-mail addresses). Takes no arguments. It is how a new machine's name and address are found (alpha-server-01, 2026-10-09) |
 
 ## Long queues
 
