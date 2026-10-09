@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-09T21:48:07.2155560+01:00",
+    "at":  "2026-10-09T21:58:12.2216947+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -12,7 +12,7 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 214 file(s) to alpha-serv-01 at 2026-10-09T20:40:31Z (4139 MB still to send)"
+                 "detail":  "sent 1598 file(s) to alpha-serv-01 at 2026-10-09T20:50:14Z (4088 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
