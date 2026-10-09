@@ -440,6 +440,11 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
     { id: 'i2', do: 'standby-install', primary: 'alpha-server', primaryUrl: 'http://100.70.1.2:8001/health' },
     { id: 'i3', do: 'standby-install', primaryUrl: 'http://x/health; calc' },
     { id: 'i4', do: 'standby-uninstall', task: 'evil' },
+    { id: 's1', do: 'data-sync' },
+    { id: 's2', do: 'data-sync', peer: 'laptop-gj8dfmlk', since: '2026-10-07T21:00:00Z' },
+    { id: 's3', do: 'data-sync', since: '2026-10-07T21:00:00Z' },
+    { id: 's4', do: 'data-sync', peer: 'laptop-gj8dfmlk', since: 'yesterday' },
+    { id: 's5', do: 'data-apply', from: 'C:\\evil' },
   ]);
   assert.equal(p.d1.ok, false);
   assert.match(p.d1.reason, /"confirm": "hand-over"/);
@@ -455,6 +460,12 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.deepEqual(p.i2.args.slice(-4), ['-Primary', 'alpha-server', '-PrimaryUrl', 'http://100.70.1.2:8001/health']);
   assert.equal(p.i3.ok, false);
   assert.deepEqual(p.i4.args.slice(-3), ['-OpsDir', ops, '-Uninstall']);
+  assert.match(p.s1.args.at(-5), /alpha-data-sync\.ps1$/);
+  assert.deepEqual(p.s2.args.slice(-4), ['-Peer', 'laptop-gj8dfmlk', '-Since', '2026-10-07T21:00:00Z']);
+  assert.equal(p.s3.ok, false, 'a baseline is only for a machine that sends');
+  assert.equal(p.s4.ok, false);
+  assert.deepEqual(p.s5.args.slice(-2), ['-ApplyHeld', '-NoSend']);
+  assert.ok(!/evil/.test(p.s5.args.join(' ')));
 
   // Once it stood down, nothing queued may start Alpha here again but alpha-standup.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
@@ -1004,6 +1015,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
   assert.match(md, /\| Role \| PRIMARY \| this machine serves Alpha; automatic cover is not installed here \|/);
+  assert.match(md, /\| Data copy \| OFF \| no data copy here \(autofix\.dataSync\) \|/);
   assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
@@ -1076,6 +1088,12 @@ test('the live report is written every pass, and a stopped self-heal is started 
   utimesSync(coverStatus, stale, stale);
   run();
   assert.match(live(), /automatic cover is NOT RUNNING \(last pass 12 min ago\)/);
+
+  // Phase 3's data: what was sent and applied, and what waits for data-apply.
+  mkdirSync(join(ops, 'data-sync'), { recursive: true });
+  writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T18:10:00Z', to: 'laptop-gj8dfmlk', files: 12 }, lastApply: { at: '2026-10-09T18:00:00Z', from: 'LAPTOP-GJ8DFMLK', files: 3, keptNewerHere: 1 }, held: 1 }));
+  run();
+  assert.match(live(), /\| Data copy \| HELD \| sent 12 file\(s\) to laptop-gj8dfmlk at 2026-10-09T18:10:00Z; applied 3 from LAPTOP-GJ8DFMLK at 2026-10-09T18:00:00Z \(1 newer here kept\); 1 package\(s\) HELD: queue data-apply \|/);
 
   // Covering: this machine serves for the primary, and the page says so.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }));
