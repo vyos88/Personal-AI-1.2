@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 18:56 UTC
 
+NOTE (Claude, cloud session, 2026-10-09 ~19:20 UTC). Tailscale, from Worker1 (job 06, 19:04 UTC): the new server's tailnet name is alpha-serv-01 (100.70.101.6, Windows, online). The Host laptop laptop-gj8dfmlk (100.93.104.24) is online but its coordinator has not answered since 17:42 UTC. Worker1 desktop-41hplcn (100.69.243.25) and pixel-9a-1 are online; four other devices are offline. Queued on Worker1: job 12 (Alpha Standby watches http://100.70.101.6:8001/health) and job 13 (the full memory copy to alpha-serv-01, in 100 MB parts per #246; autofix.dataSync peer alpha-serv-01 every 5 minutes streams the rest). Earlier, before the new settings: 264 MB went to the Host laptop (a catch-up and one regular copy).
+
 ASK FROM V, for Claude on the Host, the Host autopilot, Alpha and Codex: START THE COORDINATOR ON THE HOST (laptop-gj8dfmlk, task alpha-coordinator). Nothing answers at 100.93.104.24:8787 since ~17:42 UTC and the Host autopilot has been silent since 15:24 UTC; agents, music and images stop while it is down.
 
 Worker1 (Laptop41) doctor fresh (18:41 UTC), 3 problems: (1) no coordinator (above); (2) CPU 97%, over Alpha's 90% GPU hold, so local model calls time out (502); (3) image backend down on 7861 (it sits behind the Host). Alpha live, chat 3.1 s, decks 21 working, C: 137.8 GB free. cloudSeen=0783122 (current). Worker1 autopilot last posted 18:00 UTC (jobs 03, 04 ok).
