@@ -52,9 +52,26 @@
       would hold the autopilot pass, and its 5-minute live page, for hours.
       In parts, each pass stays a few minutes and the copy streams across.
 
+  A file is copied for packing under a short folder (-StageRoot, by default
+  `ds` beside -OpsDir: C:\AlphaData\ds). On 2026-10-09 the copy went under
+  alpha-ops\data-sync\outbox-<time>\staging\, 20 characters longer than
+  Worker1's own Alpha folder. A 254-character path in memory\ came out at 274,
+  over Windows' 260, so Copy-Item failed. The script then counted the file as
+  sent anyway, and it would never have gone. Now:
+    - a file that cannot be packed is reported, never counted as sent, and goes
+      again with the next pass;
+    - a folder that cannot be read is reported, not walked past in silence;
+    - a file that cannot be written on the receiving side is reported, and its
+      package is kept and applied again next pass.
+  -Resend forgets what was sent, so everything after -Since goes again. That
+  is how files the old script counted as sent, but never packed, get sent.
+
   Exit codes: 0 done (including "nothing to do", and one part of a backlog
-  sent); 1 a send or an apply failed or was refused; 3 a package is held, or
-  still arriving.
+  sent); 1 a send or an apply failed or was refused, or a file could not be
+  packed or written; 3 a package is held, or still arriving.
+
+  -TestCopyFails is a test seam: a copy to a path matching it fails, as a
+  path over 260 characters does on Windows.
 #>
 param(
   [string]$OpsDir = 'C:\AlphaData\alpha-ops',
@@ -64,10 +81,13 @@ param(
   [string]$HealthUrl = 'http://127.0.0.1:8001/health',
   [string]$Since = '',
   [int64]$MaxBytes = 0,
+  [string]$StageRoot = '',
+  [switch]$Resend,
   [switch]$NoSend,
   [switch]$NoReceive,
   [switch]$ApplyHeld,
-  [switch]$NoFetch
+  [switch]$NoFetch,
+  [string]$TestCopyFails = ''
 )
 
 $ErrorActionPreference = 'Continue'
@@ -78,7 +98,9 @@ $dir = Join-Path $OpsDir 'data-sync'
 $stateFile = Join-Path $dir 'state.json'
 $indexFile = Join-Path $dir 'received.json'
 $sentFile = Join-Path $dir 'sent.json'
-$tar = if (Get-Command tar.exe -EA SilentlyContinue) { 'tar.exe' } else { 'tar' }
+$pendingFile = Join-Path $dir 'pending.json'
+if (-not $StageRoot) { $StageRoot = Join-Path (Split-Path -Parent $OpsDir) 'ds' }
+$tar =if (Get-Command tar.exe -EA SilentlyContinue) { 'tar.exe' } else { 'tar' }
 $skip = '^memory/local/(pytest-[^/]*|test-temp|uno-q-recovery|android-sdk|books)(/|$)|(^|/)__pycache__(/|$)'
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
 
@@ -104,21 +126,29 @@ function Serving {
   try { return [int](Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec 5 -EA Stop).StatusCode -eq 200 } catch { return $false }
 }
 # Every file under memory\, relative with forward slashes, never through a
-# junction (memory\local\books points at another drive).
+# junction (memory\local\books points at another drive). A folder it cannot
+# read (on Windows, one whose path is too long) goes in $script:unreadable,
+# so the caller can say so instead of leaving out its files in silence.
 function Walk([string]$root) {
+  $script:unreadable = New-Object System.Collections.ArrayList
   $out = New-Object System.Collections.ArrayList
   if (-not (Test-Path -LiteralPath $root)) { return $out }
   $stack = New-Object System.Collections.Stack
   $stack.Push($root)
   while ($stack.Count) {
     $d = $stack.Pop()
-    foreach ($f in @(try { [IO.Directory]::GetFiles($d) } catch { @() })) { [void]$out.Add($f) }
-    foreach ($s in @(try { [IO.Directory]::GetDirectories($d) } catch { @() })) {
-      if (([IO.File]::GetAttributes($s) -band [IO.FileAttributes]::ReparsePoint) -eq 0) { $stack.Push($s) }
+    $files = @(); $dirs = @()
+    try { $files = [IO.Directory]::GetFiles($d); $dirs = [IO.Directory]::GetDirectories($d) } catch { [void]$script:unreadable.Add($d) }
+    foreach ($f in $files) { [void]$out.Add($f) }
+    foreach ($s in $dirs) {
+      try { if (([IO.File]::GetAttributes($s) -band [IO.FileAttributes]::ReparsePoint) -eq 0) { $stack.Push($s) } }
+      catch { [void]$script:unreadable.Add($s) }
     }
   }
   return $out
 }
+function Size-Of($list) { $n = [int64]0; foreach ($f in @($list)) { if ($f) { try { $n += (New-Object IO.FileInfo $f).Length } catch { } } }; return $n }
+function Short([string]$t) { if ($t.Length -gt 120) { return $t.Substring(0, 117) + '...' }; return $t }
 # online, offline, absent (not on this tailnet) or unknown (no answer from tailscale)
 function Peer-State([string]$name) {
   $st = $null
@@ -131,10 +161,12 @@ function Peer-State([string]$name) {
   return 'offline'
 }
 function Rel([string]$base, [string]$full) { return ('memory/' + $full.Substring($base.Length).TrimStart('\', '/')) -replace '\\', '/' }
+# Throws when it cannot copy, so no caller counts a file that did not arrive.
 function Copy-Keeping([string]$src, [string]$dst) {
-  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) | Out-Null
-  Copy-Item -LiteralPath $src -Destination $dst -Force
-  (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralPath $src).LastWriteTimeUtc
+  if ($TestCopyFails -and ($dst -replace '\\', '/') -match $TestCopyFails) { throw "could not copy to $dst (-TestCopyFails)" }
+  New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) -EA Stop | Out-Null
+  Copy-Item -LiteralPath $src -Destination $dst -Force -EA Stop
+  (Get-Item -LiteralPath $dst -EA Stop).LastWriteTimeUtc = (Get-Item -LiteralPath $src -EA Stop).LastWriteTimeUtc
 }
 
 $state = Load-Json $stateFile
@@ -185,31 +217,45 @@ if (-not $NoReceive) {
     if ($serving -and -not $ApplyHeld) { $held++; Say "  HELD: $tarName from $($man.from) ($($man.files) file(s)): Alpha serves here, so it waits for the data-apply job"; continue }
     if ($serving -and $ApplyHeld -and -not $stopped) { Stop-Backend; $stopped = $true; Say '  stopped the backend to apply' }
 
-    $staging = Join-Path $dir "staging-$stamp"
+    # Unpacked under the short root, not beside the inbox: see -StageRoot.
+    $staging = Join-Path $StageRoot 'i'
+    Remove-Item -LiteralPath $staging -Recurse -Force -EA SilentlyContinue
     New-Item -ItemType Directory -Force -Path $staging | Out-Null
     $out = & $tar -xf $tarFile -C $staging 2>&1
     if ($LASTEXITCODE -ne 0) { Say "  FAILED: extracting $tarName"; Remove-Item -LiteralPath $staging -Recurse -Force -EA SilentlyContinue; $exit = 1; continue }
     $base = Join-Path $staging 'memory'
-    $applied = 0; $same = 0; $conflicts = 0; $replaced = 0
+    $applied = 0; $same = 0; $conflicts = 0; $replaced = 0; $notWritten = 0; $why = ''
     foreach ($src in (Walk $base)) {
       $rel = Rel $base $src
       $dst = Join-Path $alphaHome ($rel -replace '/', '\')
-      $srcTicks = (Get-Item -LiteralPath $src).LastWriteTimeUtc.Ticks
-      if (Test-Path -LiteralPath $dst) {
-        $d = Get-Item -LiteralPath $dst
-        if ($d.LastWriteTimeUtc.Ticks -eq $srcTicks -and $d.Length -eq (Get-Item -LiteralPath $src).Length) { $same++; $received[$rel] = $srcTicks; continue }
-        if ($d.LastWriteTimeUtc.Ticks -gt $srcTicks) { $conflicts++; continue }
-        Copy-Keeping $dst (Join-Path (Join-Path $dir "replaced\$stamp") ($rel -replace '/', '\'))
-        $replaced++
-      }
-      Copy-Keeping $src $dst
-      $received[$rel] = $srcTicks
-      $applied++
+      try {
+        $srcTicks = (Get-Item -LiteralPath $src -EA Stop).LastWriteTimeUtc.Ticks
+        if (Test-Path -LiteralPath $dst) {
+          $d = Get-Item -LiteralPath $dst -EA Stop
+          if ($d.LastWriteTimeUtc.Ticks -eq $srcTicks -and $d.Length -eq (Get-Item -LiteralPath $src).Length) { $same++; $received[$rel] = $srcTicks; continue }
+          if ($d.LastWriteTimeUtc.Ticks -gt $srcTicks) { $conflicts++; continue }
+          # The file it replaces is kept first, or it is not replaced at all.
+          Copy-Keeping $dst (Join-Path (Join-Path $dir "replaced\$stamp") ($rel -replace '/', '\'))
+          $replaced++
+        }
+        Copy-Keeping $src $dst
+        $received[$rel] = $srcTicks
+        $applied++
+      } catch { $notWritten++; if (-not $why) { $why = Short "${rel}: $($_.Exception.Message)" } }
     }
+    $unread = $script:unreadable.Count
     Remove-Item -LiteralPath $staging -Recurse -Force -EA SilentlyContinue
-    Remove-Item -LiteralPath $tarFile, $m.FullName -Force -EA SilentlyContinue
-    $state | Add-Member -Force -NotePropertyName lastApply -NotePropertyValue ([ordered]@{ at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); from = [string]$man.from; files = $applied; unchanged = $same; replaced = $replaced; keptNewerHere = $conflicts })
+    $state | Add-Member -Force -NotePropertyName lastApply -NotePropertyValue ([ordered]@{ at = (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'); from = [string]$man.from; files = $applied; unchanged = $same; replaced = $replaced; keptNewerHere = $conflicts; notWritten = $notWritten })
     Say ("  APPLIED {0} from {1}: {2} file(s) written ({3} replaced, kept under data-sync\replaced\{4}), {5} already the same, {6} newer here and kept" -f $tarName, $man.from, $applied, $replaced, $stamp, $same, $conflicts)
+    # A package with a file that did not land stays, and is applied again next
+    # pass: what did land then reads as already the same.
+    if ($notWritten -or $unread) {
+      if ($unread) { $why = Short ("a folder in it could not be read: " + (Rel $base $script:unreadable[0])) }
+      Say ("  FAILED: {0} file(s) and {1} folder(s) from {2} could not be written here (first: {3}); the package is kept and applied again next pass" -f $notWritten, $unread, $tarName, $why)
+      $exit = 1
+    } else {
+      Remove-Item -LiteralPath $tarFile, $m.FullName -Force -EA SilentlyContinue
+    }
   }
   if ($stopped) { Start-ScheduledTask -TaskName 'Alpha Backend' -EA SilentlyContinue; Say "  started the backend again ('Alpha Backend')" }
   $state | Add-Member -Force -NotePropertyName held -NotePropertyValue $held
@@ -238,35 +284,57 @@ if ($Peer -and -not $NoSend) {
     Say '  not serving here, and nothing unsent from when it did: nothing to send'
   } else {
     $since = [int64]$state.lastSentTicks
-    $changed = @(Walk $mem | Where-Object {
+    if ($Resend) {
+      $sentIdx = @{}; Save-Json $sentFile $sentIdx; Save-Json $pendingFile @{}
+      Say "  -Resend: what was sent before is forgotten, so everything written here after $(Iso $since) goes again"
+    }
+    # What an earlier pass could not pack, by its time then.
+    $pend = @{}
+    $pidx = Load-Json $pendingFile
+    if ($pidx) { foreach ($p in $pidx.PSObject.Properties) { $pend[$p.Name] = [int64]$p.Value } }
+    $files = @(Walk $mem)
+    $unread = @($script:unreadable)
+    $changed = @($files | Where-Object {
         $t = [IO.File]::GetLastWriteTimeUtc($_).Ticks
         $r = Rel $mem $_
         $t -gt $since -and $r -notmatch $skip -and -not ($received.ContainsKey($r) -and $received[$r] -eq $t) -and -not ($sentIdx.ContainsKey($r) -and $sentIdx[$r] -eq $t)
       })
-    if (-not $changed.Count) {
+    # It rides with this pass whatever its time: the last send moved past it.
+    $riders = @(if ($pend.Count) {
+        $files | Where-Object {
+          $t = [IO.File]::GetLastWriteTimeUtc($_).Ticks
+          $r = Rel $mem $_
+          $pend.ContainsKey($r) -and $t -le $since -and -not ($sentIdx.ContainsKey($r) -and $sentIdx[$r] -eq $t)
+        }
+      })
+    if ($unread.Count) {
+      Say ("  SKIPPED: {0} folder(s) under memory\ could not be read (a path too long?), so nothing in them is sent (first: {1})" -f $unread.Count, (Short (Rel $mem $unread[0])))
+    }
+    $any = $changed.Count + $riders.Count
+    if (-not $any) {
       Say "  nothing written here since $(Iso $since)"
       $state.lastSentTicks = $passStart
     } else {
-      $bytes = ($changed | ForEach-Object { (Get-Item -LiteralPath $_).Length } | Measure-Object -Sum).Sum
+      $bytes = Size-Of ($changed + $riders)
       $peerState = Peer-State $Peer
     }
-    if ($changed.Count -and $peerState -in @('offline', 'absent')) {
+    if ($any -and $peerState -in @('offline', 'absent')) {
       Say ("  NOT SENT: {0} is {1} ({2}); {3} file(s), {4:N1} MB wait for it (nothing is lost: the next send starts from {5})" -f $Peer,
-        $(if ($peerState -eq 'absent') { 'not on this tailnet' } else { 'offline' }), 'tailscale status', $changed.Count, ($bytes / 1MB), (Iso $since))
+        $(if ($peerState -eq 'absent') { 'not on this tailnet' } else { 'offline' }), 'tailscale status', $any, ($bytes / 1MB), (Iso $since))
       $exit = 1
-    } elseif ($changed.Count) {
+    } elseif ($any) {
       # Over the cap: the oldest first, up to it (at least one file), and every
       # file stamped the same as the last one taken, so the next pass can carry
       # on from that time without skipping any.
       $cutoff = $passStart
-      $left = @()
-      $total = $changed.Count; $totalBytes = $bytes
-      if ($MaxBytes -gt 0 -and $bytes -gt $MaxBytes) {
+      $left = New-Object System.Collections.ArrayList
+      $leftBytes = [int64]0
+      if ($MaxBytes -gt 0 -and (Size-Of $changed) -gt $MaxBytes) {
         $sorted = @($changed | Sort-Object { [IO.File]::GetLastWriteTimeUtc($_).Ticks })
         $take = New-Object System.Collections.ArrayList
-        $sum = 0
+        $sum = [int64]0
         foreach ($f in $sorted) {
-          $len = (Get-Item -LiteralPath $f).Length
+          $len = Size-Of @($f)
           if ($take.Count -and ($sum + $len) -gt $MaxBytes) { break }
           [void]$take.Add($f); $sum += $len
         }
@@ -274,34 +342,77 @@ if ($Peer -and -not $NoSend) {
         # (A range in PowerShell counts down when it can: 1..0 is two items.)
         if ($take.Count -lt $sorted.Count) {
           foreach ($f in $sorted[$take.Count..($sorted.Count - 1)]) {
-            if ([IO.File]::GetLastWriteTimeUtc($f).Ticks -eq $cutoff) { [void]$take.Add($f); $sum += (Get-Item -LiteralPath $f).Length } else { $left += $f }
+            if ([IO.File]::GetLastWriteTimeUtc($f).Ticks -eq $cutoff) { [void]$take.Add($f) } else { [void]$left.Add($f); $leftBytes += Size-Of @($f) }
           }
         }
-        $changed = @($take); $bytes = $sum
+        $changed = @($take)
       }
-      $out = Join-Path $dir "outbox-$stamp"
-      $staging = Join-Path $out 'staging'
-      foreach ($f in $changed) { Copy-Keeping $f (Join-Path $staging ((Rel $mem $f) -replace '/', '\')) }
-      $tarName = "alpha-data-$($machine.ToLower())-$stamp.tar"
-      $tarFile = Join-Path $out $tarName
-      & $tar -cf $tarFile -C $staging memory 2>&1 | Out-Null
-      $manifest = Join-Path $out "alpha-data-$($machine.ToLower())-$stamp.json"
-      Save-Json $manifest ([ordered]@{ kind = 'memory-changes'; from = $machine; at = (Iso $passStart); since = (Iso $since); files = $changed.Count; bytes = $bytes
-          archive = [ordered]@{ name = $tarName; bytes = (Get-Item -LiteralPath $tarFile).Length; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower() } })
+      # Riders are capped the same way, so a pile of them cannot make a pass
+      # of hours either; the rest stay pending for the passes after.
+      if ($MaxBytes -gt 0 -and (Size-Of $riders) -gt $MaxBytes) {
+        $rs = New-Object System.Collections.ArrayList
+        $sum = [int64]0
+        foreach ($f in @($riders | Sort-Object { [IO.File]::GetLastWriteTimeUtc($_).Ticks })) {
+          $len = Size-Of @($f)
+          if ($rs.Count -and ($sum + $len) -gt $MaxBytes) { break }
+          [void]$rs.Add($f); $sum += $len
+        }
+        $riders = @($rs)
+      }
+      $send = @($changed) + @($riders)
+      # Copied under the short root, never beside alpha-ops: see -StageRoot.
+      # A file that cannot be copied is left out of the package, by name.
+      $stage = Join-Path $StageRoot 'o'
+      Remove-Item -LiteralPath $stage -Recurse -Force -EA SilentlyContinue
+      $packed = New-Object System.Collections.ArrayList
+      $failed = New-Object System.Collections.ArrayList
+      $why = ''
+      foreach ($f in $send) {
+        try { Copy-Keeping $f (Join-Path $stage ((Rel $mem $f) -replace '/', '\')); [void]$packed.Add($f) }
+        catch { [void]$failed.Add($f); if (-not $why) { $why = Short "$(Rel $mem $f): $($_.Exception.Message)" } }
+      }
+      $bytes = Size-Of $packed
       $sent = $false
-      try { $r = & tailscale file cp $tarFile $manifest "$($Peer):" 2>&1; $sent = ($LASTEXITCODE -eq 0); if (-not $sent) { Say "  taildrop: $((@($r) | Select-Object -Last 1))" } }
-      catch { Say "  taildrop: $($_.Exception.Message)" }
-      Remove-Item -LiteralPath $out -Recurse -Force -EA SilentlyContinue
-      if ($sent) {
-        foreach ($f in $changed) { $sentIdx[(Rel $mem $f)] = [IO.File]::GetLastWriteTimeUtc($f).Ticks }
+      if ($packed.Count) {
+        $out = Join-Path $dir "outbox-$stamp"
+        New-Item -ItemType Directory -Force -Path $out | Out-Null
+        $tarName = "alpha-data-$($machine.ToLower())-$stamp.tar"
+        $tarFile = Join-Path $out $tarName
+        $tarOut = & $tar -cf $tarFile -C $stage memory 2>&1
+        if ($LASTEXITCODE -ne 0) { Say "  FAILED: packing: $((@($tarOut) | Select-Object -Last 1))" }
+        else {
+          $manifest = Join-Path $out "alpha-data-$($machine.ToLower())-$stamp.json"
+          Save-Json $manifest ([ordered]@{ kind = 'memory-changes'; from = $machine; at = (Iso $passStart); since = (Iso $since); files = $packed.Count; bytes = $bytes
+              archive = [ordered]@{ name = $tarName; bytes = (Get-Item -LiteralPath $tarFile).Length; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower() } })
+          try { $r = & tailscale file cp $tarFile $manifest "$($Peer):" 2>&1; $sent = ($LASTEXITCODE -eq 0); if (-not $sent) { Say "  taildrop: $((@($r) | Select-Object -Last 1))" } }
+          catch { Say "  taildrop: $($_.Exception.Message)" }
+        }
+        Remove-Item -LiteralPath $out -Recurse -Force -EA SilentlyContinue
+      }
+      Remove-Item -LiteralPath $stage -Recurse -Force -EA SilentlyContinue
+      # Only what went is counted as sent. What could not be packed is pending
+      # and rides with the next pass, so the send moves on without losing it.
+      # A send Taildrop did not take changes nothing: all of it goes again.
+      if ($sent -or -not $packed.Count) {
+        if ($sent) { foreach ($f in $packed) { $r = Rel $mem $f; $sentIdx[$r] = [IO.File]::GetLastWriteTimeUtc($f).Ticks; $pend.Remove($r) } }
+        foreach ($f in $failed) { $pend[(Rel $mem $f)] = [IO.File]::GetLastWriteTimeUtc($f).Ticks }
+        foreach ($k in @($pend.Keys)) { if (-not (Test-Path -LiteralPath (Join-Path $alphaHome ($k -replace '/', '\')))) { $pend.Remove($k) } }
         Save-Json $sentFile $sentIdx
+        Save-Json $pendingFile $pend
         $state.lastSentTicks = $cutoff
-        $leftBytes = $totalBytes - $bytes
-        $state | Add-Member -Force -NotePropertyName lastSend -NotePropertyValue ([ordered]@{ at = (Iso $passStart); to = $Peer; files = $changed.Count; bytes = $bytes; leftFiles = $left.Count; leftBytes = $leftBytes })
-        Say ("  SENT {0} file(s), {1:N1} MB written since {2}, to {3}" -f $changed.Count, ($bytes / 1MB), (Iso $since), $Peer)
+      }
+      if ($sent) {
+        $state | Add-Member -Force -NotePropertyName lastSend -NotePropertyValue ([ordered]@{ at = (Iso $passStart); to = $Peer; files = $packed.Count; bytes = $bytes; leftFiles = $left.Count; leftBytes = $leftBytes; notPacked = $pend.Count })
+        Say ("  SENT {0} file(s), {1:N1} MB written since {2}, to {3}" -f $packed.Count, ($bytes / 1MB), (Iso $since), $Peer)
+        $ridden = @($riders | Where-Object { $packed -contains $_ }).Count
+        if ($ridden) { Say ("  with {0} file(s) an earlier pass could not pack" -f $ridden) }
         if ($left.Count) { Say ("  PART of a backlog: {0} file(s), {1:N1} MB still to send, from {2}; the next pass carries on" -f $left.Count, ($leftBytes / 1MB), (Iso $cutoff)) }
+        if ($failed.Count) { Say ("  NOT IN THIS PART: {0} file(s) could not be packed, and go with the next pass (first: {1})" -f $failed.Count, $why); $exit = 1 }
+      } elseif ($packed.Count) {
+        Say "  NOT SENT: $($send.Count) file(s) wait for the next pass (nothing is lost: the next send starts from $(Iso $since))"
+        $exit = 1
       } else {
-        Say "  NOT SENT: $($changed.Count) file(s) wait for the next pass (nothing is lost: the next send starts from $(Iso $since))"
+        Say ("  NOT SENT: none of {0} file(s) could be packed, and they go with the next pass (first: {1})" -f $send.Count, $why)
         $exit = 1
       }
     }
