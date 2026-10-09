@@ -676,3 +676,26 @@ test('a config caught half written is read again, and what still fails is writte
   readConfigForPass(file, { sleep: () => {} });
   assert.equal(existsSync(`${file}.error.json`), false, 'a config that reads again clears the old error');
 });
+
+test('a standby repairs nothing, and says so in its log', async (t) => {
+  const dir = tempDir(t);
+  const file = join(dir, 'selfheal.json');
+  writeFileSync(file, JSON.stringify({ stateDir: join(dir, 'state'), backend: { url: 'http://127.0.0.1:1/health', task: 'Alpha Backend' }, frontend: { url: 'http://127.0.0.1:1/' } }));
+  writeFileSync(join(dir, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
+  const cfg = loadConfig(file);
+  assert.equal(cfg.roleFile, join(dir, 'role.json'));
+  const calls = [];
+  const probe = async () => { calls.push('probe'); return {}; };
+  const executor = { restart: async (c) => (calls.push(c), { code: 0, stdout: '', stderr: '' }) };
+  for (const now of [0, 2 * MIN, 4 * MIN]) {
+    const out = await runPass({ config: cfg, probe, executor, now });
+    assert.match(out.skipped, /standby: Alpha serves from laptop-gj8dfmlk/);
+  }
+  assert.deepEqual(calls, [], 'nothing probed, nothing restarted');
+  const lines = readFileSync(cfg.logFile, 'utf8').trim().split('\n').map((l) => JSON.parse(l));
+  assert.deepEqual(lines.map((l) => l.standby), Array(3).fill({ primary: 'laptop-gj8dfmlk' }));
+
+  rmSync(join(dir, 'role.json'));
+  const back = await runPass({ config: cfg, probe: async () => ({ backend: ok, frontend: { ...ok, fingerprint: null }, public: { skipped: true }, chat: { skipped: true } }), executor, now: 6 * MIN });
+  assert.equal(back.skipped, undefined, 'serving again once the role is gone');
+});
