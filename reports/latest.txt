@@ -1,4 +1,4 @@
-laptop41-doctor 20261009-035602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 93d7275 2026-10-09)
+laptop41-doctor 20261009-041103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 93d7275 2026-10-09)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -20,7 +20,7 @@ laptop41-doctor 20261009-035602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 1.5s (load 0s, 10.1 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 1.5s (load 0s, 10.6 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,13 +40,13 @@ laptop41-doctor 20261009-035602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-08 08:21 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-08 08:19 result 0x800710E0 (refused: the operator or a condition stopped it)
-  ok: self-heal is running (its log was written 1 min ago); task Alpha Self-Heal is not visible to this account
+  ok: self-heal is running (its log was written 0 min ago); task Alpha Self-Heal is not visible to this account
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-09T02:50:55.025Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-09T02:52:55.010Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-09T02:54:55.009Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T03:06:55.120Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T03:08:55.368Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T03:10:55.137Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -89,23 +89,23 @@ laptop41-doctor 20261009-035602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.181   76:a9:50:73:e9:7d  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 19s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 25s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (38 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (39 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.8 of 15.8 GB RAM free
+  ok: 3.5 of 15.8 GB RAM free
   ok: C: 132.4 GB free
-  ok: CPU 43% (Alpha holds GPU admission at 90%)
-  Memory Compression            2,352 MB  pid 3840
+  ok: CPU 77% (Alpha holds GPU admission at 90%)
+  Memory Compression            2,278 MB  pid 3840
   llama-server                  1,932 MB  pid 1040
-  node                            379 MB  pid 21168
-  claude                          348 MB  pid 8028
-  MsMpEng                         347 MB  pid 6040
-  WindowsTerminal                 315 MB  pid 9648
+  node                            376 MB  pid 21168
+  MsMpEng                         356 MB  pid 6040
+  claude                          351 MB  pid 8028
+  WindowsTerminal                 323 MB  pid 9648
+  python                          295 MB  pid 7228
   explorer                        273 MB  pid 10108
-  claude                          267 MB  pid 12912
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -113,10 +113,8 @@ laptop41-doctor 20261009-035602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 29s
+  this pass took 30s
   ok: no problems found
-  + fixed since last run: no machine offers alpha.image: the image bridge has nowhere to send work
-  + fixed since last run: image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
