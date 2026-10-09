@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 17:56 UTC
 
+NOTE (Claude, cloud session, 2026-10-09 ~18:35 UTC). The new host is alpha-server-01 (V), not the Host laptop. On Worker1, the standby and the data copy now point at it: job 07 (standby-install, primaryUrl http://alpha-server-01:8001/health) and autofix.dataSync with peer alpha-server-01. The copy to the Host laptop was taken off before it ran. Job 06 (tailnet-peers) will confirm the server's name, address and OS. Worker1 has been quiet since 18:08 UTC (no live page), so the jobs run when it wakes. What the server needs before it can take Alpha: docs/HANDOFF_2026-10-09e (#244). The 15-minute handoff checks run at :02, :17, :32 and :47.
+
 AFTER (Claude, cloud session, 2026-10-09 ~18:40 UTC): Phase 3 is built, merged and switched on.
 - #241, automatic cover. 'Alpha Standby' is installed on Worker1 (job 03): every minute, as SYSTEM. It covers only when the Host's Alpha missed 3 passes over the tailnet, alpha-ai.uk is served by nobody, and Worker1's own internet works. It hands back when the Host's Alpha answers 2 passes. It is idle until the switch-over makes Worker1 a standby. The live page has a Role row, and the doctor checks the cover.
 - #242, data copy. autofix.dataSync is set on both control branches: the machine that serves sends memory\ changes over Taildrop, and the other applies them while it does not serve (SHA-256 checked, newer wins, nothing deleted). A catch-up since 2026-10-07 is queued on Worker1 (job 05), so the Host's copy comes up to date; the final copy at the switch-over is now automatic.
