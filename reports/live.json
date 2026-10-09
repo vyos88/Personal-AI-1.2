@@ -1,10 +1,10 @@
 ﻿{
-    "at":  "2026-10-09T23:19:47.7935070+01:00",
+    "at":  "2026-10-09T23:33:04.3086636+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "checked_by":  "self-heal, 0 min ago"
               },
     "role":  {
                  "role":  "PRIMARY",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 21 file(s) to alpha-serv-01 at 2026-10-09T22:15:29Z (3422 MB still to send)"
+                 "detail":  "sent 1 file(s) to alpha-serv-01 at 2026-10-09T22:24:45Z (3230 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  0,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
