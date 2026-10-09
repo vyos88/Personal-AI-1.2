@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 16:56 UTC
 
+BEFORE (Claude, cloud session, 2026-10-09 ~17:10 UTC): V asked to build Phase 3 (automatic standby) now, with Worker1 always ready to run for the Alpha server. Plan: (A) a one-minute SYSTEM pass on Worker1 that covers automatically when the Host's Alpha stops answering over the tailnet, alpha-ai.uk is down and Worker1's own internet works, and hands back when the Host's Alpha answers again. It reuses the #239 stand-down and stand-up, and it is inert while Worker1 is still the primary. (B) a warm copy of memory\ from the Host to Worker1 every 10 minutes, and the carry-back of what changed while Worker1 covered. Both are verified by SHA-256 and delete nothing. Tested PRs; nothing on either laptop is stopped by this session.
+
 Worker1 (Laptop41) doctor fresh (16:54 UTC), NO problems: Alpha live, chat 1.3 s, decks 21 working, RAM 2.7/15.8 GB, C: 137.7 GB free. cloudSeen=26b2951 (current). Offline 12:40-15:18 UTC.
 
 NEW, merged by another cloud session ~16:35-16:51 UTC: #238 self-heal: a dead or hung pass no longer silences later ones (it writes "unfinished" after 4 min). #239 Worker1 hand-over to the Host: autopilot jobs alpha-standdown (confirm "hand-over", V present) and alpha-standup (rollback). While role.json says standby, Worker1 starts no second Alpha and self-heal repairs nothing. Queued on Worker1: 20261009-01 stand-down REHEARSAL (report only), not reported yet. NEEDS V first: .env.local to the Host by USB, a fresh memory copy, Alpha's Agent Manager stopped on Worker1 (HANDOFF_2026-10-09d).
