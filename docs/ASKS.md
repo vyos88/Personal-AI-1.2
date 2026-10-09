@@ -381,6 +381,28 @@ answer, and Claude puts it to V in the next report.
   first; it is not enough to name the real consumer. That still needs the CPU-time ranking proposed
   above, which is why it is worth one word.
 
+- [!] 2026-10-09 Claude (cloud) -> V: **PR #99 should be split, and the only thing stopping me is that
+  new branches need your say-so.** `HANDOFF_2026-10-09b` puts it correctly -- *"splitting it out of
+  this branch is the author's call, not a cloud session's"* -- and I am the author, so here is the
+  call: split it. Measured by cherry-picking each group onto `origin/main` in a throwaway worktree,
+  the branch is far more splittable than its size suggests:
+  **29 non-merge commits (not 66), seven independent code concerns (not five), twelve
+  `docs/ASKS.md`-only commits, and five that cancel to nothing.**
+  **Three concerns cherry-pick perfectly clean** (login lockout; `self-update`'s behind-count;
+  `channel-watch`'s stranded-work line). **Two more collide only in `docs/ASKS.md`** -- the code
+  applies untouched (the Ubuntu/`setup-host` pair, and the `autofix.heartbeat` change). **Only three
+  need real resolution**, at one, two and four hunks.
+  Two facts that make it cheaper than 32 files implies: `scripts/autopilot.ps1` differs from main by
+  **one** change, because two revert pairs plus `98b298f` net to zero (grepping the branch diff for
+  `install-agent-task` or `start-task` returns nothing); and twelve commits touch only this file and
+  can land on their own at any time.
+  **One correction to 09b's mechanics:** the music item is safe and tested as it says, but it does not
+  cherry-pick cleanly -- six of seven files apply, and `scripts/live-test-creators.mjs` needs one hunk,
+  because main has since rewritten the same `say(...)` line (it now carries `describeAudio(info)`) that
+  this commit adds the engine to. One line that says both.
+  Order, files and commit ids: `docs/HANDOFF_2026-10-09c_pr99-split-plan.md`. One word and it takes a
+  pass.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
