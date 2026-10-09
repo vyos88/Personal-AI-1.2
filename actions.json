@@ -533,6 +533,21 @@
       "primary": "alpha-server-01",
       "primaryUrl": "http://alpha-server-01:8001/health",
       "why": "V 2026-10-09: point standby and data copy at alpha-server-01, the new host. Alpha Standby now watches alpha-server-01's Alpha by its tailnet name (MagicDNS); it stays idle while this machine is the primary"
+    },
+    {
+      "id": "20261009-09-fleet-inventory",
+      "do": "fleet-inventory",
+      "why": "V 2026-10-09: fix what keeps Alpha from working. Doctor 19:41: CPU 97%, at or above Alpha's 90% GPU-admission hold, so local model calls time out. Read-only: which processes and duplicates hold the CPU."
+    },
+    {
+      "id": "20261009-10-stop-stray-site",
+      "do": "stop-stray-site",
+      "why": "V 2026-10-09: free CPU. Stops only a leftover vite preview tree, never the one serving 4173, and fails unless the site still answers."
+    },
+    {
+      "id": "20261009-11-alpha-runtime",
+      "do": "alpha-runtime",
+      "why": "Read-only: what Alpha's assistant cycle and GPU admission are waiting on, after the CPU is freed."
     }
   ],
   "autofix": {
