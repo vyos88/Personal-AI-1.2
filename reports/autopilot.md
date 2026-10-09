@@ -1,8 +1,15 @@
-﻿# host autopilot 20261009-110909
+﻿# host autopilot 20261009-111409
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-111409  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T11:14:13, 2s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-09T08:41:48Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 92 min (silent after 90)
+```
 
 ## auto-channel-watch-20261009-110909  channel-watch (standing)  ->  1 (could not run)   (2026-10-09T11:09:12, 26s)
 ```
@@ -128,34 +135,5 @@ OK: status/laptop41
 RECEIVE ALPHA DATA LAPTOP-GJ8DFMLK 2026-10-08 01:14
   taildrop: getting WaitingFiles: 503 Service Unavailable: no backend
 NOT YET: no alpha-move-manifest.json in C:\AlphaData\alpha-move\inbox
-```
-
-## 20261008-codex-h27-migration-readiness  alpha-move-check  ->  0   (2026-10-08T01:17:13, 22s)
-```
-ALPHA MOVE CHECK LAPTOP-GJ8DFMLK 2026-10-08 01:17
-MACHINE: RAM 1.4 GB free of 15.8 GB; C: 53.8 GB free; on AC
-  GPU: NVIDIA GeForce RTX 3050 Laptop GPU; Intel(R) UHD Graphics
-  addresses: tailnet none; LAN 192.168.1.88 (Ethernet)
-ALPHA COPY:
-  C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software: not here
-  C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software: backend, frontend, node_modules, dist; git claude/frie...(30) @ a3e1350 10-08 00:00
-DATA (runtime state; never in git, moves by USB or LAN):
-  C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\memory: 32472 files, 4.4 GB
-  venv: C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\.venv\Scripts\python.exe (Python 3.12.10)
-TOOLS:
-  git: git version 2.55.0.windows.4
-  node: v24.19.0
-  python: Python 3.12.10
-  py: Python 3.12.10
-  ollama: ollama version is 0.35.1
-  cloudflared: cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
-  tailscale: 1.102.4
-  ollama models: llama3.2:3b, qwen2.5:3b
-  cloudflared: service none; 0 process(es); config folders hold 0 .yml and 0 .json file(s) (not opened)
-PORTS: 8001 backend=-, 4173 site=-, 8787 coordinator=up, 8790 music bridge=-, 7861 image bridge=-, 11434 ollama=up, 8188 comfyui=-
-TASKS: Alpha=-, Alpha Backend=-, Alpha Self-Heal=-, Alpha Doctor=-, alpha-music bridge=-, alpha-image bridge=-, alpha-coordinator=Running, alpha-tunnel agent=Running, Alpha Autopilot=Running
-AGENT MANAGER: snapshot here, written 10-07 23:35
-MISSING TO RUN ALPHA HERE (1):
-  - the backend's .env.local (Alpha configuration with its secrets; by USB from Laptop41, never through git or chat)
 ```
 
