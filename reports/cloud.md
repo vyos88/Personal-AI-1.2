@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-09 12:57 UTC
+Claude (cloud) report, 2026-10-09 13:57 UTC
 
-Worker1 (Laptop41) doctor is fresh (12:41 UTC). The 97% CPU problem from 11:56 has CLEARED. 1 NEW PROBLEM: self-heal is installed but its log is 19 min old (runs every 2 min); check its task result as Administrator. Alpha live, decks 21 working, RAM 3.2/15.8 GB, C: 137.8 GB free. cloudSeen=dd5e7a8 (current).
+Worker1 (Laptop41) has gone SILENT on ALL channels since ~12:40 UTC: doctor 12:41, live 12:40 (last said "backend UP; self-heal STOPPED"), autopilot 12:30. Unlike the doctor's skipped hours, this looks like the machine (asleep or offline). Last doctor: self-heal log 19 min stale; Alpha live, decks 21 working, RAM 3.2/15.8 GB, C: 137.8 GB free. cloudSeen=dd5e7a8 (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -10,11 +10,11 @@ Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
  - DEFERRED: Worker1's enrollment (agent-control) moved to the 15-minute workflow. V decided: Host is main; do not ask again. Only the owner password at the keyboard remains. HANDOFF_2026-10-08f.
  - DONE (#235): release comparison: Host a3e1350 vs Worker1 20c58f5, 3 commits apart; Updater blocked by the Host's dirty usb-inventory.ps1 and no Alpha updater there.
 
-Book auto-read is off on Worker1 (V's call). Alpha's coordination log has no working home yet.
+Alpha's coordination log has no working home yet.
 
-Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. #99 (draft) records the music engine (cuda/cpu) to test whether Worker1's 721 s music timeouts are CPU fallback (HANDOFF_2026-10-09b). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. #99 (draft) records the music engine to test if Worker1's music timeouts are CPU fallback. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: Worker1 self-heal stalled (Administrator check); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: is Worker1 awake and online? Then its stalled self-heal (Admin check); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
