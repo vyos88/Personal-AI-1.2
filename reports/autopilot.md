@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261009-233407
+﻿# laptop41 autopilot 20261009-234347
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 363d3f7 is current
+
+## auto-data-sync-20261009-234347  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:44:58, 433s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:45 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 1 file(s), 159.7 MB written since 2026-08-13T04:14:54Z, to alpha-serv-01
+  PART of a backlog: 9003 file(s), 2,977.8 MB still to send, from 2026-08-13T04:22:34Z; the next pass carries on
+```
 
 ## auto-data-sync-20261009-233407  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:35:17, 353s)
 ```
@@ -304,13 +312,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:50 (memory\ at C:\Users\Vyo\Downloads\Vy
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
 CAPTURED: nothing; every source file here matches 20c58f5
-```
-
-## auto-data-sync-20261009-213849  data-sync (standing)  ->  0 (in step)   (2026-10-09T21:40:26, 459s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 214 file(s), 99.6 MB written since 2026-04-24T15:52:06Z, to alpha-serv-01
-  PART of a backlog: 12932 file(s), 4,138.9 MB still to send, from 2026-07-14T03:21:49Z; the next pass carries on
 ```
 
