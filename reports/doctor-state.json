@@ -1,10 +1,19 @@
 {
     "cloudSeen":  "c80b2242fbcaf5f55f3a1b932f297e732837f00b",
-    "lastRun":  "2026-10-09T02:56:39",
+    "lastRun":  "2026-10-09T03:41:34",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-
+                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
+                                                                                                  "since":  "2026-10-09T03:41:34",
+                                                                                                  "runs":  1,
+                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
+                                                                                              },
+                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
+                                                                                                                                         "since":  "2026-10-09T03:41:34",
+                                                                                                                                         "runs":  1,
+                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
+                                                                                                                                     }
              },
-    "lastPost":  "2026-10-08T11:26:28",
+    "lastPost":  "2026-10-09T03:41:34",
     "relay":  "relayed status/cloud c80b224"
 }
