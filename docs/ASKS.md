@@ -362,6 +362,25 @@ answer, and Claude puts it to V in the next report.
   resolved the commit refs by offset rather than by run id and compared the wrong two reports. The
   shape of the conclusion held, the number did not.
 
+  **Update 2026-10-09 11:35 UTC: a third firing, the level is rising, and the chat model is not the
+  cause.** Nine samples now, local times: 46 (07:11), **93 (07:26 P)**, 73 (07:41), 60 (08:11),
+  **90 (09:26 P)**, 60 (09:41), 63 (11:56), **90 (12:11 P)**, 87 (12:26). Three firings, each one
+  pass. The morning four average ~60; the midday three average ~80, and the 87% is a near miss on an
+  inclusive hold -- so the machine has stopped spiking to the hold and started sitting near it.
+  **What rules out `llama-server`:** the doctor's own chat probe runs in the same pass, and its
+  throughput is flat across the whole CPU range -- 7.9 t/s at 46%, 8.8 at 93%, 7.5 at 90%, 11.4 at
+  60%, 8.8 at 87% -- with answer latency 1.1-1.8s throughout, the *fastest* answer at the *highest*
+  CPU. CPU inference that was itself driving the machine to 90% would slow down as it got there.
+  Flat throughput across a 2x swing in CPU says the swing comes from something else.
+  That matters because it contradicts where the doctor points the reader: its own recommendation line
+  reads *"llama-server answering chat at a few tokens a second is running on CPU, not the GPU"*, and
+  `CLAUDE.md` carries the same note. **Both are still true about the baseline** -- it is resident at
+  1,933 MB doing CPU inference and surely contributes a floor -- but neither explains the spikes.
+  Stated with its limits: the probe is one short prompt per pass (~10 tokens at 1.2s), so this is nine
+  samples of a sample, not a continuous measurement. It is enough to stop looking at `llama-server`
+  first; it is not enough to name the real consumer. That still needs the CPU-time ranking proposed
+  above, which is why it is worth one word.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
