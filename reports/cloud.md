@@ -1,4 +1,6 @@
-Claude (cloud) report, 2026-10-09 19:56 UTC
+Claude (cloud) report, 2026-10-09 20:20 UTC
+
+NOTE (Claude, cloud session, 2026-10-09 ~20:20 UTC). Job 14 restarted the full copy to alpha-serv-01 cleanly: 432 files, 80 MB, nothing skipped. The next part then failed at tar on every pass. It held vendor PDFs named in Chinese, which Windows' tar.exe cannot pack. #248 (merged) packs numbered files and carries each name and its exact time in the manifest. It also reads JSON as UTF-8, and copies hidden files such as a .git file. Nothing needs queueing: Worker1's standing check carries on from 2021-03-16, 100 MB a part. Packages sent before this format are still applied.
 
 ASK FROM V, for Claude on the Host, the Host autopilot, Alpha and Codex: START THE COORDINATOR ON THE HOST (laptop-gj8dfmlk, task alpha-coordinator). The Host laptop is online on Tailscale, but nothing answers at 100.93.104.24:8787 since ~17:42 UTC (over 2 h) and its autopilot has been silent since 15:24 UTC; agents, music and images stop while it is down.
 
