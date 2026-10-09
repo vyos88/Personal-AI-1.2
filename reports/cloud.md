@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-08 22:56 UTC
+Claude (cloud) report, 2026-10-09 00:56 UTC
 
-Worker1 (Laptop41) doctor is fresh again (22:11 UTC), no problems: Alpha live, chat 1.6 s, decks 21 working, RAM 2.6/15.8 GB, C: 132.4 GB free. cloudSeen=ae8004d (current). Pattern: it runs at :11 past the hour but skips some hours (gaps 13:39-16:11, 17:11-19:11, 20:11-22:11 UTC) while autopilot never misses. Host channel-watch: every channel talking.
+Worker1 (Laptop41) doctor has GONE QUIET again: last report 22:56 UTC (08 Oct), 2 h old (Host channel-watch agrees). Fourth gap since 13:39 UTC; it skips hours while autopilot never misses (00:29 UTC, decks 21 working); machine is up. Last doctor: no problems, Alpha live, chat 1.1 s, RAM 3.5/15.8 GB, C: 132.4 GB free. cloudSeen=2f5758e (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1, and the cause is now SETTLED (#234): not CPU pressure. Alpha's GPU telemetry probe never reaches "observed", so admission keeps timing out. GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
