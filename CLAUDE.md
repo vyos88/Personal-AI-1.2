@@ -469,6 +469,11 @@ on. Its policy lives in the pure `decide()` and is pinned by
   sent and rides with the next pass. A folder that cannot be read is reported.
   A package with a file that could not be written is kept for the next pass.
   `-Resend` forgets what was sent, for files an older pass miscounted.
+  Names never pass through tar (format 2): the archive holds `f/0000000`,
+  ... and the manifest carries each memory\ path and its time to the tick.
+  Windows' tar.exe failed a part over PDFs named in Chinese, which would have
+  stuck the copy there for good. JSON is read as UTF-8 for the same names,
+  because Windows PowerShell reads a file with no BOM as ANSI.
 - **A standby repairs nothing.** `role.json` beside the config, written by
   `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
   log one `standby` line and stop. The stand-down disables the task too; this

@@ -25,13 +25,20 @@
     - The files are packed with tar beside a manifest naming its SHA-256, and
       handed to `tailscale file cp`. That is Taildrop: end-to-end encrypted,
       inside the owner's tailnet, never git or chat.
+    - Format 2: the tar holds numbered files (f/0000000, ...), and the
+      manifest names each one: its memory\ path and its time, to the tick.
+      Names never pass through tar, so a name outside the ANSI code page (the
+      Chinese-named PDFs that made Windows' tar.exe fail a part on 2026-10-09)
+      or a long path cannot break a part. A package from before format 2
+      (memory\ itself in the tar) is still applied.
 
   Receiving (always, unless -NoReceive):
     - `tailscale file get` collects into -Inbox, the inbox receive-alpha-data
       uses. Only alpha-data-*.json manifests and their archives are this
       script's; anything else there is left alone.
     - Every archive is checked before anything is applied: present, the right
-      size, the right SHA-256, and nothing in it outside memory\.
+      size, the right SHA-256, and nothing in it outside memory\ (in format 2,
+      every name in the manifest: no drive, no "..", no backslash).
     - **Nothing is applied under a running Alpha.** While the backend answers
       here, a package is held, and the data-apply job (-ApplyHeld) applies it:
       it stops the backend, applies, and starts it again.
@@ -116,7 +123,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $alphaHome 'software'))) {
 }
 $mem = Join-Path $alphaHome 'memory'
 
-function Load-Json([string]$f) { if (Test-Path -LiteralPath $f) { try { return Get-Content -LiteralPath $f -Raw | ConvertFrom-Json } catch { } }; return $null }
+# UTF-8 both ways: Windows PowerShell reads a file with no BOM as ANSI, and a
+# memory\ path with a character outside it would come back as another name.
+function Load-Json([string]$f) { if (Test-Path -LiteralPath $f) { try { return Get-Content -LiteralPath $f -Raw -Encoding UTF8 | ConvertFrom-Json } catch { } }; return $null }
 function Save-Json([string]$f, $v) {
   [IO.File]::WriteAllText("$f.tmp", ($v | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
   Move-Item -LiteralPath "$f.tmp" -Destination $f -Force
@@ -162,11 +171,15 @@ function Peer-State([string]$name) {
 }
 function Rel([string]$base, [string]$full) { return ('memory/' + $full.Substring($base.Length).TrimStart('\', '/')) -replace '\\', '/' }
 # Throws when it cannot copy, so no caller counts a file that did not arrive.
-function Copy-Keeping([string]$src, [string]$dst) {
+# -Force everywhere: without it Get-Item does not see a hidden file (a .git
+# file in memory\local\autonomy-sandboxes). $ticks, when given, is the time
+# the file had where it was written.
+function Copy-Keeping([string]$src, [string]$dst, [int64]$ticks = 0) {
   if ($TestCopyFails -and ($dst -replace '\\', '/') -match $TestCopyFails) { throw "could not copy to $dst (-TestCopyFails)" }
   New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) -EA Stop | Out-Null
   Copy-Item -LiteralPath $src -Destination $dst -Force -EA Stop
-  (Get-Item -LiteralPath $dst -EA Stop).LastWriteTimeUtc = (Get-Item -LiteralPath $src -EA Stop).LastWriteTimeUtc
+  $when = if ($ticks) { [datetime]::new($ticks, [DateTimeKind]::Utc) } else { (Get-Item -LiteralPath $src -Force -EA Stop).LastWriteTimeUtc }
+  (Get-Item -LiteralPath $dst -Force -EA Stop).LastWriteTimeUtc = $when
 }
 
 $state = Load-Json $stateFile
@@ -212,7 +225,18 @@ if (-not $NoReceive) {
     $hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower()
     if ($len -ne [int64]$man.archive.bytes -or $hash -ne ([string]$man.archive.sha256).ToLower()) { Say "  REFUSED: $tarName does not match its manifest ($len bytes); kept for a person"; $exit = 1; continue }
     $listing = @(& $tar -tf $tarFile 2>$null | ForEach-Object { $_ -replace '\\', '/' })
-    $unsafe = @($listing | Where-Object { $_ -match '^(/|[A-Za-z]:)|(^|/)\.\.(/|$)' -or $_ -notmatch '^memory(/|$)' })
+    # Format 2 packs numbered files (f/0000000) and names them in the manifest;
+    # an older package holds memory\ itself. Either way nothing may land
+    # outside memory\: no absolute path, no drive, no "..", no backslash.
+    $entries = @()
+    if ([int]$man.format -eq 2) {
+      $entries = @($man.entries)
+      $names = @($listing | Where-Object { $_ -notmatch '^f/?$' })
+      $unsafe = @($names | Where-Object { $_ -notmatch '^f/\d+$' }) + @($entries | Where-Object { [string]$_.p -notmatch '^memory/[^/]' -or [string]$_.p -match '\\|:|(^|/)\.\.?(/|$)' })
+      if ($names.Count -ne $entries.Count -and -not $unsafe.Count) { Say "  REFUSED: $tarName holds $($names.Count) file(s) and its manifest names $($entries.Count); nothing applied"; $exit = 1; continue }
+    } else {
+      $unsafe = @($listing | Where-Object { $_ -match '^(/|[A-Za-z]:)|(^|/)\.\.(/|$)' -or $_ -notmatch '^memory(/|$)' })
+    }
     if (-not $listing.Count -or $unsafe.Count) { Say "  REFUSED: $tarName holds paths outside memory\ ($($unsafe.Count)); nothing applied"; $exit = 1; continue }
     if ($serving -and -not $ApplyHeld) { $held++; Say "  HELD: $tarName from $($man.from) ($($man.files) file(s)): Alpha serves here, so it waits for the data-apply job"; continue }
     if ($serving -and $ApplyHeld -and -not $stopped) { Stop-Backend; $stopped = $true; Say '  stopped the backend to apply' }
@@ -224,21 +248,28 @@ if (-not $NoReceive) {
     $out = & $tar -xf $tarFile -C $staging 2>&1
     if ($LASTEXITCODE -ne 0) { Say "  FAILED: extracting $tarName"; Remove-Item -LiteralPath $staging -Recurse -Force -EA SilentlyContinue; $exit = 1; continue }
     $base = Join-Path $staging 'memory'
+    if ([int]$man.format -eq 2) {
+      $script:unreadable = New-Object System.Collections.ArrayList
+      $items = @(for ($i = 0; $i -lt $entries.Count; $i++) {
+          [pscustomobject]@{ src = (Join-Path (Join-Path $staging 'f') $i.ToString('D7')); rel = [string]$entries[$i].p; ticks = [int64]$entries[$i].t } })
+    } else {
+      $items = @(Walk $base | ForEach-Object { [pscustomobject]@{ src = $_; rel = (Rel $base $_); ticks = [int64]0 } })
+    }
     $applied = 0; $same = 0; $conflicts = 0; $replaced = 0; $notWritten = 0; $why = ''
-    foreach ($src in (Walk $base)) {
-      $rel = Rel $base $src
+    foreach ($it in $items) {
+      $src = $it.src; $rel = $it.rel
       $dst = Join-Path $alphaHome ($rel -replace '/', '\')
       try {
-        $srcTicks = (Get-Item -LiteralPath $src -EA Stop).LastWriteTimeUtc.Ticks
+        $srcTicks = if ($it.ticks) { $it.ticks } else { (Get-Item -LiteralPath $src -Force -EA Stop).LastWriteTimeUtc.Ticks }
         if (Test-Path -LiteralPath $dst) {
-          $d = Get-Item -LiteralPath $dst -EA Stop
-          if ($d.LastWriteTimeUtc.Ticks -eq $srcTicks -and $d.Length -eq (Get-Item -LiteralPath $src).Length) { $same++; $received[$rel] = $srcTicks; continue }
+          $d = Get-Item -LiteralPath $dst -Force -EA Stop
+          if ($d.LastWriteTimeUtc.Ticks -eq $srcTicks -and $d.Length -eq (Get-Item -LiteralPath $src -Force -EA Stop).Length) { $same++; $received[$rel] = $srcTicks; continue }
           if ($d.LastWriteTimeUtc.Ticks -gt $srcTicks) { $conflicts++; continue }
           # The file it replaces is kept first, or it is not replaced at all.
           Copy-Keeping $dst (Join-Path (Join-Path $dir "replaced\$stamp") ($rel -replace '/', '\'))
           $replaced++
         }
-        Copy-Keeping $src $dst
+        Copy-Keeping $src $dst $srcTicks
         $received[$rel] = $srcTicks
         $applied++
       } catch { $notWritten++; if (-not $why) { $why = Short "${rel}: $($_.Exception.Message)" } }
@@ -360,16 +391,28 @@ if ($Peer -and -not $NoSend) {
         $riders = @($rs)
       }
       $send = @($changed) + @($riders)
-      # Copied under the short root, never beside alpha-ops: see -StageRoot.
-      # A file that cannot be copied is left out of the package, by name.
+      # Format 2: each file is packed as f/0000000, f/0000001, ... and the
+      # manifest names it (its memory\ path and its time, to the tick). The
+      # archive then holds nothing tar can stumble on: on 2026-10-09 Windows'
+      # tar.exe failed on a part holding PDFs named in Chinese, and a 254-
+      # character path came out at 274 when copied under alpha-ops. The copy is
+      # .NET's, which sees hidden files (a .git file) like any other. A file
+      # that cannot be copied is left out of the package, by name.
       $stage = Join-Path $StageRoot 'o'
       Remove-Item -LiteralPath $stage -Recurse -Force -EA SilentlyContinue
+      $fdir = [IO.Directory]::CreateDirectory((Join-Path $stage 'f')).FullName
       $packed = New-Object System.Collections.ArrayList
       $failed = New-Object System.Collections.ArrayList
+      $entries = New-Object System.Collections.ArrayList
       $why = ''
       foreach ($f in $send) {
-        try { Copy-Keeping $f (Join-Path $stage ((Rel $mem $f) -replace '/', '\')); [void]$packed.Add($f) }
-        catch { [void]$failed.Add($f); if (-not $why) { $why = Short "$(Rel $mem $f): $($_.Exception.Message)" } }
+        try {
+          if ($TestCopyFails -and ($f -replace '\\', '/') -match $TestCopyFails) { throw "could not copy $f (-TestCopyFails)" }
+          $t = [IO.File]::GetLastWriteTimeUtc($f).Ticks
+          [IO.File]::Copy($f, [IO.Path]::Combine($fdir, $packed.Count.ToString('D7')), $true)
+          [void]$entries.Add([ordered]@{ p = (Rel $mem $f); t = $t })
+          [void]$packed.Add($f)
+        } catch { [void]$failed.Add($f); if (-not $why) { $why = Short "$(Rel $mem $f): $($_.Exception.Message)" } }
       }
       $bytes = Size-Of $packed
       $sent = $false
@@ -378,12 +421,17 @@ if ($Peer -and -not $NoSend) {
         New-Item -ItemType Directory -Force -Path $out | Out-Null
         $tarName = "alpha-data-$($machine.ToLower())-$stamp.tar"
         $tarFile = Join-Path $out $tarName
-        $tarOut = & $tar -cf $tarFile -C $stage memory 2>&1
-        if ($LASTEXITCODE -ne 0) { Say "  FAILED: packing: $((@($tarOut) | Select-Object -Last 1))" }
-        else {
+        $tarOut = & $tar -cf $tarFile -C $stage f 2>&1
+        $tarCode = $LASTEXITCODE
+        if ($tarCode -ne 0) {
+          # Every line it said, not the last: on 2026-10-09 the last was empty.
+          $said = @(@($tarOut) | ForEach-Object { "$_".Trim() } | Where-Object { $_ }) -join ' / '
+          Say ("  FAILED: packing (tar exit {0}): {1}" -f $tarCode, $(if ($said) { Short $said } else { 'it said nothing' }))
+        } else {
           $manifest = Join-Path $out "alpha-data-$($machine.ToLower())-$stamp.json"
-          Save-Json $manifest ([ordered]@{ kind = 'memory-changes'; from = $machine; at = (Iso $passStart); since = (Iso $since); files = $packed.Count; bytes = $bytes
-              archive = [ordered]@{ name = $tarName; bytes = (Get-Item -LiteralPath $tarFile).Length; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower() } })
+          Save-Json $manifest ([ordered]@{ kind = 'memory-changes'; format = 2; from = $machine; at = (Iso $passStart); since = (Iso $since); files = $packed.Count; bytes = $bytes
+              archive = [ordered]@{ name = $tarName; bytes = (Get-Item -LiteralPath $tarFile).Length; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower() }
+              entries = @($entries) })
           try { $r = & tailscale file cp $tarFile $manifest "$($Peer):" 2>&1; $sent = ($LASTEXITCODE -eq 0); if (-not $sent) { Say "  taildrop: $((@($r) | Select-Object -Last 1))" } }
           catch { Say "  taildrop: $($_.Exception.Message)" }
         }

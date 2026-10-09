@@ -186,6 +186,14 @@ The full copy is restarted with `"since": "2000-01-01T00:00:00Z", "resend":
 true`. That resends the parts already sent; the server keeps those as
 "already the same".
 
+Job 14 then restarted the full copy cleanly: 432 files, 80 MB, nothing
+skipped. But the next part failed at tar, every pass. It held vendor PDFs
+named in Chinese, and Windows' `tar.exe` cannot pack a name outside the ANSI
+code page. Format 2 fixes that: the archive holds numbered files, and the
+manifest carries each name and its exact time. Nothing needs queueing, since
+the standing check carries on from where job 14 left off. A package sent
+before format 2 is still applied.
+
 **alpha-serv-01 still has to collect what arrives.** Taildrop holds the files
 until `tailscale file get` runs there, which its own autopilot (with
 `autofix.dataSync`, peer `desktop-41hplcn`) would do every pass.
