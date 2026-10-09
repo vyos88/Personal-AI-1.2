@@ -393,6 +393,13 @@ export async function run(payload, { signal, log } = {}) {
       if (Buffer.byteLength(JSON.stringify(complete), 'utf8') <= 750_000) return complete;
       result.statusCompletenessError = 'status_too_large';
     }
+    // Entry-count caps cannot bound arbitrary values inside those entries.
+    // Preserve diagnostics but refuse an oversized summary as ownership proof.
+    if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 750_000) {
+      result.status = null;
+      result.statusError = 'Structured Status summary exceeds the transport budget; ownership is unknown.';
+      result.statusCompletenessError = 'status_too_large';
+    }
   }
   return result;
 }

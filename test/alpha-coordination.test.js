@@ -475,6 +475,7 @@ test('invalid, oversized and failed Status never claim complete ownership', asyn
     ['array claims', '{"claims":[]}', 0, 'invalid_status'],
     ['missing lifecycle', '{"schema":"alpha.coordination.status.v1","claims":{}}', 0, 'invalid_status'],
     ['oversized escaped envelope', JSON.stringify({ schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {}, note: '\\'.repeat(400_000) }), 0, 'status_too_large'],
+    ['oversized structured summary', JSON.stringify({ schema: 'alpha.coordination.status.v1', claims: { file: { note: '\\'.repeat(400_000) } }, claims_lifecycle: {} }), 0, 'status_too_large'],
     ['nonzero script', JSON.stringify(largeStatus()), 3, 'script_failed'],
   ]) {
     await t.test(name, async () => {
@@ -486,6 +487,10 @@ test('invalid, oversized and failed Status never claim complete ownership', asyn
       assert.equal(result.exitCode, exitCode);
       assert.ok(result.stdout.length <= 16_000);
       assert.ok(Buffer.byteLength(JSON.stringify({ result }), 'utf8') < 1_000_000);
+      if (name === 'oversized structured summary') {
+        assert.equal(result.status, null);
+        assert.match(result.statusError, /ownership is unknown/);
+      }
     });
   }
 });
