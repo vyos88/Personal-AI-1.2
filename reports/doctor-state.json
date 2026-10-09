@@ -1,24 +1,24 @@
 {
-    "cloudSeen":  "9e8eb3c49e00414237cec0208c280ec96f991327",
-    "lastRun":  "2026-10-09T20:58:06",
+    "cloudSeen":  "1c4f5ed2528844d250a6d9e6baab4bf8e350ea44",
+    "lastRun":  "2026-10-09T21:28:00",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
                                                                                                            "since":  "2026-10-09T18:42:20",
-                                                                                                           "runs":  9,
+                                                                                                           "runs":  11,
                                                                                                            "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
                                                                                                        },
                  "CPU #% is at or above Alpha\u0027s #% GPU-admission hold: local model calls time out with a # and every agent receipt reads evidence-contract":  {
                                                                                                                                                                        "since":  "2026-10-09T20:44:00",
-                                                                                                                                                                       "runs":  2,
-                                                                                                                                                                       "text":  "CPU 90% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
+                                                                                                                                                                       "runs":  4,
+                                                                                                                                                                       "text":  "CPU 93% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
                                                                                                                                                                    },
                  "no coordinator answering at http://#.#.#.#:#":  {
                                                                       "since":  "2026-10-09T18:42:20",
-                                                                      "runs":  9,
+                                                                      "runs":  11,
                                                                       "text":  "no coordinator answering at http://100.93.104.24:8787"
                                                                   }
              },
     "lastPost":  "2026-10-09T20:44:00",
-    "relay":  "relayed status/cloud 9e8eb3c"
+    "relay":  "relayed status/cloud 1c4f5ed"
 }
