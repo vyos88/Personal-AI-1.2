@@ -445,6 +445,7 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
     { id: 's3', do: 'data-sync', since: '2026-10-07T21:00:00Z' },
     { id: 's4', do: 'data-sync', peer: 'laptop-gj8dfmlk', since: 'yesterday' },
     { id: 's5', do: 'data-apply', from: 'C:\\evil' },
+    { id: 't1', do: 'tailnet-peers', name: 'evil' },
   ]);
   assert.equal(p.d1.ok, false);
   assert.match(p.d1.reason, /"confirm": "hand-over"/);
@@ -466,6 +467,7 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.equal(p.s4.ok, false);
   assert.deepEqual(p.s5.args.slice(-2), ['-ApplyHeld', '-NoSend']);
   assert.ok(!/evil/.test(p.s5.args.join(' ')));
+  assert.match(p.t1.args.at(-1), /tailnet-peers\.ps1$/, 'takes nothing from the action');
 
   // Once it stood down, nothing queued may start Alpha here again but alpha-standup.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
