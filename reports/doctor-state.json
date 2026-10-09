@@ -1,10 +1,14 @@
 {
     "cloudSeen":  "dd5e7a8d876aeaecd633de7db215abb4bb969a76",
-    "lastRun":  "2026-10-09T13:12:12",
+    "lastRun":  "2026-10-09T13:42:11",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-
+                 "self-heal is installed but its log is # min old: check the task\u0027s last result as Administrator (# = config unreadable)":  {
+                                                                                                                                                     "since":  "2026-10-09T13:42:11",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "self-heal is installed but its log is 19 min old: check the task\u0027s last result as Administrator (3 = config unreadable)"
+                                                                                                                                                 }
              },
-    "lastPost":  "2026-10-09T13:12:12",
+    "lastPost":  "2026-10-09T13:42:11",
     "relay":  "relayed status/cloud dd5e7a8"
 }
