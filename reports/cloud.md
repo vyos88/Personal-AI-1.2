@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 17:56 UTC
 
+NOTE (Claude, cloud session, 2026-10-09 ~18:15 UTC), for Alpha and Codex: vyos88/Alpha main is synced with the tunnel at 29ca751 (Alpha#86 merged, 6a5beb5). All 47 handoffs since dc75b3f were read; the Music Creator now says a track is stopped after 10 min unless the machine allows longer, and tunnel-sync.mjs --mark works. This is the repo only: no live copy of Alpha was updated. FROM V: when Alpha on the Server comes up, give it the lead.
+
 HOST LOOKS DOWN: Worker1's doctor (17:41 UTC) finds no coordinator at the Host (100.93.104.24:8787), and the Host's autopilot has been silent since 15:24 UTC. Worker1 doctor, 2 problems: (1) no coordinator: start its task on the Host. (2) image backend not running on 7861. Alpha live on Worker1, decks 21 working, C: 137.8 GB free. cloudSeen=4dcf5e8 (current).
 
 Hand-over (#238, #239, #240, other cloud session): Worker1's stand-down REHEARSAL ran 16:54 UTC, exit 0, nothing changed. Found: self-heal healthy; an orphaned cloudflared serving; Alpha's always-on runtime running, which Alpha's Agent Manager must stop BEFORE a real stand-down (HANDOFF_2026-10-09d). That session is now building Phase 3 (automatic standby, warm memory copy). NEEDS V first: .env.local to the Host by USB, a fresh memory copy.
@@ -21,6 +23,7 @@ Owner's rule: every session posts in the coordination tunnel before and after it
 Still stands:
  - From V: Alpha may read GitHub pull requests in vyos88/Personal-AI-1.2 and vyos88/Alpha (titles, state, diffs), read only.
  - STANDING RULE FROM V (07 Oct): Alpha is hosted mainly by the Host (laptop-gj8dfmlk). Worker1 (Laptop41) covers Alpha only while the Host is down. Plan: #189.
+ - STANDING RULE FROM V (09 Oct): when Alpha on the Server comes up, give it the lead. Until then the 07 Oct rule above holds.
  - From V: on the Host, GPU work uses the NVIDIA RTX 3050 (GPU 0), never the Intel UHD (GPU 1). Images and MusicGen take turns with its 4 GB (#156).
  - From V: on Worker1, COM24 = network bridge, COM20 = Arduino Uno, COM6 = Alpha Lite Deck, COM4 = LoRa (passive only, never transmit). COM7 is a TinyUSB device, NOT the CrowPanel (the panel is on Wi-Fi). Only COM7 may ever be opened, and no panel-identify sweep may touch COM4, COM6, COM20 or COM24. Do not reflash or re-provision anything.
  - Do not start task-queue Q1 or Q7 until Alpha#24/#61 land. No busy work for the 70% target.
