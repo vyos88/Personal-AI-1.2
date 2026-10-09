@@ -582,6 +582,13 @@
       "id": "20261009-codex-2120-worker1-receipt",
       "do": "fleet-inventory",
       "why": "Read-only prerequisites for continuing Claude: actual current roots/listeners/supervisor state; no restarts, hardware access or model calls"
+    },
+    {
+      "id": "20261009-15-data-copy-task",
+      "do": "data-sync-install",
+      "peer": "alpha-serv-01",
+      "everyMin": 10,
+      "why": "#250: the full copy to alpha-serv-01 reached files too big for the standing check's 15 minutes (160-240 MB each at ~400 KB/s, the next bigger), so every pass timed out. 'Alpha Data Copy' runs the same alpha-data-sync.ps1 as its own SYSTEM task every 10 minutes with 4 hours a run; it carries on from 2026-08-13 (about 2.7 GB to go), and the pass reports each finished run. The standing dataSync stays paused; it would not copy while the task exists anyway"
     }
   ],
   "autofix": {
