@@ -495,8 +495,22 @@
       "do": "alpha-runtime",
       "why": "settles the one thing two CPU readings cannot. 20261008-07-doctor read CPU 49% at 10:39 and the 11:11 doctor read exactly 90%, so CPU does reach Alpha's hold -- but at 49% the guard on gpu_work.py's telemetry probe (not pressure_reasons) would ALLOW the probe, so admission should have recovered in that window. The receipts say whether it did: if any receipt between ~10:00 and ~11:00 completed, the gate reopens on its own and sustained CPU is the whole story; if they all still read evidence-contract with 'Waiting for fresh per-adapter GPU telemetry' through a 49% CPU window, the probe is failing rather than merely unscheduled and the deadlock is real and independent. The data is already in the registry; this only reads it."
     },
-    {"id": "20261008-09-doctor", "do": "doctor",
-     "why": "the doctor has not run for 84 min (its own lastRun agrees: 12:11:27Z), against a 15-minute schedule whose previous worst gap was 74. Does it still work when something asks it to? A clean run says the schedule is the fault, not the script."}
+    {
+      "id": "20261008-09-doctor",
+      "do": "doctor",
+      "why": "the doctor has not run for 84 min (its own lastRun agrees: 12:11:27Z), against a 15-minute schedule whose previous worst gap was 74. Does it still work when something asks it to? A clean run says the schedule is the fault, not the script."
+    },
+    {
+      "id": "20261009-01-standdown-rehearsal",
+      "do": "alpha-standdown",
+      "reportOnly": true,
+      "why": "V 2026-10-09: prepare Worker1 to give all work to the Host's Alpha (tunnel #239, HANDOFF_2026-10-09d). Report only: nothing is changed. Names what the real stand-down would stop, and what starts the cloudflared process the doctor saw at 13:41 with the service Stopped"
+    },
+    {
+      "id": "20261009-02-doctor",
+      "do": "doctor",
+      "why": "a fresh pass on the merged self-heal fix (#238): its log, lock and config error are now read before guessing"
+    }
   ],
   "autofix": {
     "brainTopology": {
