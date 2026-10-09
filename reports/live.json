@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-10-09T13:25:17.2024339+01:00",
+    "at":  "2026-10-09T13:30:29.0234481+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "LIVE",
-                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 2 min ago"
+                  "verdict":  "BACKEND UP",
+                  "detail":  "backend 200; site and alpha-ai.uk unchecked while self-heal is not running",
+                  "checked_by":  "this pass"
               },
     "selfheal":  {
-                     "state":  "RUNNING",
-                     "age_min":  2,
+                     "state":  "STOPPED",
+                     "age_min":  8,
                      "repairs":  0,
-                     "restarted":  "",
+                     "restarted":  "started its task again",
                      "snapshot":  ""
                  },
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-09T12:15:18.266558+00:00"
+                  "checked_at":  "2026-10-09T12:30:18.787439+00:00"
               },
     "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
