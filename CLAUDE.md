@@ -425,6 +425,17 @@ on. Its policy lives in the pure `decide()` and is pinned by
   (`chat-task.ps1` makes `Alpha Ollama`), never started directly: self-heal is
   SYSTEM, and an Ollama started as SYSTEM finds no models. A `chat` with no
   task is reported once as needing a person, and no budget is spent on it.
+- **A pass that cannot finish still writes its line.** One pass at a time is
+  a lock file, and a pass that died holding it made every pass after it skip,
+  silently, for `lockStaleMs` -- on Laptop41 on 2026-10-09 the log stopped at
+  13:22 and the autopilot's restart at 13:30 changed nothing. So the lock names
+  its pid and a dead holder's lock is taken at once; `guardPass()` stops a pass
+  at `passDeadlineMs` (under Task Scheduler's 5-minute kill) and catches a
+  process ending with its pass unfinished, and both log `unfinished: {why,
+  stage}` and exit 4; and every probe is bounded as a whole and settles once,
+  because the socket timeout is idle time and a server sending a byte every
+  100 ms never trips it. The doctor (`-ExplainSelfHeal`) and the live page read
+  the lock and `selfheal.json.error.json` before they guess.
 
 **A verification that could not run is reported as that, never as a failure.**
 `repair-alpha-host.ps1`'s roster check captured

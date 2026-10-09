@@ -974,6 +974,28 @@ function Read-SelfHeal {
   try { $last = (Get-Content -LiteralPath $log -Tail 1 -EA Stop) | ConvertFrom-Json } catch { }
   return [pscustomobject]@{ age = $age; last = $last }
 }
+# Why self-heal's log went quiet, from what it leaves on disk (alpha-selfheal.mjs):
+# a config it cannot read (selfheal.json.error.json, newer than the log) or a
+# pass holding its lock. "STOPPED" alone sent a person to Task Scheduler.
+function SelfHeal-WhyQuiet {
+  $log = Join-Path $OpsDir 'logs\selfheal.jsonl'
+  $logAt = if (Test-Path -LiteralPath $log) { (Get-Item -LiteralPath $log).LastWriteTime } else { [datetime]::MinValue }
+  $cfgErr = Join-Path $OpsDir 'selfheal.json.error.json'
+  if ((Test-Path -LiteralPath $cfgErr) -and (Get-Item -LiteralPath $cfgErr).LastWriteTime -gt $logAt) {
+    $e = try { (Get-Content -LiteralPath $cfgErr -Raw | ConvertFrom-Json).error } catch { 'unreadable' }
+    return "it cannot read selfheal.json ($e): run scripts\repair-alpha-host.ps1, which rewrites it"
+  }
+  $stateDir = try { [string]((Get-Content -LiteralPath (Join-Path $OpsDir 'selfheal.json') -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json).stateDir } catch { '' }
+  if (-not $stateDir) { $stateDir = Join-Path $OpsDir 'selfheal' }
+  $lock = Join-Path $stateDir 'selfheal.lock'
+  if (Test-Path -LiteralPath $lock) {
+    $mins = [int]((Get-Date) - (Get-Item -LiteralPath $lock).LastWriteTime).TotalMinutes
+    $holderPid = try { [int](Get-Content -LiteralPath $lock -Raw | ConvertFrom-Json).pid } catch { 0 }
+    $alive = $holderPid -and (Get-Process -Id $holderPid -EA SilentlyContinue)
+    return "a pass has held its lock for $mins min (pid $(if ($holderPid) { $holderPid } else { '?' }), $(if ($alive) { 'still running' } else { 'gone' }))"
+  }
+  return ''
+}
 function Publish-Live([string]$md, [string]$json, [string]$headline) {
   $liveBranch = "status/$Channel-live"
   $tmpRoot = Join-Path $OpsDir 'tmp'
@@ -997,7 +1019,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $now = Get-Date
   $sh = Read-SelfHeal
   $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
-  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = '' }
+  $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = ''; unfinished = ''; why = '' }
   if ($sh) {
     $heal.age_min = $sh.age
     # A snapshot is self-heal saving the site's last good build for rollback,
@@ -1006,6 +1028,9 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $badSnap = @($sh.last.actions | Where-Object { $_ -and $_.action -eq 'snapshot' -and $_.code -ne 0 }) | Select-Object -First 1
     if ($badSnap) { $heal.snapshot = 'the rollback copy of the site was not saved' + $(if ($badSnap.error) { ": $(Redact ([string]$badSnap.error))" } else { ' (no reason logged)' }) }
     $heal.state = if ($sh.age -le 6) { 'RUNNING' } else { 'STOPPED' }
+    # A pass that could not finish still writes its line, saying where it stopped.
+    if ($sh.last -and $sh.last.unfinished) { $heal.unfinished = "the last pass did not finish ($($sh.last.unfinished.why), at $($sh.last.unfinished.stage))" }
+    if ($heal.state -eq 'STOPPED') { $heal.why = SelfHeal-WhyQuiet }
   }
   if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
     $parts = [ordered]@{ backend = $sh.last.probes.backend; site = $sh.last.probes.frontend; 'alpha-ai.uk' = $sh.last.probes.public }
@@ -1018,7 +1043,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $code = $null
     try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
     $alpha.verdict = if ($code -eq 200) { 'BACKEND UP' } else { 'DOWN' }
-    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is not running"
+    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
     $alpha.checked_by = 'this pass'
   }
   if ($heal.state -eq 'STOPPED') {
@@ -1068,7 +1093,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
     '| Check | State | Detail |', '|---|---|---|',
     "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
-    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+    "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
