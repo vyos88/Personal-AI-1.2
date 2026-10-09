@@ -1,8 +1,15 @@
-﻿# host autopilot 20261009-021409
+﻿# host autopilot 20261009-064409
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-064409  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T06:44:12, 1s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-09T04:11:42Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 92 min (silent after 90)
+```
 
 ## auto-channel-watch-20261009-021409  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-09T02:14:13, 2s)
 ```
@@ -218,25 +225,5 @@ done: the data is in place; next songs-check, then the local test start
 TOTAL: 98 song(s): 87 can play, 87 of them as MP3, 0 still WAV only; 0 finished but no audio; 11 not finished or failed; 0 unreadable
 ok: ffmpeg found (ffmpeg on PATH) for this account
 backend MP3 backfill, last pass 2026-10-07T22:36:07.445234+00:00: ffmpeg True, made 0, failed 0, waiting 0, already 87 of 87
-```
-
-## 20261007-h23-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-08T00:04:18, 75s)
-```
-PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-08 00:04
-  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
-1. code
-  up to date: a3e1350 10-08 00:00 Live edits from DESKTOP-41HPLCN: 1 changed, 0 new source file(s)
-  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
-2. backend
-  venv ready (Python 3.12.10), requirements from backend\requirements.txt
-3. site
-  built: dist\index.html
-4. chat
-  llama3.2:3b is here
-5. connector (installed only; never started here)
-  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
-RAM: 1.6 GB free of 15.8 GB
-STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
-RESULT: ready for the data copy
 ```
 
