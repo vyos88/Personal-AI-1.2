@@ -28,6 +28,15 @@ and the author's own open test failures, this needs the author or owner to
 resolve before anyone merges it — not a cloud-session guess. Flagging
 rather than acting.
 
+**Update:** the author retargeted this correctly as
+[#237](https://github.com/vyos88/Personal-AI-1.2/pull/237) ("Preserve
+complete coordination Status on current main"), based on `main` at
+`4ed8f4c` with the same idea. Independently verified here (clean merge,
+full suite in this sandbox: 867 tests, 779 passed, 0 failed, 88 skipped —
+the author's own reported failures were Windows-checkout-specific and
+noted as reproducing on unchanged main too) and merged. #236 itself is
+superseded and can stay closed/abandoned on its original branch.
+
 ### Everything else this pass
 
 No other new PRs on either repo. Laptop41 telemetry: `ok: no problems
