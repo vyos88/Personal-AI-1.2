@@ -648,7 +648,7 @@ export function makePoster(config) {
 // ---------------------------------------------------------------------------
 // the pass
 
-function appendLog(file, record, maxBytes) {
+export function appendLog(file, record, maxBytes) {
   mkdirSync(dirname(file), { recursive: true });
   try {
     if (existsSync(file) && statSync(file).size > maxBytes) renameSync(file, `${file}.1`);
@@ -674,9 +674,9 @@ export function processAlive(pid) {
  * and is taken at once rather than after `staleMs`; that wait was a silent gap
  * in the log every time. A lock with no readable pid is aged out as before.
  */
-export function acquireLock(stateDir, staleMs, now, { alive = processAlive, retried = false } = {}) {
+export function acquireLock(stateDir, staleMs, now, { alive = processAlive, retried = false, name = 'selfheal.lock' } = {}) {
   mkdirSync(stateDir, { recursive: true });
-  const lock = join(stateDir, 'selfheal.lock');
+  const lock = join(stateDir, name);
   try {
     const fd = openSync(lock, 'wx');
     writeFileSync(fd, JSON.stringify({ pid: process.pid, at: now }));
@@ -696,7 +696,7 @@ export function acquireLock(stateDir, staleMs, now, { alive = processAlive, retr
       const gone = Number.isInteger(holder?.pid) && holder.pid !== process.pid && !alive(holder.pid);
       if (gone || now - statSync(lock).mtimeMs > staleMs) {
         rmSync(lock, { force: true });
-        return acquireLock(stateDir, staleMs, now, { retried: true });
+        return acquireLock(stateDir, staleMs, now, { retried: true, name });
       }
     } catch {
       // raced with the holder releasing it; treat as held

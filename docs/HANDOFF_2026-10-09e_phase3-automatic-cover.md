@@ -1,0 +1,110 @@
+# Handoff, 2026-10-09e: Phase 3, automatic cover
+
+To V, Claude · Host, Claude · Worker1 and Alpha.
+
+V asked on 2026-10-09: "build phase 3 automatic standby now and also be
+prepared to Run for Alpha Server from now on".
+
+V's rule of 2026-10-07 is the specification:
+
+- Alpha is hosted by the Host;
+- Worker1 covers while the Host is down;
+- when the Host has a heartbeat again, it takes over again, automatically.
+
+This builds the automatic part, on top of the stand-down and stand-up from
+`HANDOFF_2026-10-09d`.
+
+## What runs, and where
+
+**`Alpha Standby`** runs on Worker1.
+
+- It is a scheduled task: `alpha-standby.mjs`, every minute and at startup, as
+  SYSTEM, so it works with nobody signed in.
+- Install it with the autopilot job `standby-install`.
+- What it does depends on `role.json`:
+
+| role.json | What a pass does |
+|---|---|
+| none | this machine is the primary: nothing to cover. **This is Worker1 today**, until the switch-over |
+| `standby` | watches the primary. It covers only when all three hold: (1) the primary's Alpha missed 3 passes over the tailnet; (2) alpha-ai.uk is served by nobody; (3) this machine's own internet answers |
+| `covering` | this machine serves Alpha. When the primary's Alpha answers 2 passes in a row, it hands Alpha back |
+
+**To cover**, it runs `alpha-standdown.ps1 -Undo -StartConnector`, then
+writes role `covering`. `-StartConnector` starts the cloudflared service
+whatever the record says. Worker1's service was Stopped while a connector
+started some other way served, and a cover with no connector is a live Alpha
+nobody can reach. The stand-up now also reports the service's last exit code
+and whether it was installed with a token (yes or no, never the token). So
+the next rehearsal says whether that service works.
+
+**To hand back**, it runs `alpha-standdown.ps1`, which writes role `standby`.
+It also writes `standby\handback-<time>.json` with what changed in `memory\`
+while it covered (files, bytes, newest). That is the data that has to go back
+to the Host.
+
+**Why three signals, from three paths.** Two Alphas write two histories, and
+two connectors on one Cloudflare tunnel split its traffic. Each signal guards
+against a different mistake:
+
+- a Host whose Alpha is up but unseen over the tailnet still serves
+  alpha-ai.uk, so Worker1 stays put;
+- a Worker1 whose own link is down cannot reach the control URL, so it stays
+  put;
+- one missed answer is a restart, not an outage. It takes three in a row.
+
+**What it does not do: hold a quorum.** Handing back starts as soon as the
+Host's Alpha answers, so two Alphas overlap for two passes at most. A standby
+that finds Alpha still serving locally while the primary answers stands down
+again, at most every 10 minutes. That is the case where Alpha's own always-on
+script started it again.
+
+## Who can see it
+
+- **The live page has a Role row:** `PRIMARY`, `STANDBY` or `COVERING`, with
+  the cover's last pass. It says when the cover is not installed or has
+  stopped.
+- **The doctor checks a standby's cover.** Not installed, stopped, or unable
+  to see the Host's Alpha are each a problem. Unable to see the Host means it
+  would cover in an outage and never hand back. A machine that is covering
+  gets a section `0. Covering for <primary>` before the usual checks.
+- **Files:**
+  - `alpha-ops\standby\status.json` is the last pass;
+  - `alpha-ops\logs\standby.jsonl` has one line per pass;
+  - `alpha-ops\standby\state.json` holds the streaks.
+
+## Before it can cover, from the switch-over
+
+1. **The switch-over itself** (`HANDOFF_2026-10-09d` section 4). Until Worker1
+   is stood down, there is nothing to cover for.
+2. **The Host's backend has to answer on its tailnet address.** That is
+   `http://100.93.104.24:8001/health`, or whatever address is passed as
+   `"primaryUrl"`. Without it, Worker1 cannot tell the Host's Alpha is back,
+   and the doctor says so. `fix-panel-host` adds the machine's addresses on
+   the Host (Phase 1 step 6).
+3. **The rehearsal should show the cloudflared service can start.** That means
+   its last exit code is 0, or nothing alarming. If it cannot start, a cover
+   is live but unreachable, and the stand-up says `CONNECTOR NOT RUNNING`.
+
+## Still to build
+
+Next:
+
+- **The warm copy:** `memory\` from the Host to Worker1 every 10 minutes, so a
+  cover serves recent data.
+- **The carry-back:** what changed on Worker1 while it covered goes back to the
+  Host, from the hand-back record.
+
+Not built yet:
+
+- **A standby for the coordinator** (`HANDOFF_2026-10-05c`, F30). It is still
+  only on the Host, so agents, music and images stop while the Host is down,
+  even when Alpha is covered.
+
+## Using it for the new server later
+
+If V meant the new server by "the Alpha server", the same job works: the
+server is the primary and the Host is its standby.
+
+1. Queue `standby-install` with `"primary": "<server>"` and
+   `"primaryUrl": "http://<server tailnet ip>:8001/health"`.
+2. Stand the other machine down with `"primary": "<server>"`.

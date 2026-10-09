@@ -39,6 +39,12 @@
 
   -ReportOnly prints what it would do and changes nothing.
 
+  -Undo -StartConnector (what alpha-standby.mjs runs to cover automatically)
+  starts the cloudflared service whatever the record says. Restoring exactly
+  is right for a person standing up a machine they stood down; a machine
+  covering for a primary that is down has to be reachable, and on Worker1 the
+  service was Stopped while a connector started some other way served.
+
   Exit codes: 0 done; 1 something still serves Alpha here (named); 2 stood
   down, but Alpha's own runtime still runs here; 3 -Undo refused (another
   machine serves alpha-ai.uk).
@@ -53,7 +59,8 @@ param(
   [int]$SettleSeconds = 20,
   [switch]$ReportOnly,
   [switch]$Undo,
-  [switch]$Force
+  [switch]$Force,
+  [switch]$StartConnector
 )
 
 $ErrorActionPreference = 'Continue'
@@ -111,7 +118,14 @@ function Read-State {
     connectorTasks = @(Connector-Tasks)
     backend = @(Port-Holders $BackendPort $procs)
     site = @(Port-Holders $FrontendPort $procs)
-    service = $(if ($svc) { [ordered]@{ present = $true; status = [string]$svc.Status; startType = [string]$svc.StartType } } else { [ordered]@{ present = $false } })
+    service = $(if ($svc) {
+        # The service's own record: its last exit code says whether it fails
+        # to start, and its command line whether it was installed with a token.
+        # Only yes or no about the token is kept, never the line.
+        $w = Get-CimInstance Win32_Service -Filter "Name='$CloudflaredService'" -EA SilentlyContinue | Select-Object -First 1
+        [ordered]@{ present = $true; status = [string]$svc.Status; startType = [string]$svc.StartType
+          exitCode = $(if ($w) { [int]$w.ExitCode } else { $null }); tokenInstall = $(if ($w) { [bool]("$($w.PathName)" -match '--token') } else { $null }) }
+      } else { [ordered]@{ present = $false } })
     cloudflared = $cf
     runtime = $runtime
   }
@@ -134,7 +148,11 @@ function Show-State($s) {
     $h = @($pair[2])
     Say ("  {0,-8} :{1} {2}" -f $pair[0], $pair[1], $(if ($h.Count) { ($h | ForEach-Object { "$($_.name) $($_.pid) (parent $($_.parent))" }) -join '; ' } else { 'nothing listens' }))
   }
-  if ($s.service.present) { Say "  service  $CloudflaredService $($s.service.status), start $($s.service.startType)" } else { Say "  service  $CloudflaredService not installed" }
+  if ($s.service.present) {
+    Say ("  service  $CloudflaredService $($s.service.status), start $($s.service.startType)" +
+      $(if ($null -ne $s.service.exitCode) { ", last exit code $($s.service.exitCode)" }) +
+      $(if ($null -ne $s.service.tokenInstall) { ", installed with a token: $(if ($s.service.tokenInstall) { 'yes' } else { 'no' })" }))
+  } else { Say "  service  $CloudflaredService not installed" }
   Say "  connector processes: $(if ($s.cloudflared.Count) { ($s.cloudflared | ForEach-Object { "cloudflared $($_.pid) (parent $($_.parent))" }) -join '; ' } else { 'none' })"
   Say "  Alpha's own runtime: $(if ($s.runtime.Count) { $s.runtime -join ', ' } else { 'none running' })"
 }
@@ -171,9 +189,14 @@ if ($Undo) {
   if ($now.service.present) {
     $type = if ($record -and $record.service.present) { [string]$record.service.startType } else { 'Automatic' }
     Set-Service -Name $CloudflaredService -StartupType $type -EA SilentlyContinue
-    if (-not $record -or -not $record.service.present -or [string]$record.service.status -eq 'Running') {
+    if ($StartConnector -or -not $record -or -not $record.service.present -or [string]$record.service.status -eq 'Running') {
       Start-Service -Name $CloudflaredService -EA SilentlyContinue; Say "  started $CloudflaredService (start $type)"
     } else { Say "  $CloudflaredService start type back to $type; it was not running before, so not started" }
+  }
+  if ($StartConnector) {
+    $cfUp = $false
+    foreach ($i in 1..6) { if (@((Read-Procs) | Where-Object { $_.Name -eq 'cloudflared.exe' }).Count) { $cfUp = $true; break }; Start-Sleep -Seconds 5 }
+    Say $(if ($cfUp) { '  connector: cloudflared runs here' } else { "  CONNECTOR NOT RUNNING: $CloudflaredService did not start a cloudflared, so alpha-ai.uk stays down" })
   }
   # Only what the record says was on: with no record, a task that starts
   # cloudflared may be one somebody turned off on purpose.

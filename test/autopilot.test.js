@@ -436,6 +436,10 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
     { id: 'd5', do: 'alpha-standdown', confirm: 'hand-over', primary: 'x; calc' },
     { id: 'u1', do: 'alpha-standup', force: true, reportOnly: true },
     { id: 'b1', do: 'restart-backend' },
+    { id: 'i1', do: 'standby-install' },
+    { id: 'i2', do: 'standby-install', primary: 'alpha-server', primaryUrl: 'http://100.70.1.2:8001/health' },
+    { id: 'i3', do: 'standby-install', primaryUrl: 'http://x/health; calc' },
+    { id: 'i4', do: 'standby-uninstall', task: 'evil' },
   ]);
   assert.equal(p.d1.ok, false);
   assert.match(p.d1.reason, /"confirm": "hand-over"/);
@@ -446,6 +450,11 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.equal(p.d5.ok, false);
   assert.deepEqual(p.u1.args.slice(-5), ['-OpsDir', ops, '-Undo', '-ReportOnly', '-Force']);
   assert.equal(p.b1.ok, true, 'a machine that serves Alpha may restart it');
+  assert.match(p.i1.args.at(-5), /install-alpha-standby\.ps1$/);
+  assert.deepEqual(p.i1.args.slice(-4), ['-OpsDir', ops, '-AlphaRoot', 'C:\\A\\software']);
+  assert.deepEqual(p.i2.args.slice(-4), ['-Primary', 'alpha-server', '-PrimaryUrl', 'http://100.70.1.2:8001/health']);
+  assert.equal(p.i3.ok, false);
+  assert.deepEqual(p.i4.args.slice(-3), ['-OpsDir', ops, '-Uninstall']);
 
   // Once it stood down, nothing queued may start Alpha here again but alpha-standup.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
@@ -994,6 +1003,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   let md = live();
   assert.match(md, /^# Alpha is LIVE - DESKTOP-41HPLCN/);
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
+  assert.match(md, /\| Role \| PRIMARY \| this machine serves Alpha; automatic cover is not installed here \|/);
   assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
@@ -1054,6 +1064,27 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| STANDBY \| Alpha serves from laptop-gj8dfmlk: alpha-ai\.uk 200; nothing of Alpha runs here \(checked by this pass\)/);
   assert.match(md, /\| Repair agent \(self-heal\) \| OFF \(standby\) \| off on purpose: another machine serves Alpha/);
   assert.equal(readFileSync(kicks, 'utf8').trim(), '', 'a standby\'s self-heal is off on purpose');
+  assert.match(md, /\| Role \| STANDBY \| laptop-gj8dfmlk serves Alpha; automatic cover is NOT INSTALLED: queue standby-install \|/);
+
+  // Phase 3: the automatic cover's last pass is shown, and a stale one called out.
+  mkdirSync(join(ops, 'standby'), { recursive: true });
+  const coverStatus = join(ops, 'standby', 'status.json');
+  writeFileSync(coverStatus, JSON.stringify({ at: 'x', role: 'standby', why: "laptop-gj8dfmlk's Alpha answers" }));
+  run();
+  assert.match(live(), /\| Role \| STANDBY \| laptop-gj8dfmlk serves Alpha; automatic cover: laptop-gj8dfmlk's Alpha answers \(0 min ago\) \|/);
+  const stale = new Date(Date.now() - 12 * 60 * 1000);
+  utimesSync(coverStatus, stale, stale);
+  run();
+  assert.match(live(), /automatic cover is NOT RUNNING \(last pass 12 min ago\)/);
+
+  // Covering: this machine serves for the primary, and the page says so.
+  writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }));
+  writeFileSync(coverStatus, JSON.stringify({ at: 'x', role: 'covering', why: 'covering for laptop-gj8dfmlk since 2026-10-09T18:02:00.000Z' }));
+  heal({ backend: ok, frontend: ok, public: ok, control: ok });
+  r = run();
+  md = live();
+  assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \|/);
+  assert.match(md, /\| Role \| COVERING \| this machine serves Alpha for laptop-gj8dfmlk since 2026-10-09T18:02:00Z; automatic cover: covering for laptop-gj8dfmlk/);
 });
 
 test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {

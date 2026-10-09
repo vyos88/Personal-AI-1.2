@@ -436,6 +436,21 @@ on. Its policy lives in the pure `decide()` and is pinned by
   because the socket timeout is idle time and a server sending a byte every
   100 ms never trips it. The doctor (`-ExplainSelfHeal`) and the live page read
   the lock and `selfheal.json.error.json` before they guess.
+- **Covering needs three signals, each from a different path.**
+  `alpha-standby.mjs` (Phase 3, every minute as SYSTEM) covers for the primary
+  only when all three hold:
+  - the primary's Alpha misses `failures` passes over the tailnet;
+  - alpha-ai.uk is served by nobody (a 1033 page counts as nobody);
+  - the control URL answers.
+
+  A primary that is up but unseen over the tailnet still serves the public
+  URL, and a standby whose own link is down cannot reach the control. Both
+  would otherwise make a second Alpha. It hands back after `recover` answers,
+  through the same tested stand-down, and it counts what changed in
+  `memory\` while it covered so that data can be carried back. Its moves are
+  `alpha-standdown.ps1`'s, never its own: `-Undo -StartConnector` to cover,
+  because Worker1's connector service was Stopped while another connector
+  served.
 - **A standby repairs nothing.** `role.json` beside the config, written by
   `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
   log one `standby` line and stop. The stand-down disables the task too; this
