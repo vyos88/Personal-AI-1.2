@@ -379,9 +379,11 @@ function Resolve-Action($a) {
         if (-not $a.peer) { $out.reason = 'since needs a peer to send to'; return $out }
         $rest += @('-Since', (Iso-Text $a.since))
       }
-      # A full copy (an old "since") is gigabytes: the job has the time; the
-      # 10-minute check below is capped and leaves it here.
-      $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 240
+      # A full copy (an old "since") is gigabytes, so the job sends its first
+      # part, up to the same cap as the standing check, and the check sends
+      # the rest, a part a pass, without holding the pass for hours.
+      $rest += @('-MaxBytes', '104857600')
+      $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 30
     }
     # A machine joins the fleet by joining the tailnet; its name and address
     # are what the other settings point at. Read-only, and it prints no account.
@@ -1068,7 +1070,7 @@ if ($ds) {
     else {
       $dsLog = Join-Path $dir "$stamp-data-sync.log"
       try {
-        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer, '-MaxBytes', '314572800') `
+        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer, '-MaxBytes', '104857600') `
                   -WorkingDirectory $repo -NoNewWindow -PassThru -RedirectStandardOutput $dsLog -RedirectStandardError "$dsLog.err"
         $null = $proc.Handle
         if ($proc.WaitForExit(15 * 60000)) { $dsCode = $proc.ExitCode } else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $dsCode = 'timeout after 15 min' }
@@ -1076,7 +1078,7 @@ if ($ds) {
       } catch { $dsOut = "could not start: $($_.Exception.Message)" }
     }
     $acted = $dsOut -match '(?m)^\s*(SENT|APPLIED|HELD|REFUSED|NOT SENT|FAILED)'
-    $k = "$dsCode|" + ((@($dsOut -split "`n" | Where-Object { $_ -match '^\s*(HELD|REFUSED|NOT SENT|FAILED|TOO LARGE|waiting|taildrop)' }) | ForEach-Object { ($_.Trim() -replace '[\d.,]+ (MB|file)', '# $1') }) -join '|')
+    $k = "$dsCode|" + ((@($dsOut -split "`n" | Where-Object { $_ -match '^\s*(HELD|REFUSED|NOT SENT|FAILED|PART|waiting|taildrop)' }) | ForEach-Object { ($_.Trim() -replace '[\d.,]+ (MB|file)', '# $1') }) -join '|')
     if ($acted -or $k -ne $dsKey) {
       $res = if ("$dsCode" -eq '0') { '0 (in step)' } elseif ("$dsCode" -eq '3') { '3 (held, or still arriving)' } else { "$dsCode (failed)" }
       [void]$ran.Add([ordered]@{ id = "auto-data-sync-$stamp"; do = 'data-sync (standing)'; result = $res; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = (Redact $dsOut) })
@@ -1246,7 +1248,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $dsFile) { try { $dsState = Get-Content -LiteralPath $dsFile -Raw | ConvertFrom-Json } catch { } }
   if ($dsState) {
     $parts = @()
-    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)" }
+    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)$(if ([int64]$dsState.lastSend.leftBytes) { " ($([math]::Round([int64]$dsState.lastSend.leftBytes / 1MB)) MB still to send)" })" }
     if ($dsState.lastApply) { $parts += "applied $($dsState.lastApply.files) from $($dsState.lastApply.from) at $(Iso-Text $dsState.lastApply.at)$(if ([int]$dsState.lastApply.keptNewerHere) { " ($($dsState.lastApply.keptNewerHere) newer here kept)" })" }
     if ([int]$dsState.held) { $parts += "$($dsState.held) package(s) HELD: queue data-apply" }
     $data.state = if ([int]$dsState.held) { 'HELD' } else { 'ON' }

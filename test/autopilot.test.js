@@ -461,8 +461,9 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.deepEqual(p.i2.args.slice(-4), ['-Primary', 'alpha-server', '-PrimaryUrl', 'http://100.70.1.2:8001/health']);
   assert.equal(p.i3.ok, false);
   assert.deepEqual(p.i4.args.slice(-3), ['-OpsDir', ops, '-Uninstall']);
-  assert.match(p.s1.args.at(-5), /alpha-data-sync\.ps1$/);
-  assert.deepEqual(p.s2.args.slice(-4), ['-Peer', 'laptop-gj8dfmlk', '-Since', '2026-10-07T21:00:00Z']);
+  assert.ok(p.s1.args.some((a) => /alpha-data-sync\.ps1$/.test(a)));
+  assert.deepEqual(p.s1.args.slice(-2), ['-MaxBytes', '104857600'], 'every data-sync job is capped');
+  assert.deepEqual(p.s2.args.slice(-6), ['-Peer', 'laptop-gj8dfmlk', '-Since', '2026-10-07T21:00:00Z', '-MaxBytes', '104857600'], 'a full copy goes a part at a time');
   assert.equal(p.s3.ok, false, 'a baseline is only for a machine that sends');
   assert.equal(p.s4.ok, false);
   assert.deepEqual(p.s5.args.slice(-2), ['-ApplyHeld', '-NoSend']);
