@@ -43,22 +43,38 @@ next check doesn't have to re-derive it.
 **Update (21:56 pass, ~3h15m in):** still down — 13 runs now, same start
 time. Unchanged otherwise: same two services, same machine, same fix.
 
-### CPU hold stopped self-clearing
+**Update (23:11 pass, ~4h30m in):** still down — 18 runs now. CPU hold
+cleared on its own this pass ("fixed since last run"). Two new problems
+appeared, both first-occurrence (open 2 runs, since 23:02:27), on Laptop41
+itself this time, not the Host:
 
-Every prior occurrence of Alpha's 90% GPU-admission hold in this window
-cleared within a run or two (see `HANDOFF_2026-10-08d_alpha-gpu-admission-
-deadlock.md`). This one hasn't: it started at 20:44:00 and is still open 6
-runs later (~75 min), now also escalated to `NEEDS A PERSON` by the doctor.
-That's a change in character worth noting rather than re-filing as the same
-recurring blip — whether it's connected to the coordinator being down (a
-fleet that can't dispatch work might be retrying/polling harder locally) or
-a coincidence is not established from here. Not sending a notification for
-it on its own; it's folded into the same "Host needs attention" picture as
-the outage above, and a person checking on the coordinator will see this
-too.
+- `only 1.3 of 15.8 GB RAM free` — down from ~2.5–3 GB free in earlier
+  passes this window. Three separate `ChatGPT` processes now show in the
+  heaviest-processes list (~1.45 GB combined), on top of the usual
+  `llama-server`/`claude` footprint — matches the doctor's own long-standing
+  hardening recommendation #8 ("remove what does not belong on the host").
+- `the build is older than the source: the site shows the old Alpha until
+  dist is rebuilt` — `src\liveCoordinationLabels.test.js` changed at 22:55,
+  after the last `dist` build (2026-10-08 06:38). Likely the host-side
+  session's own test-writing work (PR #99/#153 commits) landing in the
+  working tree without a rebuild.
 
-### No new PRs on either repo this pass
+Neither is as urgent as the coordinator/image-backend outage above — both
+have a known, mechanical fix (close non-Alpha processes; rebuild and
+restart the `Alpha` task) and neither blocks the fleet the way the outage
+does — so not sending a second notification; folding them into this same
+"Host/Laptop41 needs a pass" picture.
 
-Same 16 open on Personal-AI-1.2, 12 on Alpha. PR #99 continues to see
-commits from the host-side session (now at `6c2a5ed` per the doctor's own
-checkout line) but nothing new requiring action from this check.
+### No new PRs mergeable this pass — one flagged
+
+**[#249](https://github.com/vyos88/Personal-AI-1.2/pull/249)** ("Continue
+automatic line-ending repair on current main") is a draft continuation of
+the already-merged #160, adding incremental/scoped CRLF repair. Not merging:
+the author's own validation says "the full Windows suite reached its
+eight-minute deadline with keeper failures... this is not a full-suite
+pass" — the same pattern as prior sessions' own admitted-incomplete-tests
+PRs in this window. Flagging for the author/owner to finish verifying
+rather than merging a self-described partial run.
+
+Otherwise same PR set as before. PR #99 continues to see commits from the
+host-side session (now at `ac1686a` per the doctor's own checkout line).
