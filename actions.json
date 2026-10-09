@@ -526,6 +526,13 @@
       "id": "20261009-06-tailnet-peers",
       "do": "tailnet-peers",
       "why": "V 2026-10-09: the new host is alpha-server-01, on Tailscale. Its exact tailnet name and IPv4 are what Alpha Standby's primaryUrl and the data copy's peer point at (tunnel #243; read-only, no accounts printed)"
+    },
+    {
+      "id": "20261009-07-standby-alpha-server-01",
+      "do": "standby-install",
+      "primary": "alpha-server-01",
+      "primaryUrl": "http://alpha-server-01:8001/health",
+      "why": "V 2026-10-09: point standby and data copy at alpha-server-01, the new host. Alpha Standby now watches alpha-server-01's Alpha by its tailnet name (MagicDNS); it stays idle while this machine is the primary"
     }
   ],
   "autofix": {
@@ -543,6 +550,10 @@
     "heartbeat": true,
     "homeWifi": {
       "ssid": "Starlink V"
+    },
+    "dataSync": {
+      "peer": "alpha-server-01",
+      "everyMin": 10
     }
   }
 }
