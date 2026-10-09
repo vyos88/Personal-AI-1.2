@@ -462,6 +462,18 @@ on. Its policy lives in the pure `decide()` and is pinned by
   back what it only received (`received.json`), and never resends what it
   already sent (`sent.json`), so a clock running ahead cannot make a loop.
   tar keeps whole seconds, so times match to the second.
+  Files are copied for packing under a short root (`C:\AlphaData\ds`), never
+  beside alpha-ops: there, on 2026-10-09, a 254-character path in memory\
+  came out at 274, Copy-Item failed, and the file was counted as sent and
+  would never have gone. A file that cannot be packed is now never counted as
+  sent and rides with the next pass. A folder that cannot be read is reported.
+  A package with a file that could not be written is kept for the next pass.
+  `-Resend` forgets what was sent, for files an older pass miscounted.
+  Names never pass through tar (format 2): the archive holds `f/0000000`,
+  ... and the manifest carries each memory\ path and its time to the tick.
+  Windows' tar.exe failed a part over PDFs named in Chinese, which would have
+  stuck the copy there for good. JSON is read as UTF-8 for the same names,
+  because Windows PowerShell reads a file with no BOM as ANSI.
 - **A standby repairs nothing.** `role.json` beside the config, written by
   `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
   log one `standby` line and stop. The stand-down disables the task too; this

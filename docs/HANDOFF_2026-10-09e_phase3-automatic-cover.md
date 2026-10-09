@@ -163,6 +163,41 @@ server is a new machine, not the Host laptop. Worker1 now points at it:
 4. **The switch-over, as in `HANDOFF_2026-10-09d` section 4,** with
    `"primary": "alpha-server-01"` on the `alpha-standdown` job.
 
+## Update, 2026-10-09 ~19:40 UTC: the full copy, and the files it lost
+
+The real name on the tailnet is `alpha-serv-01` (100.70.101.6), not
+alpha-server-01. Job 12 points the cover there, and job 13 started the full
+copy in 100 MB parts. The first two parts, 190 MB, went to alpha-serv-01. That
+leaves 13,104 files, 4.3 GB, for the standing check to send a part a pass.
+
+The first part showed a fault: files under
+`memory\local\vendor\elegoo_v4_official\...` failed to copy, because the
+script copied them under `alpha-ops\data-sync\outbox-<time>\staging\`. A
+254-character path came out at 274, over Windows' 260. Worse, the script still
+counted those files as sent, so they would never have gone. The fix (in the
+script's header and in CLAUDE.md):
+
+- copies go under a short root;
+- a file that cannot be packed is pending and rides with the next pass;
+- a folder that cannot be read is named;
+- `"resend": true` sends again what an older pass miscounted.
+
+The full copy is restarted with `"since": "2000-01-01T00:00:00Z", "resend":
+true`. That resends the parts already sent; the server keeps those as
+"already the same".
+
+Job 14 then restarted the full copy cleanly: 432 files, 80 MB, nothing
+skipped. But the next part failed at tar, every pass. It held vendor PDFs
+named in Chinese, and Windows' `tar.exe` cannot pack a name outside the ANSI
+code page. Format 2 fixes that: the archive holds numbered files, and the
+manifest carries each name and its exact time. Nothing needs queueing, since
+the standing check carries on from where job 14 left off. A package sent
+before format 2 is still applied.
+
+**alpha-serv-01 still has to collect what arrives.** Taildrop holds the files
+until `tailscale file get` runs there, which its own autopilot (with
+`autofix.dataSync`, peer `desktop-41hplcn`) would do every pass.
+
 ## Using it for a different machine
 
 The same jobs work for any primary. That is how alpha-server-01 is set up

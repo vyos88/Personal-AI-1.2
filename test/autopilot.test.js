@@ -445,6 +445,8 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
     { id: 's3', do: 'data-sync', since: '2026-10-07T21:00:00Z' },
     { id: 's4', do: 'data-sync', peer: 'laptop-gj8dfmlk', since: 'yesterday' },
     { id: 's5', do: 'data-apply', from: 'C:\\evil' },
+    { id: 's6', do: 'data-sync', peer: 'alpha-serv-01', since: '2000-01-01T00:00:00Z', resend: true },
+    { id: 's7', do: 'data-sync', peer: 'alpha-serv-01', resend: true },
     { id: 't1', do: 'tailnet-peers', name: 'evil' },
   ]);
   assert.equal(p.d1.ok, false);
@@ -467,6 +469,9 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.equal(p.s3.ok, false, 'a baseline is only for a machine that sends');
   assert.equal(p.s4.ok, false);
   assert.deepEqual(p.s5.args.slice(-2), ['-ApplyHeld', '-NoSend']);
+  assert.deepEqual(p.s6.args.slice(-7), ['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', '-Resend', '-MaxBytes', '104857600'], 'a resend goes again from "since", a part at a time');
+  assert.equal(p.s7.ok, false, 'a resend needs a since');
+  assert.match(p.s7.reason, /resend needs a since/);
   assert.ok(!/evil/.test(p.s5.args.join(' ')));
   assert.match(p.t1.args.at(-1), /tailnet-peers\.ps1$/, 'takes nothing from the action');
 
@@ -1097,6 +1102,10 @@ test('the live report is written every pass, and a stopped self-heal is started 
   writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T18:10:00Z', to: 'laptop-gj8dfmlk', files: 12 }, lastApply: { at: '2026-10-09T18:00:00Z', from: 'LAPTOP-GJ8DFMLK', files: 3, keptNewerHere: 1 }, held: 1 }));
   run();
   assert.match(live(), /\| Data copy \| HELD \| sent 12 file\(s\) to laptop-gj8dfmlk at 2026-10-09T18:10:00Z; applied 3 from LAPTOP-GJ8DFMLK at 2026-10-09T18:00:00Z \(1 newer here kept\); 1 package\(s\) HELD: queue data-apply \|/);
+  // a full copy streaming in parts, with files that could not be packed yet
+  writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T19:27:00Z', to: 'alpha-serv-01', files: 41, leftBytes: 4513918156, notPacked: 3 } }));
+  run();
+  assert.match(live(), /\| Data copy \| ON \| sent 41 file\(s\) to alpha-serv-01 at 2026-10-09T19:27:00Z \(4305 MB still to send\) \(3 file\(s\) not packed yet, tried again each pass\) \|/);
 
   // Covering: this machine serves for the primary, and the page says so.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }));

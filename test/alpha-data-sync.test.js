@@ -245,3 +245,181 @@ test('one file over the cap still goes, alone', { skip }, () => {
   assert.match(r.out, /SENT 1 file\(s\)/);
   assert.doesNotMatch(r.out, /PART of a backlog/);
 });
+
+// On 2026-10-09 the full copy to alpha-serv-01 copied each file under
+// alpha-ops\data-sync\outbox-<time>\staging\ before packing it, and a
+// 254-character path in memory\ came out at 274. Copy-Item failed, and the
+// file was counted as sent anyway, so it would never have gone.
+test('a file that cannot be packed is never counted as sent, and goes with the next pass', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  const server = machine(root, 'alpha-serv-01');
+  w1.write('vendor/deep/manual.pdf', 'pdf', Date.parse('2026-10-01T00:00:00Z'));
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-02T00:00:00Z'));
+  let r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', '-TestCopyFails', 'manual\\.pdf$'], serving);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /SENT 1 file\(s\)/);
+  assert.match(r.out, /NOT IN THIS PART: 1 file\(s\) could not be packed, and go with the next pass \(first: memory\/vendor\/deep\/manual\.pdf: could not copy/);
+  const sent = JSON.parse(readFileSync(join(w1.ops, 'data-sync', 'sent.json'), 'utf8'));
+  assert.deepEqual(Object.keys(sent), ['memory/chats/a.json'], 'only what went is counted as sent');
+  // the send moved past its time, and it still rides with the next pass
+  r = w1.run(['-Peer', 'alpha-serv-01'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SENT 1 file\(s\), .* written since/);
+  assert.match(r.out, /with 1 file\(s\) an earlier pass could not pack/);
+  r = w1.run(['-Peer', 'alpha-serv-01'], serving);
+  assert.match(r.out, /nothing written here since/, 'and once it went, it is done');
+  r = server.run();
+  assert.equal(r.code, 0, r.out);
+  assert.equal(server.read('vendor/deep/manual.pdf'), 'pdf');
+  assert.equal(server.read('chats/a.json'), 'a');
+});
+
+test('when nothing in a part can be packed, the send still moves on and keeps them pending', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  // the oldest file alone fills a part, and cannot be copied: it must not hold
+  // every later part behind it
+  w1.write('big.bin', 'x'.repeat(5000), Date.parse('2026-10-01T00:00:00Z'));
+  w1.write('chats/b.json', 'b', Date.parse('2026-10-02T00:00:00Z'));
+  const cap = ['-MaxBytes', '4000'];
+  let r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', ...cap, '-TestCopyFails', 'big\\.bin$'], serving);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /NOT SENT: none of 1 file\(s\) could be packed, and they go with the next pass \(first: memory\/big\.bin/);
+  assert.equal(existsSync(join(root, 'taildrop', 'alpha-serv-01')), false, 'nothing was handed to Taildrop');
+  r = w1.run(['-Peer', 'alpha-serv-01', ...cap, '-TestCopyFails', 'big\\.bin$'], serving);
+  assert.match(r.out, /SENT 1 file\(s\), .* written since 2026-10-01T00:00:00Z/, 'the next part went');
+  assert.match(r.out, /NOT IN THIS PART: 1 file\(s\)/, 'and the stuck file is still reported');
+  r = w1.run(['-Peer', 'alpha-serv-01', ...cap], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /with 1 file\(s\) an earlier pass could not pack/);
+});
+
+test('a file that cannot be written on the receiving side keeps its package for the next pass', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  const server = machine(root, 'alpha-serv-01');
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-01T00:00:00Z'));
+  w1.write('chats/b.json', 'b', Date.parse('2026-10-02T00:00:00Z'));
+  assert.equal(w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving).code, 0);
+  let r = server.run(['-TestCopyFails', 'alpha-serv-01/memory/chats/b\\.json$']);
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /APPLIED .*: 1 file\(s\) written/);
+  assert.match(r.out, /FAILED: 1 file\(s\) and 0 folder\(s\) from alpha-data-desktop-41hplcn-.*\.tar could not be written here \(first: memory\/chats\/b\.json: could not copy/);
+  assert.equal(server.has('chats/b.json'), false);
+  assert.ok(readdirSync(server.inbox).some((f) => f.endsWith('.tar')), 'the package is kept');
+  r = server.run();
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /APPLIED .*: 1 file\(s\) written \(0 replaced, .*\), 1 already the same/);
+  assert.equal(server.read('chats/b.json'), 'b');
+  assert.equal(readdirSync(server.inbox).length, 0, 'and once it all landed, it goes');
+});
+
+test('-Resend sends again what an older pass counted as sent', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-01T00:00:00Z'));
+  assert.match(w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving).out, /SENT 1 file\(s\)/);
+  let r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving);
+  assert.match(r.out, /nothing written here since 2000-01-01T00:00:00Z/, 'without it, what went once does not go again');
+  r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', '-Resend'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /-Resend: what was sent before is forgotten/);
+  assert.match(r.out, /SENT 1 file\(s\), .* written since 2000-01-01T00:00:00Z/);
+});
+
+// A folder whose path is too long cannot be read (on Windows, at 248
+// characters). Its files used to be left out with nothing said.
+test('a folder that cannot be read is reported, not walked past in silence', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-01T00:00:00Z'));
+  // Linux refuses a path over 4096 bytes: build one a level at a time
+  const here = process.cwd();
+  try {
+    process.chdir(join(w1.home, 'memory'));
+    for (let i = 0; i < 22; i++) { mkdirSync('d'.repeat(200)); process.chdir('d'.repeat(200)); }
+    writeFileSync('lost.txt', 'x');
+  } finally { process.chdir(here); }
+  const r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving);
+  assert.match(r.out, /SKIPPED: 1 folder\(s\) under memory\\ could not be read \(a path too long\?\), so nothing in them is sent \(first: memory\/dddd/, r.out);
+  assert.match(r.out, /SENT 1 file\(s\)/, 'the rest still goes');
+});
+
+// On 2026-10-09 a part holding PDFs named in Chinese made Windows' tar.exe
+// fail, and that part would have failed every pass after it. Format 2 packs
+// numbered files and carries the names, and the times, in the manifest.
+test('names never pass through tar: a Chinese name, a hidden file and the exact time all arrive', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  const server = machine(root, 'alpha-serv-01');
+  const when = Date.parse('2021-12-15T08:30:12.345Z');
+  w1.write('vendor/elegoo/02 SmartRobotCarV4.0_Move - TB6612 【20211215】.pdf', 'pdf', when);
+  w1.write('local/autonomy-sandboxes/maintenance/.git', 'gitdir: ../.git/worktrees/maintenance', when);
+  let r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SENT 2 file\(s\)/);
+  const drop = join(root, 'taildrop', 'alpha-serv-01');
+  const tarFile = readdirSync(drop).find((f) => f.endsWith('.tar'));
+  const listing = execFileSync('tar', ['-tf', join(drop, tarFile)], { encoding: 'utf8' }).trim().split('\n');
+  assert.ok(listing.every((n) => /^f\/(\d+)?$/.test(n)), `only numbered files in the archive: ${listing}`);
+  const man = JSON.parse(readFileSync(join(drop, tarFile.replace(/\.tar$/, '.json')), 'utf8'));
+  assert.equal(man.format, 2);
+  assert.deepEqual(man.entries.map((e) => e.p).sort(), ['memory/local/autonomy-sandboxes/maintenance/.git', 'memory/vendor/elegoo/02 SmartRobotCarV4.0_Move - TB6612 【20211215】.pdf']);
+  r = server.run();
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /APPLIED .*: 2 file\(s\) written/);
+  assert.equal(server.read('vendor/elegoo/02 SmartRobotCarV4.0_Move - TB6612 【20211215】.pdf'), 'pdf');
+  assert.equal(server.read('local/autonomy-sandboxes/maintenance/.git'), 'gitdir: ../.git/worktrees/maintenance');
+  assert.equal(statSync(join(server.home, 'memory', 'vendor', 'elegoo', '02 SmartRobotCarV4.0_Move - TB6612 【20211215】.pdf')).mtimeMs, when, 'the time to the millisecond, not the second');
+  // and the name reads back the same from the indexes: nothing goes twice
+  r = w1.run(['-Peer', 'alpha-serv-01'], serving);
+  assert.match(r.out, /nothing written here since/);
+  r = server.run();
+  assert.match(r.out, /nothing received/);
+});
+
+test('a format 2 manifest naming a path outside memory\\ changes nothing', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  const server = machine(root, 'alpha-serv-01');
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-01T00:00:00Z'));
+  assert.equal(w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z'], serving).code, 0);
+  // the package as it arrives, with its manifest rewritten: a refused one stays
+  const drop = join(root, 'taildrop', 'alpha-serv-01');
+  mkdirSync(server.inbox, { recursive: true });
+  for (const f of readdirSync(drop)) execFileSync('mv', [join(drop, f), server.inbox]);
+  const manFile = join(server.inbox, readdirSync(server.inbox).find((f) => f.endsWith('.json')));
+  const man = JSON.parse(readFileSync(manFile, 'utf8'));
+  for (const evil of ['memory/../../evil.txt', 'memory/chats\\..\\..\\evil.txt', 'C:/evil.txt', 'memory/a:stream', 'memory/./x']) {
+    writeFileSync(manFile, JSON.stringify({ ...man, entries: [{ p: evil, t: man.entries[0].t }] }));
+    const r = server.run(['-NoFetch']);
+    assert.equal(r.code, 1, r.out);
+    assert.match(r.out, /REFUSED: alpha-data-.*\.tar holds paths outside memory\\ \(1\); nothing applied/, evil);
+  }
+  // and a manifest naming fewer files than the archive holds
+  writeFileSync(manFile, JSON.stringify({ ...man, entries: [] }));
+  const r = server.run(['-NoFetch']);
+  assert.match(r.out, /REFUSED: alpha-data-.*\.tar holds 1 file\(s\) and its manifest names 0; nothing applied/);
+  assert.equal(existsSync(join(root, 'evil.txt')), false);
+  assert.equal(existsSync(join(server.home, 'evil.txt')), false);
+  assert.equal(server.has('chats/a.json'), false);
+});
+
+test('a package from before format 2 (memory\\ in the tar) is still applied', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const server = machine(root, 'alpha-serv-01');
+  const old = mkdtempSync(join(tmpdir(), 'data-sync-old-'));
+  mkdirSync(join(old, 'memory', 'chats'), { recursive: true });
+  writeFileSync(join(old, 'memory', 'chats', 'from-job-13.json'), 'part 1');
+  utimesSync(join(old, 'memory', 'chats', 'from-job-13.json'), new Date('2021-03-16T17:19:28Z'), new Date('2021-03-16T17:19:28Z'));
+  mkdirSync(server.inbox, { recursive: true });
+  const tarFile = join(server.inbox, 'alpha-data-desktop-41hplcn-20261009-192017.tar');
+  execFileSync('tar', ['-cf', tarFile, '-C', old, 'memory']);
+  const sha = execFileSync('sha256sum', [tarFile], { encoding: 'utf8' }).split(' ')[0];
+  writeFileSync(join(server.inbox, 'alpha-data-desktop-41hplcn-20261009-192017.json'), JSON.stringify({ kind: 'memory-changes', from: 'DESKTOP-41HPLCN', files: 1, archive: { name: 'alpha-data-desktop-41hplcn-20261009-192017.tar', bytes: statSync(tarFile).size, sha256: sha } }));
+  const r = server.run(['-NoFetch']);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /APPLIED alpha-data-desktop-41hplcn-20261009-192017\.tar from DESKTOP-41HPLCN: 1 file\(s\) written/);
+  assert.equal(server.read('chats/from-job-13.json'), 'part 1');
+});
