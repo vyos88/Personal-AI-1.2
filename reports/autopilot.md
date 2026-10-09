@@ -1,8 +1,62 @@
-﻿# laptop41 autopilot 20261009-234347
+﻿# laptop41 autopilot 20261009-235346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 363d3f7 is current
+
+## auto-deck-liveness-20261009-235346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-09T23:54:44, 7s)
+```
+DECKS: 5 live, 1 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 75 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 15 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 646 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 39 s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 0 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-deck-audit-20261009-235346  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T23:54:52, 0s)
+```
+DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T22:49:29.202481+00:00: 21 working, 0 empty, 0 broken
+WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
+WORKING command: answers with data (attention 6)
+WORKING control-center: answers with data (11 field(s))
+WORKING devices: answers with data (boards 9)
+WORKING operations: answers with data (events 20)
+WORKING memory: answers with data (gaps 2, sources 7)
+WORKING core: answers with data (blockers 3, metacognition.gaps 1)
+WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
+WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
+WORKING extensions: answers with data (safeguards 5, skills.sources 5)
+WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
+WORKING automation: answers with data (items 5)
+WORKING learning: answers with data (queued_jobs 0)
+WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
+WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
+WORKING phone: answers with data (7 field(s))
+WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 0)
+WORKING terminal: answers with data (logs 100)
+WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
+WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
+WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
+```
+
+## auto-data-sync-20261009-235346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:54:57, 580s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:54 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 1 file(s), 234.8 MB written since 2026-08-13T04:22:34Z, to alpha-serv-01
+  PART of a backlog: 9002 file(s), 2,743.2 MB still to send, from 2026-08-13T04:24:38Z; the next pass carries on
+```
 
 ## auto-data-sync-20261009-234347  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:44:58, 433s)
 ```
@@ -271,46 +325,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 22:07 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 1 file(s), 242.7 MB written since 2026-07-22T02:22:34Z, to alpha-serv-01
   PART of a backlog: 11333 file(s), 3,845.5 MB still to send, from 2026-07-22T02:44:20Z; the next pass carries on
-```
-
-## auto-deck-audit-20261009-214848  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T21:49:59, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T20:49:14.528993+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 3, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
-WORKING terminal: answers with data (logs 100)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-data-sync-20261009-214848  data-sync (standing)  ->  0 (in step)   (2026-10-09T21:50:09, 482s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1598 file(s), 51.0 MB written since 2026-07-14T03:21:49Z, to alpha-serv-01
-  PART of a backlog: 11334 file(s), 4,088.0 MB still to send, from 2026-07-22T02:22:34Z; the next pass carries on
-```
-
-## auto-live-sync-20261009-213849  live-sync (standing)  ->  0 (in sync)   (2026-10-09T21:39:41, 19s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
-CAPTURED: nothing; every source file here matches 20c58f5
 ```
 
