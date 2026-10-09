@@ -1,26 +1,26 @@
-laptop41-doctor 20261009-175439 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 9841bdb 2026-10-09)
+laptop41-doctor 20261009-181103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 9cecb55 2026-10-09)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
-  port 8001 : pid 7228 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\run_server.py --host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151 --port 8001 
+  port 8001 : pid 7228 python.exe: 
   ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
   task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
               in: 
               wrapper: C:\ProgramData\AlphaBoot\run-alpha.cmd
-  port 4173 : pid 11700 node.exe: "node"   "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\node_modules\.bin\\..\vite\bin\vite.js" preview --host 127.0.0.1 --port 4173 --strictPort
+  port 4173 : pid 11700 node.exe: 
   frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:True
   ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
 
 === 1. Backend (port 8001) ===
   ok: /health answers 200
   ok: chat fix (dictionary 500) is in the live main.py
-  main.py edited 2026-10-07 22:44; backend started 2026-10-08 08:20
+  main.py edited 2026-10-07 22:44; backend started 
 
 === 2. Chat ===
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 1.3s (load 0s, 9.4 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 1.8s (load 0s, 8.9 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -40,13 +40,13 @@ laptop41-doctor 20261009-175439 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: https://alpha-ai.uk/ answers 200
   task Alpha            Running  last run 2026-10-08 08:21 result 0x00041301 (still running)
   task Alpha Backend    Running  last run 2026-10-08 08:19 result 0x800710E0 (refused: the operator or a condition stopped it)
-  task Alpha Self-Heal  Running  last run 2026-10-09 17:54 result 0x00000000 (success)
+  ok: self-heal runs (task is SYSTEM, not visible here; its log was written 0 min ago)
   cloudflared service: Stopped
   cloudflared processes on this machine: 1
   last self-heal entries:
-    {"at":"2026-10-09T16:50:55.472Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-09T16:52:55.156Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-10-09T16:54:55.192Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T17:06:55.324Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T17:08:55.271Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-10-09T17:10:55.226Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
 
 === 5. alpha-tunnel coordinator (http://100.93.104.24:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -87,23 +87,23 @@ laptop41-doctor 20261009-175439 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.97    dc:b4:d9:01:3c:38  Reachable
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 21s old)
+  ok: Alpha's deck feed is live (assistant heartbeat 56s old)
   backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
   ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (35 connections)
+  ok: home-network devices that called the backend in the last couple of minutes: 192.168.2.97 (36 connections)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.7 of 15.8 GB RAM free
+  ok: 2.5 of 15.8 GB RAM free
   ok: C: 137.7 GB free
-  ok: CPU 36% (Alpha holds GPU admission at 90%)
+  ok: CPU 83% (Alpha holds GPU admission at 90%)
   llama-server                  1,933 MB  pid 1040
-  Memory Compression            1,900 MB  pid 3840
-  claude                          669 MB  pid 19360
-  WindowsTerminal                 620 MB  pid 9648
-  node                            372 MB  pid 21168
-  explorer                        367 MB  pid 10108
-  MsMpEng                         361 MB  pid 6040
-  claude                          239 MB  pid 10052
+  Memory Compression            1,915 MB  pid 3840
+  claude                          720 MB  pid 19360
+  WindowsTerminal                 633 MB  pid 9648
+  node                            375 MB  pid 21168
+  MsMpEng                         370 MB  pid 6040
+  explorer                        366 MB  pid 10108
+  python                          291 MB  pid 7228
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -111,7 +111,7 @@ laptop41-doctor 20261009-175439 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: Stable Diffusion API answers on http://127.0.0.1:7861 (200)
 
 === SUMMARY ===
-  this pass took 35s
+  this pass took 37s
   ok: no problems found
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
