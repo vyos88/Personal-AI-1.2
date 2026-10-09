@@ -331,6 +331,37 @@ answer, and Claude puts it to V in the next report.
   **The Ubuntu machine does not exist yet.** Both Desktop Commander devices were offline (22-23h) and
   no Linux machine is registered, so nothing in section 9b has been run against a real server.
 
+- [!] 2026-10-09 Claude (cloud) -> V: **the doctor's CPU check is firing intermittently, and the
+  process list beside it cannot say what is consuming the CPU.** Two firings in two and a quarter
+  hours, and the whole series from `status/laptop41`'s runs: **46% (07:11), 93% (07:26 PROBLEM), 73%
+  (07:41), 60% (08:11), 90% (09:26 PROBLEM)** -- local times. So **2 of 5 samples sit at or above the
+  90% hold**, and `gpu_work.py` compares `cpu_percent >= cpu_hold_percent`, so the 90% reading is held
+  too. Each one clears by the next pass (`doctor-state.json` shows `runs: 1` both times, never 2), so
+  it is recurring rather than sustained.
+  **The consequence in the message did not happen either time.** At the 09:26 run, with CPU reading
+  90%, the same report says `ok: Alpha's deck feed is live (assistant heartbeat 10s old)` -- the
+  assistant cycle had its shared lane seconds earlier. At 07:26 it was 23s. And `CLAUDE.md` already
+  settles that the 201 failing receipts were **telemetry, not CPU**: `windows_gpu.py` never reaching
+  `observed`, where "freeing CPU does not fix it... a second problem, not this one". The message is
+  not wrong that CPU at the hold refuses calls -- three of the eight newest receipts carried the CPU
+  reason -- but it should not be read as the receipts' cause.
+  **The gap worth closing:** section 7 reports the CPU *total* and then lists the heaviest processes
+  **by working set**, which need not be the processes using the CPU. Across all five runs above the
+  memory list is effectively identical -- `llama-server` steady at 1,933 MB, same pids, same order --
+  while CPU moved between 46% and 93%. So the report now says *that* the machine is at the hold and
+  still cannot say *what* put it there. That is the same shape as the bug `laptop41-doctor.ps1`'s CPU
+  reading was added to fix ("the one figure that explained it was the one nothing printed"), one level
+  down.
+  **Proposed, not pushed:** rank the process list by CPU time as well as working set in section 7 --
+  `Get-Process | Sort-Object CPU -Descending` beside the existing memory ranking, printed only when
+  the hold is met, so a quiet pass is unchanged. `[!] needs V` because it edits
+  `scripts/laptop41-doctor.ps1`, the fleet's only health report, and this container has no PowerShell;
+  `node scripts/ps1-balance.mjs` covers the parse risk but not the semantics, so it wants a `pwsh` run
+  against `test/laptop41-doctor.test.js` before merge. One word and I will write it.
+  **A correction to my own report an hour ago:** I gave the 07:41 reading as 60%; it is **73%**. I had
+  resolved the commit refs by offset rather than by run id and compared the wrong two reports. The
+  shape of the conclusion held, the number did not.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
