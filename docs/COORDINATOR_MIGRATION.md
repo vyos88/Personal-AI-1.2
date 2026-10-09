@@ -29,6 +29,37 @@ about the move puts the tunnel script on the laptop, and nothing needs to —
 agents only ever dial out, so the coordinator moving is invisible to them beyond
 one URL.
 
+## Moving it to a Linux server
+
+Everything below applies unchanged -- the coordinator has no platform-specific
+code, so "another machine" may be an Ubuntu box as readily as a laptop. Get the
+service and its permissions from
+[HOST_SETUP.md section 9b](HOST_SETUP.md#9b-the-coordinator-on-ubuntu-systemd),
+then follow the runbook here for the files.
+
+Three things differ, and only three:
+
+- **The three JSON files need their permissions set after the copy.** On
+  Windows they inherit the folder's ACL; on Linux a `scp` leaves them
+  world-readable, and `data/auth.json` is every account in the fleet.
+  `chown -R alpha data && chmod 700 data` is the last step of the copy, not an
+  afterthought.
+- **The agent cannot come with it.** On the Alpha host the coordinator and an
+  agent run side by side, because that agent offers `alpha.coordination`,
+  `alpha.panel` and `alpha.devices` -- PowerShell and a USB board on that
+  machine. A server offers none of them, so it runs the coordinator alone and
+  the laptops keep dialling out. That is the same rule as the table above:
+  *the agent on the Alpha machine stays there.*
+- **There is no autopilot on the server.** `scripts/autopilot.ps1` is
+  PowerShell, so the queue in `control/<machine>` reaches the laptops and not
+  the server. Standing checks that watch the server have to run from a machine
+  that has PowerShell -- which is what `autofix.channelWatch` already does in
+  the other direction.
+
+Nothing about the files themselves changes. They are JSON written
+write-then-rename, and `JSON.parse` does not care which line ending a Windows
+host left behind.
+
 ## When the old host is simply gone
 
 The runbook below assumes the old coordinator is still there to stop and copy
