@@ -1,10 +1,10 @@
 ﻿{
-    "at":  "2026-10-09T22:19:36.4398315+01:00",
+    "at":  "2026-10-09T22:39:13.1043349+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "checked_by":  "self-heal, 0 min ago"
               },
     "role":  {
                  "role":  "PRIMARY",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 1 file(s) to alpha-serv-01 at 2026-10-09T21:07:05Z (3846 MB still to send)"
+                 "detail":  "sent 2128 file(s) to alpha-serv-01 at 2026-10-09T21:26:56Z (3755 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  0,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-09T21:06:44.262171+00:00"
+                  "checked_at":  "2026-10-09T21:26:17.212928+00:00"
               },
     "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
