@@ -367,7 +367,7 @@ export async function run(payload, { signal, log } = {}) {
     );
   });
 
-  return {
+  const result = {
     action,
     actor,
     paths,
@@ -380,6 +380,28 @@ export async function run(payload, { signal, log } = {}) {
     stderrTruncated: stderr.length > MAX_OUTPUT_CHARS,
     ...(action === 'Status' && code === 0 ? statusEvidence(stdout) : {}),
   };
+  if (action === 'Status') {
+    // Keep the existing validated, bounded summary. A complete document is
+    // separate evidence, and its encoded size includes that summary and JSON
+    // escaping, leaving headroom within the unchanged 1 MB result endpoint.
+    result.statusComplete = false;
+    result.statusCompletenessError = code === 0 ? 'invalid_status' : 'script_failed';
+    if (code === 0 && result.status) {
+      const complete = { ...result, stdout: stdout.replace(/^\uFEFF/, ''),
+        stdoutTruncated: false, statusComplete: true };
+      delete complete.statusCompletenessError;
+      if (Buffer.byteLength(JSON.stringify(complete), 'utf8') <= 750_000) return complete;
+      result.statusCompletenessError = 'status_too_large';
+    }
+    // Entry-count caps cannot bound arbitrary values inside those entries.
+    // Preserve diagnostics but refuse an oversized summary as ownership proof.
+    if (Buffer.byteLength(JSON.stringify(result), 'utf8') > 750_000) {
+      result.status = null;
+      result.statusError = 'Structured Status summary exceeds the transport budget; ownership is unknown.';
+      result.statusCompletenessError = 'status_too_large';
+    }
+  }
+  return result;
 }
 
 /**
