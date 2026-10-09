@@ -1,8 +1,23 @@
-﻿# laptop41 autopilot 20261009-212850
+﻿# laptop41 autopilot 20261009-213849
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 6c2a5ed is current
+
+## auto-live-sync-20261009-213849  live-sync (standing)  ->  0 (in sync)   (2026-10-09T21:39:41, 19s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
+CAPTURED: nothing; every source file here matches 20c58f5
+```
+
+## auto-data-sync-20261009-213849  data-sync (standing)  ->  0 (in step)   (2026-10-09T21:40:26, 459s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 214 file(s), 99.6 MB written since 2026-04-24T15:52:06Z, to alpha-serv-01
+  PART of a backlog: 12932 file(s), 4,138.9 MB still to send, from 2026-07-14T03:21:49Z; the next pass carries on
+```
 
 ## auto-live-sync-20261009-212850  live-sync (standing)  ->  1 (could not run)   (2026-10-09T21:29:40, 1s)
 ```
@@ -746,20 +761,5 @@ receipts : 201 retained; classes evidence-contract=201
       HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
   2026-10-09T17:06:32.137475Z Alpha Qc (qc) incomplete [evidence-contract]
       HTTPException: 502: Local LLM request failed: Timeout: Waiting for fresh per-adapter GPU telemetry; GPU admission timed out without starting language-model
-```
-
-## auto-data-sync-20261009-200406  data-sync (standing)  ->  1 (failed)   (2026-10-09T20:06:07, 114s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 20:06 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  NOT SENT: alpha-server-01 is not on this tailnet (tailscale status); 23 file(s), 38.7 MB wait for it (nothing is lost: the next send starts from 2026-10-09T18:53:37Z)
-```
-
-## 20261009-05-data-catchup  data-sync  ->  0   (2026-10-09T19:21:34, 1757s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 19:31 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  baseline set to 2026-10-07T20:00:00Z (-Since): everything written here after it goes to laptop-gj8dfmlk
-  SENT 105 file(s), 145.0 MB written since 2026-10-07T20:00:00Z, to laptop-gj8dfmlk
 ```
 
