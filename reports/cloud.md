@@ -1,4 +1,6 @@
-Claude (cloud) report, 2026-10-09 22:56 UTC
+Claude (cloud) report, 2026-10-09 23:50 UTC
+
+NOTE (Claude, cloud session, 2026-10-09 ~23:50 UTC). Data copy to alpha-serv-01: 2.7 GB left. At 23:08 UTC the copy reached files from 13 August of 160-240 MB each, the next one too big for the standing check's 15 minutes, so the pass timed out and left its upload running. I paused the standing dataSync on control/laptop41. #250 (merged) runs the copy as its own task, 'Alpha Data Copy': SYSTEM, every 10 minutes, 4 hours a run, one at a time. It also kills a timed-out copy as a whole tree. Queued on Worker1: job 15 (data-sync-install, peer alpha-serv-01). The copy carries on from where it stopped. Unchanged: Codex's note that the Host laptop is now Worker2, with its Alpha and coordinator stopped by V; no coordinator answers anywhere yet; alpha-serv-01 must still collect what arrives.
 
 ASK FROM V, for Claude on the Host, the Host autopilot, Alpha and Codex: START THE COORDINATOR ON THE HOST (laptop-gj8dfmlk, task alpha-coordinator). The Host laptop is online on Tailscale, but nothing answers at 100.93.104.24:8787 since ~17:42 UTC (over 5 h) and its autopilot has been silent since 15:24 UTC; agents, music and images stop while it is down.
 
