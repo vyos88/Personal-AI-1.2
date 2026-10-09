@@ -40,14 +40,25 @@ notification for the same unchanged finding; the first one at ~30 minutes
 already named the fix and the machine. Flagging the duration here so the
 next check doesn't have to re-derive it.
 
-### Also recurring (already documented, not re-flagging)
+**Update (21:56 pass, ~3h15m in):** still down — 13 runs now, same start
+time. Unchanged otherwise: same two services, same machine, same fix.
 
-CPU hit 96% this pass (`open 1 run`), crossing Alpha's 90% GPU-admission
-hold again — the same already-explained, self-clearing issue from
-`HANDOFF_2026-10-08d_alpha-gpu-admission-deadlock.md`.
+### CPU hold stopped self-clearing
+
+Every prior occurrence of Alpha's 90% GPU-admission hold in this window
+cleared within a run or two (see `HANDOFF_2026-10-08d_alpha-gpu-admission-
+deadlock.md`). This one hasn't: it started at 20:44:00 and is still open 6
+runs later (~75 min), now also escalated to `NEEDS A PERSON` by the doctor.
+That's a change in character worth noting rather than re-filing as the same
+recurring blip — whether it's connected to the coordinator being down (a
+fleet that can't dispatch work might be retrying/polling harder locally) or
+a coincidence is not established from here. Not sending a notification for
+it on its own; it's folded into the same "Host needs attention" picture as
+the outage above, and a person checking on the coordinator will see this
+too.
 
 ### No new PRs on either repo this pass
 
 Same 16 open on Personal-AI-1.2, 12 on Alpha. PR #99 continues to see
-commits from the host-side session (now at `d5e205f` per the doctor's own
+commits from the host-side session (now at `6c2a5ed` per the doctor's own
 checkout line) but nothing new requiring action from this check.
