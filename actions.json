@@ -521,6 +521,13 @@
       "do": "alpha-standdown",
       "reportOnly": true,
       "why": "report only, with #241's service details: does the cloudflared service start (last exit code), and was it installed with a token (yes/no). A cover needs it"
+    },
+    {
+      "id": "20261009-05-data-catchup",
+      "do": "data-sync",
+      "peer": "laptop-gj8dfmlk",
+      "since": "2026-10-07T20:00:00Z",
+      "why": "Phase 3 data (tunnel #242): the Host's memory\\ is the drive copy of 2026-10-07; send it everything Worker1 wrote since, once. From then on autofix.dataSync sends every 10 minutes while Worker1 serves, and its last minutes at the stand-down"
     }
   ],
   "autofix": {
@@ -538,6 +545,10 @@
     "heartbeat": true,
     "homeWifi": {
       "ssid": "Starlink V"
+    },
+    "dataSync": {
+      "peer": "laptop-gj8dfmlk",
+      "everyMin": 10
     }
   }
 }
