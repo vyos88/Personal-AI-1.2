@@ -164,7 +164,7 @@ function Kill-Tree([int]$id, [string]$what) {
 
 # ------------------------------------------------------------------ undo
 if ($Undo) {
-  Say "ALPHA STAND-UP $env:COMPUTERNAME $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
+  Say "ALPHA STAND-UP $env:COMPUTERNAME $(Get-Date -Format 'yyyy-MM-dd HH:mm')$(if ($ReportOnly) { ' (report only: nothing is changed)' })"
   $last = Get-ChildItem -LiteralPath $recordDir -Filter 'standdown-*.json' -EA SilentlyContinue | Sort-Object Name | Select-Object -Last 1
   $record = if ($last) { Get-Content -LiteralPath $last.FullName -Raw | ConvertFrom-Json } else { $null }
   Say $(if ($record) { "record: $($last.Name)" } else { 'no stand-down record here: every Alpha task present is enabled, and the service set to Automatic' })
@@ -179,7 +179,36 @@ if ($Undo) {
   if ($record) { foreach ($t in @($record.tasks) + @($record.connectorTasks)) { $wasEnabled[[string]$t.name] = [bool]$t.enabled } }
   $enable = { param($n) if ($wasEnabled.ContainsKey($n)) { $wasEnabled[$n] } else { $true } }
   if ($ReportOnly) {
-    Say 'WOULD: enable and start Alpha Backend and Alpha; restore the connector; enable the watchers; set role.json aside'
+    # From the state and the record just read, as the stand-down's WOULD is.
+    # The fixed sentence this replaces named Alpha Backend and Alpha on a
+    # machine that may have neither, and promised to "restore the connector"
+    # where the record says it was not running and the real path below
+    # deliberately leaves it stopped. This is the half that starts an Alpha,
+    # and alpha-standby.mjs drives it unattended, so a rehearsal of it saying
+    # nothing specific is the wrong half to leave vague.
+    Say 'WOULD:'
+    foreach ($n in $servers) {
+      $t = Task-State $n
+      if (-not $t.present) { Say "  not start '$n': no such task on this machine" }
+      elseif (& $enable $n) { Say "  enable and start '$n'$(if ($t.enabled) { ' (already enabled)' })" }
+      else { Say "  leave '$n' disabled: the record says it was disabled before the stand-down" }
+    }
+    if ($now.service.present) {
+      $type = if ($record -and $record.service.present) { [string]$record.service.startType } else { 'Automatic' }
+      $willStart = $StartConnector -or -not $record -or -not $record.service.present -or [string]$record.service.status -eq 'Running'
+      Say "  set $($CloudflaredService) to start $type, and $(if ($willStart) { 'start it' } else { 'leave it stopped: it was not running before the stand-down' })"
+    } else { Say "  nothing to restore for $($CloudflaredService): it is not installed here" }
+    foreach ($t in @($now.connectorTasks)) {
+      Say $(if ($wasEnabled[$t.name] -eq $true) { "  enable and start '$($t.name)', which starts cloudflared" } else { "  leave '$($t.name)' alone: no record that it was enabled here" })
+    }
+    foreach ($n in $watchers) {
+      $t = Task-State $n
+      if (-not $t.present) { continue }
+      # Named either way: a watcher deliberately left off is the thing a
+      # rehearsal most needs to say, because the real path is silent about it.
+      Say $(if (& $enable $n) { "  enable '$n'" } else { "  leave '$n' disabled: the record says it was disabled before the stand-down" })
+    }
+    Say $(if (Test-Path -LiteralPath $roleFile) { '  set role.json aside: this machine serves Alpha again' } else { '  no role.json here to set aside: this machine is not marked standby' })
     exit 0
   }
   foreach ($n in $servers) {

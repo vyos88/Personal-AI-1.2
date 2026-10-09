@@ -185,6 +185,45 @@ test('standing up again refuses while another machine serves, then restores exac
   assert.equal(again.run('-Undo', '-Force').code, 0);
 });
 
+// The stand-up is the half that starts an Alpha, and alpha-standby.mjs drives
+// it unattended, so its rehearsal is the one that must be unmistakable. Its
+// header carried no report-only marker (the stand-down's does) and its WOULD
+// was one fixed sentence that read neither the state nor the record.
+test('the stand-up rehearsal says so, and reads the record instead of a fixed sentence', { skip }, () => {
+  // Worker1's real shape on 2026-10-09: the connector service Stopped while a
+  // cloudflared ran anyway, and the health guard already off before any of this.
+  const state = serving({ service: { status: 'Stopped', startType: 'Automatic', exitCode: 0 } });
+  state.tasks.find((t) => t.name === 'Alpha Server - Health Guard').state = 'Disabled';
+  const { ops, run, read, set } = setup(state);
+  assert.equal(run().code, 0, 'stand down for real, so there is a record to read');
+
+  set({ log: [] });
+  const before = JSON.stringify(read());
+  const r = run('-Undo', '-ReportOnly');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /ALPHA STAND-UP .*\(report only: nothing is changed\)/, 'not mistakable for a real stand-up');
+  assert.match(r.out, /enable and start 'Alpha Backend'/);
+  assert.match(r.out, /leave 'Alpha Server - Health Guard' disabled: the record says it was disabled/,
+    'the fixed sentence promised to enable the watchers, including one the real path leaves off');
+  assert.match(r.out, /leave it stopped: it was not running before the stand-down/,
+    'and promised to restore a connector the real path deliberately does not start');
+  assert.match(r.out, /set role\.json aside/);
+  assert.equal(JSON.stringify(read()), before, 'a rehearsal changes nothing');
+  assert.equal(existsSync(join(ops, 'role.json')), true, 'and leaves the standby marker where it was');
+
+  // -StartConnector is what alpha-standby.mjs passes, and it is the one thing
+  // that turns that line round.
+  assert.match(run('-Undo', '-ReportOnly', '-StartConnector').out, /to start Automatic, and start it/);
+
+  // The refusal exits before WOULD, so the header is the only thing left
+  // saying this was a rehearsal and not a real stand-up that refused.
+  set({ public: 200 });
+  const ref = run('-Undo', '-ReportOnly');
+  assert.equal(ref.code, 3, ref.out);
+  assert.doesNotMatch(ref.out, /WOULD/);
+  assert.match(ref.out, /\(report only: nothing is changed\)/, 'a refused rehearsal is still marked as one');
+});
+
 // Worker1 as the rehearsal found it: the service Stopped (start Automatic)
 // while a connector started some other way served. Restoring exactly would
 // bring Alpha back with no way in; covering for a primary that is down needs one.

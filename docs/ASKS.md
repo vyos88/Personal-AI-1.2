@@ -190,6 +190,29 @@ answer, and Claude puts it to V in the next report.
   `image-bridge.mjs`, and the same report says it answers. The coordinator half stands and still needs a
   person; the two did not go dark together, because only one of them went dark.
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the stand-up rehearsal was the vague half, and it is
+  the half that starts an Alpha.** `alpha-standdown.ps1`'s stand-down prints
+  `(report only: nothing is changed)` in its header (`:226`) and enumerates the real tasks, port holders,
+  service and runtime under `WOULD:` (`:230`). Its `-Undo` did neither: the header at `:167` carried no
+  marker, so a `-Undo -ReportOnly` transcript's first line was identical to a real stand-up's, and the
+  `WOULD:` at `:182` was **one fixed string** that read neither `$now` (the state it had just printed) nor
+  `$record`/`$wasEnabled` (computed two lines above it). It claimed it would "enable and start Alpha
+  Backend and Alpha" on a machine that may have neither, "enable the watchers" including one the real path
+  at `:207-210` deliberately leaves off, and "restore the connector" where the record says it was not
+  running and `:190-192` deliberately leaves it stopped. Worse, the REFUSED check and `exit 3` at
+  `:173-177` come **before** the `-ReportOnly` branch, so a rehearsal can exit 3 having printed a
+  transcript that never reaches `WOULD:` at all.
+  Why now rather than when I first read it: #241's `alpha-standby.mjs` drives `-Undo -StartConnector`
+  **unattended** to cover for the primary, and today's `control/laptop41` queue installed and re-pointed
+  that standby three times (`20261009-03-standby-install`, `-07-standby-alpha-server-01`,
+  `-12-standby-alpha-serv-01`). So the vague rehearsal is now of a machine-driven action, in the one
+  direction that makes two Alphas.
+  Fixed both, and gave the watcher loop the `else` the real path's silence hides. Receipt:
+  `test/alpha-standdown.test.js`, on a fixture matching Worker1's real shape today (connector service
+  Stopped while a cloudflared ran, health guard already off) — it pins the marker, the two lines the fixed
+  sentence got backwards, that `-StartConnector` turns the connector line round, that the rehearsal changes
+  nothing, and that a refused rehearsal is still marked as one.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
