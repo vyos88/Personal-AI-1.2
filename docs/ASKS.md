@@ -283,6 +283,15 @@ answer, and Claude puts it to V in the next report.
   sync -- and `live.json` carries `role: "coordinator"`. Not the queue or the agent roster after all:
   both need an admin token the Host does not hold, as the doctor's own section 5 shows
   (`Not signed in` against `agents`, `stats`, `keys`).
+  **One class of error in it no longer needs PowerShell to catch.**
+  `scripts/ps1-balance.mjs` counts braces, parens and brackets while skipping
+  comments, both quote styles, here-strings, backtick escapes and `$( ... )` inside a string (which
+  is code again, and nests). All 42 `.ps1` files in the repo balance; removing one `}` from the new
+  `if`/`else` is reported as `1 unclosed {`. It runs in `test/ps1-encoding.test.js`, beside the two
+  shape checks already there -- that file's own comment is the principle: *"CI has no PowerShell to
+  parse with, so look for the shape"*. **It is a brace counter, not a parser**, and a test pins that
+  so a pass is never read as "the script runs": it says nothing about a misspelled cmdlet, a wrong
+  property or a bad type. It narrows the `pwsh` run below, it does not replace it.
   **`[!] before merge:** this container has no PowerShell, so
   `test/autopilot.test.js` skipped here (89 skipped, 0 fail). Its new case -- *a machine that does not
   run Alpha gets the coordinator and its checkout, not a red Alpha row* -- drives the real script in

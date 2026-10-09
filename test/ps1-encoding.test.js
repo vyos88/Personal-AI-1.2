@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
+import { balance, unbalancedReason } from '../scripts/ps1-balance.mjs';
+
 const SCRIPTS = new URL('../scripts/', import.meta.url);
 
 test('every PowerShell script is plain ASCII', async () => {
@@ -36,4 +38,57 @@ test('no PowerShell script has a bare $name: before a non-name character', async
     });
   }
   assert.deepEqual(bad, []);
+});
+
+// The third shape worth checking without PowerShell, and the costliest to get
+// wrong: an unbalanced brace. The heartbeat change wrapped about ninety lines
+// of autopilot.ps1 in an if/else from a container with no PowerShell, which is
+// exactly the edit that drops one -- and a parse error in that file stops the
+// standing checks on both machines, with the script's own report being how
+// anyone would have found out.
+test('every PowerShell script balances its braces, parens and brackets', async () => {
+  const names = (await readdir(SCRIPTS)).filter((n) => n.endsWith('.ps1'));
+  assert.ok(names.length > 0);
+  const bad = [];
+  for (const name of names) {
+    const reason = unbalancedReason(await readFile(new URL(name, SCRIPTS), 'utf8'));
+    if (reason) bad.push(`${join('scripts', name)}: ${reason}`);
+  }
+  assert.deepEqual(bad, []);
+});
+
+// The counter is only worth having if it reads PowerShell the way PowerShell
+// does. Each of these is a construct this repo actually writes, and each would
+// make the check either useless or unusable if it were read as code.
+test('the balance counter skips what PowerShell would not read as code', () => {
+  const ok = (src) => assert.equal(unbalancedReason(src), null, src);
+  // A subexpression inside a string is code again, and nests: the ) that closes
+  // it hands control back to the string. autopilot.ps1 is full of this shape.
+  ok('$a = "$(if ($x) { \'a\' } else { \'b\' })"');
+  ok('$a = "value: $($h.Substring(0, [math]::Min(160, $h.Length)))"');
+  // Braces in prose, which several of these scripts use to explain a brace.
+  ok('# a lone { in a comment\n<# and a ) in a block comment #>\nif ($true) { 1 }');
+  // A here-string full of brackets -- setup-host.mjs prints a systemd unit
+  // this way and repair-alpha-host.ps1 embeds JSON.
+  ok('$u = @"\n[Unit]\nExec=a ( b { c\n"@\nif ($true) { 1 }');
+  ok("$j = @'\n{\"a\": [1, 2}\n'@\nif ($true) { 1 }");
+  // A quote inside a string, both ways, and a backtick escaping a brace.
+  ok("$a = 'it''s fine { '");
+  ok('$a = "she said ""hi"" ("');
+  ok('$a = "a `{ brace"');
+  // And it still catches the thing it is for.
+  assert.match(unbalancedReason('if ($true) { 1'), /1 unclosed \{/);
+  assert.match(unbalancedReason('if ($true) { 1 }}'), /1 more \} than \{/);
+  assert.match(unbalancedReason('$a = "unterminated'), /ends inside a double string/);
+  // An open $( is an open ( too, so it is counted as one and located, not
+  // reported separately.
+  assert.match(unbalancedReason('$a = "$(1'), /1 unclosed \(, 1 of them a \$\( inside a string/);
+});
+
+// It is a brace counter, not a parser, and the comment above it says so. This
+// pins that: a file can balance and still be wrong, so nobody reads a pass
+// here as "the script runs".
+test('balancing is not the same as parsing, and the check does not claim to be', () => {
+  assert.equal(unbalancedReason('Get-Thing-That-Does-Not-Exist -NoSuchFlag'), null);
+  assert.equal(balance('if ($true) { 1 }').mode, 'code');
 });
