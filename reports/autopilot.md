@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261009-232346
+﻿# laptop41 autopilot 20261009-233407
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout ac1686a is current
+checkout 363d3f7 is current
+
+## auto-data-sync-20261009-233407  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:35:17, 353s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:35 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 41 file(s), 92.5 MB written since 2026-08-13T03:56:37Z, to alpha-serv-01
+  PART of a backlog: 9004 file(s), 3,137.2 MB still to send, from 2026-08-13T04:14:54Z; the next pass carries on
+```
 
 ## auto-data-sync-20261009-232346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:24:42, 502s)
 ```
@@ -304,10 +312,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:40 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 214 file(s), 99.6 MB written since 2026-04-24T15:52:06Z, to alpha-serv-01
   PART of a backlog: 12932 file(s), 4,138.9 MB still to send, from 2026-07-14T03:21:49Z; the next pass carries on
-```
-
-## auto-live-sync-20261009-212850  live-sync (standing)  ->  1 (could not run)   (2026-10-09T21:29:40, 1s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access 'https://github.com/vyos88/Alpha/': getaddrinfo() thread failed to start
 ```
 
