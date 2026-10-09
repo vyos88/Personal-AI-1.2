@@ -151,7 +151,7 @@ function Show-State($s) {
   if ($s.service.present) {
     Say ("  service  $CloudflaredService $($s.service.status), start $($s.service.startType)" +
       $(if ($null -ne $s.service.exitCode) { ", last exit code $($s.service.exitCode)" }) +
-      $(if ($null -ne $s.service.tokenInstall) { ", installed with a token: $(if ($s.service.tokenInstall) { 'yes' } else { 'no' })" }))
+      $(if ($null -ne $s.service.tokenInstall) { ", --token on its command line $(if ($s.service.tokenInstall) { 'yes' } else { 'no' })" }))
   } else { Say "  service  $CloudflaredService not installed" }
   Say "  connector processes: $(if ($s.cloudflared.Count) { ($s.cloudflared | ForEach-Object { "cloudflared $($_.pid) (parent $($_.parent))" }) -join '; ' } else { 'none' })"
   Say "  Alpha's own runtime: $(if ($s.runtime.Count) { $s.runtime -join ', ' } else { 'none running' })"

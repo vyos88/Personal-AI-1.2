@@ -451,6 +451,17 @@ on. Its policy lives in the pure `decide()` and is pinned by
   `alpha-standdown.ps1`'s, never its own: `-Undo -StartConnector` to cover,
   because Worker1's connector service was Stopped while another connector
   served.
+- **The machine that serves sends; the other applies while it does not.**
+  `alpha-data-sync.ps1` is Phase 3's data half, and the same rule on both
+  machines is what makes it safe across a switch-over, a cover and a hand-back:
+  - a machine that never served here never pushes its stale copy;
+  - one that just stopped sends its last minutes once;
+  - nothing is applied under a running Alpha (it is held for `data-apply`).
+
+  It never deletes. Newer wins, with the replaced file kept. It never sends
+  back what it only received (`received.json`), and never resends what it
+  already sent (`sent.json`), so a clock running ahead cannot make a loop.
+  tar keeps whole seconds, so times match to the second.
 - **A standby repairs nothing.** `role.json` beside the config, written by
   `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
   log one `standby` line and stop. The stand-down disables the task too; this

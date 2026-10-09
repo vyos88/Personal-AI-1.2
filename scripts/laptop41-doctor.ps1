@@ -907,6 +907,12 @@ function Run-Checks {
     $models = Body "http://127.0.0.1:$ImageBridgePort/sdapi/v1/sd-models"
     if ($models -match 'no_image_machine') { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
     elseif ($models -match '"title"\s*:\s*"[^"]*\(([^)"]+)\)"') { OK "machines that make images (the image bridge's view): $($Matches[1])" }
+    # An empty answer is the bridge not answering in time, not a narrow key:
+    # its model list asks the coordinator (bounded at 15 s, longer than Body
+    # waits), so with none answering this said "it needs agents:read" about a
+    # key that may be fine -- Worker1, 2026-10-09 19:11. The music side above
+    # says "did not say" for the same case and does not guess a cause.
+    elseif (-not "$models".Trim()) { Note "which machines make images is not known here: the image bridge did not answer its model list in time, which it cannot do while no coordinator answers (section 5)" }
     else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge's key cannot list machines (it needs agents:read)" }
   }
   else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge is down" }
@@ -983,6 +989,28 @@ function Run-Checks {
     $comfy = Http 'http://127.0.0.1:8188/system_stats'
     if ($comfy -like '2*') { OK "port $imgPort is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 ($comfy)" }
     else { Problem "image port $imgPort is Alpha's ComfyUI bridge, but ComfyUI does not answer on 8188 ($comfy): chat images fail with HTTP 503" }
+    return
+  }
+  # This repo's own scripts\image-bridge.mjs answers A1111-style txt2img on
+  # this port too, and hands each image to a machine over the tunnel. Its
+  # /sdapi/v1/sd-models asks the coordinator for the agent list, bounded at
+  # fetchJson's 15 s (src/common/http.js), which is longer than Http's
+  # --max-time 10 -- so with no coordinator answering, the probe below comes
+  # back '000' and reported "image backend not running: nothing answers" about
+  # a bridge that was up and had answered /healthz four lines earlier in 5c
+  # (Worker1, 2026-10-09 19:11, three passes running). Its recommendation then
+  # sent a person to webui-user.bat on a machine that has no Stable Diffusion.
+  # One fault, the coordinator in section 5, read as two.
+  #
+  # So this is a verification that could not run, and is reported as that: the
+  # coordinator's own PROBLEM above carries the remedy, and a second one here
+  # would only say the same thing about the wrong component. What is on the
+  # port is taken from the port's own answer rather than from the OS, for the
+  # reason the 404 branch below gives -- a scheduled doctor is unelevated and
+  # Windows hides an elevated process's command line -- and Stable Diffusion's
+  # API has no /healthz to answer.
+  if ($imageUp -and $imgPort -eq $ImageBridgePort -and -not $hz) {
+    Note "port $imgPort is the tunnel's image bridge and it answers /healthz (5c); whether chat images work is not known here, because its model list asks the coordinator for the agent list and none is answering (section 5)"
     return
   }
   $api = Http "$imgBase/sdapi/v1/sd-models"

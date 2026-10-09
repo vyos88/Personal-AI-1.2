@@ -243,9 +243,15 @@ test('the Music Creator path is checked link by link', { skip, timeout: 300_000 
 // Signed out of the coordinator, the doctor's agent list is the "Not signed
 // in" text. Read as a fleet, it said "no machine offers alpha.music" on every
 // run (Worker1, 2026-10-06), so the bridges are asked instead.
-async function doctorWithBridges(routes) {
+async function doctorWithBridges(routes, { env: extraEnv = () => ({}), hits } = {}) {
+  // A route given 'never' is accepted and left unanswered, so curl's
+  // --max-time decides -- what the doctor actually saw from a bridge waiting
+  // on an unreachable coordinator. 404 is not the same input.
+  const unanswered = new Set();
   const server = createServer((req, res) => {
+    if (hits) hits.push(req.url);
     const hit = routes[req.url];
+    if (hit?.[2] === 'never') return void unanswered.add(res);
     if (hit) return json(res, hit[0], hit[1]);
     json(res, 404, {});
   });
@@ -257,10 +263,11 @@ async function doctorWithBridges(routes) {
   mkdirSync(bin);
   writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
   chmodSync(join(bin, 'curl.exe'), 0o755);
-  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ...extraEnv(port) };
   const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
     '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', port, '-BackendPort', port,
     '-MusicBridgePort', port, '-ImageBridgePort', port, '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  for (const res of unanswered) res.socket?.destroy();
   server.close();
   return out;
 }
@@ -288,6 +295,35 @@ test('signed out, a bridge that cannot tell is not read as an empty fleet', { sk
   assert.match(out, /which machines make music is not known here: .*cannot list machines \(it needs agents:read\)/);
   assert.doesNotMatch(out, /no machine offers alpha\.music/);
   assert.match(out, /PROBLEM: no machine offers alpha\.image: the image bridge has nowhere to send work/);
+});
+
+// Worker1, 2026-10-09 19:11: three passes running, section 5c said "ok: image
+// bridge answers on 127.0.0.1:7861" and section 8 said "PROBLEM: image backend
+// not running: nothing answers on http://127.0.0.1:7861" -- the same port, the
+// same pass, and section 8 printed image-bridge.mjs's own pid on the line
+// above. The bridge's /sdapi/v1/sd-models asks the coordinator for the agent
+// list (bounded at fetchJson's 15 s) and Http waits 10, so an unreachable
+// coordinator makes that probe '000'. One fault was reported as two, and the
+// second recommended starting Stable Diffusion on a machine that has none.
+test('a tunnel image bridge with no coordinator could not be verified, which is not a missing backend', { skip, timeout: 300_000 }, async () => {
+  const hits = [];
+  const out = await doctorWithBridges({ '/healthz': [200, { ok: true }], '/sdapi/v1/sd-models': [0, {}, 'never'] }, {
+    hits,
+    // IMAGE_GEN_URL on the bridge's own port is how Alpha is configured on
+    // Worker1; port 1 is a coordinator nothing answers on.
+    env: (port) => ({ IMAGE_GEN_URL: `http://127.0.0.1:${port}/sdapi/v1/txt2img`, ALPHA_HOST_URL: 'http://127.0.0.1:1' }),
+  });
+  assert.match(out, /PROBLEM: no coordinator answering at http:\/\/127\.0\.0\.1:1/, 'the one real fault');
+  assert.match(out, /ok: image bridge answers on 127\.0\.0\.1:\d+/, '5c, unchanged');
+  assert.match(out, /port \d+ is the tunnel's image bridge and it answers \/healthz \(5c\); whether chat images work is not known here/);
+  assert.doesNotMatch(out, /PROBLEM: image backend not running/, 'a bridge that answers is not a missing backend');
+  assert.doesNotMatch(out, /webui-user\.bat/, 'and nobody is sent to start Stable Diffusion on a machine without it');
+  // 5c asks the bridge for its model list once, legitimately. Section 8 asked
+  // for the same route again and read the empty answer as a missing backend;
+  // once is the fix, twice is the bug.
+  assert.equal(hits.filter((u) => u === '/sdapi/v1/sd-models').length, 1, 'section 8 does not re-run 5c\'s probe to call its silence a failure');
+  assert.match(out, /which machines make images is not known here: the image bridge did not answer its model list in time/);
+  assert.doesNotMatch(out, /it needs agents:read/, 'an unanswered probe is not blamed on a narrow key');
 });
 
 // Alpha's deck panel polls /panel/crowpanel/public-state with no credential.

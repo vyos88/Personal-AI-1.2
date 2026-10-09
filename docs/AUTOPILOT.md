@@ -72,6 +72,9 @@ reported.
 | `alpha-standup` | `alpha-standdown.ps1 -Undo`: serve Alpha here again. It enables only what the record says was enabled, restores the connector's start type, starts the servers before the watchers, sets `role.json` aside and waits for `/health`. It refuses (exit 3) while alpha-ai.uk answers and no connector runs here, because then another machine serves Alpha; `"force": true` overrides that. `"reportOnly": true` changes nothing |
 | `standby-install` | `install-alpha-standby.ps1`: Phase 3's automatic cover. It writes `standby.json` and registers `Alpha Standby`, which runs `alpha-standby.mjs` every minute and at startup, as SYSTEM. It acts only while `role.json` says standby or covering, so it is safe on a machine that still serves. `"primary"` names the machine it covers for (default `laptop-gj8dfmlk`), and `"primaryUrl"` that machine's Alpha health over the tailnet (default `http://100.93.104.24:8001/health`) |
 | `standby-uninstall` | `install-alpha-standby.ps1 -Uninstall`: removes `Alpha Standby`; `standby.json` stays |
+| `data-sync` | `alpha-data-sync.ps1` once. It sends what changed in `memory\` here to `"peer"` while this machine serves Alpha, and applies what arrived while it does not. `"since"` (a UTC time) starts the sending from an older copy instead of from now. See the standing check `dataSync` below |
+| `data-apply` | `alpha-data-sync.ps1 -ApplyHeld`: applies what was held because Alpha serves here. It stops `Alpha Backend`, applies, and starts it again |
+| `tailnet-peers` | `tailnet-peers.ps1`: the machines on the tailnet as this one sees them: name, tailnet IPv4, OS, online or last seen. It reads `tailscale status --json` and prints no account (login names are e-mail addresses). Takes no arguments. It is how a new machine's name and address are found (alpha-server-01, 2026-10-09) |
 
 ## Long queues
 
@@ -243,6 +246,23 @@ while it covered (`standby\handback-*.json`).
 The live page's **Role** row says PRIMARY, STANDBY or COVERING and shows
 the cover's last pass. The doctor reports a cover that is not installed,
 has stopped, or cannot see the primary.
+
+- `dataSync` (`{ "peer": "<the other machine>", "everyMin": 10 }`): keeps
+  the other machine's `memory\` in step (`alpha-data-sync.ps1`). The rule is
+  the same on both machines:
+  - **Sending.** The machine whose backend answers sends what changed. It
+    sends once more after it stops serving, so a stand-down or a hand-back
+    loses nothing. A machine that never served sends nothing.
+  - **Applying.** The other machine applies only while it does not serve, and
+    holds a package otherwise (`data-apply`).
+  - **Checking.** Every package is checked against its SHA-256 and refused if
+    anything in it is outside `memory\`.
+  - **Writing.** Newer wins, and the file it replaces is kept under
+    `data-sync\replaced\`. Nothing is deleted.
+  - **Transport.** Taildrop, never git.
+
+  The live page's **Data copy** row shows the last send, the last apply and
+  anything held.
 
 ## Trust
 

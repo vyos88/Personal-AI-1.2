@@ -158,6 +158,38 @@ answer, and Claude puts it to V in the next report.
   `schtasks`. pwsh-on-Linux is the gate for parse errors, argv contracts and pure logic; a laptop is
   still the only place a cmdlet's own behaviour is checked.
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the Host's coordinator being down is one fault, and
+  the doctor reported it as two — the second on the wrong machine with the wrong remedy.** Worker1's
+  19:11-local pass (`bbe18cd`, 3 open) carries both of these, four lines apart, about the same port in
+  the same run:
+  - `5c.  ok: image bridge answers on 127.0.0.1:7861`
+  - `8.   port 7861 : pid 21308 node.exe: ...\scripts\image-bridge.mjs`
+    `8.   PROBLEM: image backend not running: nothing answers on http://127.0.0.1:7861`
+
+  The arithmetic: `src/bridge/image.js:360` routes `GET /sdapi/v1/sd-models` to `sdModels`, which calls
+  `agents()` → `coordinator('/agents')` → `fetchJson`, whose default is `timeoutMs = 15_000`
+  (`src/common/http.js:39`). `laptop41-doctor.ps1:197`'s `Http` runs `curl --max-time 10` and returns
+  `'000'` when curl gives no status. **15 > 10**, so an unreachable coordinator makes that probe `'000'`
+  every time, and `:992` called it "image backend not running". Its ranked recommendation then said
+  *"Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat)"* — on Laptop41, whose
+  7861 is the bridge whose pid the line above prints, and which has no Stable Diffusion. Section 8
+  already had the right shape for Alpha's ComfyUI bridge (`comfyui_bridge`, with the comment "It has no
+  /sdapi/v1/sd-models, so probe what it depends on instead") and for an unelevated doctor's hidden
+  command line; it just did not know this repo's own bridge.
+  **Fixed** as a verification that could not run, per the `repair-alpha-host` roster rule: section 8 now
+  says so and returns, leaving the coordinator's own PROBLEM in section 5 to carry the remedy, and 5c's
+  fallback no longer blames `agents:read` for an answer that never arrived (the music side next to it
+  already says "did not say" rather than guessing a cause). Which program holds the port is taken from
+  the port's own `/healthz`, which Stable Diffusion's API does not have, rather than from the OS.
+  Receipt: `test/laptop41-doctor.test.js`, which leaves that one route **unanswered** rather than 404
+  so the input matches what the doctor saw, and asserts the route is requested **once** (5c's call) and
+  not twice.
+  **Correction to `HANDOFF_2026-10-09d_coordinator-and-image-backend-down.md`:** it reads the pair as
+  "two unrelated services on the same remote machine going dark at the same moment ... the Host itself
+  being unreachable or restarted". The image half is not on the Host — `127.0.0.1:7861` on Laptop41 is
+  `image-bridge.mjs`, and the same report says it answers. The coordinator half stands and still needs a
+  person; the two did not go dark together, because only one of them went dark.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
