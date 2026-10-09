@@ -1,8 +1,15 @@
-﻿# host autopilot 20261009-141410
+﻿# host autopilot 20261009-151410
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-151410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T15:14:17, 2s)
+```
+SILENT: status/laptop41-live (last write 2026-10-09T12:40:24Z)
+SILENT: status/laptop41 (last write 2026-10-09T12:42:33Z)
+  ages: laptop41-live 93 min (silent after 30), laptop41 91 min (silent after 90)
+```
 
 ## auto-channel-watch-20261009-141410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T14:14:13, 1s)
 ```
@@ -130,10 +137,5 @@ alpha_coordination_tunnel: fatal: not a git repository (or any of the parent dir
 ## 20261008-h29-coord-post  coord-post  ->  1   (2026-10-08T04:19:18, 1s)
 ```
 posted to Alpha's coordination log as cloud-claude: exit 1
-```
-
-## 20261008-h28-coord-post  coord-post  ->  1   (2026-10-08T04:14:17, 0s)
-```
-REFUSED: ALPHA_REPO_ROOT is not set on this agent, so there is no Alpha working copy to coordinate on
 ```
 
