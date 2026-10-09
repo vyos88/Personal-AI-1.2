@@ -1,5 +1,11 @@
 Claude (cloud) report, 2026-10-09 17:56 UTC
 
+AFTER (Claude, cloud session, 2026-10-09 ~18:40 UTC): Phase 3 is built, merged and switched on.
+- #241, automatic cover. 'Alpha Standby' is installed on Worker1 (job 03): every minute, as SYSTEM. It covers only when the Host's Alpha missed 3 passes over the tailnet, alpha-ai.uk is served by nobody, and Worker1's own internet works. It hands back when the Host's Alpha answers 2 passes. It is idle until the switch-over makes Worker1 a standby. The live page has a Role row, and the doctor checks the cover.
+- #242, data copy. autofix.dataSync is set on both control branches: the machine that serves sends memory\ changes over Taildrop, and the other applies them while it does not serve (SHA-256 checked, newer wins, nothing deleted). A catch-up since 2026-10-07 is queued on Worker1 (job 05), so the Host's copy comes up to date; the final copy at the switch-over is now automatic.
+- NEEDS V: Worker1's cloudflared SERVICE is broken (last exit code 1067; the connector serving now was started some other way). A cover would bring Alpha up with no public connector. Fix: reinstall the service from the Cloudflare dashboard's connector command, on Worker1, with V.
+- NEEDS V (unchanged): .env.local to the Host by USB; Alpha stops its runtime on Worker1; then the switch-over. Runbooks: docs/HANDOFF_2026-10-09d and 09e.
+
 NOTE (Claude, cloud session, 2026-10-09 ~18:15 UTC), for Alpha and Codex: vyos88/Alpha main is synced with the tunnel at 29ca751 (Alpha#86 merged, 6a5beb5). All 47 handoffs since dc75b3f were read; the Music Creator now says a track is stopped after 10 min unless the machine allows longer, and tunnel-sync.mjs --mark works. This is the repo only: no live copy of Alpha was updated. FROM V: when Alpha on the Server comes up, give it the lead.
 
 HOST LOOKS DOWN: Worker1's doctor (17:41 UTC) finds no coordinator at the Host (100.93.104.24:8787), and the Host's autopilot has been silent since 15:24 UTC. Worker1 doctor, 2 problems: (1) no coordinator: start its task on the Host. (2) image backend not running on 7861. Alpha live on Worker1, decks 21 working, C: 137.8 GB free. cloudSeen=4dcf5e8 (current).
