@@ -266,6 +266,51 @@ answer, and Claude puts it to V in the next report.
   this exact string. `test/autopilot.test.js`'s `-Plan` test now asserts it too; proven by putting
   `Join-Path` back, where it fails with "the plan resolved nothing off the machine".
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **"the build is older than the source" was a test
+  file, and it had escalated to NEEDS A PERSON.** It is on the stored noise list as something that
+  oscillates, and the RAM line beside it did exactly that today (open 2 runs, then fixed). This one did
+  not: **7 consecutive runs, since 23:02:27 local**, past `EscalateAfterRuns` (4) into NEEDS A PERSON,
+  where it outranked real problems in the list a person reads. So I checked section 3 before acting, and
+  the check is what is wrong:
+  - `dist built 2026-10-08 06:38`
+  - `newest source 2026-10-09 22:55  src\liveCoordinationLabels.test.js`  <- **a test file**
+  - and the three lines under it: `bundle in dist`, `bundle on :4173` and `bundle public` all
+    `index-DrRVpMIZ.js`, with `ok: 4173 serves the build in dist` and `ok: public site serves the same
+    build as this machine`.
+
+  `laptop41-doctor.ps1:793` was `Get-ChildItem .../src -Recurse -File` with **no filter**, so any file
+  under `src\` counted as a build input -- a `.test.js`, a snapshot, an editor backup. The remedy that
+  problem points at is `repair-host`, a 45-minute rebuild, on a machine whose CPU has been hitting 90-97%
+  all evening, to fix a site that was already serving the right bundle. **Queuing that is what I did not
+  do.**
+  Fixed with `Read-StaleBuild`, a pure function beside `Read-CpuPressure` and `Read-CpuBusiest`, exposed
+  as `-ReadStaleBuild` and answered above the report directory. It excludes what a build **cannot** ship
+  (`*.test.*`, `*.spec.*`, `__tests__`, `__snapshots__`, `__mocks__`) rather than listing what it can: an
+  inclusion list has to be revisited every time the toolchain learns an extension, and a short one fails
+  silently as an OK. A skipped file that is newer is **counted and said**, so the line never contradicts
+  somebody who just saved one. Receipt: three tests in `test/laptop41-doctor.test.js`, the first on
+  Worker1's exact numbers; the second proves a real source newer than the build is still the problem it
+  always was.
+
+- [ ] 2026-10-09 Claude (cloud) -> whoever owns the data copy (#246-#248): **`test/alpha-data-sync.test.js:253`
+  is flaky under parallel load.** Not mine to fix, so recording the evidence rather than touching it.
+  "a file that cannot be packed is never counted as sent, and goes with the next pass" fails at its last
+  assertions with
+  `ENOENT ... /alpha-serv-01/memory/chats/a.json` -- the file that **did** go in the first part is missing
+  on the server, while `vendor/deep/manual.pdf`, the one that could not be packed and rode with the
+  second pass, is present. Everything earlier in the test passes (`SENT 1 file(s)`, `sent.json` holding
+  only `memory/chats/a.json`, the retry riding along).
+  **It is flaky, not deterministic:** same commit, two full `npm test` runs, one fail and one pass
+  (958 tests: 955 pass/1 fail, then 956 pass/0 fail). Its own file in isolation passes **16/16**. Pristine
+  `origin/main`'s full run is clean too, so my 39 extra tests today plausibly just lengthened the run --
+  but that is a guess, and the flake is in the timing, not in my files.
+  **One trap worth knowing before anyone debugs it:** `--test-name-pattern="cannot be packed"` makes it
+  fail every time, because it depends on the tests before it in the same file. I read that as "fails on
+  main" and had to correct myself. Judge this one only by running the whole file.
+  A plausible place to look, from this repo's own note that "tar keeps whole seconds, so times match to
+  the second": a `written since` comparison at whole-second granularity behaves differently when a step
+  crosses a second boundary under load.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own

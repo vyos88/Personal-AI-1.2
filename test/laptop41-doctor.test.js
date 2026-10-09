@@ -570,6 +570,60 @@ test('while the hold is on, the processes are ranked by CPU and the unmeasurable
   assert.ok(!out.rows.some((r) => r.percent === 0), 'nothing unmeasured is scored zero');
 });
 
+// Worker1, 2026-10-09 23:02-00:28 local: "the build is older than the source:
+// the site shows the old Alpha until dist is rebuilt" held open for seven runs
+// into NEEDS A PERSON. Section 3's own lines said dist was built 2026-10-08
+// 06:38, the newest "source" was src\liveCoordinationLabels.test.js at
+// 2026-10-09 22:55, and dist, :4173 and the public site were all serving
+// index-DrRVpMIZ.js. A test file is not a thing a build ships, and the remedy
+// that problem points at is a 45-minute rebuild.
+const readStale = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-stale-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadStaleBuild', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a test file newer than the build is not a stale build, and says so', { skip }, () => {
+  const built = '2026-10-08T06:38:00';
+  // Worker1's own shape: one real source older than the build, the newest file
+  // a test, written 40 hours after it.
+  const out = readStale({ built, files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-08T06:20:00' },
+    { path: 'src\\liveCoordinationLabels.test.js', at: '2026-10-09T22:55:00' },
+    { path: 'src\\__snapshots__\\deck.snap', at: '2026-10-09T22:56:00' },
+  ] });
+  assert.equal(out.stale, false, 'a build is not stale because a test was saved');
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx', 'the newest build input, not the newest file');
+  assert.equal(out.skippedNewer, 2);
+  // It never contradicts somebody who just saved one of those files.
+  assert.match(out.note, /build is newer than every source file; 2 newer file\(s\) under src\\ are tests/);
+});
+
+test('a real source newer than the build is still the problem it was', { skip }, () => {
+  const out = readStale({ built: '2026-10-08T06:38:00', files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-09T22:55:00' },
+    { path: 'src\\thing.test.ts', at: '2026-10-09T23:10:00' },
+  ] });
+  assert.equal(out.stale, true);
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx');
+  assert.match(out.note, /^the build is older than the source/);
+  assert.match(out.note, /1 newer file\(s\) under src\\ are tests/, 'and the skipped one is still accounted for');
+});
+
+test('a minute of slack survives, and a src of nothing but tests says which empty it is', { skip }, () => {
+  // The build writes dist\index.html a moment after reading its inputs.
+  const close = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.ts', at: '2026-10-08T06:38:30' }] });
+  assert.equal(close.stale, false, 'half a minute is the build itself, not a change');
+
+  const onlyTests = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.test.ts', at: '2026-10-09T22:55:00' }] });
+  assert.equal(onlyTests.stale, false);
+  assert.equal(onlyTests.newest, null, 'nothing to compare against');
+  assert.match(onlyTests.note, /no build input under src\\ \(only tests and fixtures\)/);
+});
+
 test('a sample window of nothing does not divide by it', { skip }, () => {
   const out = readBusiest({ seconds: 0, cores: 0, before: [{ name: 'a', pid: 1, cpu: 1 }], after: [{ name: 'a', pid: 1, cpu: 2 }] });
   assert.equal(out.rows[0].percent, 0);
