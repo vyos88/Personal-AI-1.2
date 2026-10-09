@@ -562,6 +562,14 @@
       "peer": "alpha-serv-01",
       "since": "2000-01-01T00:00:00Z",
       "why": "V 2026-10-09: send the full memory copy to the new server. Everything in memory\\ (less test leftovers, the recovery image, the Android SDK, the books junction, caches), oldest first, 100 MB a part (#246): this job sends the first part and the dataSync check, every 5 minutes, streams the rest. Each part is SHA-256 checked on arrival"
+    },
+    {
+      "id": "20261009-14-full-memory-resend",
+      "do": "data-sync",
+      "peer": "alpha-serv-01",
+      "since": "2000-01-01T00:00:00Z",
+      "resend": true,
+      "why": "#247: jobs 13 and the dataSync check counted files they could not pack (paths over 260 characters under the old staging folder) as sent, so they would never have gone. The fixed script stages under C:\\AlphaData\\ds, never counts an unpacked file as sent, and resend forgets the old sent list: the full copy starts again from the oldest file, 100 MB a part. Parts already sent go again; alpha-serv-01 keeps them as already the same"
     }
   ],
   "autofix": {
