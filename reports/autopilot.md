@@ -1,8 +1,15 @@
-﻿# host autopilot 20261008-231410
+﻿# host autopilot 20261009-012909
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-012909  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T01:29:13, 1s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-08T22:56:34Z)
+  ages: laptop41-live 4 min (silent after 30), laptop41 92 min (silent after 90)
+```
 
 ## auto-channel-watch-20261008-231410  channel-watch (standing)  ->  0 (every channel talking)   (2026-10-08T23:14:14, 2s)
 ```
@@ -261,25 +268,5 @@ PROCESSES (14 roles): role xN | MB | pids | command
 DUPLICATES: none
 PORTS: 8001=- 4173=- 8787=node(57984) 8790=- 7861=- 7860=- 8188=python(88188) 11434=ollama(56300) 8080=-
 AGENT MANAGER: no snapshot at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\agent-manager\manager-status.json (the manager does not run here)
-```
-
-## 20261007-h20-prepare-alpha  prepare-alpha-here  ->  0   (2026-10-07T22:44:18, 59s)
-```
-PREPARE ALPHA HERE LAPTOP-GJ8DFMLK 2026-10-07 22:44
-  target C:\Users\jack\Downloads\VyoS-advance-tech-ai, branch claude/frie...(30)
-1. code
-  up to date: ca87445 10-07 21:39 Alpha checks her decks one by one, fixes what is safe, and reports in the tunnel
-  Alpha's software\ is C:\Users\jack\Downloads\VyoS-advance-tech-ai\BuildArtifacts\installers\Alpha-Full\software
-2. backend
-  venv ready (Python 3.12.10), requirements from backend\requirements.txt
-3. site
-  built: dist\index.html
-4. chat
-  llama3.2:3b is here
-5. connector (installed only; never started here)
-  cloudflared version 2026.10.0 (built 2026-10-05T08:39 UTC)
-RAM: 1.8 GB free of 15.8 GB
-STILL NEEDED FROM A PERSON: .env.local and Alpha's memory\ from Laptop41 (by USB or LAN, never git), then the switch-over (Phase 2)
-RESULT: ready for the data copy
 ```
 
