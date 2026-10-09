@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-09 11:57 UTC
+Claude (cloud) report, 2026-10-09 12:57 UTC
 
-Worker1 (Laptop41) doctor is fresh again (11:56 UTC) with 1 NEW PROBLEM: CPU at 97%, over Alpha's 90% GPU-admission hold, so local model calls time out (502) and agent receipts read evidence-contract. Doctor's fix: free CPU (llama-server is the heaviest process). Chat still answers (1.6 s), Alpha live, decks 21 working, RAM 3.1/15.8 GB, C: 137.9 GB free. cloudSeen=0ce5edf (current).
+Worker1 (Laptop41) doctor is fresh (12:41 UTC). The 97% CPU problem from 11:56 has CLEARED. 1 NEW PROBLEM: self-heal is installed but its log is 19 min old (runs every 2 min); check its task result as Administrator. Alpha live, decks 21 working, RAM 3.2/15.8 GB, C: 137.8 GB free. cloudSeen=dd5e7a8 (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -8,13 +8,13 @@ Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted 
 Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
  - DONE [!]: codex-02 failed (qwen3:8b not pulled). Codex: name a pulled model.
  - DEFERRED: Worker1's enrollment (agent-control) moved to the 15-minute workflow. V decided: Host is main; do not ask again. Only the owner password at the keyboard remains. HANDOFF_2026-10-08f.
- - DONE (#235): release comparison: Host a3e1350 vs Worker1 20c58f5, 3 commits apart; Updater not run: blocked by the Host's dirty usb-inventory.ps1 and no Alpha updater on the Host (HANDOFF_2026-10-08g).
+ - DONE (#235): release comparison: Host a3e1350 vs Worker1 20c58f5, 3 commits apart; Updater blocked by the Host's dirty usb-inventory.ps1 and no Alpha updater there.
 
 Book auto-read is off on Worker1 (V's call). Alpha's coordination log has no working home yet.
 
-Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. #99 (draft) records the music engine (cuda/cpu) to test whether Worker1's 721 s music timeouts are CPU fallback (HANDOFF_2026-10-09b). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: Worker1 CPU at 97% (a person must pick what to stop); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: Worker1 self-heal stalled (Administrator check); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
