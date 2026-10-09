@@ -379,7 +379,9 @@ function Resolve-Action($a) {
         if (-not $a.peer) { $out.reason = 'since needs a peer to send to'; return $out }
         $rest += @('-Since', (Iso-Text $a.since))
       }
-      $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 60
+      # A full copy (an old "since") is gigabytes: the job has the time; the
+      # 10-minute check below is capped and leaves it here.
+      $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 240
     }
     # A machine joins the fleet by joining the tailnet; its name and address
     # are what the other settings point at. Read-only, and it prints no account.
@@ -1066,7 +1068,7 @@ if ($ds) {
     else {
       $dsLog = Join-Path $dir "$stamp-data-sync.log"
       try {
-        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer) `
+        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer, '-MaxBytes', '314572800') `
                   -WorkingDirectory $repo -NoNewWindow -PassThru -RedirectStandardOutput $dsLog -RedirectStandardError "$dsLog.err"
         $null = $proc.Handle
         if ($proc.WaitForExit(15 * 60000)) { $dsCode = $proc.ExitCode } else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $dsCode = 'timeout after 15 min' }
@@ -1074,7 +1076,7 @@ if ($ds) {
       } catch { $dsOut = "could not start: $($_.Exception.Message)" }
     }
     $acted = $dsOut -match '(?m)^\s*(SENT|APPLIED|HELD|REFUSED|NOT SENT|FAILED)'
-    $k = "$dsCode|" + ((@($dsOut -split "`n" | Where-Object { $_ -match '^\s*(HELD|REFUSED|NOT SENT|FAILED|waiting|taildrop)' }) | ForEach-Object { $_.Trim() }) -join '|')
+    $k = "$dsCode|" + ((@($dsOut -split "`n" | Where-Object { $_ -match '^\s*(HELD|REFUSED|NOT SENT|FAILED|TOO LARGE|waiting|taildrop)' }) | ForEach-Object { ($_.Trim() -replace '[\d.,]+ (MB|file)', '# $1') }) -join '|')
     if ($acted -or $k -ne $dsKey) {
       $res = if ("$dsCode" -eq '0') { '0 (in step)' } elseif ("$dsCode" -eq '3') { '3 (held, or still arriving)' } else { "$dsCode (failed)" }
       [void]$ran.Add([ordered]@{ id = "auto-data-sync-$stamp"; do = 'data-sync (standing)'; result = $res; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = (Redact $dsOut) })

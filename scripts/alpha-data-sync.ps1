@@ -40,8 +40,19 @@
       A file newer here is kept and counted as a conflict. Times are carried
       across, so a copy never looks newer than its original.
 
+  Two things keep a send from holding up whoever runs it:
+    - The peer is asked of `tailscale status` first. A peer that is offline or
+      not on this tailnet is reported at once, and nothing is packed: on
+      2026-10-09 a send to a machine that had gone dark held Worker1's
+      autopilot pass, and its live page, until the job's time ran out.
+    - -MaxBytes caps one pass. Over it, nothing is packed and the backlog is
+      reported (exit 3), for a data-sync job to send without the cap. The
+      autopilot's 10-minute check passes 300 MB, so a full copy is never
+      attempted, and repeated, inside it.
+
   Exit codes: 0 done (including "nothing to do"); 1 a send or an apply failed
-  or was refused; 3 a package is held, or still arriving.
+  or was refused; 3 a package is held or still arriving, or a backlog is over
+  -MaxBytes.
 #>
 param(
   [string]$OpsDir = 'C:\AlphaData\alpha-ops',
@@ -50,6 +61,7 @@ param(
   [string]$Inbox = 'C:\AlphaData\alpha-move\inbox',
   [string]$HealthUrl = 'http://127.0.0.1:8001/health',
   [string]$Since = '',
+  [int64]$MaxBytes = 0,
   [switch]$NoSend,
   [switch]$NoReceive,
   [switch]$ApplyHeld,
@@ -104,6 +116,17 @@ function Walk([string]$root) {
     }
   }
   return $out
+}
+# online, offline, absent (not on this tailnet) or unknown (no answer from tailscale)
+function Peer-State([string]$name) {
+  $st = $null
+  try { $st = ((& tailscale status --json 2>$null) -join "`n") | ConvertFrom-Json } catch { return 'unknown' }
+  if (-not $st -or -not $st.Peer) { return 'unknown' }
+  $hit = @($st.Peer.PSObject.Properties | ForEach-Object { $_.Value } | Where-Object {
+      ([string]$_.HostName -ieq $name) -or ((([string]$_.DNSName) -split '\.')[0] -ieq $name) }) | Select-Object -First 1
+  if (-not $hit) { return 'absent' }
+  if ($hit.Online) { return 'online' }
+  return 'offline'
 }
 function Rel([string]$base, [string]$full) { return ('memory/' + $full.Substring($base.Length).TrimStart('\', '/')) -replace '\\', '/' }
 function Copy-Keeping([string]$src, [string]$dst) {
@@ -222,13 +245,23 @@ if ($Peer -and -not $NoSend) {
       Say "  nothing written here since $(Iso $since)"
       $state.lastSentTicks = $passStart
     } else {
+      $bytes = ($changed | ForEach-Object { (Get-Item -LiteralPath $_).Length } | Measure-Object -Sum).Sum
+      $peerState = Peer-State $Peer
+    }
+    if ($changed.Count -and $peerState -in @('offline', 'absent')) {
+      Say ("  NOT SENT: {0} is {1} ({2}); {3} file(s), {4:N1} MB wait for it (nothing is lost: the next send starts from {5})" -f $Peer,
+        $(if ($peerState -eq 'absent') { 'not on this tailnet' } else { 'offline' }), 'tailscale status', $changed.Count, ($bytes / 1MB), (Iso $since))
+      $exit = 1
+    } elseif ($changed.Count -and $MaxBytes -gt 0 -and $bytes -gt $MaxBytes) {
+      Say ("  TOO LARGE for this pass: {0} file(s), {1:N1} MB written since {2} (the cap is {3:N0} MB): queue a data-sync job to send it" -f $changed.Count, ($bytes / 1MB), (Iso $since), ($MaxBytes / 1MB))
+      if (-not $exit) { $exit = 3 }
+    } elseif ($changed.Count) {
       $out = Join-Path $dir "outbox-$stamp"
       $staging = Join-Path $out 'staging'
       foreach ($f in $changed) { Copy-Keeping $f (Join-Path $staging ((Rel $mem $f) -replace '/', '\')) }
       $tarName = "alpha-data-$($machine.ToLower())-$stamp.tar"
       $tarFile = Join-Path $out $tarName
       & $tar -cf $tarFile -C $staging memory 2>&1 | Out-Null
-      $bytes = ($changed | ForEach-Object { (Get-Item -LiteralPath $_).Length } | Measure-Object -Sum).Sum
       $manifest = Join-Path $out "alpha-data-$($machine.ToLower())-$stamp.json"
       Save-Json $manifest ([ordered]@{ kind = 'memory-changes'; from = $machine; at = (Iso $passStart); since = (Iso $since); files = $changed.Count; bytes = $bytes
           archive = [ordered]@{ name = $tarName; bytes = (Get-Item -LiteralPath $tarFile).Length; sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $tarFile).Hash.ToLower() } })
