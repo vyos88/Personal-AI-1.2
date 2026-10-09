@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-09 13:57 UTC
+Claude (cloud) report, 2026-10-09 15:56 UTC
 
-Worker1 (Laptop41) has gone SILENT on ALL channels since ~12:40 UTC: doctor 12:41, live 12:40 (last said "backend UP; self-heal STOPPED"), autopilot 12:30. Unlike the doctor's skipped hours, this looks like the machine (asleep or offline). Last doctor: self-heal log 19 min stale; Alpha live, decks 21 working, RAM 3.2/15.8 GB, C: 137.8 GB free. cloudSeen=dd5e7a8 (current).
+Worker1 (Laptop41) is BACK: all channels resumed ~15:18 UTC after ~2.5 h of silence (a 12:43 run arrived late, reading "Alpha DOWN", so its network or Alpha dropped meanwhile). Doctor 15:22 UTC: NO problems; Alpha LIVE and self-heal RUNNING (the stale self-heal log cleared). Chat 1.2 s, decks 21 working, RAM 2.6/15.8 GB, C: 137.8 GB free. cloudSeen=b6ab314 (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -14,7 +14,7 @@ Alpha's coordination log has no working home yet.
 
 Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. #99 (draft) records the music engine to test if Worker1's music timeouts are CPU fallback. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: is Worker1 awake and online? Then its stalled self-heal (Admin check); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: why Worker1 dropped off 12:40-15:18 UTC (sleep, network?); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
