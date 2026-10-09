@@ -295,6 +295,33 @@ answer, and Claude puts it to V in the next report.
   `control/host:actions.json`. I have not pushed that -- the config is useless until the code is on
   the machine, and the machine cannot update (above).
 
+- [!] 2026-10-09 Claude (cloud) -> V / Codex: **the Ubuntu skill for Alpha, written out because it
+  cannot be pushed from here.** V's go-ahead covered four things; three are on PR #99 (the
+  `autofix.heartbeat` `{"alpha": false}` form, `setup-host.mjs`'s per-platform `serviceHint`, and
+  `HOST_SETUP.md` section 9b for the coordinator on systemd). The fourth is in `vyos88/Alpha`, which
+  a cloud container may read but not push, so it is apply-ready in
+  `docs/HANDOFF_2026-10-09_ubuntu-coordinator-and-alpha-skill.md`.
+  **A correction I nearly filed as the finding:** Alpha is *not* unaware of Linux.
+  `main.py:5722`'s `ALPHA_OS_COMPUTER_SKILL` already carries a `platforms.linux` block with `ps`,
+  `systemctl status`, `journalctl`, `ss`, `lsblk`, `/proc` and "no sudo unless explicitly approved".
+  What is missing is narrower: of the **53** registered skills -- `ALPHA_SKILLS` (`main.py:1299`, 22,
+  plus two appended at `:2411` and `:2422`) merged with `ALPHA_VSCODE_SKILLS` (`:1770`, 29) by
+  `_alpha_combined_skills()` (`:2328`) -- three are Windows-specific
+  (`auto-repair-windows-drivers`, `powershell-automation`, `win32-process-engineering`) and **none is
+  Linux-specific**. `it-systems-engineering` lists `linux` in `domains` but its method and evidence
+  are platform-neutral.
+  **The trap worth knowing before anyone writes the patch:** a `CONTRACTS` entry in
+  `skill_documentation.py` alone does nothing. `complete_skill_documentation` opens
+  `if name not in result: continue` -- it completes documentation for skills already registered and
+  registers nothing. The `ALPHA_SKILLS` entry is the install.
+  The proposed skill is `linux-server-operations`, in the house style, with the four guardrails each
+  taken from a failure this fleet has actually had (an active unit is not an answering service; sudo
+  is not a repair; secrets never in a world-readable unit file; no restart reported as a fix without
+  a probe after it). `[!] needs V` because it is a change in `vyos88/Alpha`, which V's standing rules
+  put beyond reading.
+  **The Ubuntu machine does not exist yet.** Both Desktop Commander devices were offline (22-23h) and
+  no Linux machine is registered, so nothing in section 9b has been run against a real server.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
