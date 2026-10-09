@@ -1,8 +1,14 @@
-﻿# laptop41 autopilot 20261009-235346
+﻿# laptop41 autopilot 20261010-000848
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 363d3f7 is current
+
+## auto-data-sync-20261010-000848  data-sync (standing)  ->  timeout after 15 min (failed)   (2026-10-10T00:09:59, 900s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+```
 
 ## auto-deck-liveness-20261009-235346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-09T23:54:44, 7s)
 ```
@@ -317,13 +323,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 22:26 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 2128 file(s), 90.6 MB written since 2026-07-22T02:44:20Z, to alpha-serv-01
   PART of a backlog: 9205 file(s), 3,755.2 MB still to send, from 2026-08-10T04:06:40Z; the next pass carries on
-```
-
-## auto-data-sync-20261009-220348  data-sync (standing)  ->  0 (in step)   (2026-10-09T22:06:59, 757s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 22:07 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1 file(s), 242.7 MB written since 2026-07-22T02:22:34Z, to alpha-serv-01
-  PART of a backlog: 11333 file(s), 3,845.5 MB still to send, from 2026-07-22T02:44:20Z; the next pass carries on
 ```
 
