@@ -447,6 +447,10 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
     { id: 's5', do: 'data-apply', from: 'C:\\evil' },
     { id: 's6', do: 'data-sync', peer: 'alpha-serv-01', since: '2000-01-01T00:00:00Z', resend: true },
     { id: 's7', do: 'data-sync', peer: 'alpha-serv-01', resend: true },
+    { id: 's8', do: 'data-sync-install', peer: 'alpha-serv-01', everyMin: 10 },
+    { id: 's9', do: 'data-sync-install', peer: 'x; calc' },
+    { id: 's10', do: 'data-sync-install', peer: 'alpha-serv-01', everyMin: 1 },
+    { id: 's11', do: 'data-sync-uninstall', peer: 'evil' },
     { id: 't1', do: 'tailnet-peers', name: 'evil' },
   ]);
   assert.equal(p.d1.ok, false);
@@ -472,6 +476,11 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.deepEqual(p.s6.args.slice(-7), ['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', '-Resend', '-MaxBytes', '104857600'], 'a resend goes again from "since", a part at a time');
   assert.equal(p.s7.ok, false, 'a resend needs a since');
   assert.match(p.s7.reason, /resend needs a since/);
+  assert.match(p.s8.args.at(-9), /install-alpha-data-sync\.ps1$/);
+  assert.deepEqual(p.s8.args.slice(-8), ['-OpsDir', ops, '-AlphaRoot', 'C:\\A\\software', '-Peer', 'alpha-serv-01', '-EveryMin', '10']);
+  assert.equal(p.s9.ok, false);
+  assert.equal(p.s10.ok, false, 'not more often than every 5 minutes');
+  assert.deepEqual(p.s11.args.slice(-3), ['-OpsDir', ops, '-Uninstall']);
   assert.ok(!/evil/.test(p.s5.args.join(' ')));
   assert.match(p.t1.args.at(-1), /tailnet-peers\.ps1$/, 'takes nothing from the action');
 
@@ -1261,4 +1270,67 @@ test("Alpha's deck audit reaches the tunnel once per report", { skip }, () => {
   write('2026-10-07T22:20:00+00:00', 'EMPTY');
   r = run();
   assert.match(r.stdout, /deck audit \(Alpha\): 1 working, 1 empty, 0 broken/);
+});
+
+// On 2026-10-09 a file in the full copy was too big for the standing check's
+// 15 minutes, so every pass timed out and held the live page. The copy now runs
+// as its own task, 'Alpha Data Copy', and the pass only reports it.
+test('with the copy as its own task, the pass never copies, and reports each finished run once', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-dstask-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [], autofix: { dataSync: { peer: 'alpha-serv-01', everyMin: 5 } } }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  mkdirSync(join(ops, 'data-sync'), { recursive: true });
+  const inline = join(dir, 'inline');
+  // The task as Task Scheduler would describe it, and a Start-Process that says
+  // if the pass tried to copy by itself.
+  const fakes = "function Get-ScheduledTask { param($TaskName) if ($TaskName -eq 'Alpha Data Copy') { [pscustomobject]@{ TaskName = $TaskName; State = $env:FAKE_DS_STATE } } }; "
+    + 'function Get-ScheduledTaskInfo { param($TaskName) [pscustomobject]@{ LastRunTime = [datetime]$env:FAKE_DS_RUN; LastTaskResult = [int64]$env:FAKE_DS_RESULT } }; '
+    + `function Start-Process { Add-Content -LiteralPath '${inline}' -Value ($args -join ' '); throw 'no inline copy' }; `;
+  const run = (env) => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN', ...env } });
+  const report = () => git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  const taskLog = (text) => writeFileSync(join(ops, 'data-sync', 'task-last.log'), text);
+
+  taskLog('DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:40\n  SENT 1 file(s), 812.0 MB written since 2026-08-13T04:24:38Z, to alpha-serv-01\n');
+  let r = run({ FAKE_DS_STATE: 'Ready', FAKE_DS_RUN: '2026-10-10T00:30:00', FAKE_DS_RESULT: '0' });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /data sync task: 0 \(in step\)/);
+  assert.match(report(), /data-sync \(task 'Alpha Data Copy', run at 2026-10-10T00:30:00\)\s+->\s+0 \(in step\)/);
+  assert.match(report(), /SENT 1 file\(s\), 812\.0 MB written since 2026-08-13T04:24:38Z, to alpha-serv-01/);
+
+  // The same run is not news; a run still going is reported when it ends; one
+  // that never ran is not a failure.
+  r = run({ FAKE_DS_STATE: 'Ready', FAKE_DS_RUN: '2026-10-10T00:30:00', FAKE_DS_RESULT: '0' });
+  assert.doesNotMatch(r.stdout, /data sync task/);
+  r = run({ FAKE_DS_STATE: 'Running', FAKE_DS_RUN: '2026-10-10T00:40:00', FAKE_DS_RESULT: '267009' });
+  assert.doesNotMatch(r.stdout, /data sync task/);
+  r = run({ FAKE_DS_STATE: 'Ready', FAKE_DS_RUN: '1999-11-30T00:00:00', FAKE_DS_RESULT: '267011' });
+  assert.doesNotMatch(r.stdout, /data sync task/);
+
+  taskLog('DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:50\n  NOT SENT: alpha-serv-01 is offline (tailscale status)\n');
+  r = run({ FAKE_DS_STATE: 'Ready', FAKE_DS_RUN: '2026-10-10T00:50:00', FAKE_DS_RESULT: '1' });
+  assert.match(r.stdout, /data sync task: 1 \(failed\)/);
+  assert.match(report(), /NOT SENT: alpha-serv-01 is offline/);
+
+  assert.equal(readdirSync(dir).includes('inline'), false, 'the pass never ran the copy itself while the task exists');
 });

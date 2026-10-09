@@ -194,6 +194,12 @@ manifest carries each name and its exact time. Nothing needs queueing, since
 the standing check carries on from where job 14 left off. A package sent
 before format 2 is still applied.
 
+Late on 2026-10-09 the copy reached files from 13 August of 160-240 MB
+each, sent one per part at about 400 KB/s. The next file was too big for the
+standing check's 15 minutes, so every pass timed out. The standing check was
+paused on `control/laptop41`, and the copy now runs as its own task,
+`Alpha Data Copy` (job `data-sync-install`), with 4 hours to a run.
+
 **alpha-serv-01 still has to collect what arrives.** Taildrop holds the files
 until `tailscale file get` runs there, which its own autopilot (with
 `autofix.dataSync`, peer `desktop-41hplcn`) would do every pass.
