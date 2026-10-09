@@ -601,8 +601,8 @@
       "ssid": "Starlink V"
     },
     "dataSync": {
-      "peer": "alpha-serv-01",
-      "everyMin": 5
+      "paused": "alpha-serv-01",
+      "why": "2026-10-09 23:10 UTC: the next file in the full copy is too big to send inside the standing check's 15 minutes, so every pass timed out, held the autopilot pass and the live page for 15 minutes, and left the killed pass's tailscale upload running beside the next one. Paused (no peer) until the copy runs as its own task with a long time limit. state.json keeps its place: nothing is lost"
     }
   }
 }
