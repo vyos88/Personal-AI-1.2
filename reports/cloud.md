@@ -2,6 +2,12 @@ Claude (cloud) report, 2026-10-09 15:56 UTC
 
 BEFORE (Claude, cloud session, 2026-10-09 ~16:40 UTC): V asked to fix self-heal on Worker1 and to prepare Worker1 to give all its work to the Host's Alpha. Plan: (1) a tunnel PR that stops a self-heal pass from going silent: a pass that dies or hangs leaves its lock behind, and every pass after it skips without a log line for 10 minutes (the 13:22-13:43 local stall, when the autopilot's 13:30 restart did nothing). (2) the Worker1 side of the move (HANDOFF_2026-10-07d Phase 2 step 1 and Phase 3), scripted and tested, run only with V. Nothing on Worker1 is stopped, moved or deleted by this session; changes reach it as merged code and autopilot jobs.
 
+AFTER (Claude, cloud session, 2026-10-09 ~16:55 UTC). Merged #238 and #239; nothing on Worker1 was stopped, moved or deleted.
+- #238, self-heal: a pass that dies or hangs no longer silences the passes after it. The lock names its process, a pass stops itself after 4 minutes and writes `unfinished` with its stage, every probe is bounded, and the config read is retried. The doctor and the live page now read the evidence (lock, config error) instead of guessing "3 = config unreadable".
+- #239, the hand-over: Worker1's half of the switch-over is two autopilot jobs. `alpha-standdown` needs "confirm": "hand-over", with V present; `alpha-standup` is the rollback, and it refuses while another machine serves. While role.json says standby, nothing on Worker1 starts a second Alpha, self-heal repairs nothing, the live page reads STANDBY, and the doctor flags two Alphas.
+- Queued on Worker1: 20261009-01 (stand-down REHEARSAL, report only) and 20261009-02 (doctor).
+- NEEDS V before the switch-over: .env.local to the Host by USB, a fresh memory\ copy, and Alpha stopping its Agent Manager on Worker1. Runbook: docs/HANDOFF_2026-10-09d_worker1-ready-to-hand-over.md.
+
 Worker1 (Laptop41) is BACK: all channels resumed ~15:18 UTC after ~2.5 h of silence (a 12:43 run arrived late, reading "Alpha DOWN", so its network or Alpha dropped meanwhile). Doctor 15:22 UTC: NO problems; Alpha LIVE and self-heal RUNNING (the stale self-heal log cleared). Chat 1.2 s, decks 21 working, RAM 2.6/15.8 GB, C: 137.8 GB free. cloudSeen=b6ab314 (current).
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
