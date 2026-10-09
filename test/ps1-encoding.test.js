@@ -5,12 +5,16 @@
 // scripts are run by hand on that machine, so keep them plain ASCII.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readdir, readFile } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
 import { balance, unbalancedReason } from '../scripts/ps1-balance.mjs';
 
 const SCRIPTS = new URL('../scripts/', import.meta.url);
+const PWSH = process.env.PWSH || 'pwsh';
+const hasPwsh = !spawnSync(PWSH, ['-NoProfile', '-Command', '1'], { encoding: 'utf8' }).error;
 
 test('every PowerShell script is plain ASCII', async () => {
   const names = (await readdir(SCRIPTS)).filter((n) => n.endsWith('.ps1'));
@@ -91,4 +95,28 @@ test('the balance counter skips what PowerShell would not read as code', () => {
 test('balancing is not the same as parsing, and the check does not claim to be', () => {
   assert.equal(unbalancedReason('Get-Thing-That-Does-Not-Exist -NoSuchFlag'), null);
   assert.equal(balance('if ($true) { 1 }').mode, 'code');
+});
+
+// The counter above is not a parser, and on 2026-10-09 that cost thirty test
+// failures to say one thing: a backtick typed inside a double-quoted string in
+// laptop41-doctor.ps1's recommendation text ("`using the CPU`") is PowerShell's
+// escape character, so `u began a unicode escape, the whole file stopped
+// parsing, and every test in its suite failed with no hint which line did it.
+// PowerShell's own parser says it in one line, and it needs no Windows.
+test('every PowerShell script parses', { skip: hasPwsh ? false : 'PowerShell not found (set PWSH or put pwsh on PATH)' }, async () => {
+  const names = (await readdir(SCRIPTS)).filter((n) => n.endsWith('.ps1'));
+  assert.ok(names.length > 0);
+  const dir = fileURLToPath(SCRIPTS);
+  // One pwsh for all of them: starting it is most of the cost.
+  const script = `
+    $bad = @()
+    foreach ($f in Get-ChildItem -LiteralPath '${dir}' -Filter *.ps1) {
+      $e = $null
+      [void][System.Management.Automation.Language.Parser]::ParseFile($f.FullName, [ref]$null, [ref]$e)
+      foreach ($x in @($e)) { $bad += "$($f.Name):$($x.Extent.StartLineNumber): $($x.Message)" }
+    }
+    $bad -join "\n"`;
+  const r = spawnSync(PWSH, ['-NoProfile', '-Command', script], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout.trim(), '', r.stdout);
 });
