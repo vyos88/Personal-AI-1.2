@@ -82,6 +82,9 @@ hostname and a control URL.
 | Connector | restarted only when the origin was healthy on 2 passes in a row, the Internet is up, and the edge returns a connector code |
 | Not restartable | Vite's `403 Blocked request` for the public host, and a missing `dist` with no snapshot. Both are reported with the fix, and no budget is spent on them |
 | Log | `C:\AlphaData\alpha-ops\logs\selfheal.jsonl`, one line per pass, rotated at 5 MB |
+| One pass at a time | a lock file naming its process (`alpha-ops\selfheal\selfheal.lock`). A lock whose process is gone is taken at once; one held by a live pass is aged out after 10 minutes |
+| A pass that cannot finish | it stops itself after 4 minutes (Task Scheduler's limit is 5, and it kills without writing anything), and a process that ends with its pass unfinished does the same on the way out. Either way the log gets a line with `unfinished: {why, stage}`, the lock goes back, and it exits 4. Every probe is bounded as a whole, not only while idle |
+| A config it cannot read | read again twice, half a second apart, because two scripts rewrite it. What still fails is written to `selfheal.json.error.json` beside it (a scheduled task's stderr goes nowhere) and it exits 3. Both writers now write beside the file and move it into place |
 
 To check it, or to see what it would do without doing it:
 

@@ -63,7 +63,9 @@ if (-not (Test-Path -LiteralPath $config)) { Write-Output "NOT DONE: no $config 
 try { $json = (Get-Content -LiteralPath $config -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json } catch { Write-Output "NOT DONE: $config is not valid JSON; left as it is"; exit 1 }
 $chat = [pscustomobject]@{ url = $url; task = $TaskName; port = $Port }
 if ($json.PSObject.Properties.Name -contains 'chat') { $json.chat = $chat } else { $json | Add-Member -NotePropertyName chat -NotePropertyValue $chat }
-[IO.File]::WriteAllText($config, ($json | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
+# Beside, then moved into place: self-heal reads this file every 2 minutes.
+[IO.File]::WriteAllText("$config.tmp", ($json | ConvertTo-Json -Depth 6), (New-Object Text.UTF8Encoding $false))
+Move-Item -LiteralPath "$config.tmp" -Destination $config -Force
 Write-Output "self-heal now probes $url and restarts chat through '$TaskName' ($config)"
 if ($ConfigOnly) { exit 0 }
 

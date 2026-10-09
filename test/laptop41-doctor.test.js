@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
 
@@ -477,4 +477,60 @@ test('a CPU reading that is not a number is unreadable, and says what it got', {
   assert.equal(verdict.holding, null);
   // The text comes back so a wrong counter can be told from a missing one.
   assert.match(verdict.note, /unreadable: n\/a/);
+});
+
+// Self-heal's log went quiet on Laptop41 at 13:22 on 2026-10-09 and the doctor
+// said "check the task's last result as Administrator (3 = config unreadable)"
+// -- a guess, and the wrong one: a pass that died holding the lock silences
+// every pass after it. alpha-selfheal.mjs now leaves the reason on disk, and
+// `-ExplainSelfHeal` is the seam that reads it, as `-ReadCpuPressure` is.
+const explainSelfHeal = (ops) => {
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ExplainSelfHeal', '-OpsDir', ops], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  assert.equal(existsSync(join(ops, 'reports')), false, 'the seam writes nothing');
+  return JSON.parse(r.stdout);
+};
+
+test('a quiet self-heal is explained by what it left on disk, not by a guess', { skip }, () => {
+  const ops = mkdtempSync(join(tmpdir(), 'doctor-selfheal-'));
+  mkdirSync(join(ops, 'logs'));
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const line = (extra = {}) => JSON.stringify({ at: '2026-10-09T12:22:54Z', probes: {}, actions: [], events: [], ...extra });
+  writeFileSync(log, `${line()}\n`);
+  let v = explainSelfHeal(ops);
+  assert.equal(v.ok, true);
+  assert.match(v.text, /its log was written 0 min ago/);
+
+  const old = new Date(Date.now() - 19 * 60_000);
+  utimesSync(log, old, old);
+  v = explainSelfHeal(ops);
+  assert.equal(v.ok, false);
+  assert.match(v.text, /its log is 19 min old: its task is not starting passes: .*4 = a pass did not finish/);
+
+  // a lock left by a pass whose process is gone
+  writeFileSync(join(ops, 'selfheal.json'), JSON.stringify({ stateDir: join(ops, 'state') }));
+  mkdirSync(join(ops, 'state'));
+  writeFileSync(join(ops, 'state', 'selfheal.lock'), JSON.stringify({ pid: 999999, at: 0 }));
+  v = explainSelfHeal(ops);
+  assert.match(v.text, /its log is 19 min old: a pass has held its lock for 0 min \(pid 999999, gone: the next pass takes the lock\)/);
+
+  // a config it could not read, written after its last line
+  writeFileSync(join(ops, 'selfheal.json.error.json'), JSON.stringify({ at: 'x', error: 'Unexpected end of JSON input' }));
+  v = explainSelfHeal(ops);
+  assert.match(v.text, /it cannot read selfheal\.json \(Unexpected end of JSON input\): run scripts\\repair-alpha-host\.ps1/);
+});
+
+test('self-heal whose passes keep not finishing is a problem even with a fresh log', { skip }, () => {
+  const ops = mkdtempSync(join(tmpdir(), 'doctor-selfheal-'));
+  mkdirSync(join(ops, 'logs'));
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const stuck = JSON.stringify({ at: 'x', actions: [], events: [], unfinished: { why: 'still running after 240 s', stage: 'restart backend', afterSec: 240 } });
+  const fine = JSON.stringify({ at: 'x', probes: {}, actions: [], events: [] });
+  writeFileSync(log, `${fine}\n${stuck}\n${stuck}\n`);
+  assert.equal(explainSelfHeal(ops).ok, true, 'two are not yet a pattern');
+  writeFileSync(log, `${stuck}\n${stuck}\n${stuck}\n`);
+  const v = explainSelfHeal(ops);
+  assert.equal(v.ok, false);
+  assert.match(v.text, /last 3 passes did not finish \(latest: still running after 240 s, at restart backend\)/);
 });

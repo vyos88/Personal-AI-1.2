@@ -39,12 +39,25 @@
  * recoveries are also posted to Alpha's coordination tunnel, so live progress
  * is where the rest of the fleet's receipts are.
  *
+ * **A pass that cannot finish still writes its line.** One pass at a time is
+ * enforced with a lock file, and a pass that died holding it used to silence
+ * every pass after it for `lockStaleMs`: each one skipped, wrote nothing, and
+ * exited 0. On Laptop41 on 2026-10-09 the log stopped at 13:22 and the
+ * autopilot's restart at 13:30 changed nothing, which is that. So the lock
+ * names its process and a lock whose process is gone is taken at once; a pass
+ * still running at `passDeadlineMs` (under Task Scheduler's 5-minute limit,
+ * which kills without warning) logs the stage it was stuck in and exits 4; a
+ * process that ends with the pass unfinished does the same on its way out; and
+ * every probe settles, even on a connection cut mid-answer.
+ *
  * Usage:
  *   node scripts/alpha-selfheal.mjs --config <selfheal.json> [--dry-run]
  *   node scripts/alpha-selfheal.mjs --config <selfheal.json> --status
  *
  * Exit codes: 0 healthy, 1 something is failing (repairing or waiting),
- * 2 a budget is exhausted or a failure needs a person, 3 bad configuration.
+ * 2 a budget is exhausted or a failure needs a person, 3 bad configuration
+ * (also written to `<config>.error.json`, since a scheduled task's stderr goes
+ * nowhere), 4 the pass did not finish (its log line says at which stage).
  */
 
 import { execFile } from 'node:child_process';
@@ -80,6 +93,7 @@ export const DEFAULTS = Object.freeze({
   probeTimeoutMs: 8_000,
   logMaxBytes: 5 * 1024 * 1024,
   lockStaleMs: 10 * 60_000,
+  passDeadlineMs: 4 * 60_000,
   keepFailedBuilds: 2,
 });
 
@@ -123,6 +137,35 @@ export function loadConfig(path) {
   if (missing.length) throw new Error(`config is missing ${missing.join(', ')}`);
   config.logFile ??= join(config.stateDir, 'selfheal.jsonl');
   return config;
+}
+
+/**
+ * The config as the scheduled pass reads it. Two writers rewrite the file in
+ * place (repair-alpha-host and chat-task), so a pass can land on it half
+ * written; that is retried rather than turned into exit 3. What still fails is
+ * written beside the config, because a scheduled task's stderr goes nowhere and
+ * "check the task's last result as Administrator" was the only lead there was.
+ */
+export function readConfigForPass(path, { attempts = 3, delayMs = 500, sleep = sleepSync, now = () => Date.now() } = {}) {
+  const errorFile = `${path}.error.json`;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const config = loadConfig(path);
+      rmSync(errorFile, { force: true });
+      return config;
+    } catch (error) {
+      if (attempt < attempts) {
+        sleep(delayMs);
+        continue;
+      }
+      try {
+        writeFileSync(errorFile, JSON.stringify({ at: new Date(now()).toISOString(), error: error.message }));
+      } catch {
+        // Nowhere to say it; exit 3 is still the answer.
+      }
+      throw error;
+    }
+  }
 }
 
 function emptyComponent() {
@@ -285,8 +328,19 @@ export function decide({ config, state, probes, now }) {
 // ---------------------------------------------------------------------------
 // probes
 
-function request(url, { timeoutMs, hostHeader } = {}) {
-  return new Promise((resolvePromise) => {
+export function request(url, { timeoutMs, hostHeader } = {}) {
+  return new Promise((resolveRequest) => {
+    // Settle exactly once. A connection cut mid-answer ends with 'close' and no
+    // 'end', and a promise left pending there let the process exit with the
+    // pass unfinished and its lock left behind.
+    let settled = false;
+    let deadline;
+    const resolvePromise = (value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(deadline);
+      resolveRequest(value);
+    };
     let target;
     try {
       target = new URL(url);
@@ -311,9 +365,14 @@ function request(url, { timeoutMs, hostHeader } = {}) {
       });
       res.on('end', () => resolvePromise({ status: res.statusCode ?? 0, body }));
       res.on('error', (error) => resolvePromise({ status: 0, body, error: error.message }));
+      res.on('close', () => resolvePromise({ status: 0, body, error: 'connection closed before the answer ended' }));
     });
+    // The socket timeout is idle time; a server that trickles bytes never
+    // trips it. This bounds the whole request.
+    if (timeoutMs) deadline = setTimeout(() => req.destroy(new Error('timeout')), timeoutMs);
     req.on('timeout', () => req.destroy(new Error('timeout')));
     req.on('error', (error) => resolvePromise({ status: 0, body: '', error: error.message }));
+    req.on('close', () => resolvePromise({ status: 0, body: '', error: 'connection closed without an answer' }));
     req.end();
   });
 }
@@ -582,7 +641,23 @@ function appendLog(file, record, maxBytes) {
   appendFileSync(file, `${JSON.stringify(record)}\n`);
 }
 
-function acquireLock(stateDir, staleMs, now) {
+export function processAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    // EPERM: it exists and belongs to someone else, which is still alive.
+    return error.code === 'EPERM';
+  }
+}
+
+/**
+ * The lock names its process. A lock whose process is gone belongs to a pass
+ * that was killed (Task Scheduler's time limit, a reboot) or ended unfinished,
+ * and is taken at once rather than after `staleMs`; that wait was a silent gap
+ * in the log every time. A lock with no readable pid is aged out as before.
+ */
+export function acquireLock(stateDir, staleMs, now, { alive = processAlive, retried = false } = {}) {
   mkdirSync(stateDir, { recursive: true });
   const lock = join(stateDir, 'selfheal.lock');
   try {
@@ -591,16 +666,71 @@ function acquireLock(stateDir, staleMs, now) {
     closeSync(fd);
     return () => rmSync(lock, { force: true });
   } catch {
+    // Broken once already: whatever holds it now is a live pass, or a file
+    // Windows has not finished deleting. Either way, held.
+    if (retried) return null;
     try {
-      if (now - statSync(lock).mtimeMs > staleMs) {
+      let holder = null;
+      try {
+        holder = JSON.parse(readFileSync(lock, 'utf8'));
+      } catch {
+        // half written or not ours: fall through to the age rule
+      }
+      const gone = Number.isInteger(holder?.pid) && holder.pid !== process.pid && !alive(holder.pid);
+      if (gone || now - statSync(lock).mtimeMs > staleMs) {
         rmSync(lock, { force: true });
-        return acquireLock(stateDir, staleMs, now);
+        return acquireLock(stateDir, staleMs, now, { retried: true });
       }
     } catch {
       // raced with the holder releasing it; treat as held
     }
     return null;
   }
+}
+
+function summarizeProbes(probes) {
+  return Object.fromEntries(
+    Object.entries(probes).map(([k, v]) => [k, v.skipped ? 'skipped' : { ok: v.ok, status: v.status, reason: v.ok ? undefined : v.reason }]),
+  );
+}
+
+/**
+ * Writes the line a pass that cannot finish would otherwise never write, and
+ * gives its lock back. Called by the CLI at the pass deadline and on the way
+ * out of a process whose pass did not finish; a finished pass is left alone.
+ */
+export function abandonPass(config, progress, why, now = Date.now()) {
+  if (progress.finished || !progress.release) return false;
+  progress.finished = true;
+  if (progress.state) {
+    try {
+      writeState(config.stateDir, progress.state);
+    } catch {
+      // the line and the lock matter more
+    }
+  }
+  const record = {
+    at: new Date(now).toISOString(),
+    ...(progress.probes ? { probes: summarizeProbes(progress.probes) } : {}),
+    actions: [],
+    events: [],
+    unfinished: {
+      why,
+      stage: progress.stage ?? 'start',
+      ...(progress.startedAt ? { afterSec: Math.round((now - progress.startedAt) / 1000) } : {}),
+    },
+  };
+  try {
+    appendLog(config.logFile, record, config.logMaxBytes ?? DEFAULTS.logMaxBytes);
+  } catch {
+    // The lock still goes back, which is what lets the next pass run.
+  }
+  try {
+    progress.release();
+  } catch {
+    // already gone
+  }
+  return true;
 }
 
 function describe(event) {
@@ -620,16 +750,27 @@ function describe(event) {
   }
 }
 
-export async function runPass({ config, probe = probeAll, executor, post, now = Date.now(), dryRun = false }) {
-  const release = acquireLock(config.stateDir, config.lockStaleMs ?? DEFAULTS.lockStaleMs, now);
+export async function runPass({ config, probe = probeAll, executor, post, now = Date.now(), dryRun = false, progress = {}, alive }) {
+  const release = acquireLock(config.stateDir, config.lockStaleMs ?? DEFAULTS.lockStaleMs, now, alive ? { alive } : {});
   if (!release) return { skipped: 'another pass holds the lock' };
+  // What the CLI needs to write this pass's line if it never finishes.
+  progress.release = release;
+  progress.startedAt = now;
+  progress.stage = 'probe';
   try {
     const state = readState(config.stateDir);
     const probes = await probe(config);
+    progress.probes = probes;
+    progress.stage = 'decide';
     const { state: next, actions, events } = decide({ config, state, probes, now });
+    // decide() has already counted the repairs it chose. If a repair hangs and
+    // the pass is abandoned, this is what keeps that count: without it a restart
+    // that hangs every pass is never charged to the budget.
+    if (!dryRun) progress.state = next;
 
     const done = [];
     for (const a of actions) {
+      progress.stage = `${a.action} ${a.component}`;
       if (dryRun) {
         done.push({ ...a, dryRun: true });
         continue;
@@ -658,18 +799,19 @@ export async function runPass({ config, probe = probeAll, executor, post, now = 
       }
     }
 
+    progress.stage = 'state';
     if (!dryRun) writeState(config.stateDir, next);
 
+    progress.stage = 'post';
     const posted = [];
     if (!dryRun && post) {
       for (const e of events) posted.push(await post(describe(e)));
     }
 
+    progress.stage = 'log';
     const record = {
       at: new Date(now).toISOString(),
-      probes: Object.fromEntries(
-        Object.entries(probes).map(([k, v]) => [k, v.skipped ? 'skipped' : { ok: v.ok, status: v.status, reason: v.ok ? undefined : v.reason }]),
-      ),
+      probes: summarizeProbes(probes),
       actions: done,
       events: events.map(describe),
       dryRun: dryRun || undefined,
@@ -684,12 +826,34 @@ export async function runPass({ config, probe = probeAll, executor, post, now = 
     const failing = COMPONENTS.some((c) => probes[c] && !probes[c].skipped && !probes[c].ok);
     return { record, state: next, exitCode: needsPerson ? 2 : failing ? 1 : 0, posted };
   } finally {
+    progress.finished = true;
     release();
   }
 }
 
 // ---------------------------------------------------------------------------
 // CLI
+
+/**
+ * Task Scheduler stops a pass at its time limit by killing it, which writes
+ * nothing and leaves the lock behind. So the pass stops itself first, at
+ * `passDeadlineMs`, and says where it was; and a process that ends with its
+ * pass unfinished (a promise nothing will settle) says so on the way out.
+ * Both exit 4. Returns the function that stands the deadline down.
+ */
+export function guardPass(config, progress, { exit = (code) => process.exit(code) } = {}) {
+  const deadlineMs = config.passDeadlineMs ?? DEFAULTS.passDeadlineMs;
+  const deadline = setTimeout(() => {
+    abandonPass(config, progress, `still running after ${Math.round(deadlineMs / 1000)} s`);
+    exit(4);
+  }, deadlineMs);
+  // A watchdog, not pending work: it must not keep a finished pass alive.
+  deadline.unref();
+  process.on('exit', () => {
+    if (abandonPass(config, progress, 'the process ended before the pass finished')) process.exitCode = 4;
+  });
+  return () => clearTimeout(deadline);
+}
 
 function parseArgs(argv) {
   const out = { dryRun: false, status: false };
@@ -713,7 +877,7 @@ async function main() {
       process.stdout.write('usage: node scripts/alpha-selfheal.mjs --config <selfheal.json> [--dry-run | --status]\n');
       process.exit(args.help ? 0 : 3);
     }
-    config = loadConfig(args.config);
+    config = args.status ? loadConfig(args.config) : readConfigForPass(args.config);
   } catch (error) {
     process.stderr.write(`alpha-selfheal: ${error.message}\n`);
     process.exit(3);
@@ -733,12 +897,16 @@ async function main() {
     return;
   }
 
+  const progress = {};
+  const disarm = guardPass(config, progress);
   const result = await runPass({
     config,
     executor: makeWindowsExecutor(config),
     post: makePoster(config),
     dryRun: args.dryRun,
+    progress,
   });
+  disarm();
   if (result.skipped) {
     process.stdout.write(`alpha-selfheal: ${result.skipped}\n`);
     return;

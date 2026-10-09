@@ -11,16 +11,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import https from 'node:https';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
+  abandonPass,
+  acquireLock,
   decide,
   emptyState,
   loadConfig,
   probeAll,
+  readConfigForPass,
+  request,
   retryTransient,
   copyIndexLast,
   rollbackDist,
@@ -489,4 +494,185 @@ test('the chat probe asks the configured URL, and calls a missing task what it i
   } finally {
     server.close();
   }
+});
+
+// ---------------------------------------------------------------------------
+// A pass that cannot finish. On Laptop41 on 2026-10-09 the log stopped at
+// 13:22 local and the autopilot's restart at 13:30 changed nothing: a pass that
+// dies holding the lock makes every pass after it skip, silently, until the
+// lock ages out. These pin the four ways that gap is closed.
+
+const SELFHEAL = fileURLToPath(new URL('../scripts/alpha-selfheal.mjs', import.meta.url));
+
+function hangingServer(t, onSocket) {
+  return new Promise((resolvePromise) => {
+    const server = http.createServer((req, res) => onSocket(req, res));
+    server.listen(0, '127.0.0.1', () => {
+      t.after(() => {
+        server.closeAllConnections();
+        return new Promise((r) => server.close(r));
+      });
+      resolvePromise(`http://127.0.0.1:${server.address().port}`);
+    });
+  });
+}
+
+function lockFile(dir, body) {
+  mkdirSync(join(dir, 'state'), { recursive: true });
+  writeFileSync(join(dir, 'state', 'selfheal.lock'), JSON.stringify(body));
+}
+
+test('a lock whose process is gone is taken at once, not after it ages out', (t) => {
+  const dir = tempDir(t);
+  lockFile(dir, { pid: 424242, at: 0 });
+  const release = acquireLock(join(dir, 'state'), 10 * MIN, Date.now(), { alive: () => false });
+  assert.equal(typeof release, 'function', 'the dead pass\'s lock was broken');
+  assert.equal(JSON.parse(readFileSync(join(dir, 'state', 'selfheal.lock'), 'utf8')).pid, process.pid);
+  release();
+  assert.equal(existsSync(join(dir, 'state', 'selfheal.lock')), false);
+});
+
+test('a lock whose process still runs is held until it ages out', (t) => {
+  const dir = tempDir(t);
+  lockFile(dir, { pid: 424242, at: 0 });
+  assert.equal(acquireLock(join(dir, 'state'), 10 * MIN, Date.now(), { alive: () => true }), null);
+  // the age rule still applies to a live holder: ten minutes is a hung pass
+  const later = acquireLock(join(dir, 'state'), 10 * MIN, Date.now() + 11 * MIN, { alive: () => true });
+  assert.equal(typeof later, 'function');
+  later();
+});
+
+test('a pass behind a dead pass\'s lock runs and writes its line', async (t) => {
+  const dir = tempDir(t);
+  lockFile(dir, { pid: 424242, at: 0 });
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'state', 'selfheal.jsonl'), backend: { url: 'x' }, frontend: { url: 'x' } };
+  const probe = async () => ({ backend: ok, frontend: { ...ok, fingerprint: null }, public: { skipped: true }, chat: { skipped: true } });
+  const out = await runPass({ config: cfg, probe, executor: {}, now: Date.now(), alive: () => false });
+  assert.equal(out.skipped, undefined);
+  assert.equal(readFileSync(cfg.logFile, 'utf8').trim().split('\n').length, 1);
+});
+
+test('an unfinished pass writes its line, names its stage, and gives the lock back', (t) => {
+  const dir = tempDir(t);
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'state', 'selfheal.jsonl') };
+  const release = acquireLock(cfg.stateDir, 10 * MIN, 0);
+  const progress = { release, startedAt: 1_000, stage: 'restart backend', probes: { backend: down, public: { skipped: true } } };
+  assert.equal(abandonPass(cfg, progress, 'still running after 240 s', 241_000), true);
+  const line = JSON.parse(readFileSync(cfg.logFile, 'utf8').trim());
+  assert.deepEqual(line.unfinished, { why: 'still running after 240 s', stage: 'restart backend', afterSec: 240 });
+  assert.equal(line.probes.backend.ok, false, 'what was probed is kept');
+  assert.equal(line.probes.public, 'skipped');
+  assert.equal(existsSync(join(cfg.stateDir, 'selfheal.lock')), false);
+  assert.equal(abandonPass(cfg, progress, 'again'), false, 'once only');
+  assert.equal(abandonPass(cfg, { finished: true, release: () => {} }, 'done'), false, 'a finished pass is left alone');
+});
+
+test('a pass abandoned mid-repair keeps the repair on the budget', async (t) => {
+  const dir = tempDir(t);
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'state', 'selfheal.jsonl'), backend: { url: 'x', task: 'Alpha Backend' }, frontend: { url: 'x' } };
+  const probe = async () => ({ backend: down, frontend: { ...ok, fingerprint: null }, public: { skipped: true }, chat: { skipped: true } });
+  await runPass({ config: cfg, probe, executor: {}, now: 0 });
+  // The second failing pass restarts the backend, and the restart never returns.
+  const progress = {};
+  let hung;
+  const reached = new Promise((r) => { hung = r; });
+  runPass({ config: cfg, probe, executor: { restart: () => (hung(), new Promise(() => {})) }, now: 2 * MIN, progress });
+  await reached;
+  assert.equal(progress.stage, 'restart backend');
+  assert.equal(abandonPass(cfg, progress, 'still running after 240 s', 6 * MIN), true);
+  const saved = JSON.parse(readFileSync(join(cfg.stateDir, 'state.json'), 'utf8'));
+  assert.deepEqual(saved.components.backend.repairs, [2 * MIN], 'the hung restart is counted');
+  // so the next pass is inside the cooldown and does not restart again
+  const calls = [];
+  await runPass({ config: cfg, probe, executor: { restart: async (c) => (calls.push(c), { code: 0, stdout: '', stderr: '' }) }, now: 4 * MIN });
+  assert.deepEqual(calls, []);
+});
+
+test('a pass still running at its deadline stops itself, says where, and exits 4', async (t) => {
+  const dir = tempDir(t);
+  // accepts and never answers, the way a wedged backend does
+  const backend = await hangingServer(t, () => {});
+  const cfgPath = join(dir, 'selfheal.json');
+  const cfg = {
+    stateDir: join(dir, 'state'),
+    logFile: join(dir, 'logs', 'selfheal.jsonl'),
+    backend: { url: `${backend}/health` },
+    frontend: { url: `${backend}/` },
+    probeTimeoutMs: 60_000,
+    passDeadlineMs: 700,
+  };
+  writeFileSync(cfgPath, JSON.stringify(cfg));
+  const started = Date.now();
+  const res = spawnSync(process.execPath, [SELFHEAL, '--config', cfgPath], { encoding: 'utf8', timeout: 20_000 });
+  assert.equal(res.status, 4, res.stderr);
+  assert.ok(Date.now() - started < 15_000);
+  const line = JSON.parse(readFileSync(cfg.logFile, 'utf8').trim());
+  assert.equal(line.unfinished.stage, 'probe');
+  assert.match(line.unfinished.why, /still running after 1 s/);
+  assert.equal(existsSync(join(cfg.stateDir, 'selfheal.lock')), false, 'the next pass is not shut out');
+});
+
+test('a process that ends with its pass unfinished says so on the way out', (t) => {
+  const dir = tempDir(t);
+  const cfg = { stateDir: join(dir, 'state'), logFile: join(dir, 'selfheal.jsonl'), passDeadlineMs: 60_000 };
+  // A probe nothing will ever settle, and no handle left to keep the process
+  // alive: Node exits with the pass half done.
+  const script = `
+    const m = await import(${JSON.stringify(new URL('../scripts/alpha-selfheal.mjs', import.meta.url).href)});
+    const cfg = ${JSON.stringify(cfg)};
+    const progress = {};
+    m.guardPass(cfg, progress);
+    await m.runPass({ config: cfg, probe: () => new Promise(() => {}), executor: {}, progress });
+  `;
+  const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8', timeout: 20_000 });
+  assert.equal(res.status, 4, res.stderr);
+  const line = JSON.parse(readFileSync(cfg.logFile, 'utf8').trim());
+  assert.equal(line.unfinished.why, 'the process ended before the pass finished');
+  assert.equal(line.unfinished.stage, 'probe');
+  assert.equal(existsSync(join(cfg.stateDir, 'selfheal.lock')), false);
+});
+
+test('a probe settles when the connection is cut mid-answer', async (t) => {
+  const url = await hangingServer(t, (req, res) => {
+    res.writeHead(200, { 'content-length': '1000' });
+    res.write('<div id=');
+    setTimeout(() => req.socket.destroy(), 50);
+  });
+  const out = await request(url, { timeoutMs: 30_000 });
+  assert.equal(out.status, 0);
+  assert.ok(out.error);
+});
+
+test('a probe is bounded as a whole, not only while idle', async (t) => {
+  // A byte every 100 ms keeps an idle timeout from ever firing.
+  const url = await hangingServer(t, (req, res) => {
+    res.writeHead(200);
+    const tick = setInterval(() => res.write('.'), 100);
+    res.on('close', () => clearInterval(tick));
+  });
+  const started = Date.now();
+  const out = await request(url, { timeoutMs: 600 });
+  assert.ok(Date.now() - started < 5_000);
+  assert.equal(out.status, 0);
+  assert.match(out.error, /timeout|closed/);
+});
+
+test('a config caught half written is read again, and what still fails is written down', (t) => {
+  const dir = tempDir(t);
+  const file = join(dir, 'selfheal.json');
+  const body = { stateDir: dir, backend: { url: 'http://127.0.0.1:8001/health' }, frontend: { url: 'https://127.0.0.1:4173/' } };
+  writeFileSync(file, '{"stateDir": ');
+  const cfg = readConfigForPass(file, { sleep: () => writeFileSync(file, JSON.stringify(body)) });
+  assert.equal(cfg.backend.url, 'http://127.0.0.1:8001/health');
+  assert.equal(existsSync(`${file}.error.json`), false);
+
+  writeFileSync(file, '{"stateDir": ');
+  assert.throws(() => readConfigForPass(file, { sleep: () => {}, now: () => 0 }));
+  const error = JSON.parse(readFileSync(`${file}.error.json`, 'utf8'));
+  assert.equal(error.at, '1970-01-01T00:00:00.000Z');
+  assert.match(error.error, /JSON/);
+
+  writeFileSync(file, JSON.stringify(body));
+  readConfigForPass(file, { sleep: () => {} });
+  assert.equal(existsSync(`${file}.error.json`), false, 'a config that reads again clears the old error');
 });
