@@ -122,10 +122,51 @@ Alpha for about a minute.
   only on the Host, so agents, music and images stop while the Host is down,
   even when Alpha is covered.
 
-## Using it for the new server later
+## Update, 2026-10-09 ~18:30 UTC: the new host is alpha-server-01
 
-If V meant the new server by "the Alpha server", the same job works: the
-server is the primary and the Host is its standby.
+V: "this laptop is getting ready for new host alpha server 01, on tailscale
+also", then "point standby and data copy at alpha-server-01". So the Alpha
+server is a new machine, not the Host laptop. Worker1 now points at it:
+
+- **The cover:** job `20261009-07` re-runs `standby-install` with
+  `"primary": "alpha-server-01"` and
+  `"primaryUrl": "http://alpha-server-01:8001/health"`.
+  - That is the server's tailnet name, which needs MagicDNS.
+  - `tailnet-peers` (job 06) will give its exact name and address. If the
+    name differs or MagicDNS is off, re-run with the IPv4 instead.
+- **The data copy:** `autofix.dataSync` is
+  `{"peer": "alpha-server-01", "everyMin": 10}`.
+  - The first pass sets a baseline. From then on, what Worker1 writes goes to
+    the server over Taildrop. Taildrop reaches a machine by name, with no
+    MagicDNS needed.
+  - The earlier copy to the Host laptop, and its catch-up since 2026-10-07,
+    were taken off before they ran.
+  - The Host's own `dataSync` (peer `desktop-41hplcn`) is left on and inert:
+    nothing is sent to it.
+
+### What alpha-server-01 needs before it can take Alpha
+
+1. **Its Alpha copy:** the live branch built, `.env.local` by USB with V, and
+   a full `memory\` to start from. Two ways to get that `memory\`:
+   - V's drive and `alpha-data-in`;
+   - a `data-sync` job on Worker1 with an old `"since"` (for example
+     `2000-01-01T00:00:00Z`), which sends all of it once over Taildrop.
+2. **The tunnel checkout and its autopilot**, with a `control/<server>`
+   branch, so it can receive the copy (`autofix.dataSync` with
+   `peer: desktop-41hplcn`) and run the jobs. These scripts are Windows
+   PowerShell. If the server runs Linux, the scheduled-task parts (autopilot,
+   stand-down, `Alpha Standby`) need a Linux form first, and `tailnet-peers`
+   reports the OS.
+3. **Its backend answering on the tailnet** (`alpha-server-01:8001/health`),
+   so Worker1 can see it. Its cloudflared connector for alpha-ai.uk, started
+   only at the switch-over.
+4. **The switch-over, as in `HANDOFF_2026-10-09d` section 4,** with
+   `"primary": "alpha-server-01"` on the `alpha-standdown` job.
+
+## Using it for a different machine
+
+The same jobs work for any primary. That is how alpha-server-01 is set up
+above.
 
 1. Queue `standby-install` with `"primary": "<server>"` and
    `"primaryUrl": "http://<server tailnet ip>:8001/health"`.
