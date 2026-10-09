@@ -560,8 +560,18 @@ function Restart-Backend {
 }
 
 # role.json (alpha-standdown.ps1): "standby" while another machine serves Alpha.
+#
+# [IO.Path]::Combine, not Join-Path: this runs above the -Plan seam, which
+# Resolve-Action needs $standby for, and Join-Path resolves the drive -- so on
+# a host with no C: it throws "Cannot find drive. A drive with the name 'C'
+# does not exist." $ErrorActionPreference is Continue, so the plan still
+# printed, with an unrelated drive error interleaved on stderr; reading that
+# error is how a session started writing up a seam failure that was not one.
+# The rule is the one -ReadAgentList and -ParseStatus keep: a test seam that
+# touches the machine is not one, and laptop41-doctor's test asserts the
+# absence of this exact string. Combine is string work and resolves nothing.
 function Read-Role {
-  $f = Join-Path $OpsDir 'role.json'
+  $f = [IO.Path]::Combine($OpsDir, 'role.json')
   if (-not (Test-Path -LiteralPath $f)) { return $null }
   try { return (Get-Content -LiteralPath $f -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json } catch { return $null }
 }

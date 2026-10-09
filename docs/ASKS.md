@@ -247,6 +247,25 @@ answer, and Claude puts it to V in the next report.
   `laptop41-doctor.ps1:1227`. That is the first real syntax gate this repo has had, and it only exists
   because pwsh runs here now.
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the autopilot's `-Plan` seam touches the machine,
+  and reading its stderr is how I started writing up a failure that had not happened.** With pwsh here I
+  ran `-Plan` over both live queues for the first time -- `control/laptop41` (103 actions) and
+  `control/host` (31) -- to check that no queued id would hit the menu's refusal and be consumed by it.
+  Result: **134 resolved, 0 refused.** A clean negative, no action needed.
+  But the run printed `Join-Path: scripts/autopilot.ps1:564 ... Cannot find drive. A drive with the name
+  'C' does not exist.` and I read that as the seam failing, before checking. It had not: `:93` sets
+  `$ErrorActionPreference = 'Continue'`, so the plan printed correctly on stdout with the drive error
+  beside it on stderr. The cause is `$role = Read-Role` at `:568`, above the `-Plan` branch at `:571` --
+  it has to be, because `Resolve-Action` reads `$standby` at `:114` to refuse jobs that would start a
+  second Alpha -- and `Read-Role` used `Join-Path $OpsDir 'role.json'` with `$OpsDir` defaulting to
+  `C:\AlphaData\alpha-ops`. `Join-Path` resolves the drive; `[IO.Path]::Combine` is string work and
+  resolves nothing. Verified both ways under pwsh 7.4.6 on Linux.
+  **This is a seam-quality fix with no production effect** -- on both real machines `C:\AlphaData\alpha-ops`
+  exists and nothing was ever printed. What it breaks is the rule this repo states for its other two
+  seams, *a test seam that touches the machine is not one*, and whose doctor test asserts the absence of
+  this exact string. `test/autopilot.test.js`'s `-Plan` test now asserts it too; proven by putting
+  `Join-Path` back, where it fails with "the plan resolved nothing off the machine".
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
