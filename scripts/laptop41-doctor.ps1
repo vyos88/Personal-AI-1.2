@@ -61,6 +61,9 @@ param(
   # touching this machine. Empty string means 'unmeasurable'. See
   # test/laptop41-doctor.test.js.
   [string]$ReadCpuPressure,
+  # Test seam: a JSON file of { before, after, seconds, cores }; prints which
+  # processes used the CPU across that window.
+  [string]$ReadCpuBusiest,
   # Test seam: judge self-heal from what it left in -OpsDir (log, lock, config
   # error) and print the verdict as JSON. Writes nothing.
   [switch]$ExplainSelfHeal
@@ -107,6 +110,39 @@ function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
     note = $(if ($holding) {
       "CPU $([math]::Round($value,1))% is at or above Alpha's $HoldPercent% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
     } else { "CPU $([math]::Round($value,1))% (Alpha holds GPU admission at $HoldPercent%)" }) }
+}
+
+# Which processes are actually using the CPU, from two samples of each one's
+# total processor seconds. The list beside the CPU problem was ranked by
+# WorkingSet64 and printed only MB, so on the one pass where CPU is the fault
+# -- Worker1, 2026-10-09, 93% for four runs -- the eight names under it were
+# the memory hogs, topped by Memory Compression, and no row carried a CPU
+# figure at all. The problem's own recommendation says "Section 7 names the
+# heaviest processes", which was true of memory and false of CPU.
+#
+# Pure, so it is tested off Windows: give it the two snapshots and the window.
+# Each is a list of { name, pid, cpu } where cpu is total processor seconds.
+function Read-CpuBusiest($Before, $After, [double]$Seconds, [int]$Cores = 1, [int]$Top = 6) {
+  $was = @{}
+  foreach ($p in @($Before)) { if ($null -ne $p.cpu) { $was["$($p.pid)"] = [double]$p.cpu } }
+  $rows = @(); $unknown = @()
+  foreach ($p in @($After)) {
+    $key = "$($p.pid)"
+    $name = [string]$p.name
+    # Unmeasurable is never idle, the rule Read-CpuPressure follows above:
+    # the scheduled doctor is unelevated and Windows hides another account's
+    # process times, so a null reads as unknown and is named, never as 0%.
+    if ($null -eq $p.cpu) { $unknown += "$name ($key) time hidden"; continue }
+    if (-not $was.ContainsKey($key)) { $unknown += "$name ($key) started during the sample"; continue }
+    $delta = [double]$p.cpu - $was[$key]
+    # Processor time only goes up, so a drop means this pid is a different
+    # process now. Scoring it 0 would call a reused pid idle.
+    if ($delta -lt 0) { $unknown += "$name ($key) pid reused during the sample"; continue }
+    $share = if ($Seconds -gt 0 -and $Cores -gt 0) { 100 * $delta / ($Seconds * $Cores) } else { 0 }
+    $rows += [ordered]@{ name = $name; pid = [int]$p.pid; percent = [math]::Round($share, 1); seconds = [math]::Round($delta, 2) }
+  }
+  $rows = @($rows | Sort-Object { -$_.percent } | Select-Object -First $Top)
+  return [ordered]@{ seconds = $Seconds; cores = $Cores; rows = $rows; unknown = @($unknown) }
 }
 
 # Is self-heal running, and if its log went quiet, why?
@@ -162,6 +198,11 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadCpuBusiest')) {
+  $f = Get-Content -LiteralPath $ReadCpuBusiest -Raw | ConvertFrom-Json
+  Read-CpuBusiest $f.before $f.after ([double]$f.seconds) ([int]$f.cores) | ConvertTo-Json -Depth 5 -Compress
   exit 0
 }
 if ($ExplainSelfHeal) {
@@ -526,6 +567,26 @@ function Check-Resources {
   if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+  # Only while the hold is on. The list above answers the RAM problem and the
+  # "close the heaviest processes" remedy; it does not answer this one, and a
+  # second list on every pass would bury the one that is usually wanted.
+  if ($cpu.holding) {
+    $snap = { @(Get-Process -EA SilentlyContinue | ForEach-Object {
+          $t = $null; try { $t = $_.CPU } catch { $t = $null }
+          [ordered]@{ name = $_.ProcessName; pid = $_.Id; cpu = $t } }) }
+    $cores = 1
+    try { $cores = [int]((Get-CimInstance Win32_ComputerSystem -EA Stop).NumberOfLogicalProcessors) } catch { $cores = [Environment]::ProcessorCount }
+    if ($cores -lt 1) { $cores = 1 }
+    $t0 = Get-Date
+    $before = & $snap
+    Start-Sleep -Seconds 2
+    $after = & $snap
+    $busy = Read-CpuBusiest $before $after ((Get-Date) - $t0).TotalSeconds $cores
+    Note "--- using the CPU, over $([math]::Round($busy.seconds,1))s across $($busy.cores) logical core(s)"
+    foreach ($r in @($busy.rows)) { Note ("{0,-28} {1,5:n1}% CPU  {2,5:n2}s  pid {3}" -f $r.name, $r.percent, $r.seconds, $r.pid) }
+    if (-not @($busy.rows).Count) { Note 'no process CPU time could be read (run the doctor as Administrator to see other accounts)' }
+    if (@($busy.unknown).Count) { Note "not measured: $(@($busy.unknown) -join '; ')" }
+  }
 }
 
 # A standby (role.json, written by alpha-standdown.ps1) serves nothing here on
@@ -1163,7 +1224,7 @@ $rules = @(
   @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
-  @{ m = "at or above Alpha's";                                                                  r = "Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7 names the heaviest processes; llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run." },
+  @{ m = "at or above Alpha's";                                                                  r = "Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7's 'using the CPU' list names them with their share of the machine, measured over a two-second window while the hold is on; the MB list above it answers a different question. llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run." },
   @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },

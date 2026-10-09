@@ -519,6 +519,63 @@ test('a CPU reading that is not a number is unreadable, and says what it got', {
 });
 
 // Self-heal's log went quiet on Laptop41 at 13:22 on 2026-10-09 and the doctor
+// Worker1, 2026-10-09: CPU 93% for four doctor runs, raised as NEEDS A PERSON,
+// and the eight lines printed under it were ranked by WorkingSet64 and carried
+// only MB -- topped by Memory Compression, which is not what an operator can
+// act on. The problem's own recommendation says "Section 7 names the heaviest
+// processes", true of memory and false of CPU. Read-CpuBusiest is the seam.
+const readBusiest = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-busy-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuBusiest', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('while the hold is on, the processes are ranked by CPU and the unmeasurable are named', { skip }, () => {
+  const out = readBusiest({
+    seconds: 2, cores: 8,
+    before: [
+      { name: 'llama-server', pid: 1040, cpu: 100 },
+      { name: 'Memory Compression', pid: 3840, cpu: 50 },
+      { name: 'node', pid: 21168, cpu: 10 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'oldthing', pid: 777, cpu: 900 },
+    ],
+    after: [
+      // 12 of 16 available core-seconds: three quarters of the machine.
+      { name: 'llama-server', pid: 1040, cpu: 112 },
+      // The memory list's top row barely touches the CPU.
+      { name: 'Memory Compression', pid: 3840, cpu: 50.1 },
+      { name: 'node', pid: 21168, cpu: 10.8 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'newthing', pid: 4242, cpu: 3 },
+      { name: 'reused', pid: 777, cpu: 1 },
+    ],
+  });
+  assert.deepEqual(out.rows.map((r) => [r.name, r.percent]), [
+    ['llama-server', 75],
+    ['node', 5],
+    ['Memory Compression', 0.6],
+  ], 'ranked by CPU share of the whole machine, not by megabytes');
+  assert.equal(out.rows[0].seconds, 12);
+  // Unmeasurable is never idle -- the rule Read-CpuPressure follows. Each of
+  // these would have sorted last as 0% and read as an idle process.
+  assert.deepEqual(out.unknown.sort(), [
+    'MsMpEng (6040) time hidden',
+    'newthing (4242) started during the sample',
+    'reused (777) pid reused during the sample',
+  ].sort());
+  assert.ok(!out.rows.some((r) => r.percent === 0), 'nothing unmeasured is scored zero');
+});
+
+test('a sample window of nothing does not divide by it', { skip }, () => {
+  const out = readBusiest({ seconds: 0, cores: 0, before: [{ name: 'a', pid: 1, cpu: 1 }], after: [{ name: 'a', pid: 1, cpu: 2 }] });
+  assert.equal(out.rows[0].percent, 0);
+  assert.equal(out.rows[0].seconds, 1, 'the seconds it used are still true');
+});
+
 // said "check the task's last result as Administrator (3 = config unreadable)"
 // -- a guess, and the wrong one: a pass that died holding the lock silences
 // every pass after it. alpha-selfheal.mjs now leaves the reason on disk, and

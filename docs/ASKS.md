@@ -213,6 +213,40 @@ answer, and Claude puts it to V in the next report.
   sentence got backwards, that `-StartConnector` turns the connector line round, that the rehearsal changes
   nothing, and that a refused rehearsal is still marked as one.
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **on the one pass where CPU is the fault, the list
+  under it ranked megabytes.** Worker1's 21:26-local doctor pass has CPU **93%** open **4 run(s)** since
+  20:44 local (19:44Z) -- no longer the oscillation the NOISE list warns about -- raised as NEEDS A PERSON
+  because at or above Alpha's 90% hold every local model call 502s and every agent receipt reads
+  `evidence-contract`. The eight lines printed directly beneath that PROBLEM came from
+  `laptop41-doctor.ps1:527`:
+  `Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8`, formatted as `MB`. So they
+  were the *memory* hogs, topped by `Memory Compression 2,415 MB` -- a kernel process no operator can act
+  on -- and **no row carried a CPU figure at all**. The problem's own recommendation (the `at or above
+  Alpha's` row of the table) said *"Section 7 names the heaviest processes"*: true of memory, false of CPU,
+  which is the number the problem is about.
+  Fixed with `Read-CpuBusiest`, a pure function beside `Read-CpuPressure` and exposed as `-ReadCpuBusiest`
+  the way `-ReadCpuPressure` and `-ExplainSelfHeal` are, answered above the report directory. It takes two
+  snapshots of each process's total processor seconds and ranks by the delta as a share of
+  `seconds x logical cores`, which is the figure comparable to `Win32_Processor.LoadPercentage`. It runs
+  **only while the hold is on**, because the MB list is what answers the RAM problem and the "close the
+  heaviest processes" remedy, and a second list every pass would bury the one usually wanted.
+  It keeps this file's standing rule, **unmeasurable is never idle**, in three places that would each
+  otherwise have sorted last as 0% and read as an idle process: a process whose time is hidden (the
+  scheduled doctor is unelevated and cannot see another account's), one that started inside the window, and
+  a **pid reused** inside it -- processor time only goes up, so a drop is a different process. All three are
+  named on their own line instead. Receipt: two tests in `test/laptop41-doctor.test.js`, one of which pins
+  that nothing unmeasured is scored zero and that a zero-length window is not divided by.
+  **And a gate that comes out of getting this wrong.** The first version of the recommendation text above
+  wrote the list's name in backticks inside a double-quoted PowerShell string. A backtick is PowerShell's
+  escape character, so `` `u `` opened an invalid unicode escape, `laptop41-doctor.ps1` stopped parsing
+  whole, and the suite reported **30 failures across the file with no hint which line caused them**.
+  `scripts/ps1-balance.mjs` cannot catch that -- it is a counter, not a parser, and one of its own tests
+  says so. PowerShell's parser says it in one line and needs no Windows, so
+  `test/ps1-encoding.test.js` now runs `[Parser]::ParseFile` over all 43 `.ps1` files in one `pwsh` call
+  and prints `<file>:<line>: <message>`. Verified by putting the backtick back: one line naming
+  `laptop41-doctor.ps1:1227`. That is the first real syntax gate this repo has had, and it only exists
+  because pwsh runs here now.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
