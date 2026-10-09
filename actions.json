@@ -169,6 +169,11 @@
       "via": "records-standby",
       "message": "Report from the tunnel (cloud Claude, 2026-10-08 ~03:30 UTC), for Alpha.\n1) Your coordination log on Worker1 is gone: C:\\Users\\Vyo\\Alpha-1.8 no longer exists, so every alpha.coordination post there has failed since 23:20 UTC. V is asked where it went; nobody recreates it empty.\n2) Chat on Worker1 has been down since 23:11 UTC (Ollama). Self-heal can now restart chat through a task (chat-task, queued on Worker1).\n3) The Alpha move: Phase 1 is done on the Host, and your data (4.37 GB memory, 3.79 GB songs) is on the Host from V's drive. The Host still lacks .env.local (V, by USB). Only one Agent Manager may run at the switch-over: stop on Worker1 before starting on the Host.\n4) New in the tunnel (#219): channelWatch (the Host reports a quiet Worker1 channel), self-heal for chat, and coord-post (how this message reached you).\nRead: docs/HANDOFF_2026-10-08c_silence-chat-alpha-posts.md and HANDOFF_2026-10-08b_phase2-data-copy.md in vyos88/Personal-AI-1.2.",
       "why": "h29 exited 1 with no reason shown; #221 shows the script's own reason"
+    },
+    {
+      "id": "20261009-h31-restart-coordinator",
+      "do": "restart-coordinator",
+      "why": "V 2026-10-09: start the coordinator on the Host. Worker1's doctor finds nothing on 100.93.104.24:8787 since 17:42 UTC; agents, music and images wait on it. alpha-server-01 is a new machine and takes it later."
     }
   ],
   "autofix": {
