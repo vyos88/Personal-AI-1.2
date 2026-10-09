@@ -1,8 +1,43 @@
-﻿# laptop41 autopilot 20261009-184847
+﻿# laptop41 autopilot 20261009-185904
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 9cecb55 is current
+checkout 29ca751 is current
+
+## 20261009-03-standby-install  standby-install  ->  0   (2026-10-09T18:59:47, 5s)
+```
+wrote C:\AlphaData\alpha-ops\standby.json (primary laptop-gj8dfmlk at http://100.93.104.24:8001/health)
+task 'Alpha Standby' runs every minute and at startup, as SYSTEM
+role: primary (no role.json)
+watching: laptop-gj8dfmlk at http://100.93.104.24:8001/health; public https://alpha-ai.uk/; control https://www.cloudflare.com/cdn-cgi/trace
+no pass yet
+```
+
+## 20261009-04-standdown-rehearsal  alpha-standdown  ->  0   (2026-10-09T18:59:52, 26s)
+```
+ALPHA STAND-DOWN DESKTOP-41HPLCN -> laptop-gj8dfmlk 2026-10-09 18:59 (report only: nothing is changed)
+  task Alpha Self-Heal                enabled, Ready
+  task Alpha Server - Health Guard    disabled
+  task Alpha Backend                  enabled, Running
+  task Alpha                          enabled, Running
+  task AlphaGalaxy Public Tunnel      disabled
+  backend  :8001 python 7228 (parent python)
+  site     :4173 node 11700 (parent cmd)
+  service  cloudflared Stopped, start Automatic, last exit code 1067, installed with a token: ...
+  connector processes: cloudflared 11956 (parent ?)
+  Alpha's own runtime: alpha_runtime_always_on.ps1, alpha_runtime_watchdog.ps1
+WOULD:
+  write role.json: standby, primary laptop-gj8dfmlk
+  disable 'Alpha Self-Heal' (it would start Alpha again)
+  stop and disable 'Alpha Backend'
+  stop and disable 'Alpha'
+  stop python 7228 and its children
+  stop node 11700 and its children
+  stop cloudflared and set it to Manual
+  stop cloudflared 11956
+  NOT stop Alpha's own runtime (alpha_runtime_always_on.ps1, alpha_runtime_watchdog.ps1): Alpha stops it through its Agent Manager
+  alpha-ai.uk is then down until laptop-gj8dfmlk serves it
+```
 
 ## auto-deck-audit-20261009-184847  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T18:49:39, 0s)
 ```
@@ -487,58 +522,6 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
 ## auto-deck-audit-20261009-085845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T08:59:27, 0s)
 ```
 DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T07:57:39.764800+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 3, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
-WORKING terminal: answers with data (logs 100)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-deck-audit-20261009-082845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T08:29:28, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T07:27:36.641750+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 3, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
-WORKING terminal: answers with data (logs 100)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-deck-audit-20261009-075845  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T07:59:16, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T06:57:35.330119+00:00: 21 working, 0 empty, 0 broken
 WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
 WORKING command: answers with data (attention 6)
 WORKING control-center: answers with data (11 field(s))
