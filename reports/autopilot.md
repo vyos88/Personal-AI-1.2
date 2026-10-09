@@ -1,8 +1,15 @@
-﻿# host autopilot 20261009-151410
+﻿# host autopilot 20261009-161910
 
 Host: LAPTOP-GJ8DFMLK   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e175472 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/usb-inventory.ps1
+
+## auto-channel-watch-20261009-161910  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T16:19:14, 2s)
+```
+OK: status/laptop41-live
+SILENT: status/laptop41 (last write 2026-10-09T12:42:33Z)
+  ages: laptop41-live 0 min (silent after 30), laptop41 156 min (silent after 90)
+```
 
 ## auto-channel-watch-20261009-151410  channel-watch (standing)  ->  2 (a channel went quiet)   (2026-10-09T15:14:17, 2s)
 ```
@@ -132,10 +139,5 @@ OK: status/laptop41
 ```
 NOT POSTED: Alpha's coordination script exited 1 (actor cloud-claude)
 alpha_coordination_tunnel: fatal: not a git repository (or any of the parent directories): .git
-```
-
-## 20261008-h29-coord-post  coord-post  ->  1   (2026-10-08T04:19:18, 1s)
-```
-posted to Alpha's coordination log as cloud-claude: exit 1
 ```
 
