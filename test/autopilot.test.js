@@ -238,6 +238,41 @@ test('the standing brain check fixes the deck by itself and reports only a chang
   assert.match(pwsh(args, env).stdout, /nothing new to run/);
 });
 
+test('doubled line ends in Alpha are repaired every pass, and reported once', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-eol-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs', 'fix-line-endings.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+
+  // Worker1's shape: software\ with Alpha's scripts\ beside it, and the
+  // manager script as apply-alpha-update.mjs left it on 2026-10-06.
+  const sw = join(dir, 'software');
+  mkdirSync(join(sw, 'frontend'), { recursive: true });
+  writeFileSync(join(sw, 'frontend', 'package.json'), '{}');
+  mkdirSync(join(dir, 'scripts'));
+  const manager = join(dir, 'scripts', 'alpha_agent_manager.ps1');
+  writeFileSync(manager, 'Get-Thing -WorkerId $id `\r\r\n    -ReceiptStatus $s\r\r\n');
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', join(dir, 'ops'), '-AlphaRoot', sw];
+  const env = { COMPUTERNAME: '' };
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /line endings: 0 \(repaired\)/);
+  assert.equal(readFileSync(manager, 'utf8'), 'Get-Thing -WorkerId $id `\r\n    -ReceiptStatus $s\r\n');
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /auto-line-endings-\S+ {2}line-endings \(standing\) {2}-> {2}0 \(repaired\)/);
+  assert.match(report, /FIXED: scripts.alpha_agent_manager\.ps1/);
+  // Clean is not news.
+  assert.match(pwsh(args, env).stdout, /nothing new to run/);
+});
+
 test('a pass defers what will not fit, and a stopped pass loses nothing', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-budget-'));
   const remote = join(dir, 'remote.git');
