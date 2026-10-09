@@ -552,10 +552,40 @@ function Standby-Checks {
     $st = Get-ScheduledTask -TaskName $t -EA SilentlyContinue
     if ($st -and [string]$st.State -ne 'Disabled') { Problem "standby, but task '$t' is enabled: it starts Alpha here again" }
   }
+  Cover-Checks $primary ($pub -like '2*' -or $pub -like '3*')
+}
+
+# Phase 3's automatic cover (alpha-standby.mjs, every minute as SYSTEM) leaves
+# its last pass in standby\status.json. A standby whose pass stopped will not
+# cover; one that cannot see the primary's Alpha over the tailnet would cover in
+# an outage and then never hand back.
+function Cover-Checks([string]$primary, [bool]$publicServed) {
+  $f = Join-Path $OpsDir 'standby\status.json'
+  if (-not (Test-Path -LiteralPath $f)) { Problem "automatic cover is not installed: if $primary goes down, nothing takes Alpha over here (queue standby-install)"; return }
+  $age = [int]((Get-Date) - (Get-Item -LiteralPath $f).LastWriteTime).TotalMinutes
+  $pass = try { Get-Content -LiteralPath $f -Raw | ConvertFrom-Json } catch { $null }
+  if ($age -gt 5) { Problem "automatic cover has not run for $age min: its task 'Alpha Standby' is not running passes"; return }
+  OK "automatic cover: $($pass.why) ($age min ago)"
+  $seen = $pass -and $pass.probes -and [int]$pass.probes.primary -ge 200 -and [int]$pass.probes.primary -lt 300
+  if ($pass -and $pass.role -eq 'standby' -and $publicServed -and -not $seen) {
+    $url = try { (Get-Content -LiteralPath (Join-Path $OpsDir 'standby.json') -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json | ForEach-Object { $_.primaryUrl } } catch { '?' }
+    Problem "automatic cover cannot see $primary's Alpha at $url (it answered $(if ($pass.probes.primary) { $pass.probes.primary } else { 'nothing' })) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make $primary's backend answer on its tailnet address"
+  }
+}
+
+# Covering: this machine serves Alpha for a primary that is down. Everything
+# below checks it as the serving Alpha it now is; this says why it is serving.
+function Covering-Note {
+  $primary = if ($script:role.primary) { [string]$script:role.primary } else { 'another machine' }
+  $since = if ($script:role.since -is [datetime]) { $script:role.since.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'") } else { [string]$script:role.since }
+  Section "0. Covering for $primary"
+  Note "role.json says covering$(if ($since) { " since $since" }): $primary's Alpha did not answer, so this machine serves Alpha; it hands back when $primary's Alpha answers again"
+  Cover-Checks $primary $false
 }
 
 function Run-Checks {
   if ($script:standby) { Standby-Checks; Check-Resources; return }
+  if ($script:role -and [string]$script:role.role -eq 'covering') { Covering-Note }
   Find-Layout
 
   # ------------------------------------------------------------ backend

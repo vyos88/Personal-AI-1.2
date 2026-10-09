@@ -567,3 +567,34 @@ function Get-CimInstance { param($ClassName, $Filter)
   assert.match(out, /PROBLEM: standby, but the backend runs here \(pid 4242 python\.exe: python run_server\.py\): two Alphas/);
   assert.match(out, /PROBLEM: standby, but 1 cloudflared process\(es\) run here: alpha-ai\.uk's traffic is split between two machines/);
 });
+
+// Phase 3: a standby's automatic cover is checked too. Not installed, stopped,
+// or blind to the primary are each a problem: the first two mean nobody takes
+// Alpha over in an outage, the third that nobody ever hands it back.
+test('a standby says whether its automatic cover runs and can see the primary', { skip, timeout: 300_000 }, async () => {
+  let r = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: publicAnswers });
+  assert.match(r.out, /PROBLEM: automatic cover is not installed: if laptop-gj8dfmlk goes down, nothing takes Alpha over here \(queue standby-install\)/);
+
+  const fresh = { ...standbyRole, 'ops/standby.json': JSON.stringify({ primaryUrl: 'http://100.93.104.24:8001/health' }) };
+  r = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { ...fresh, 'ops/standby/status.json': JSON.stringify({ role: 'standby', why: "laptop-gj8dfmlk's Alpha answers", probes: { primary: 200, public: 200 } }) },
+    stubs: publicAnswers,
+  });
+  assert.match(r.out, /ok: automatic cover: laptop-gj8dfmlk's Alpha answers \(0 min ago\)/);
+  assert.doesNotMatch(r.out, /PROBLEM: automatic cover/);
+
+  r = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { ...fresh, 'ops/standby/status.json': JSON.stringify({ role: 'standby', why: "laptop-gj8dfmlk's Alpha did not answer (1 of 3)", probes: { primary: 0, public: 200 } }) },
+    stubs: publicAnswers,
+  });
+  assert.match(r.out, /PROBLEM: automatic cover cannot see laptop-gj8dfmlk's Alpha at http:\/\/100\.93\.104\.24:8001\/health \(it answered nothing\) though alpha-ai\.uk is served: it would cover in an outage and never hand back/);
+});
+
+test('a machine covering for the primary is checked as the serving Alpha, and says why it serves', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { 'ops/role.json': JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }) },
+  });
+  assert.match(out, /=== 0\. Covering for laptop-gj8dfmlk ===/);
+  assert.match(out, /role\.json says covering since 2026-10-09T18:02:00Z: laptop-gj8dfmlk's Alpha did not answer, so this machine serves Alpha/);
+  assert.match(out, /=== 1\. Backend/, 'the serving checks still run');
+});

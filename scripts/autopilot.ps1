@@ -47,6 +47,8 @@
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
     alpha-standdown  alpha-standdown.ps1: stop serving Alpha here so the Host can (Phase 2 of the move)  ("confirm": "hand-over", or "reportOnly": true; "primary")
     alpha-standup    alpha-standdown.ps1 -Undo: serve Alpha here again, as it was  ("reportOnly": true, "force": true)
+    standby-install  install-alpha-standby.ps1: Phase 3, cover for the primary automatically (a SYSTEM pass every minute)  ("primary", "primaryUrl")
+    standby-uninstall  install-alpha-standby.ps1 -Uninstall: remove that task (its standby.json stays)
 
   While role.json in -OpsDir says "standby" (alpha-standdown writes it), the
   actions that would start Alpha here are refused, self-heal is not restarted,
@@ -343,6 +345,21 @@ function Resolve-Action($a) {
       }
       $spec = Ps1 'alpha-standdown.ps1' $rest; $out.timeoutMin = 6
     }
+    # Phase 3: automatic cover, armed only while role.json says standby or
+    # covering, so it may be installed on a machine that still serves.
+    'standby-install' {
+      $rest = @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot)
+      if ($a.primary) {
+        if ([string]$a.primary -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$') { $out.reason = 'primary must be a machine name'; return $out }
+        $rest += @('-Primary', [string]$a.primary)
+      }
+      if ($a.primaryUrl) {
+        if ([string]$a.primaryUrl -notmatch '^https?://[A-Za-z0-9.-]+(:\d{1,5})?(/[A-Za-z0-9._/-]*)?$') { $out.reason = 'primaryUrl must be a plain http(s) URL'; return $out }
+        $rest += @('-PrimaryUrl', [string]$a.primaryUrl)
+      }
+      $spec = Ps1 'install-alpha-standby.ps1' $rest; $out.timeoutMin = 3
+    }
+    'standby-uninstall' { $spec = Ps1 'install-alpha-standby.ps1' @('-OpsDir', $OpsDir, '-Uninstall'); $out.timeoutMin = 2 }
     'alpha-standup' {
       $rest = @('-OpsDir', $OpsDir, '-Undo')
       if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
@@ -1120,6 +1137,23 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       }
     } else { $heal.restarted = "restart already tried at $($lastKick.ToString('HH:mm'))" }
   }
+  # Which machine this is, and whether automatic cover (alpha-standby.mjs,
+  # Phase 3) is watching: a standby whose pass stopped will not cover.
+  $roleName = if ($role -and $role.role) { [string]$role.role } else { 'primary' }
+  $cover = [ordered]@{ role = $roleName.ToUpper(); detail = '' }
+  $coverFile = Join-Path $OpsDir 'standby\status.json'
+  $coverPass = $null
+  if (Test-Path -LiteralPath $coverFile) { try { $coverPass = Get-Content -LiteralPath $coverFile -Raw | ConvertFrom-Json } catch { } }
+  $coverAge = if ($coverPass) { [int]((Get-Date) - (Get-Item -LiteralPath $coverFile).LastWriteTime).TotalMinutes } else { $null }
+  # PowerShell 7 reads an ISO date in JSON as a date; 5.1 leaves it text.
+  $since = if ($role.since -is [datetime]) { $role.since.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'") } else { [string]$role.since }
+  if ($roleName -eq 'covering') { $cover.detail = "this machine serves Alpha for $($role.primary)$(if ($since) { " since $since" })" }
+  elseif ($roleName -eq 'standby') { $cover.detail = "$($role.primary) serves Alpha" }
+  else { $cover.detail = 'this machine serves Alpha' }
+  if ($null -eq $coverAge) { $cover.detail += $(if ($roleName -eq 'primary') { '; automatic cover is not installed here' } else { '; automatic cover is NOT INSTALLED: queue standby-install' }) }
+  elseif ($coverAge -gt 5 -and $roleName -ne 'primary') { $cover.detail += "; automatic cover is NOT RUNNING (last pass $coverAge min ago)" }
+  elseif ($roleName -ne 'primary') { $cover.detail += "; automatic cover: $($coverPass.why) ($coverAge min ago)" }
+  else { $cover.detail += '; automatic cover installed, idle while this machine is the primary' }
   $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
   $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
   if (Test-Path -LiteralPath $receipt) {
@@ -1154,11 +1188,12 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
     '| Check | State | Detail |', '|---|---|---|',
     "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
+    "| Role | $($cover.role) | $(Redact $cover.detail) |",
     "| Repair agent (self-heal) | $($heal.state) | $(if ($standby) { 'off on purpose: another machine serves Alpha' } elseif ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
-  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
   Publish-Live $md $json $headline
 }
 

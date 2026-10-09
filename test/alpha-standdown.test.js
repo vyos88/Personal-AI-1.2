@@ -29,9 +29,13 @@ function Stop-ScheduledTask { param([string]$TaskName) Log "stop-task $TaskName"
 function Start-ScheduledTask { param([string]$TaskName) Log "start-task $TaskName" }
 function Get-Service { param([string]$Name) $s = Load; if ($s.service) { [pscustomobject]@{ Status = $s.service.status; StartType = $s.service.startType } } }
 function Stop-Service { param([string]$Name) $s = Load; $s.service.status = 'Stopped'; $s.procs = @($s.procs | Where-Object { $_.ParentProcessId -ne 500 }); Save $s; Log 'stop-service' }
-function Start-Service { param([string]$Name) $s = Load; $s.service.status = 'Running'; Save $s; Log 'start-service' }
+function Start-Service { param([string]$Name) $s = Load; $s.service.status = 'Running'
+  if (-not $s.serviceFails) { $s.procs = @($s.procs) + [pscustomobject]@{ ProcessId = 601; ParentProcessId = 500; Name = 'cloudflared.exe'; CommandLine = 'x' } }
+  Save $s; Log 'start-service' }
 function Set-Service { param([string]$Name, [string]$StartupType) $s = Load; $s.service.startType = $StartupType; Save $s; Log "service-start $StartupType" }
-function Get-CimInstance { @((Load).procs | ForEach-Object { [pscustomobject]@{ ProcessId = [int]$_.ProcessId; ParentProcessId = [int]$_.ParentProcessId; Name = $_.Name; CommandLine = $_.CommandLine } }) }
+function Get-CimInstance { param($ClassName, $Filter)
+  if ($ClassName -eq 'Win32_Service') { $s = Load; if ($s.service) { return [pscustomobject]@{ ExitCode = $s.service.exitCode; PathName = 'C:\cf\cloudflared.exe tunnel run --token SECRET-SERVICE-TOKEN' } } else { return } }
+  @((Load).procs | ForEach-Object { [pscustomobject]@{ ProcessId = [int]$_.ProcessId; ParentProcessId = [int]$_.ParentProcessId; Name = $_.Name; CommandLine = $_.CommandLine } }) }
 function Get-NetTCPConnection { param($LocalPort, $State) @((Load).listen | Where-Object { $_.port -eq $LocalPort } | ForEach-Object { [pscustomobject]@{ OwningProcess = [int]$_.pid; LocalAddress = '127.0.0.1' } }) }
 function taskkill.exe { $id = [int]$args[-1]; $s = Load
   $gone = @($id); do { $more = @($s.procs | Where-Object { $gone -contains $_.ParentProcessId -and $gone -notcontains $_.ProcessId } | ForEach-Object { [int]$_.ProcessId }); $gone += $more } while ($more.Count)
@@ -54,7 +58,7 @@ function serving(extra = {}) {
       { name: 'Cloudflared at logon', state: 'Ready', exec: 'C:\\cloudflared\\cloudflared.exe' },
       { name: 'Alpha Doctor', state: 'Ready', exec: 'powershell.exe' },
     ],
-    service: { status: 'Running', startType: 'Automatic' },
+    service: { status: 'Running', startType: 'Automatic', exitCode: 0 },
     procs: [
       { ProcessId: 500, ParentProcessId: 4, Name: 'services.exe', CommandLine: '' },
       { ProcessId: 600, ParentProcessId: 500, Name: 'cloudflared.exe', CommandLine: 'cloudflared.exe tunnel run --token SECRET-TOKEN-123' },
@@ -101,6 +105,8 @@ test('the rehearsal says what it would stop and changes nothing', { skip }, () =
   assert.deepEqual(read().log, []);
   assert.equal(existsSync(join(ops, 'role.json')), false);
   assert.doesNotMatch(r.out, /SECRET-TOKEN/, 'a command line is never printed');
+  assert.match(r.out, /service  cloudflared Running, start Automatic, last exit code 0, installed with a token: yes/);
+  assert.doesNotMatch(r.out, /SECRET-SERVICE-TOKEN/, 'only whether there is a token, never the token');
 });
 
 test('standing down disables the watchers first, stops Alpha and its connector, and records it all', { skip }, () => {
@@ -115,7 +121,7 @@ test('standing down disables the watchers first, stops Alpha and its connector, 
   assert.ok(s.log.indexOf('disable Alpha Server - Health Guard') < firstKill);
   for (const n of ['Alpha Self-Heal', 'Alpha Server - Health Guard', 'Alpha Backend', 'Alpha', 'Cloudflared at logon']) assert.equal(taskState(s, n), 'Disabled', n);
   assert.equal(taskState(s, 'Alpha Doctor'), 'Ready', 'the doctor keeps running on a standby');
-  assert.deepEqual(s.service, { status: 'Stopped', startType: 'Manual' });
+  assert.deepEqual(s.service, { status: 'Stopped', startType: 'Manual', exitCode: 0 });
   assert.deepEqual(s.listen, []);
   assert.deepEqual(s.procs.map((p) => p.ProcessId), [500]);
   const role = JSON.parse(readFileSync(join(ops, 'role.json'), 'utf8'));
@@ -167,7 +173,7 @@ test('standing up again refuses while another machine serves, then restores exac
   const s = read();
   for (const n of ['Alpha Backend', 'Alpha', 'Alpha Self-Heal', 'Cloudflared at logon']) assert.equal(taskState(s, n), 'Ready', n);
   assert.equal(taskState(s, 'Alpha Server - Health Guard'), 'Disabled', 'left as it was before the stand-down');
-  assert.deepEqual(s.service, { status: 'Running', startType: 'Automatic' });
+  assert.deepEqual(s.service, { status: 'Running', startType: 'Automatic', exitCode: 0 });
   // the servers come back before the watchers that would restart them
   assert.ok(s.log.indexOf('start-task Alpha Backend') < s.log.indexOf('enable Alpha Self-Heal'), s.log.join(' | '));
   assert.equal(existsSync(join(ops, 'role.json')), false);
@@ -177,4 +183,32 @@ test('standing up again refuses while another machine serves, then restores exac
   const again = setup(serving({ public: 200, backendUp: true, procs: serving().procs.filter((p) => p.Name !== 'cloudflared.exe') }));
   assert.equal(again.run('-Undo').code, 3);
   assert.equal(again.run('-Undo', '-Force').code, 0);
+});
+
+// Worker1 as the rehearsal found it: the service Stopped (start Automatic)
+// while a connector started some other way served. Restoring exactly would
+// bring Alpha back with no way in; covering for a primary that is down needs one.
+test('covering starts the connector whatever the record says, and says when it would not start', { skip }, () => {
+  const state = serving({ service: { status: 'Stopped', startType: 'Automatic', exitCode: 1067 } });
+  const { run, read, set } = setup(state);
+  assert.equal(run().code, 0);
+  set({ backendUp: true, log: [] });
+  let r = run('-Undo');
+  assert.match(r.out, /cloudflared start type back to Automatic; it was not running before, so not started/);
+
+  const again = setup(serving({ service: { status: 'Stopped', startType: 'Automatic', exitCode: 1067 } }));
+  assert.equal(again.run().code, 0);
+  again.set({ backendUp: true, log: [] });
+  r = again.run('-Undo', '-StartConnector');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /started cloudflared \(start Automatic\)/);
+  assert.match(r.out, /connector: cloudflared runs here/);
+  assert.equal(again.read().service.status, 'Running');
+
+  const broken = setup(serving({ service: { status: 'Stopped', startType: 'Automatic', exitCode: 1067 }, serviceFails: true }));
+  assert.equal(broken.run().code, 0);
+  broken.set({ backendUp: true });
+  r = broken.run('-Undo', '-StartConnector');
+  assert.match(r.out, /CONNECTOR NOT RUNNING: cloudflared did not start a cloudflared, so alpha-ai\.uk stays down/);
+  assert.match(r.out, /last exit code 1067/);
 });
