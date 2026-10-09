@@ -1,28 +1,21 @@
-Claude (cloud) report, 2026-10-09 15:56 UTC
+Claude (cloud) report, 2026-10-09 16:56 UTC
 
-BEFORE (Claude, cloud session, 2026-10-09 ~16:40 UTC): V asked to fix self-heal on Worker1 and to prepare Worker1 to give all its work to the Host's Alpha. Plan: (1) a tunnel PR that stops a self-heal pass from going silent: a pass that dies or hangs leaves its lock behind, and every pass after it skips without a log line for 10 minutes (the 13:22-13:43 local stall, when the autopilot's 13:30 restart did nothing). (2) the Worker1 side of the move (HANDOFF_2026-10-07d Phase 2 step 1 and Phase 3), scripted and tested, run only with V. Nothing on Worker1 is stopped, moved or deleted by this session; changes reach it as merged code and autopilot jobs.
+Worker1 (Laptop41) doctor fresh (16:54 UTC), NO problems: Alpha live, chat 1.3 s, decks 21 working, RAM 2.7/15.8 GB, C: 137.7 GB free. cloudSeen=26b2951 (current). Offline 12:40-15:18 UTC.
 
-AFTER (Claude, cloud session, 2026-10-09 ~16:55 UTC). Merged #238 and #239; nothing on Worker1 was stopped, moved or deleted.
-- #238, self-heal: a pass that dies or hangs no longer silences the passes after it. The lock names its process, a pass stops itself after 4 minutes and writes `unfinished` with its stage, every probe is bounded, and the config read is retried. The doctor and the live page now read the evidence (lock, config error) instead of guessing "3 = config unreadable".
-- #239, the hand-over: Worker1's half of the switch-over is two autopilot jobs. `alpha-standdown` needs "confirm": "hand-over", with V present; `alpha-standup` is the rollback, and it refuses while another machine serves. While role.json says standby, nothing on Worker1 starts a second Alpha, self-heal repairs nothing, the live page reads STANDBY, and the doctor flags two Alphas.
-- Queued on Worker1: 20261009-01 (stand-down REHEARSAL, report only) and 20261009-02 (doctor).
-- NEEDS V before the switch-over: .env.local to the Host by USB, a fresh memory\ copy, and Alpha stopping its Agent Manager on Worker1. Runbook: docs/HANDOFF_2026-10-09d_worker1-ready-to-hand-over.md.
+NEW, merged by another cloud session ~16:35-16:51 UTC: #238 self-heal: a dead or hung pass no longer silences later ones (it writes "unfinished" after 4 min). #239 Worker1 hand-over to the Host: autopilot jobs alpha-standdown (confirm "hand-over", V present) and alpha-standup (rollback). While role.json says standby, Worker1 starts no second Alpha and self-heal repairs nothing. Queued on Worker1: 20261009-01 stand-down REHEARSAL (report only), not reported yet. NEEDS V first: .env.local to the Host by USB, a fresh memory copy, Alpha's Agent Manager stopped on Worker1 (HANDOFF_2026-10-09d).
 
-Worker1 (Laptop41) is BACK: all channels resumed ~15:18 UTC after ~2.5 h of silence (a 12:43 run arrived late, reading "Alpha DOWN", so its network or Alpha dropped meanwhile). Doctor 15:22 UTC: NO problems; Alpha LIVE and self-heal RUNNING (the stale self-heal log cleared). Chat 1.2 s, decks 21 working, RAM 2.6/15.8 GB, C: 137.8 GB free. cloudSeen=b6ab314 (current).
-
-NEEDS V: Alpha's GPU admission gate is stuck on Worker1: cause SETTLED (#234), the GPU telemetry probe never reaches "observed", so admission times out and GPU models never start. The fix is in vyos88/Alpha's admission/telemetry code.
+NEEDS V: Alpha's GPU admission gate is stuck on Worker1 (#234: the telemetry probe never reaches "observed"); the fix belongs in vyos88/Alpha.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
 
 Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
  - DONE [!]: codex-02 failed (qwen3:8b not pulled). Codex: name a pulled model.
- - DEFERRED: Worker1's enrollment (agent-control) moved to the 15-minute workflow. V decided: Host is main; do not ask again. Only the owner password at the keyboard remains. HANDOFF_2026-10-08f.
- - DONE (#235): release comparison: Host a3e1350 vs Worker1 20c58f5, 3 commits apart; Updater blocked by the Host's dirty usb-inventory.ps1 and no Alpha updater there.
+ - DEFERRED: Worker1's enrollment (agent-control); V decided Host is main (do not ask again); only the owner password remains.
 
 Alpha's coordination log has no working home yet.
 
-Merged since 08 Oct: #223-#228, #230-#235, #237. #237 merged 02:31 UTC (complete coordination Status; 0 test failures); it supersedes #236. #99 (draft) records the music engine to test if Worker1's music timeouts are CPU fallback. Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 08 Oct: #223-#228, #230-#235, #237-#239. #99 (draft) records the music engine (cpu/cuda). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: why Worker1 dropped off 12:40-15:18 UTC (sleep, network?); Worker1's doctor runs irregularly; Alpha's GPU admission timeouts; the Host's uncommitted usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: the hand-over prerequisites (#239); why Worker1 dropped off 12:40-15:18 UTC; Worker1's doctor runs irregularly; Alpha's GPU admission; the Host's usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
