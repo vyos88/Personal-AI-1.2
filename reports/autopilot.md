@@ -1,8 +1,36 @@
-﻿# laptop41 autopilot 20261009-222349
+﻿# laptop41 autopilot 20261009-224357
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 6c2a5ed is current
+checkout ac1686a is current
+
+## auto-deck-liveness-20261009-224357  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-09T22:44:33, 7s)
+```
+DECKS: 5 live, 1 degraded, 1 static, 1 no feed
+DECK DEGRADED: deck evidence (/hubs/pulse) -> failing hubs: command  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    21/22 hub checks ok, report 71 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 8 s old
+DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 2 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 57 s old, live within 420 s
+DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
+    last read 0 s ago from the home network
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    8 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-data-sync-20261009-224357  data-sync (standing)  ->  0 (in step)   (2026-10-09T22:44:45, 321s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 22:44 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 142 file(s), 80.1 MB written since 2026-08-10T04:06:40Z, to alpha-serv-01
+  PART of a backlog: 9065 file(s), 3,675.3 MB still to send, from 2026-08-13T00:19:21Z; the next pass carries on
+```
 
 ## 20261009-codex-2120-role-teaching-report  coord-post  ->  0   (2026-10-09T22:24:38, 17s)
 ```
@@ -326,79 +354,6 @@ At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:4
    tion
     + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
  
-The property 'LastWriteTimeUtc' cannot be found on this object. Verify that the property exists and can be set.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:3
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
-    + FullyQualifiedErrorId : PropertyNotFound
-```
-
-## 20261009-12-standby-alpha-serv-01  standby-install  ->  0   (2026-10-09T20:20:10, 5s)
-```
-wrote C:\AlphaData\alpha-ops\standby.json (primary alpha-serv-01 at http://100.70.101.6:8001/health)
-task 'Alpha Standby' runs every minute and at startup, as SYSTEM
-role: primary (no role.json)
-watching: alpha-serv-01 at http://100.70.101.6:8001/health; public https://alpha-ai.uk/; control https://www.cloudflare.com/cdn-cgi/trace
-last pass 2026-10-09T19:19:54.865Z: this machine is the primary: nothing to cover
-```
-
-## 20261009-13-full-memory-to-alpha-serv-01  data-sync  ->  0   (2026-10-09T20:20:15, 394s)
-```
-_v4_official\extracted\ELEGOO Smart Robot Car Kit V4.0 2023.02.01\02 Manual & Main Code & APP\02 Main Program   
-(Arduino UNO)\DRV8835\SmartRobotCarV4.0_V0_20210120\addLibrary\NewPing.zip' because it does not exist.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:4
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (C:\AlphaData\al...ary\NewPing.zip:String) [Get-Item], ItemNotFoundExcep 
-   tion
-    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
-The property 'LastWriteTimeUtc' cannot be found on this object. Verify that the property exists and can be set.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:3
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
-    + FullyQualifiedErrorId : PropertyNotFound
-Copy-Item : Could not find a part of the path 'C:\AlphaData\alpha-ops\data-sync\outbox-20261009-192017\staging\memory\l
-ocal\vendor\elegoo_v4_official\extracted\ELEGOO Smart Robot Car Kit V4.0 2023.02.01\02 Manual & Main Code & APP\02 
-Main Program   (Arduino UNO)\DRV8835\SmartRobotCarV4.0_V0_20210120\addLibrary\pitches.zip'.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:136 char:3
-+   Copy-Item -LiteralPath $src -Destination $dst -Force
-+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Copy-Item], DirectoryNotFoundException
-    + FullyQualifiedErrorId : System.IO.DirectoryNotFoundException,Microsoft.PowerShell.Commands.CopyItemCommand
-Get-Item : Cannot find path 'C:\AlphaData\alpha-ops\data-sync\outbox-20261009-192017\staging\memory\local\vendor\elegoo
-_v4_official\extracted\ELEGOO Smart Robot Car Kit V4.0 2023.02.01\02 Manual & Main Code & APP\02 Main Program   
-(Arduino UNO)\DRV8835\SmartRobotCarV4.0_V0_20210120\addLibrary\pitches.zip' because it does not exist.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:4
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (C:\AlphaData\al...ary\pitches.zip:String) [Get-Item], ItemNotFoundExcep 
-   tion
-    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
-The property 'LastWriteTimeUtc' cannot be found on this object. Verify that the property exists and can be set.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:3
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : InvalidOperation: (:) [], RuntimeException
-    + FullyQualifiedErrorId : PropertyNotFound
-Copy-Item : Could not find a part of the path 'C:\AlphaData\alpha-ops\data-sync\outbox-20261009-192017\staging\memory\l
-ocal\vendor\elegoo_v4_official\extracted\ELEGOO Smart Robot Car Kit V4.0 2023.02.01\03 Tutorial & Code\08 
-SmartRobotCarV4.0_DIY and Program on APP\08 SmartRobotCarV4.0_DIY and Program on APP.pdf'.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:136 char:3
-+   Copy-Item -LiteralPath $src -Destination $dst -Force
-+   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : NotSpecified: (:) [Copy-Item], DirectoryNotFoundException
-    + FullyQualifiedErrorId : System.IO.DirectoryNotFoundException,Microsoft.PowerShell.Commands.CopyItemCommand
-Get-Item : Cannot find path 'C:\AlphaData\alpha-ops\data-sync\outbox-20261009-192017\staging\memory\local\vendor\elegoo
-_v4_official\extracted\ELEGOO Smart Robot Car Kit V4.0 2023.02.01\03 Tutorial & Code\08 SmartRobotCarV4.0_DIY and 
-Program on APP\08 SmartRobotCarV4.0_DIY and Program on APP.pdf' because it does not exist.
-At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:4
-+   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
-+    ~~~~~~~~~~~~~~~~~~~~~~~~~~
-    + CategoryInfo          : ObjectNotFound: (C:\AlphaData\al...gram on APP.pdf:String) [Get-Item], ItemNotFoundExcep 
-   tion
-    + FullyQualifiedErrorId : PathNotFound,Microsoft.PowerShell.Commands.GetItemCommand
 The property 'LastWriteTimeUtc' cannot be found on this object. Verify that the property exists and can be set.
 At C:\services\alpha-tunnel\scripts\alpha-data-sync.ps1:137 char:3
 +   (Get-Item -LiteralPath $dst).LastWriteTimeUtc = (Get-Item -LiteralP ...
