@@ -533,6 +533,13 @@
       "primary": "alpha-server-01",
       "primaryUrl": "http://alpha-server-01:8001/health",
       "why": "V 2026-10-09: point standby and data copy at alpha-server-01, the new host. Alpha Standby now watches alpha-server-01's Alpha by its tailnet name (MagicDNS); it stays idle while this machine is the primary"
+    },
+    {
+      "id": "20261009-08-full-memory-to-alpha-server-01",
+      "do": "data-sync",
+      "peer": "alpha-server-01",
+      "since": "2000-01-01T00:00:00Z",
+      "why": "V 2026-10-09: send the full memory copy to alpha-server-01. The whole of memory\\ (less test leftovers, the recovery image, the Android SDK, the books junction and caches), packed with a SHA-256 manifest and sent over Taildrop (tunnel #242, #245). It asks tailscale status first and stops at once if alpha-server-01 is offline or not on the tailnet; the server collects it with tailscale file get / the data-sync receive"
     }
   ],
   "autofix": {
