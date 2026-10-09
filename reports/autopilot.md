@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261009-231847
+﻿# laptop41 autopilot 20261009-232346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout ac1686a is current
+
+## auto-data-sync-20261009-232346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:24:42, 502s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:24 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 1 file(s), 192.4 MB written since 2026-08-13T03:36:01Z, to alpha-serv-01
+  PART of a backlog: 9045 file(s), 3,229.7 MB still to send, from 2026-08-13T03:56:37Z; the next pass carries on
+```
 
 ## auto-live-sync-20261009-231847  live-sync (standing)  ->  0 (in sync)   (2026-10-09T23:19:23, 12s)
 ```
@@ -301,13 +309,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:40 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-live-sync-20261009-212850  live-sync (standing)  ->  1 (could not run)   (2026-10-09T21:29:40, 1s)
 ```
 STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access 'https://github.com/vyos88/Alpha/': getaddrinfo() thread failed to start
-```
-
-## auto-data-sync-20261009-212850  data-sync (standing)  ->  0 (in step)   (2026-10-09T21:29:51, 468s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 21:29 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 31 file(s), 90.0 MB written since 2022-03-23T16:18:40Z, to alpha-serv-01
-  PART of a backlog: 13146 file(s), 4,238.3 MB still to send, from 2026-04-24T15:52:06Z; the next pass carries on
 ```
 
