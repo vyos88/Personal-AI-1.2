@@ -1207,6 +1207,42 @@ over stubs — most of the bugs above were only findable that way.
 builds an ephemeral auth service with that token as its only credential. Both
 exist for tests.
 
+**The PowerShell suites need `pwsh`, not Windows.** Fifteen suites skip when
+`PWSH` names nothing runnable — `agent-setup`, `alpha-data-in`,
+`alpha-standdown`, `autopilot`, `comfyui-off`, `coord-post`, `enable-image`,
+`enable-music`, `install-always-on`, `laptop41-doctor`, `ollama-keepalive`,
+`panel-endpoint`, `python-one-liners`, `repair-alpha-host`, `songs-check` —
+and reading that as "they run only on the two laptops" is what left `.ps1`
+work merged with nothing behind the rule against it. They do not touch
+Windows: each stands in for the cmdlets it needs, over a JSON file —
+`alpha-standdown.test.js` fakes the scheduled tasks, the service, the process
+table, the listeners and both URLs — so PowerShell 7 on Linux runs them. In a
+cloud container:
+
+```bash
+curl -sSLo pwsh.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz
+mkdir -p ~/pwsh && tar -xzf pwsh.tar.gz -C ~/pwsh && chmod +x ~/pwsh/pwsh
+PATH=~/pwsh:$PATH npm test
+```
+
+On **PATH**, not only `PWSH`: `test/login-checks.test.js:21` and
+`test/apply-alpha-update.test.js:293` look it up by name, and the second is
+right to — `apply-alpha-update.mjs:430` resolves `pwsh` from PATH itself, so a
+test that took it from an environment variable would stop testing what the
+script does. `PWSH` stays the override for an install that is not on PATH.
+
+That is how the no-Alpha heartbeat page turned out to be untested rather than
+passing: its test ran the script under a machine name `-ExpectHost` refuses,
+so every run exited 3 at `autopilot.ps1:519` having asserted nothing about the
+page it was written for.
+
+What it does **not** prove is the half the fakes replace. A real
+`Get-NetTCPConnection`, `Get-ScheduledTask`, `mode.com` or `schtasks` is still
+only exercised on Windows, and `$env:COMPUTERNAME` is unset here unless a test
+sets it. So pwsh-on-Linux is the gate for parse errors, argv contracts and
+pure logic — most of what these scripts are — and a laptop is still the only
+place a cmdlet's own behaviour is checked.
+
 ## Working with other sessions
 
 Several Claude sessions push to this repo, and `main` moves under you.

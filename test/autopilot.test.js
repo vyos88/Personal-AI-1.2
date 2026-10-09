@@ -1215,6 +1215,10 @@ test('a machine that does not run Alpha gets the coordinator and its checkout, n
   git(work, 'add', '.');
   git(work, 'commit', '-qm', 'init');
   git(work, 'push', '-q', 'origin', 'main');
+  // A real checkout tracks a branch; without this self-update cannot pull and
+  // every pass here would report STALE for a reason no machine has.
+  git(work, 'fetch', '-q', 'origin');
+  git(work, 'branch', '-q', '--set-upstream-to=origin/main', 'main');
   git(dir, 'clone', '-q', remote, ctl);
   git(ctl, 'checkout', '-q', '--orphan', 'control/host');
   // alpha:false is the whole difference from the test above.
@@ -1231,7 +1235,7 @@ test('a machine that does not run Alpha gets the coordinator and its checkout, n
   const fake = (healthz) => `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; `
     + `function Invoke-WebRequest { ${healthz} }; `;
   const run = (healthz) => spawnSync(PWSH, ['-NoProfile', '-Command',
-    `${fake(healthz)}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(dir, 'no-alpha', 'software')}' -Channel host; exit $LASTEXITCODE`],
+    `${fake(healthz)}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(dir, 'no-alpha', 'software')}' -Channel host -ExpectHost LAPTOP-GJ8DFMLK; exit $LASTEXITCODE`],
   { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'LAPTOP-GJ8DFMLK' } });
   const live = () => git(remote, 'show', 'status/host-live:reports/live.md');
   const liveJson = () => JSON.parse(git(remote, 'show', 'status/host-live:reports/live.json').replace(/^﻿/, ''));
@@ -1266,4 +1270,14 @@ test('a machine that does not run Alpha gets the coordinator and its checkout, n
   r = run(OK);
   assert.match(r.stdout, /nothing new to run/);
   assert.equal(commits(), before + 1);
+
+  // The row this page exists for. The Host sat on e175472 for fifteen hours
+  // over one uncommitted scripts/usb-inventory.ps1, 18 commits behind, and
+  // nothing said so where anybody was looking.
+  writeFileSync(join(work, 'scripts', 'local.txt'), 'uncommitted');
+  run(OK);
+  md = live();
+  assert.match(md, /^# Coordinator is LISTENING - LAPTOP-GJ8DFMLK/, 'a stale checkout is not a down coordinator');
+  assert.match(md, /\| Checkout \| STALE \| checkout [0-9a-f]+ did NOT update \(self-update exit 1\): self-update: working copy has uncommitted changes; local changes: \?\? scripts\/local\.txt \|/);
+  assert.equal(liveJson().checkout.stale, true);
 });

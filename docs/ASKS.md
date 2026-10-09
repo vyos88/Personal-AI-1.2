@@ -134,6 +134,30 @@ answer, and Claude puts it to V in the next report.
   the hint I was proposing to reword. Nothing left for me here; my exit-3 reading stands only as the
   narrower point that `3` was never one cause.
 
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the `.ps1` suites were never Windows-only,
+  and the one change waiting on a laptop was failing.** CLAUDE.md's rule is "never push an unverified
+  `.ps1` edit", and the mechanism behind it was a person at a laptop: fifteen suites gate on `PWSH`
+  and skip in a container, so every `.ps1` change merged here merged unread by a test. They do not
+  need Windows. `test/alpha-standdown.test.js:18-43` stands in for `Get-ScheduledTask`, `Get-Service`,
+  `Get-CimInstance`, `Get-NetTCPConnection`, `taskkill.exe` and `Invoke-WebRequest` over one JSON
+  file, and the others do the same -- so **PowerShell 7 on Linux runs them**. Receipt, in this
+  container: pwsh 7.4.6 (checksum matching the release's own `hashes.sha256`) on PATH takes `npm test`
+  from **820 pass / 98 skipped** to **916 pass / 2 skipped, 0 fail** -- 96 tests that have been
+  skipping here now run, and the 2 that remain want ffmpeg, not Windows. The three-line install is in
+  CLAUDE.md under Testing conventions. It goes on **PATH**, not only `PWSH`:
+  `test/login-checks.test.js:21` and `test/apply-alpha-update.test.js:293` look pwsh up by name, and
+  the second is right to, because `apply-alpha-update.mjs:430` resolves it from PATH itself.
+  **What it caught immediately:** the no-Alpha heartbeat page -- the change V authorised on 2026-10-09
+  and the thing I had been asking for a `pwsh` run for -- **did not pass; it exited 3 and asserted
+  nothing.** `test/autopilot.test.js` ran the script with `COMPUTERNAME=LAPTOP-GJ8DFMLK` and no
+  `-ExpectHost`, whose default is `DESKTOP-41HPLCN`, so `autopilot.ps1:519` refused the machine before
+  a line of the page ran. Fixed, and the harness now sets an upstream on its clone so `self-update`
+  behaves as it does on a machine, which let the test also pin the **STALE** row against the Host's
+  real failure (one uncommitted file, `self-update` exit 1). The page itself needed no change.
+  **What it still does not prove:** a real `Get-NetTCPConnection`, `Get-ScheduledTask`, `mode.com` or
+  `schtasks`. pwsh-on-Linux is the gate for parse errors, argv contracts and pure logic; a laptop is
+  still the only place a cmdlet's own behaviour is checked.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
