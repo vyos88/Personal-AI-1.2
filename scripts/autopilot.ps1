@@ -45,6 +45,12 @@
     chat-task        chat-task.ps1: the 'Alpha Ollama' task and "chat" in selfheal.json, so self-heal restarts chat
     coord-post       coord-post.mjs: one message to Alpha's coordination log  ("message", "actor", "via": "records-standby")
     start-task       Start-ScheduledTask <"task">: Alpha, Alpha Backend, Alpha Self-Heal, Alpha Doctor
+    alpha-standdown  alpha-standdown.ps1: stop serving Alpha here so the Host can (Phase 2 of the move)  ("confirm": "hand-over", or "reportOnly": true; "primary")
+    alpha-standup    alpha-standdown.ps1 -Undo: serve Alpha here again, as it was  ("reportOnly": true, "force": true)
+
+  While role.json in -OpsDir says "standby" (alpha-standdown writes it), the
+  actions that would start Alpha here are refused, self-heal is not restarted,
+  and the live page reads STANDBY.
 
   Each id runs once. To run something again, queue it under a new id.
 
@@ -104,6 +110,14 @@ function Resolve-Action($a) {
   $do = [string]$a.do
   $out = [ordered]@{ id = $id; do = $do; ok = $false; reason = $null; exe = $null; args = @(); internal = $null; timeoutMin = 10 }
   if ($id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$') { $out.reason = 'id must be 1-64 letters, digits, dot, dash or underscore'; return $out }
+  # A standby must not start a second Alpha: these all start or re-enable it.
+  if ($standby) {
+    $starts = @('restart-backend', 'restart-site', 'repair-host', 'panel-host', 'interactive-first-off')
+    if ($starts -contains $do -or ($do -eq 'start-task' -and [string]$a.task -ne 'Alpha Doctor')) {
+      $out.reason = "this machine is standby (role.json): Alpha serves from $($role.primary). Queue alpha-standup first"
+      return $out
+    }
+  }
   $spec = $null
   switch ($do) {
     'doctor'          { $spec = Ps1 'laptop41-doctor.ps1' @('-Watch', '-Push', '-AlphaRoot', $AlphaRoot); $out.timeoutMin = 12 }
@@ -317,6 +331,24 @@ function Resolve-Action($a) {
     # alpha-move-* folder on a plugged-in drive into the clone. Adds only,
     # never a .env file; refuses while anything answers on 8001 here.
     'alpha-data-in' { $spec = Ps1 'alpha-data-in.ps1' @(); $out.timeoutMin = 60 }
+    # Phase 2 of the move, this machine's half (HANDOFF_2026-10-07d): only with
+    # V's word, said in the action, or as a rehearsal that changes nothing.
+    'alpha-standdown' {
+      $rest = @('-OpsDir', $OpsDir)
+      if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
+      elseif ([string]$a.confirm -ne 'hand-over') { $out.reason = 'this stops Alpha here: say "confirm": "hand-over" (V present, HANDOFF_2026-10-07d Phase 2), or "reportOnly": true to rehearse'; return $out }
+      if ($a.primary) {
+        if ([string]$a.primary -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$') { $out.reason = 'primary must be a machine name'; return $out }
+        $rest += @('-Primary', [string]$a.primary)
+      }
+      $spec = Ps1 'alpha-standdown.ps1' $rest; $out.timeoutMin = 6
+    }
+    'alpha-standup' {
+      $rest = @('-OpsDir', $OpsDir, '-Undo')
+      if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
+      if ($a.force -eq $true) { $rest += '-Force' }
+      $spec = Ps1 'alpha-standdown.ps1' $rest; $out.timeoutMin = 6
+    }
     'start-task' {
       $t = [string]$a.task
       if ($tasksAllowed -notcontains $t) { $out.reason = "task must be one of: $($tasksAllowed -join ', ')"; return $out }
@@ -359,6 +391,7 @@ function Get-HomeWifiAction($f) {
     if ((& $sinceMin $f.lastJoin) -lt 10) { return @{ action = 'none'; why = "$where; rejoining '$homeSsid' was tried less than 10 minutes ago" } }
     return @{ action = 'rejoin'; why = "$where while '$homeSsid' is visible: rejoining it with its saved profile" }
   }
+  if ($f.standby) { return @{ action = 'none'; why = "on '$homeSsid'; standby: Alpha serves from the primary, so the backend here stays off" } }
   $ip = [string]$f.wifiIp
   if (-not $ip) { return @{ action = 'none'; why = "on '$homeSsid' with no address yet" } }
   $listen = @($f.listeners | ForEach-Object { [string]$_ })
@@ -466,6 +499,15 @@ function Restart-Backend {
   [void]$lines.Add($(if ($up) { "backend listening on $port" } else { "backend NOT listening on $port after 150s" }))
   return @{ code = $(if ($up) { 0 } else { 1 }); text = ($lines -join "`n") }
 }
+
+# role.json (alpha-standdown.ps1): "standby" while another machine serves Alpha.
+function Read-Role {
+  $f = Join-Path $OpsDir 'role.json'
+  if (-not (Test-Path -LiteralPath $f)) { return $null }
+  try { return (Get-Content -LiteralPath $f -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json } catch { return $null }
+}
+$role = Read-Role
+$standby = [bool]($role -and [string]$role.role -eq 'standby')
 
 if ($Plan) {
   $doc = Get-Content -LiteralPath $Plan -Raw | ConvertFrom-Json
@@ -904,6 +946,10 @@ if (Test-Path -LiteralPath $auditFile) {
 #   as restart-backend does, at most every 30 minutes, when the address is in
 #   its list; otherwise say to queue panel-host.
 # Reported only when what it found changes, and whenever it acts.
+# A stand-down queued in this pass has just written role.json: read it again,
+# or the checks below treat the Alpha it stopped as one to restart.
+$role = Read-Role
+$standby = [bool]($role -and [string]$role.role -eq 'standby')
 $wifiKey = if ($state -and $state.homeWifiKey) { [string]$state.homeWifiKey } else { '' }
 $wifiJoinAt = if ($state -and $state.homeWifiJoinAt) { [string]$state.homeWifiJoinAt } else { '' }
 $wifiRestartAt = if ($state -and $state.homeWifiRestartAt) { [string]$state.homeWifiRestartAt } else { '' }
@@ -917,14 +963,14 @@ if ($wifi) {
     $wa = Get-WifiAdapter
     if (-not $wa) { throw 'no Wi-Fi adapter answered' }
     $facts = Get-HomeWifiFacts $wa $homeSsid
-    $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = $started; lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt })
+    $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = $started; lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt; standby = $standby })
     [void]$wlines.Add($do.why)
     if ($do.action -eq 'rejoin') {
       $acted = $true
       $wifiJoinAt = (Get-Date).ToString('s')
       [void]$wlines.Add("rejoin: $(Join-HomeWifi $wa $homeSsid)")
       $facts = Get-HomeWifiFacts $wa $homeSsid
-      $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = (Get-Date); lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt })
+      $do = Get-HomeWifiAction ($facts + @{ home = $homeSsid; now = (Get-Date); lastJoin = $wifiJoinAt; lastRestart = $wifiRestartAt; standby = $standby })
       [void]$wlines.Add($do.why)
     }
     if ($do.action -eq 'restart') {
@@ -1057,6 +1103,21 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
     $alpha.checked_by = 'this pass'
   }
+  # A standby serves nothing here, on purpose: say who does, and say loudly if
+  # anything here is serving too, since two Alphas write two histories.
+  if ($hbAlpha -and $standby) {
+    $here = @()
+    try { if (Get-NetTCPConnection -LocalPort 8001 -State Listen -EA Stop) { $here += 'backend' } } catch { }
+    try { if (Get-NetTCPConnection -LocalPort 4173 -State Listen -EA Stop) { $here += 'site' } } catch { }
+    if (Get-Process -Name cloudflared -EA SilentlyContinue) { $here += 'connector' }
+    $pub = 0
+    try { $pub = [int](Invoke-WebRequest -Uri 'https://alpha-ai.uk/' -UseBasicParsing -TimeoutSec 10 -EA Stop).StatusCode } catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { $pub = [int]$r.StatusCode } }
+    $alpha.verdict = if ($here.Count) { 'STANDBY BUT SERVING' } else { 'STANDBY' }
+    $alpha.detail = "Alpha serves from $($role.primary): alpha-ai.uk $(if ($pub) { $pub } else { 'no answer' }); " +
+      $(if ($here.Count) { "running HERE too: $($here -join ', ') (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)" } else { 'nothing of Alpha runs here' })
+    $alpha.checked_by = 'this pass'
+    $heal.state = 'OFF (standby)'; $heal.why = ''; $heal.unfinished = ''
+  }
   if ($hbAlpha -and $heal.state -eq 'STOPPED') {
     $kickFile = Join-Path $dir 'selfheal-restart.txt'
     $lastKick = [datetime]::MinValue
@@ -1105,7 +1166,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       'Written every autopilot pass (5 minutes), whether or not anything changed.', '',
       '| Check | State | Detail |', '|---|---|---|',
       "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
-      "| Repair agent (self-heal) | $($heal.state) | $(if ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
+      "| Repair agent (self-heal) | $($heal.state) | $(if ($standby) { 'off on purpose: another machine serves Alpha' } elseif ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
       "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
       "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
     ) -join "`n"

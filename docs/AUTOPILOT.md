@@ -68,6 +68,8 @@ reported.
 | `panel-identify` | `panel-up.mjs --identify`: which board is on each of this machine's serial ports, asked of the boards — Worker1 carries five bridges and `mode.com` calls every one of them `USB-SERIAL CH340`. Per port: **panel** (the tunnel's own firmware answered), **alpha-deck** (Alpha's deck firmware, which `panel-endpoint` points and this must never flash over), **other**, **silent**, or **unreadable** (something else holds the port). Read-only: one status query per port, nothing written, no arguments. Queue it when `panel-endpoint` reports a port that never answered STATUS |
 | `alpha-runtime` | `alpha-runtime.mjs`: what Alpha's loops and agents are doing, from the machine. Prints the assistant/awareness/thoughts state, the heartbeat age, and **what the cycle is waiting for** — awareness runs inside the assistant cycle and shares its gate, so `awareness: not-started` means the cycle has not had the shared background lane yet, which under memory pressure can last hours and looks identical to a dead loop. Then the newest agent receipts with the **reason** each one failed, not only the class the deck publishes. Read-only: one unauthenticated LAN GET of the deck feed and one read of `memory\local\alpha_agent_registry.json`; no arguments |
 | `start-task` | `Start-ScheduledTask` for `Alpha`, `Alpha Backend`, `Alpha Self-Heal` or `Alpha Doctor` |
+| `alpha-standdown` | `alpha-standdown.ps1`, this machine's half of the Alpha switch-over (`HANDOFF_2026-10-07d` Phase 2 steps 1 and 3). It writes `role.json` (standby) first. Then it disables `Alpha Self-Heal` and `Alpha Server - Health Guard` before anything is stopped, stops and disables `Alpha Backend` and `Alpha`, stops their wrapper trees and the node/python holding 8001 and 4173 (anything else there is named and left), stops the cloudflared service and sets it to Manual, disables a task that runs cloudflared, and stops a cloudflared left running. Command lines are never printed or saved (cloudflared takes `--token` on one). Every change goes to `standdown\standdown-<time>.json`. Alpha's own runtime (Agent Manager, always-on, watchdog) is named, never stopped: Alpha stops it through its manager. Needs `"confirm": "hand-over"` (V present); `"reportOnly": true` rehearses and changes nothing; `"primary"` names the machine taking over (default `laptop-gj8dfmlk`). Exit 0 done, 1 something still serves here (named), 2 only Alpha's runtime is left |
+| `alpha-standup` | `alpha-standdown.ps1 -Undo`: serve Alpha here again. It enables only what the record says was enabled, restores the connector's start type, starts the servers before the watchers, sets `role.json` aside and waits for `/health`. It refuses (exit 3) while alpha-ai.uk answers and no connector runs here, because then another machine serves Alpha; `"force": true` overrides that. `"reportOnly": true` changes nothing |
 
 ## Long queues
 
@@ -205,6 +207,23 @@ changes. They are turned on in the same `actions.json`:
     A backend that is down is left to self-heal.
   - It reports when what it found changes and whenever it acts. If the Wi-Fi
     API itself fails, it reports "could not check" once and changes nothing.
+
+**A standby.** While `role.json` in the ops folder says `standby`
+(`alpha-standdown` writes it, `alpha-standup` sets it aside), another machine
+serves Alpha and this one must not start a second:
+
+- the actions that start or re-enable Alpha here are refused: `restart-backend`,
+  `restart-site`, `repair-host` (it re-registers self-heal), `panel-host`,
+  `interactive-first-off`, and `start-task` for anything but `Alpha Doctor`;
+- the live page reads **STANDBY**, with who serves and what alpha-ai.uk
+  answers, or **STANDBY BUT SERVING** when a backend, site or connector runs
+  here too. Self-heal is shown as off and never started again;
+- `homeWifi` still rejoins the home network but never restarts the backend;
+- self-heal itself writes one `standby` line per pass and repairs nothing,
+  in case its task gets enabled again;
+- the doctor checks the standby instead of a serving Alpha: alpha-ai.uk
+  answers, and no backend, site, connector or Alpha task is running or enabled
+  here. Each of those is a problem, because two Alphas write two histories.
 
 ## Trust
 

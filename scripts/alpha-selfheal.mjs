@@ -136,7 +136,24 @@ export function loadConfig(path) {
   if (!config.frontend?.url) missing.push('frontend.url');
   if (missing.length) throw new Error(`config is missing ${missing.join(', ')}`);
   config.logFile ??= join(config.stateDir, 'selfheal.jsonl');
+  // alpha-standdown.ps1 writes it beside the config (the ops directory).
+  config.roleFile ??= join(dirname(path), 'role.json');
   return config;
+}
+
+/**
+ * "standby" while another machine serves Alpha (alpha-standdown.ps1). Only one
+ * Alpha may serve alpha-ai.uk, so a standby's self-heal repairs nothing; its
+ * task is disabled by the stand-down, and this is what still holds when
+ * something enables it again (repair-alpha-host re-registers it).
+ */
+export function readRole(file) {
+  if (!file || !existsSync(file)) return null;
+  try {
+    return JSON.parse(readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -751,6 +768,12 @@ function describe(event) {
 }
 
 export async function runPass({ config, probe = probeAll, executor, post, now = Date.now(), dryRun = false, progress = {}, alive }) {
+  const role = readRole(config.roleFile);
+  if (role?.role === 'standby') {
+    const record = { at: new Date(now).toISOString(), standby: { primary: role.primary ?? null }, actions: [], events: [] };
+    appendLog(config.logFile, record, config.logMaxBytes ?? DEFAULTS.logMaxBytes);
+    return { skipped: `standby: Alpha serves from ${role.primary ?? 'another machine'}; nothing is probed or repaired here`, record };
+  }
   const release = acquireLock(config.stateDir, config.lockStaleMs ?? DEFAULTS.lockStaleMs, now, alive ? { alive } : {});
   if (!release) return { skipped: 'another pass holds the lock' };
   // What the CLI needs to write this pass's line if it never finishes.

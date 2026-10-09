@@ -436,6 +436,12 @@ on. Its policy lives in the pure `decide()` and is pinned by
   because the socket timeout is idle time and a server sending a byte every
   100 ms never trips it. The doctor (`-ExplainSelfHeal`) and the live page read
   the lock and `selfheal.json.error.json` before they guess.
+- **A standby repairs nothing.** `role.json` beside the config, written by
+  `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
+  log one `standby` line and stop. The stand-down disables the task too; this
+  is what still holds when `repair-alpha-host` re-registers it. Only one Alpha
+  may serve alpha-ai.uk, so the autopilot refuses the jobs that would start a
+  second, and the doctor checks a standby for exactly that.
 
 **A verification that could not run is reported as that, never as a failure.**
 `repair-alpha-host.ps1`'s roster check captured

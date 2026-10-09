@@ -417,6 +417,56 @@ test('interactive-first-off edits the env file beside Alpha, and takes nothing f
   assert.ok(!/evil|true/.test(p.args.join(' ')), 'nothing from the action reaches the script');
 });
 
+test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a standby refuses what would start Alpha', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-standdown-'));
+  const ops = join(dir, 'ops');
+  mkdirSync(ops);
+  const file = join(dir, 'actions.json');
+  const plan = (actions) => {
+    writeFileSync(file, JSON.stringify({ actions }));
+    const r = pwsh([SCRIPT, '-Plan', file, '-AlphaRoot', 'C:\\A\\software', '-OpsDir', ops]);
+    assert.equal(r.status, 0, r.stderr);
+    return Object.fromEntries(JSON.parse(r.stdout).map((p) => [p.id, p]));
+  };
+  let p = plan([
+    { id: 'd1', do: 'alpha-standdown' },
+    { id: 'd2', do: 'alpha-standdown', confirm: 'yes' },
+    { id: 'd3', do: 'alpha-standdown', reportOnly: true },
+    { id: 'd4', do: 'alpha-standdown', confirm: 'hand-over', primary: 'laptop-gj8dfmlk' },
+    { id: 'd5', do: 'alpha-standdown', confirm: 'hand-over', primary: 'x; calc' },
+    { id: 'u1', do: 'alpha-standup', force: true, reportOnly: true },
+    { id: 'b1', do: 'restart-backend' },
+  ]);
+  assert.equal(p.d1.ok, false);
+  assert.match(p.d1.reason, /"confirm": "hand-over"/);
+  assert.equal(p.d2.ok, false);
+  assert.deepEqual(p.d3.args.slice(-3), ['-OpsDir', ops, '-ReportOnly']);
+  assert.match(p.d3.args.at(-4), /alpha-standdown\.ps1$/);
+  assert.deepEqual(p.d4.args.slice(-4), ['-OpsDir', ops, '-Primary', 'laptop-gj8dfmlk']);
+  assert.equal(p.d5.ok, false);
+  assert.deepEqual(p.u1.args.slice(-5), ['-OpsDir', ops, '-Undo', '-ReportOnly', '-Force']);
+  assert.equal(p.b1.ok, true, 'a machine that serves Alpha may restart it');
+
+  // Once it stood down, nothing queued may start Alpha here again but alpha-standup.
+  writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
+  p = plan([
+    { id: 'r1', do: 'restart-backend' },
+    { id: 'r2', do: 'restart-site' },
+    { id: 'r3', do: 'repair-host' },
+    { id: 'r4', do: 'panel-host' },
+    { id: 'r5', do: 'start-task', task: 'Alpha Backend' },
+    { id: 'r6', do: 'start-task', task: 'Alpha Self-Heal' },
+    { id: 'k1', do: 'start-task', task: 'Alpha Doctor' },
+    { id: 'k2', do: 'doctor' },
+    { id: 'k3', do: 'alpha-standup' },
+  ]);
+  for (const id of ['r1', 'r2', 'r3', 'r4', 'r5', 'r6']) {
+    assert.equal(p[id].ok, false, id);
+    assert.match(p[id].reason, /standby \(role\.json\): Alpha serves from laptop-gj8dfmlk\. Queue alpha-standup first/, id);
+  }
+  for (const id of ['k1', 'k2', 'k3']) assert.equal(p[id].ok, true, id);
+});
+
 test('home Wi-Fi: rejoins the home network only while it is visible, and restarts the backend only for an address it was told to bind', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-wifi-'));
   let n = 0;
@@ -450,6 +500,11 @@ test('home Wi-Fi: rejoins the home network only while it is visible, and restart
   assert.equal(unlisted.action, 'report');
   assert.match(unlisted.why, /192\.168\.2\.151 is not in the backend's address list: queue panel-host/);
   assert.equal(decide({ connected: 'Starlink V', wifiIp: '' }).action, 'none');
+  // A standby keeps its backend off on purpose: the Wi-Fi is still joined.
+  const standby = decide({ ...on, listeners: ['127.0.0.1'], standby: true });
+  assert.equal(standby.action, 'none');
+  assert.match(standby.why, /standby: Alpha serves from the primary, so the backend here stays off/);
+  assert.equal(decide({ connected: 'STARLINK', homeVisible: true, standby: true }).action, 'rejoin');
 
   // It joins with the profile Windows saved and changes no Wi-Fi setting.
   const text = readFileSync(SCRIPT, 'utf8');
@@ -987,6 +1042,18 @@ test('the live report is written every pass, and a stopped self-heal is started 
   md = live();
   assert.match(md, /\| RUNNING \| last pass 0 min ago, 0 repair\(s\) in it; the last pass did not finish \(still running after 240 s, at probe\)/);
   assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not finishing its passes/);
+
+  // A standby: who serves, and no self-heal restart, however old its log.
+  writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));
+  const veryOld = new Date(Date.now() - 90 * 60 * 1000);
+  utimesSync(log, veryOld, veryOld);
+  writeFileSync(kicks, '');
+  r = run();
+  md = live();
+  assert.match(r.stdout, /live report: Alpha STANDBY; self-heal OFF \(standby\)/);
+  assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| STANDBY \| Alpha serves from laptop-gj8dfmlk: alpha-ai\.uk 200; nothing of Alpha runs here \(checked by this pass\)/);
+  assert.match(md, /\| Repair agent \(self-heal\) \| OFF \(standby\) \| off on purpose: another machine serves Alpha/);
+  assert.equal(readFileSync(kicks, 'utf8').trim(), '', 'a standby\'s self-heal is off on purpose');
 });
 
 test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {
