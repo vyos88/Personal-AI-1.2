@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-10T00:45:29.7557728+01:00",
+    "at":  "2026-10-10T00:50:18.4345337+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "4 live, 1 stale, 1 static, 1 no feed",
                   "not_live":  "network, hardware, atlas: devices (/devices/network/topology)",
-                  "checked_at":  "2026-10-09T23:31:07.672078+00:00"
+                  "checked_at":  "2026-10-09T23:50:05.835250+00:00"
               },
     "sync":  "IN SYNC: this machine runs 6795e6a of claude/frie...(30)"
 }
