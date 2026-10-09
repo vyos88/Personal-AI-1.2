@@ -52,6 +52,12 @@ export const DEFAULT_AGENT_CONCURRENCY = 1;
 // the host it is gone. Kept under the entrypoint's 3s force-exit budget.
 export const SHUTDOWN_DRAIN_MS = 2_000;
 
+// How long a handler has to settle after its task's budget aborts it. A
+// handler that ignores its signal would otherwise hold its slot forever: the
+// host sees a machine that heartbeats and asks for nothing, and at the default
+// concurrency of 1 the worker is gone in all but name until someone restarts it.
+export const HANDLER_ABORT_GRACE_MS = 10_000;
+
 // What a supervisor sends its agent child over the IPC channel to ask for the
 // same clean shutdown a SIGTERM asks for. It exists because Windows — where the
 // host and most of these laptops actually run — has no signal that means "stop
@@ -81,13 +87,34 @@ export const TERMINAL_STATUSES = new Set([
 export const DEFAULT_LEASE_MS = 60_000;
 export const DEFAULT_MAX_ATTEMPTS = 3;
 
+// How long, and how many, finished tasks the host keeps in its live queue. The
+// queue is the answer to "what is it doing", and every waiter on a task (the
+// CLI, run-jobs, alpha-manager) polls it within a lease or two of finishing;
+// the receipt ledger is what answers "what did it do". Without a bound, a host
+// fed by a scheduled loop held every payload and result it had ever seen, and
+// the sweeper walked all of them every five seconds.
+export const FINISHED_TASK_RETENTION_MS = 24 * 60 * 60 * 1_000;
+export const MAX_FINISHED_TASKS = 1_000;
+
 // Long-poll ceiling. Kept under the usual 60s proxy idle timeout so an
 // intermediary never closes the connection out from under us.
 export const MAX_POLL_WAIT_MS = 25_000;
 
+// How often the host tells an agent to check in, and what an agent assumes if
+// a host too old to say does not.
+export const HEARTBEAT_INTERVAL_MS = 20_000;
+
 // An agent is considered gone once this much time passes with no heartbeat and
 // no poll. Generous enough to survive a laptop sleeping through a GC pause.
 export const AGENT_STALE_MS = 90_000;
+
+// Two missed heartbeats, plus a little for a slow network. Past this an agent
+// has stopped talking, and readers say so (`stale` on `GET /agents`, the
+// admin table, the watchdog) — but it is only a report. Placement and pruning
+// still go by AGENT_STALE_MS, because a laptop that sleeps through a GC pause
+// should not lose its place; a person asking "is it attached?" should not be
+// told yes about a machine that died a minute ago.
+export const AGENT_SILENT_MS = 2 * HEARTBEAT_INTERVAL_MS + 5_000;
 
 // How long the host remembers that a registration was superseded by a newer
 // process from the same machine. Only has to outlast the superseded process's

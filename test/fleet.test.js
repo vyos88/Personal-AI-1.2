@@ -17,12 +17,22 @@ import { instanceIdFor, machineFingerprint } from '../src/agent/identity.js';
 import { fetchJson, HttpError } from '../src/common/http.js';
 import {
   SUPERSEDED_MEMORY_MS,
+  AGENT_SILENT_MS,
+  AGENT_STALE_MS,
+  HEARTBEAT_INTERVAL_MS,
   validateInstanceId,
   validateRegistration,
   ProtocolError,
 } from '../src/common/protocol.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 const gb = (n) => n * 1024 ** 3;
 const RAM = { totalBytes: gb(16), freeBytes: gb(9), offerableBytes: gb(8) };
 
@@ -327,6 +337,7 @@ test('a second agent process on one machine makes the first stand down', async (
   // from one checkout do. Passed explicitly so the pair can share a machine
   // here without sharing this test runner's own identity.
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -367,6 +378,7 @@ test('a superseded agent hears it from its heartbeat too, and still stands down'
   t.after(() => host.close());
 
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -401,6 +413,7 @@ test('a machine that comes back after a crash keeps lending, without a ghost', a
   t.after(() => host.close());
 
   const options = {
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'jacks-laptop',
@@ -440,4 +453,57 @@ test('a machine that comes back after a crash keeps lending, without a ghost', a
     const { body } = await fetchJson(`${host.url}/tasks/${task.id}`, { token: TOKEN });
     return body.status === 'succeeded';
   });
+});
+
+// ------------------------------------------------------------ gone quiet
+
+test('the silent threshold is two missed heartbeats, well short of the stale sweep', () => {
+  assert.ok(AGENT_SILENT_MS > 2 * HEARTBEAT_INTERVAL_MS);
+  assert.ok(AGENT_SILENT_MS < 3 * HEARTBEAT_INTERVAL_MS);
+  assert.ok(AGENT_SILENT_MS < AGENT_STALE_MS);
+});
+
+test('a machine that missed two heartbeats is reported stale, and nothing else changes', () => {
+  const { registry, tick } = fixedRegistry();
+  const agent = registry.register({ name: 'laptop', capabilities: ['echo'], memory: RAM });
+  const seenAt = registry.list()[0].lastSeenAt;
+  assert.equal(seenAt, 1_000);
+
+  tick(AGENT_SILENT_MS);
+  assert.equal(registry.list()[0].stale, false, 'exactly at the threshold is still attached');
+
+  tick(1);
+  const [row] = registry.list();
+  assert.equal(row.stale, true);
+  assert.equal(row.lastSeenAt, seenAt);
+  assert.equal(row.idleMs, AGENT_SILENT_MS + 1);
+  // Reporting only: still placeable, still offering its RAM, not pruned.
+  assert.deepEqual(registry.candidatesFor({ type: 'echo' }).map((a) => a.id), [agent.id]);
+  assert.equal(registry.offeredBytes(), gb(8));
+  assert.deepEqual(registry.prune(), []);
+
+  // One word from it and it is attached again.
+  registry.touch(agent.id);
+  assert.equal(registry.list()[0].stale, false);
+  assert.equal(registry.list()[0].lastSeenAt, seenAt + AGENT_SILENT_MS + 1);
+
+  // The sweep is where it actually goes, and that is unchanged.
+  tick(AGENT_STALE_MS + 1);
+  assert.deepEqual(registry.prune(), [agent.id]);
+});
+
+test('GET /agents carries stale and lastSeenAt on every row', async (t) => {
+  const { registry, tick } = fixedRegistry(Date.now());
+  const host = await startHost({ registry });
+  t.after(() => host.close());
+
+  await register(host.url, { name: 'laptop' });
+  let [row] = await agents(host.url);
+  assert.equal(row.stale, false);
+  assert.equal(typeof row.lastSeenAt, 'number');
+
+  tick(AGENT_SILENT_MS + 1_000);
+  [row] = await agents(host.url);
+  assert.equal(row.stale, true);
+  assert.equal(row.name, 'laptop', 'listed until the sweep, not hidden');
 });
