@@ -105,7 +105,7 @@ test('the rehearsal says what it would stop and changes nothing', { skip }, () =
   assert.deepEqual(read().log, []);
   assert.equal(existsSync(join(ops, 'role.json')), false);
   assert.doesNotMatch(r.out, /SECRET-TOKEN/, 'a command line is never printed');
-  assert.match(r.out, /service  cloudflared Running, start Automatic, last exit code 0, installed with a token: yes/);
+  assert.match(r.out, /service  cloudflared Running, start Automatic, last exit code 0, --token on its command line yes/);
   assert.doesNotMatch(r.out, /SECRET-SERVICE-TOKEN/, 'only whether there is a token, never the token');
 });
 

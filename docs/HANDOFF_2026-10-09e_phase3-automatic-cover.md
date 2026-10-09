@@ -85,16 +85,38 @@ script started it again.
    its last exit code is 0, or nothing alarming. If it cannot start, a cover
    is live but unreachable, and the stand-up says `CONNECTOR NOT RUNNING`.
 
+## The data: `alpha-data-sync.ps1` (autofix `dataSync`)
+
+One rule, the same on both machines: **the machine that serves Alpha sends
+what changed in `memory\`; the other applies it while it does not serve.**
+Configured on both now, the one setting covers every phase:
+
+| When | Who sends | Who applies |
+|---|---|---|
+| Today (Worker1 serves) | Worker1, every 10 minutes | the Host. It does not serve yet, so it applies at once. Its copy stops being two days old |
+| Switch-over (Worker1 stands down) | Worker1, once more: the minutes before it stopped | the Host, before it starts serving. This is the final copy of step 4, done by itself |
+| After it (the Host serves) | the Host, every 10 minutes | Worker1, the standby: a cover serves recent data |
+| A cover (Worker1 serves) | Worker1. Its sends wait while the Host is down and go when it is back | the Host. It serves again by then, so the package is **held** until `data-apply` |
+| A hand-back | Worker1, once more | as above |
+
+Rules that keep it safe:
+
+- **Checking:** every package is checked by size and SHA-256, and refused if
+  any path in it is outside `memory\`.
+- **Writing:** newer wins. The file it replaces is kept under
+  `alpha-ops\data-sync\replaced\<time>\`, and a file newer on the receiving
+  side is kept and counted. Nothing is ever deleted.
+- **No loops:** a machine never sends back what it only received, and never
+  resends what it already sent.
+- **Transport:** Taildrop, so nothing goes through git.
+  - On 2026-10-08 the Host's `tailscale file get` answered "503 no backend".
+  - The first sends will say whether that still holds.
+
+`data-apply` applies a held package: it stops the backend, applies, and
+starts it again. It is a job, not automatic, because it interrupts the live
+Alpha for about a minute.
+
 ## Still to build
-
-Next:
-
-- **The warm copy:** `memory\` from the Host to Worker1 every 10 minutes, so a
-  cover serves recent data.
-- **The carry-back:** what changed on Worker1 while it covered goes back to the
-  Host, from the hand-back record.
-
-Not built yet:
 
 - **A standby for the coordinator** (`HANDOFF_2026-10-05c`, F30). It is still
   only on the Host, so agents, music and images stop while the Host is down,

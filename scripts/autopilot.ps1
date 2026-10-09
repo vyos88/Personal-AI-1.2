@@ -49,6 +49,11 @@
     alpha-standup    alpha-standdown.ps1 -Undo: serve Alpha here again, as it was  ("reportOnly": true, "force": true)
     standby-install  install-alpha-standby.ps1: Phase 3, cover for the primary automatically (a SYSTEM pass every minute)  ("primary", "primaryUrl")
     standby-uninstall  install-alpha-standby.ps1 -Uninstall: remove that task (its standby.json stays)
+    data-sync        alpha-data-sync.ps1 once: send what changed in memory\ here (while serving) and apply what arrived (while not)  ("peer", "since")
+    data-apply       alpha-data-sync.ps1 -ApplyHeld: stop the backend, apply what was held, start it
+
+  Standing check, every pass: autofix.dataSync = {"peer": "<other machine>",
+  "everyMin": 10} keeps the other machine's memory\ in step (Phase 3).
 
   While role.json in -OpsDir says "standby" (alpha-standdown writes it), the
   actions that would start Alpha here are refused, self-heal is not restarted,
@@ -360,6 +365,22 @@ function Resolve-Action($a) {
       $spec = Ps1 'install-alpha-standby.ps1' $rest; $out.timeoutMin = 3
     }
     'standby-uninstall' { $spec = Ps1 'install-alpha-standby.ps1' @('-OpsDir', $OpsDir, '-Uninstall'); $out.timeoutMin = 2 }
+    # Phase 3's data: Alpha's memory\ between the two machines, over Taildrop,
+    # checked by SHA-256, newer wins, nothing deleted (alpha-data-sync.ps1).
+    'data-sync' {
+      $rest = @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot)
+      if ($a.peer) {
+        if ([string]$a.peer -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$') { $out.reason = 'peer must be a machine name'; return $out }
+        $rest += @('-Peer', [string]$a.peer)
+      }
+      if ($a.since) {
+        if ((Iso-Text $a.since) -notmatch '^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$') { $out.reason = 'since must be a UTC time like 2026-10-07T21:00:00Z'; return $out }
+        if (-not $a.peer) { $out.reason = 'since needs a peer to send to'; return $out }
+        $rest += @('-Since', (Iso-Text $a.since))
+      }
+      $spec = Ps1 'alpha-data-sync.ps1' $rest; $out.timeoutMin = 60
+    }
+    'data-apply' { $spec = Ps1 'alpha-data-sync.ps1' @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot, '-ApplyHeld', '-NoSend'); $out.timeoutMin = 20 }
     'alpha-standup' {
       $rest = @('-OpsDir', $OpsDir, '-Undo')
       if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
@@ -376,6 +397,13 @@ function Resolve-Action($a) {
   if ($spec) { $out.exe = $spec.exe; $out.args = $spec.args }
   $out.ok = $true
   $out
+}
+
+# A time from JSON as ISO text: PowerShell 7 reads an ISO string in JSON as a
+# date, 5.1 leaves it text, and the page and the checks must read the same.
+function Iso-Text($v) {
+  if ($v -is [datetime]) { return $v.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'") }
+  return [string]$v
 }
 
 # Cut anything that looks like a credential before a line leaves the machine.
@@ -792,7 +820,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); dataSyncKey = $(if ($state) { [string]$state.dataSyncKey } else { '' }); dataSyncAt = $(if ($state) { [string]$state.dataSyncAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -1013,12 +1041,51 @@ if ($wifi) {
   $wifiKey = $key
 }
 
+# Phase 3's data (autofix.dataSync = {"peer": "<the other machine>",
+# "everyMin": 10}): alpha-data-sync.ps1 sends what changed in memory\ while this
+# machine serves Alpha, and applies what the peer sent while it does not. Run as
+# a child with a time limit, so a large copy cannot hold the pass; reported when
+# it sent, applied, held or failed, or when that changes.
+$dsKey = if ($state -and $state.dataSyncKey) { [string]$state.dataSyncKey } else { '' }
+$dsAt = if ($state -and $state.dataSyncAt) { [string]$state.dataSyncAt } else { '' }
+$ds = if ($control -and $control.autofix -and $control.autofix.dataSync -and $control.autofix.dataSync.peer) { $control.autofix.dataSync } else { $null }
+if ($ds) {
+  $every = 10
+  if ($ds.everyMin -and [int]$ds.everyMin -ge 5) { $every = [int]$ds.everyMin }
+  $lastDs = [datetime]::MinValue
+  [void][datetime]::TryParse($dsAt, [ref]$lastDs)
+  if (((Get-Date) - $lastDs).TotalMinutes -ge $every) {
+    $started = Get-Date
+    $dsAt = $started.ToString('s')
+    $dsOut = ''; $dsCode = 1
+    if ([string]$ds.peer -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$') { $dsOut = 'REFUSED: autofix.dataSync.peer must be a machine name' }
+    else {
+      $dsLog = Join-Path $dir "$stamp-data-sync.log"
+      try {
+        $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer) `
+                  -WorkingDirectory $repo -NoNewWindow -PassThru -RedirectStandardOutput $dsLog -RedirectStandardError "$dsLog.err"
+        $null = $proc.Handle
+        if ($proc.WaitForExit(15 * 60000)) { $dsCode = $proc.ExitCode } else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $dsCode = 'timeout after 15 min' }
+        $dsOut = ((Get-Content -LiteralPath $dsLog, "$dsLog.err" -EA SilentlyContinue) -join "`n").Trim()
+      } catch { $dsOut = "could not start: $($_.Exception.Message)" }
+    }
+    $acted = $dsOut -match '(?m)^\s*(SENT|APPLIED|HELD|REFUSED|NOT SENT|FAILED)'
+    $k = "$dsCode|" + ((@($dsOut -split "`n" | Where-Object { $_ -match '^\s*(HELD|REFUSED|NOT SENT|FAILED|waiting|taildrop)' }) | ForEach-Object { $_.Trim() }) -join '|')
+    if ($acted -or $k -ne $dsKey) {
+      $res = if ("$dsCode" -eq '0') { '0 (in step)' } elseif ("$dsCode" -eq '3') { '3 (held, or still arriving)' } else { "$dsCode (failed)" }
+      [void]$ran.Add([ordered]@{ id = "auto-data-sync-$stamp"; do = 'data-sync (standing)'; result = $res; at = $started.ToString('s'); seconds = [int]((Get-Date) - $started).TotalSeconds; tail = (Redact $dsOut) })
+      Write-Host "data sync: $res"
+    }
+    $dsKey = $k
+  }
+}
+
 $history = @()
 if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only
@@ -1146,7 +1213,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $coverFile) { try { $coverPass = Get-Content -LiteralPath $coverFile -Raw | ConvertFrom-Json } catch { } }
   $coverAge = if ($coverPass) { [int]((Get-Date) - (Get-Item -LiteralPath $coverFile).LastWriteTime).TotalMinutes } else { $null }
   # PowerShell 7 reads an ISO date in JSON as a date; 5.1 leaves it text.
-  $since = if ($role.since -is [datetime]) { $role.since.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'") } else { [string]$role.since }
+  $since = Iso-Text $role.since
   if ($roleName -eq 'covering') { $cover.detail = "this machine serves Alpha for $($role.primary)$(if ($since) { " since $since" })" }
   elseif ($roleName -eq 'standby') { $cover.detail = "$($role.primary) serves Alpha" }
   else { $cover.detail = 'this machine serves Alpha' }
@@ -1154,6 +1221,20 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   elseif ($coverAge -gt 5 -and $roleName -ne 'primary') { $cover.detail += "; automatic cover is NOT RUNNING (last pass $coverAge min ago)" }
   elseif ($roleName -ne 'primary') { $cover.detail += "; automatic cover: $($coverPass.why) ($coverAge min ago)" }
   else { $cover.detail += '; automatic cover installed, idle while this machine is the primary' }
+  # Phase 3's data: when this machine last sent its changes, applied the
+  # peer's, and what waits for data-apply.
+  $data = [ordered]@{ state = 'OFF'; detail = 'no data copy here (autofix.dataSync)' }
+  $dsState = $null
+  $dsFile = Join-Path $OpsDir 'data-sync\state.json'
+  if (Test-Path -LiteralPath $dsFile) { try { $dsState = Get-Content -LiteralPath $dsFile -Raw | ConvertFrom-Json } catch { } }
+  if ($dsState) {
+    $parts = @()
+    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)" }
+    if ($dsState.lastApply) { $parts += "applied $($dsState.lastApply.files) from $($dsState.lastApply.from) at $(Iso-Text $dsState.lastApply.at)$(if ([int]$dsState.lastApply.keptNewerHere) { " ($($dsState.lastApply.keptNewerHere) newer here kept)" })" }
+    if ([int]$dsState.held) { $parts += "$($dsState.held) package(s) HELD: queue data-apply" }
+    $data.state = if ([int]$dsState.held) { 'HELD' } else { 'ON' }
+    $data.detail = if ($parts.Count) { $parts -join '; ' } else { 'baseline set; nothing sent or applied yet' }
+  } elseif ($ds) { $data.state = 'ON'; $data.detail = "copying with $($ds.peer); no pass yet" }
   $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
   $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
   if (Test-Path -LiteralPath $receipt) {
@@ -1189,11 +1270,12 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     '| Check | State | Detail |', '|---|---|---|',
     "| Alpha (backend, site, alpha-ai.uk) | $($alpha.verdict) | $($alpha.detail) (checked by $($alpha.checked_by)) |",
     "| Role | $($cover.role) | $(Redact $cover.detail) |",
+    "| Data copy | $($data.state) | $(Redact $data.detail) |",
     "| Repair agent (self-heal) | $($heal.state) | $(if ($standby) { 'off on purpose: another machine serves Alpha' } elseif ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
-  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; data = $data; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
   Publish-Live $md $json $headline
 }
 
