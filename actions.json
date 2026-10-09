@@ -570,6 +570,18 @@
       "since": "2000-01-01T00:00:00Z",
       "resend": true,
       "why": "#247: jobs 13 and the dataSync check counted files they could not pack (paths over 260 characters under the old staging folder) as sent, so they would never have gone. The fixed script stages under C:\\AlphaData\\ds, never counts an unpacked file as sent, and resend forgets the old sent list: the full copy starts again from the oldest file, 100 MB a part. Parts already sent go again; alpha-serv-01 keeps them as already the same"
+    },
+    {
+      "id": "20261009-codex-2120-role-teaching-report",
+      "do": "coord-post",
+      "actor": "codex-hourly",
+      "message": "Direct owner instruction from this chat2026-10-09: new Host Alpha-server-01, currently observed tailnet Alpha-serv-01 at100.70.101.6. DESKTOP-41HPLCN Worker1, LAPTOP-GJ8DFMLK Worker2RTX/local Alpha server stopped; do not restore its coordinator or obsolete host supervisors. Codex continues unfinished Claude work while Claude is out of credit. Hourly/fifteen-minute schedules now require auto-fix/auto-teach and before/after receipts between Host and workers; verify remote acknowledgement, local posting is not Host delivery. Objective: inspect current server owner/root/release/auth worker/original task receipts and propose one bounded supported verification under capacity guards. Existing primary-IP correction job12 and dataSync/#248 already owned; no duplicate install/copy/restart or uncertain task retry. Alpha inspect existing fleet-health/role-transition lesson, record exact failures and safe correction, save a deduplicated runbook with rollback and actual receipts, then repeat harmless verification. Do not claim learning from saved text. Current server backend/coordinator timeout; WinRM reachable but ambient auth refused, no trust/security changes. ExistingWorker1 runtime ready. Codex is continuing ClaudePR160 in isolated main-based checkout; source tests passing, full suite pending, no deployment. Report current machine/root/role separately; retain unknown graph links. This notice is not an execution receipt.",
+      "why": "Direct user asks new Host reporting and bounded auto-teaching; notice only, no model or control command"
+    },
+    {
+      "id": "20261009-codex-2120-worker1-receipt",
+      "do": "fleet-inventory",
+      "why": "Read-only prerequisites for continuing Claude: actual current roots/listeners/supervisor state; no restarts, hardware access or model calls"
     }
   ],
   "autofix": {
