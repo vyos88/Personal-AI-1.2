@@ -32,14 +32,22 @@ doctor's own top recommendation names the fix: "Start the alpha-tunnel
 coordinator on the machine `ALPHA_HOST_URL` names (`laptop-gj8dfmlk` since
 2026-10-05: its alpha-coordinator task)."
 
+**Update (20:11 pass, ~90 min in):** still down. The doctor itself has now
+escalated both lines to `NEEDS A PERSON` (open 6 runs, same start time
+18:42:20) — its own threshold for "this has gone on long enough that a
+person, not another pass, is what resolves it." Not sending a second
+notification for the same unchanged finding; the first one at ~30 minutes
+already named the fix and the machine. Flagging the duration here so the
+next check doesn't have to re-derive it.
+
 ### Also recurring (already documented, not re-flagging)
 
-CPU hit 91% this pass (`open 1 run`), crossing Alpha's 90% GPU-admission
+CPU hit 96% this pass (`open 1 run`), crossing Alpha's 90% GPU-admission
 hold again — the same already-explained, self-clearing issue from
 `HANDOFF_2026-10-08d_alpha-gpu-admission-deadlock.md`.
 
 ### No new PRs on either repo this pass
 
 Same 16 open on Personal-AI-1.2, 12 on Alpha. PR #99 continues to see
-commits from the host-side session (now at `29ca751` per the doctor's own
+commits from the host-side session (now at `d5e205f` per the doctor's own
 checkout line) but nothing new requiring action from this check.
