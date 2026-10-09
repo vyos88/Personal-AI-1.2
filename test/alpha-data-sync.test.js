@@ -17,6 +17,15 @@ const SCRIPT = join(import.meta.dirname, '..', 'scripts', 'alpha-data-sync.ps1')
 // answers or not, and the two tasks data-apply touches.
 const FAKES = String.raw`
 function tailscale {
+  if ($args[0] -eq 'status') {
+    # every machine the tests use, online unless FAKE_OFFLINE names it
+    $peers = @{}
+    foreach ($n in 'laptop-gj8dfmlk', 'desktop-41hplcn', 'alpha-server-01') {
+      $peers["nodekey:$n"] = @{ HostName = $n.ToUpper(); DNSName = "$n.tail1.ts.net."; Online = ($env:FAKE_OFFLINE -ne $n) }
+    }
+    $global:LASTEXITCODE = 0
+    return (@{ BackendState = 'Running'; Peer = $peers } | ConvertTo-Json -Depth 4)
+  }
   if ($args[0] -eq 'file' -and $args[1] -eq 'cp') {
     $peer = ([string]$args[-1]).TrimEnd(':')
     $to = Join-Path $env:FAKE_TAILDROP $peer
@@ -181,4 +190,32 @@ test('a send Taildrop could not deliver is sent again next time, and -Since star
   r = w1.run(['-Peer', 'laptop-gj8dfmlk'], serving);
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /SENT 1 file\(s\), .* written since 2026-10-07T21:00:00Z, to laptop-gj8dfmlk/);
+});
+
+test('a peer that is offline or not on the tailnet is reported at once, and nothing is packed', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.run(['-Peer', 'laptop-gj8dfmlk'], serving);
+  w1.write('chats/a.json', 'a', later(1));
+  // the Host had gone dark: on 2026-10-09 a send to it held Worker1's pass
+  let r = w1.run(['-Peer', 'laptop-gj8dfmlk'], { ...serving, FAKE_OFFLINE: 'laptop-gj8dfmlk' });
+  assert.equal(r.code, 1, r.out);
+  assert.match(r.out, /NOT SENT: laptop-gj8dfmlk is offline \(tailscale status\); 1 file\(s\), .* MB wait for it/);
+  assert.equal(existsSync(join(root, 'taildrop', 'laptop-gj8dfmlk')), false, 'nothing was handed to Taildrop');
+  r = w1.run(['-Peer', 'no-such-machine'], serving);
+  assert.match(r.out, /NOT SENT: no-such-machine is not on this tailnet \(tailscale status\)/);
+  r = w1.run(['-Peer', 'laptop-gj8dfmlk'], serving);
+  assert.match(r.out, /SENT 1 file\(s\)/, 'once it is back, what waited goes');
+});
+
+test('a backlog over the cap is left for a data-sync job, which sends it whole', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.write('big.bin', 'x'.repeat(4096), Date.parse('2026-10-08T00:00:00Z'));
+  let r = w1.run(['-Peer', 'alpha-server-01', '-Since', '2000-01-01T00:00:00Z', '-MaxBytes', '1024'], serving);
+  assert.equal(r.code, 3, r.out);
+  assert.match(r.out, /TOO LARGE for this pass: 1 file\(s\), 0\.0 MB written since 2000-01-01T00:00:00Z \(the cap is 0 MB\): queue a data-sync job/);
+  r = w1.run(['-Peer', 'alpha-server-01'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SENT 1 file\(s\), .* written since 2000-01-01T00:00:00Z, to alpha-server-01/, 'the full copy, from the start of time');
 });
