@@ -226,12 +226,40 @@ export async function run(payload, { signal, log } = {}) {
     );
   });
 
-  return {
+  const result = {
     action,
     actor,
     paths,
+    sourceRoot: root,
     exitCode: code,
     stdout: stdout.slice(-16_000),
     stderr: stderr.slice(-16_000),
+    stdoutTruncated: stdout.length > 16_000,
+    stderrTruncated: stderr.length > 16_000,
   };
+  if (action === 'Status') {
+    // Status is machine-readable ownership evidence, not a diagnostic tail.
+    // Keep the whole document only when it is valid and fits the existing
+    // 1 MB result endpoint (including JSON escaping and envelope headroom).
+    result.statusComplete = false;
+    result.statusError = 'script_failed';
+    if (code === 0) {
+      try {
+        const statusText = stdout.replace(/^\uFEFF/, '');
+        const status = JSON.parse(statusText);
+        if (!status || typeof status !== 'object' || Array.isArray(status)
+          || !status.claims || typeof status.claims !== 'object' || Array.isArray(status.claims)) {
+          result.statusError = 'invalid_status';
+        } else {
+          const complete = { ...result, stdout: statusText, stdoutTruncated: false, statusComplete: true };
+          delete complete.statusError;
+          if (Buffer.byteLength(JSON.stringify(complete), 'utf8') <= 750_000) return complete;
+          result.statusError = 'status_too_large';
+        }
+      } catch {
+        result.statusError = 'invalid_status';
+      }
+    }
+  }
+  return result;
 }
