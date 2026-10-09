@@ -1,10 +1,8 @@
-Claude (cloud) report, 2026-10-09 16:56 UTC
+Claude (cloud) report, 2026-10-09 17:56 UTC
 
-BEFORE (Claude, cloud session, 2026-10-09 ~17:10 UTC): V asked to build Phase 3 (automatic standby) now, with Worker1 always ready to run for the Alpha server. Plan: (A) a one-minute SYSTEM pass on Worker1 that covers automatically when the Host's Alpha stops answering over the tailnet, alpha-ai.uk is down and Worker1's own internet works, and hands back when the Host's Alpha answers again. It reuses the #239 stand-down and stand-up, and it is inert while Worker1 is still the primary. (B) a warm copy of memory\ from the Host to Worker1 every 10 minutes, and the carry-back of what changed while Worker1 covered. Both are verified by SHA-256 and delete nothing. Tested PRs; nothing on either laptop is stopped by this session.
+HOST LOOKS DOWN: Worker1's doctor (17:41 UTC) finds no coordinator at the Host (100.93.104.24:8787), and the Host's autopilot has been silent since 15:24 UTC. Worker1 doctor, 2 problems: (1) no coordinator: start its task on the Host. (2) image backend not running on 7861. Alpha live on Worker1, decks 21 working, C: 137.8 GB free. cloudSeen=4dcf5e8 (current).
 
-Worker1 (Laptop41) doctor fresh (16:54 UTC), NO problems: Alpha live, chat 1.3 s, decks 21 working, RAM 2.7/15.8 GB, C: 137.7 GB free. cloudSeen=26b2951 (current). Offline 12:40-15:18 UTC.
-
-NEW, merged by another cloud session ~16:35-16:51 UTC: #238 self-heal: a dead or hung pass no longer silences later ones (it writes "unfinished" after 4 min). #239 Worker1 hand-over to the Host: autopilot jobs alpha-standdown (confirm "hand-over", V present) and alpha-standup (rollback). While role.json says standby, Worker1 starts no second Alpha and self-heal repairs nothing. Queued on Worker1: 20261009-01 stand-down REHEARSAL (report only), not reported yet. NEEDS V first: .env.local to the Host by USB, a fresh memory copy, Alpha's Agent Manager stopped on Worker1 (HANDOFF_2026-10-09d).
+Hand-over (#238, #239, #240, other cloud session): Worker1's stand-down REHEARSAL ran 16:54 UTC, exit 0, nothing changed. Found: self-heal healthy; an orphaned cloudflared serving; Alpha's always-on runtime running, which Alpha's Agent Manager must stop BEFORE a real stand-down (HANDOFF_2026-10-09d). That session is now building Phase 3 (automatic standby, warm memory copy). NEEDS V first: .env.local to the Host by USB, a fresh memory copy.
 
 NEEDS V: Alpha's GPU admission gate is stuck on Worker1 (#234: the telemetry probe never reaches "observed"); the fix belongs in vyos88/Alpha.
 Host: its autopilot cannot update; scripts/usb-inventory.ps1 has an uncommitted local edit there (V decides).
@@ -15,9 +13,9 @@ Asks (docs/ASKS.md; Alpha posts "ASK: ..." in the tunnel):
 
 Alpha's coordination log has no working home yet.
 
-Merged since 08 Oct: #223-#228, #230-#235, #237-#239. #99 (draft) records the music engine (cpu/cuda). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
+Merged since 08 Oct: #223-#228, #230-#235, #237-#240. #99 (draft) records the music engine (cpu/cuda). Open: #229 (draft, held by its author), #160 (conflicts in autopilot.ps1), #136, #99; #86, #83. Alpha#77 and #85 are waiting for V.
 
-Needs V: the hand-over prerequisites (#239); why Worker1 dropped off 12:40-15:18 UTC; Worker1's doctor runs irregularly; Alpha's GPU admission; the Host's usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
+Needs V: is the Host up (coordinator unreachable)?; the hand-over prerequisites; why Worker1 dropped off 12:40-15:18 UTC; Worker1's doctor runs irregularly; Alpha's GPU admission; the Host's usb-inventory.ps1 edit; the owner password (enrollment); book auto-read on Worker1; a home for Alpha's coordination log; #160; Alpha#77/#85; review #136; close Alpha#63; Alpha#47/#24.
 Owner's rule: every session posts in the coordination tunnel before and after it works on either laptop.
 
 Still stands:
