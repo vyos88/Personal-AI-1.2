@@ -45,14 +45,16 @@
       not on this tailnet is reported at once, and nothing is packed: on
       2026-10-09 a send to a machine that had gone dark held Worker1's
       autopilot pass, and its live page, until the job's time ran out.
-    - -MaxBytes caps one pass. Over it, nothing is packed and the backlog is
-      reported (exit 3), for a data-sync job to send without the cap. The
-      autopilot's 10-minute check passes 300 MB, so a full copy is never
-      attempted, and repeated, inside it.
+    - -MaxBytes caps one pass, and a backlog over it goes in parts: the oldest
+      files first, up to the cap, and the next pass carries on from the last
+      one sent. A full copy (an old -Since) is gigabytes, and Taildrop between
+      these machines ran at a few hundred KB/s on 2026-10-09: sent whole, it
+      would hold the autopilot pass, and its 5-minute live page, for hours.
+      In parts, each pass stays a few minutes and the copy streams across.
 
-  Exit codes: 0 done (including "nothing to do"); 1 a send or an apply failed
-  or was refused; 3 a package is held or still arriving, or a backlog is over
-  -MaxBytes.
+  Exit codes: 0 done (including "nothing to do", and one part of a backlog
+  sent); 1 a send or an apply failed or was refused; 3 a package is held, or
+  still arriving.
 #>
 param(
   [string]$OpsDir = 'C:\AlphaData\alpha-ops',
@@ -252,10 +254,31 @@ if ($Peer -and -not $NoSend) {
       Say ("  NOT SENT: {0} is {1} ({2}); {3} file(s), {4:N1} MB wait for it (nothing is lost: the next send starts from {5})" -f $Peer,
         $(if ($peerState -eq 'absent') { 'not on this tailnet' } else { 'offline' }), 'tailscale status', $changed.Count, ($bytes / 1MB), (Iso $since))
       $exit = 1
-    } elseif ($changed.Count -and $MaxBytes -gt 0 -and $bytes -gt $MaxBytes) {
-      Say ("  TOO LARGE for this pass: {0} file(s), {1:N1} MB written since {2} (the cap is {3:N0} MB): queue a data-sync job to send it" -f $changed.Count, ($bytes / 1MB), (Iso $since), ($MaxBytes / 1MB))
-      if (-not $exit) { $exit = 3 }
     } elseif ($changed.Count) {
+      # Over the cap: the oldest first, up to it (at least one file), and every
+      # file stamped the same as the last one taken, so the next pass can carry
+      # on from that time without skipping any.
+      $cutoff = $passStart
+      $left = @()
+      $total = $changed.Count; $totalBytes = $bytes
+      if ($MaxBytes -gt 0 -and $bytes -gt $MaxBytes) {
+        $sorted = @($changed | Sort-Object { [IO.File]::GetLastWriteTimeUtc($_).Ticks })
+        $take = New-Object System.Collections.ArrayList
+        $sum = 0
+        foreach ($f in $sorted) {
+          $len = (Get-Item -LiteralPath $f).Length
+          if ($take.Count -and ($sum + $len) -gt $MaxBytes) { break }
+          [void]$take.Add($f); $sum += $len
+        }
+        $cutoff = [IO.File]::GetLastWriteTimeUtc($take[$take.Count - 1]).Ticks
+        # (A range in PowerShell counts down when it can: 1..0 is two items.)
+        if ($take.Count -lt $sorted.Count) {
+          foreach ($f in $sorted[$take.Count..($sorted.Count - 1)]) {
+            if ([IO.File]::GetLastWriteTimeUtc($f).Ticks -eq $cutoff) { [void]$take.Add($f); $sum += (Get-Item -LiteralPath $f).Length } else { $left += $f }
+          }
+        }
+        $changed = @($take); $bytes = $sum
+      }
       $out = Join-Path $dir "outbox-$stamp"
       $staging = Join-Path $out 'staging'
       foreach ($f in $changed) { Copy-Keeping $f (Join-Path $staging ((Rel $mem $f) -replace '/', '\')) }
@@ -272,9 +295,11 @@ if ($Peer -and -not $NoSend) {
       if ($sent) {
         foreach ($f in $changed) { $sentIdx[(Rel $mem $f)] = [IO.File]::GetLastWriteTimeUtc($f).Ticks }
         Save-Json $sentFile $sentIdx
-        $state.lastSentTicks = $passStart
-        $state | Add-Member -Force -NotePropertyName lastSend -NotePropertyValue ([ordered]@{ at = (Iso $passStart); to = $Peer; files = $changed.Count; bytes = $bytes })
+        $state.lastSentTicks = $cutoff
+        $leftBytes = $totalBytes - $bytes
+        $state | Add-Member -Force -NotePropertyName lastSend -NotePropertyValue ([ordered]@{ at = (Iso $passStart); to = $Peer; files = $changed.Count; bytes = $bytes; leftFiles = $left.Count; leftBytes = $leftBytes })
         Say ("  SENT {0} file(s), {1:N1} MB written since {2}, to {3}" -f $changed.Count, ($bytes / 1MB), (Iso $since), $Peer)
+        if ($left.Count) { Say ("  PART of a backlog: {0} file(s), {1:N1} MB still to send, from {2}; the next pass carries on" -f $left.Count, ($leftBytes / 1MB), (Iso $cutoff)) }
       } else {
         Say "  NOT SENT: $($changed.Count) file(s) wait for the next pass (nothing is lost: the next send starts from $(Iso $since))"
         $exit = 1

@@ -20,7 +20,7 @@ function tailscale {
   if ($args[0] -eq 'status') {
     # every machine the tests use, online unless FAKE_OFFLINE names it
     $peers = @{}
-    foreach ($n in 'laptop-gj8dfmlk', 'desktop-41hplcn', 'alpha-server-01') {
+    foreach ($n in 'laptop-gj8dfmlk', 'desktop-41hplcn', 'alpha-server-01', 'alpha-serv-01') {
       $peers["nodekey:$n"] = @{ HostName = $n.ToUpper(); DNSName = "$n.tail1.ts.net."; Online = ($env:FAKE_OFFLINE -ne $n) }
     }
     $global:LASTEXITCODE = 0
@@ -208,14 +208,40 @@ test('a peer that is offline or not on the tailnet is reported at once, and noth
   assert.match(r.out, /SENT 1 file\(s\)/, 'once it is back, what waited goes');
 });
 
-test('a backlog over the cap is left for a data-sync job, which sends it whole', { skip }, () => {
+test('a backlog over the cap goes in parts, oldest first, and the next pass carries on', { skip }, () => {
   const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
   const w1 = machine(root, 'desktop-41hplcn');
-  w1.write('big.bin', 'x'.repeat(4096), Date.parse('2026-10-08T00:00:00Z'));
-  let r = w1.run(['-Peer', 'alpha-server-01', '-Since', '2000-01-01T00:00:00Z', '-MaxBytes', '1024'], serving);
-  assert.equal(r.code, 3, r.out);
-  assert.match(r.out, /TOO LARGE for this pass: 1 file\(s\), 0\.0 MB written since 2000-01-01T00:00:00Z \(the cap is 0 MB\): queue a data-sync job/);
-  r = w1.run(['-Peer', 'alpha-server-01'], serving);
+  const server = machine(root, 'alpha-serv-01');
+  w1.write('a-old.bin', 'a'.repeat(3000), Date.parse('2026-10-01T00:00:00Z'));
+  w1.write('b-mid.bin', 'b'.repeat(3000), Date.parse('2026-10-05T00:00:00Z'));
+  w1.write('c-twin1.bin', 'c'.repeat(3000), Date.parse('2026-10-08T00:00:00Z'));
+  w1.write('c-twin2.bin', 'd'.repeat(3000), Date.parse('2026-10-08T00:00:00Z'));
+  const cap = ['-MaxBytes', '4000'];
+  // the full copy: from the start of time, a part a pass
+  let r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', ...cap], serving);
   assert.equal(r.code, 0, r.out);
-  assert.match(r.out, /SENT 1 file\(s\), .* written since 2000-01-01T00:00:00Z, to alpha-server-01/, 'the full copy, from the start of time');
+  assert.match(r.out, /SENT 1 file\(s\), .* written since 2000-01-01T00:00:00Z, to alpha-serv-01/);
+  assert.match(r.out, /PART of a backlog: 3 file\(s\), 0\.0 MB still to send, from 2026-10-01T00:00:00Z; the next pass carries on/);
+  r = w1.run(['-Peer', 'alpha-serv-01', ...cap], serving);
+  assert.match(r.out, /SENT 1 file\(s\), .* written since 2026-10-01T00:00:00Z/);
+  // two files with the same time go together, or the next pass would skip one
+  r = w1.run(['-Peer', 'alpha-serv-01', ...cap], serving);
+  assert.match(r.out, /SENT 2 file\(s\), .* written since 2026-10-05T00:00:00Z/);
+  assert.doesNotMatch(r.out, /PART of a backlog/);
+  r = w1.run(['-Peer', 'alpha-serv-01', ...cap], serving);
+  assert.match(r.out, /nothing written here since/);
+  // and the server, applying the three parts in order, has all four
+  r = server.run();
+  assert.equal((r.out.match(/APPLIED/g) || []).length, 3, r.out);
+  for (const f of ['a-old.bin', 'b-mid.bin', 'c-twin1.bin', 'c-twin2.bin']) assert.ok(server.has(f), f);
+});
+
+test('one file over the cap still goes, alone', { skip }, () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.write('big.bin', 'x'.repeat(9000), Date.parse('2026-10-08T00:00:00Z'));
+  const r = w1.run(['-Peer', 'alpha-serv-01', '-Since', '2000-01-01T00:00:00Z', '-MaxBytes', '1000'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /SENT 1 file\(s\)/);
+  assert.doesNotMatch(r.out, /PART of a backlog/);
 });
