@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-09T20:48:27.4725553+01:00",
+    "at":  "2026-10-09T21:07:45.7352902+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
@@ -12,7 +12,7 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 31 file(s) to alpha-serv-01 at 2026-10-09T19:40:50Z (4215 MB still to send)"
+                 "detail":  "sent 432 file(s) to alpha-serv-01 at 2026-10-09T19:55:28Z (4418 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "5 live, 1 static, 1 no feed",
                   "not_live":  null,
-                  "checked_at":  "2026-10-09T19:27:21.566737+00:00"
+                  "checked_at":  "2026-10-09T20:03:57.122370+00:00"
               },
     "sync":  "IN SYNC: this machine runs 20c58f5 of claude/frie...(30)"
 }
