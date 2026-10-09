@@ -67,6 +67,113 @@ const style = {
 
 const say = (line) => process.stdout.write(`${line}\n`);
 
+/**
+ * Platform-appropriate "keep the coordinator running" instructions.
+ *
+ * It used to print NSSM unconditionally, which on a Linux server is an
+ * instruction to install a Windows service manager. The coordinator itself is
+ * Node standard library and has no platform-specific code at all -- nothing
+ * under src/host/ branches on process.platform -- so the only thing that was
+ * ever Windows-only here was this hint.
+ *
+ * It mirrors setup-agent.mjs's serviceHint of the same name, and differs from
+ * it deliberately in two ways:
+ *
+ * - **A system service, not `systemctl --user`.** The agent's is a user
+ *   service, which is right for a laptop that lends RAM while somebody is
+ *   logged in. The coordinator holds `data/auth.json` -- every account in the
+ *   fleet -- and the receipt ledger, so it runs under its own account whether
+ *   anyone is logged in or not, and the secrets go in an EnvironmentFile
+ *   rather than the unit, which is world-readable.
+ * - **It stops naming the agent beside it.** On the Alpha host both run,
+ *   because the handlers that make an agent worth having there drive
+ *   PowerShell and hardware on that machine -- alpha.coordination,
+ *   alpha.panel, alpha.devices. A server runs the coordinator and the agents
+ *   dial in to it, which is the whole shape of this repo: every connection is
+ *   outbound from the agent.
+ *
+ * The ordering after `tailscaled.service` is not decoration. At boot
+ * Tailscale has not yet assigned the `100.x` address the coordinator binds,
+ * which is what ALPHA_BIND_WAIT_MS exists for; ordering after it means the
+ * wait is usually unnecessary rather than usually used.
+ */
+export function serviceHint(platform, { node, root }) {
+  const host = join(root, 'src', 'host', 'index.js');
+  const agent = join(root, 'src', 'agent', 'index.js');
+  if (platform === 'win32') {
+    return [
+      '\x1b[1mOr install them as services\x1b[0m so they survive a reboot (needs NSSM):',
+      '',
+      `    nssm install alpha-coordinator "${node}" "${host}"`,
+      `    nssm set alpha-coordinator AppDirectory ${root}`,
+      `    nssm set alpha-coordinator AppStdout ${join(root, 'logs', 'host.log')}`,
+      `    nssm set alpha-coordinator AppStderr ${join(root, 'logs', 'host.log')}`,
+      '',
+      `    nssm install alpha-agent "${node}" "${agent}"`,
+      `    nssm set alpha-agent AppDirectory ${root}`,
+      `    nssm set alpha-agent AppStdout ${join(root, 'logs', 'agent.log')}`,
+      `    nssm set alpha-agent AppStderr ${join(root, 'logs', 'agent.log')}`,
+      '',
+      '    nssm start alpha-coordinator',
+      '    nssm start alpha-agent',
+    ].join('\n');
+  }
+  if (platform === 'darwin') {
+    return [
+      '\x1b[1mOr install it as a service\x1b[0m so it survives a reboot:',
+      '',
+      `    ~/Library/LaunchAgents/com.alpha.coordinator.plist -> ${node} ${host}`,
+      '    launchctl load -w ~/Library/LaunchAgents/com.alpha.coordinator.plist',
+      '',
+      '  A laptop is not a server: see docs/HOST_SETUP.md before relying on it.',
+    ].join('\n');
+  }
+  // ProtectHome=yes hides /home from the service, so a checkout living there
+  // becomes unreadable to the unit that runs it -- the service fails to start
+  // and the reason looks nothing like the cause. /opt is the right home for a
+  // server checkout; a checkout under /home gets the protection turned off
+  // rather than a unit that cannot read its own code.
+  const underHome = root === '/home' || root.startsWith('/home/');
+  return [
+    '\x1b[1mOr install it as a system service\x1b[0m so it survives a reboot:',
+    '',
+    '    sudo tee /etc/systemd/system/alpha-coordinator.service >/dev/null <<\'UNIT\'',
+    '[Unit]',
+    'Description=alpha-tunnel coordinator',
+    'After=network-online.target tailscaled.service',
+    'Wants=network-online.target',
+    '',
+    '[Service]',
+    'User=alpha',
+    `WorkingDirectory=${root}`,
+    `ExecStart=${node} ${host}`,
+    'EnvironmentFile=/etc/alpha-tunnel.env',
+    'Restart=always',
+    'RestartSec=5',
+    'NoNewPrivileges=yes',
+    'ProtectSystem=strict',
+    underHome
+      ? `ProtectHome=no   # ${root} is under /home, which ProtectHome=yes would hide from this service`
+      : 'ProtectHome=yes',
+    'PrivateTmp=yes',
+    `ReadWritePaths=${join(root, 'data')} ${join(root, 'logs')}`,
+    '',
+    '[Install]',
+    'WantedBy=multi-user.target',
+    'UNIT',
+    '',
+    '    sudo systemctl daemon-reload',
+    '    sudo systemctl enable --now alpha-coordinator',
+    '',
+    '  The unit body above is deliberately flush-left: <<\'UNIT\' keeps leading',
+    '  whitespace, and the quoted delimiter stops the shell touching the body.',
+    '  Secrets go in /etc/alpha-tunnel.env (ALPHA_AUTH_STORE, ALPHA_HOST_PORT,',
+    '  ALPHA_BIND), chmod 600 and owned by root: a unit file is world-readable.',
+    `  The data directory holds every account -- chown -R alpha ${join(root, 'data')}`,
+    '  and chmod 700 it.',
+  ].join('\n');
+}
+
 function die(message) {
   process.stderr.write(`\n\x1b[31mSetup failed:\x1b[0m ${message}\n`);
   process.exit(1);
@@ -398,20 +505,7 @@ Store the admin key in a password manager now. It cannot be shown again.
     npm run host
     npm run agent
 
-\x1b[1mOr install them as services\x1b[0m so they survive a reboot (needs NSSM):
-
-    nssm install alpha-coordinator "${node}" "${join(ROOT, 'src', 'host', 'index.js')}"
-    nssm set alpha-coordinator AppDirectory ${ROOT}
-    nssm set alpha-coordinator AppStdout ${join(ROOT, 'logs', 'host.log')}
-    nssm set alpha-coordinator AppStderr ${join(ROOT, 'logs', 'host.log')}
-
-    nssm install alpha-agent "${node}" "${join(ROOT, 'src', 'agent', 'index.js')}"
-    nssm set alpha-agent AppDirectory ${ROOT}
-    nssm set alpha-agent AppStdout ${join(ROOT, 'logs', 'agent.log')}
-    nssm set alpha-agent AppStderr ${join(ROOT, 'logs', 'agent.log')}
-
-    nssm start alpha-coordinator
-    nssm start alpha-agent
+${serviceHint(process.platform, { node, root: ROOT })}
 ${
   wantsCoordination
     ? `
@@ -433,9 +527,14 @@ See "Verify the contract" in docs/HOST_SETUP.md.
   }`);
 }
 
-main().catch((error) => {
-  if (error instanceof HttpError) {
-    die(`HTTP ${error.status} from ${error.url}: ${error.body?.message ?? error.body?.error ?? ''}`);
-  }
-  die(error.stack ?? error.message);
-});
+// Importable for its decisions, runnable as a script -- but only when it *is*
+// the script, so a test importing it does not provision anything. The same
+// guard setup-agent.mjs has carried since it grew a testable seam.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    if (error instanceof HttpError) {
+      die(`HTTP ${error.status} from ${error.url}: ${error.body?.message ?? error.body?.error ?? ''}`);
+    }
+    die(error.stack ?? error.message);
+  });
+}
