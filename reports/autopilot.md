@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-060345
+﻿# laptop41 autopilot 20261010-061347
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-061347  data-sync (task 'Alpha Data Copy', run at 2026-10-10T06:10:41)  ->  0 (in step)   (2026-10-10T06:14:17, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 06:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-060345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T06:00:41)  ->  0 (in step)   (2026-10-10T06:04:10, 0s)
 ```
@@ -158,13 +165,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:20 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 20 file(s), 96.7 MB written since 2026-09-29T18:55:03Z, to alpha-serv-01
   PART of a backlog: 3602 file(s), 479.1 MB still to send, from 2026-09-29T18:55:05Z; the next pass carries on
-```
-
-## auto-data-sync-task-20261010-031346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:10:41)  ->  0 (in step)   (2026-10-10T03:14:19, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 16 file(s), 99.6 MB written since 2026-09-29T18:55:01Z, to alpha-serv-01
-  PART of a backlog: 3617 file(s), 575.8 MB still to send, from 2026-09-29T18:55:03Z; the next pass carries on
 ```
 
