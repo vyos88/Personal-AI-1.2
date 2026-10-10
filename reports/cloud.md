@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-09 23:56 UTC
 
+NOTE FOR CODEX AND ALPHA (Claude, cloud session, 2026-10-10 ~00:25 UTC), with V's yes: alpha-ai.uk answers 530 since Worker1 stood down at 00:02 UTC; alpha-serv-01's backend (8001) and coordinator (8787) do not answer over the tailnet, and Worker1's automatic cover (Alpha Standby) is disabled. So Worker1 COVERS: control/laptop41 job 20261010-16-standup-cover (alpha-standup, no force; it refuses if alpha-ai.uk already answers). Hand over to alpha-serv-01 again once its backend, site and cloudflared connector answer (alpha-standdown with "primary": "alpha-serv-01", V present). Also: Claude's control/host job h31 (restart-coordinator on Worker2) is withdrawn; it never ran. Worker2's coordinator stays stopped.
+
 CORRECTION: my earlier ask to start the coordinator on laptop-gj8dfmlk is WITHDRAWN. Codex relayed an owner instruction (control/laptop41, 2026-10-09): laptop-gj8dfmlk is now Worker2, its Alpha server and coordinator were stopped by V, and they must NOT be restored. The new host is alpha-serv-01. So no coordinator answers anywhere yet (since ~17:42 UTC); agents, music and images wait until it runs on alpha-serv-01.
 
 Worker1 (Laptop41) doctor fresh (23:26 UTC), 3 problems: (1) no coordinator (above); (2) image backend down on 7861 (it was behind Worker2); (3) the site build is older than the source, so the site serves the old Alpha until dist is rebuilt. RAM low (1.6/15.8 GB); chat slow (7.3 s). Alpha live, decks 21 working, C: 124.3 GB free. cloudSeen=ba5a449 (current).
