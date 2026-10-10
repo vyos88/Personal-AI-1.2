@@ -1,19 +1,59 @@
 {
-    "cloudSeen":  "b778c6c94f0bbe345169031526495368717f5eba",
-    "lastRun":  "2026-10-10T01:14:21",
+    "cloudSeen":  "d62f7f6466d0b5b6194d99741755d4808057812b",
+    "lastRun":  "2026-10-10T01:27:39",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
-                                                                                                                                                               "since":  "2026-10-10T01:11:13",
-                                                                                                                                                               "runs":  2,
-                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
-                                                                                                                                                           },
-                 "automatic cover has not run for # min: its task \u0027Alpha Standby\u0027 is not running passes":  {
-                                                                                                                         "since":  "2026-10-10T01:11:13",
-                                                                                                                         "runs":  2,
-                                                                                                                         "text":  "automatic cover has not run for 13 min: its task \u0027Alpha Standby\u0027 is not running passes"
-                                                                                                                     }
+                 "self-heal is installed but its log is # min old: its task is not starting passes: check its last result as Administrator (#x# = still running, # = config unreadable, # = a pass did not finish)":  {
+                                                                                                                                                                                                                          "since":  "2026-10-10T01:27:39",
+                                                                                                                                                                                                                          "runs":  1,
+                                                                                                                                                                                                                          "text":  "self-heal is installed but its log is 26 min old: its task is not starting passes: check its last result as Administrator (0x00041301 = still running, 3 = config unreadable, 4 = a pass did not finish)"
+                                                                                                                                                                                                                      },
+                 "nothing listens on # (connection refused or timed out)":  {
+                                                                                "since":  "2026-10-10T01:27:39",
+                                                                                "runs":  1,
+                                                                                "text":  "nothing listens on 4173 (connection refused or timed out)"
+                                                                            },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt":  {
+                                                                                                                "since":  "2026-10-10T01:27:39",
+                                                                                                                "runs":  1,
+                                                                                                                "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt"
+                                                                                                            },
+                 "backend /ready does not answer (HTTP #)":  {
+                                                                 "since":  "2026-10-10T01:27:39",
+                                                                 "runs":  1,
+                                                                 "text":  "backend /ready does not answer (HTTP 0)"
+                                                             },
+                 "Alpha\u0027s deck feed answered #":  {
+                                                           "since":  "2026-10-10T01:27:39",
+                                                           "runs":  1,
+                                                           "text":  "Alpha\u0027s deck feed answered 000"
+                                                       },
+                 "https://alpha-ai.uk/ answers #":  {
+                                                        "since":  "2026-10-10T01:27:39",
+                                                        "runs":  1,
+                                                        "text":  "https://alpha-ai.uk/ answers 530"
+                                                    },
+                 "backend /health answered #":  {
+                                                    "since":  "2026-10-10T01:27:39",
+                                                    "runs":  1,
+                                                    "text":  "backend /health answered 000"
+                                                },
+                 "/chat without a login answers HTTP #, expected # (route missing or failing)":  {
+                                                                                                     "since":  "2026-10-10T01:27:39",
+                                                                                                     "runs":  1,
+                                                                                                     "text":  "/chat without a login answers HTTP 0, expected 401 (route missing or failing)"
+                                                                                                 },
+                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
+                                                                                                           "since":  "2026-10-10T01:27:39",
+                                                                                                           "runs":  1,
+                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
+                                                                                                       },
+                 "no coordinator answering at http://#.#.#.#:#":  {
+                                                                      "since":  "2026-10-10T01:27:39",
+                                                                      "runs":  1,
+                                                                      "text":  "no coordinator answering at http://100.93.104.24:8787"
+                                                                  }
              },
-    "lastPost":  "2026-10-10T01:11:13",
-    "relay":  "relayed status/cloud b778c6c"
+    "lastPost":  "2026-10-10T01:27:39",
+    "relay":  "relayed status/cloud d62f7f6"
 }
