@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261010-032853
+﻿# laptop41 autopilot 20261010-033856
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-bridges-20261010-033856  bridges (standing)  ->  0 (restarted)   (2026-10-10T03:39:17, 0s)
+```
+'alpha-image bridge' task was Ready; last run 10/08/2026 06:34:06, last result 0xC000013A
+  log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
+  log: 2026-10-07T01:29:01 starting the image bridge (machines: host,worker1)
+  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
+  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
+  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
+  log: 2026-10-08T06:34:07 starting the image bridge (machines: host,worker1)
+'alpha-image bridge' was not listening on 7861: restarted, it answers now
+```
+
+## auto-data-sync-task-20261010-033856  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:30:41)  ->  0 (in step)   (2026-10-10T03:39:43, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 14 file(s), 87.0 MB written since 2026-09-29T18:55:05Z, to alpha-serv-01
+  PART of a backlog: 3596 file(s), 392.1 MB still to send, from 2026-09-29T18:55:07Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-032853  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:20:41)  ->  0 (in step)   (2026-10-10T03:29:20, 0s)
 ```
@@ -254,20 +274,5 @@ report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
   To https://github.com/vyos88/Personal-AI-1.2
      6f59845..e843ce4  HEAD -> status/laptop41
 pushed to status/laptop41 - tell Claude 'doctor pushed'
-```
-
-## auto-live-sync-20261010-011345  live-sync (standing)  ->  0 (in sync)   (2026-10-10T01:14:30, 8s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 6795e6a of claude/frie...(30)
-CAPTURED: nothing; every source file here matches 6795e6a
-```
-
-## auto-data-sync-task-20261010-011345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T01:10:41)  ->  0 (in step)   (2026-10-10T01:14:44, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1 file(s), 617.0 MB written since 2026-08-13T04:24:38Z, to alpha-serv-01
-  PART of a backlog: 9001 file(s), 2,127.3 MB still to send, from 2026-08-13T04:31:39Z; the next pass carries on
 ```
 
