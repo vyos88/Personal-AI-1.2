@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-043346
+﻿# laptop41 autopilot 20261010-044345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-044345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T04:40:41)  ->  0 (in step)   (2026-10-10T04:44:16, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 04:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-043346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T04:30:41)  ->  0 (in step)   (2026-10-10T04:34:14, 0s)
 ```
@@ -193,13 +200,5 @@ AFTER:
   https://alpha-ai.uk/ answers 530: down until alpha-serv-01 serves it
   record: C:\AlphaData\alpha-ops\standdown\stan...(25).json (-Undo reads it)
 RESULT: stood down. alpha-serv-01 can serve Alpha now
-```
-
-## auto-data-sync-task-20261010-014846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T01:40:41)  ->  0 (in step)   (2026-10-10T01:49:19, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 01:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1 file(s), 99.7 MB written since 2026-08-15T01:57:15Z, to alpha-serv-01
-  PART of a backlog: 8949 file(s), 1,834.6 MB still to send, from 2026-08-15T01:58:06Z; the next pass carries on
 ```
 
