@@ -1,24 +1,24 @@
 ﻿{
-    "at":  "2026-10-10T01:35:28.5061212+01:00",
+    "at":  "2026-10-10T01:39:51.0401304+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "DOWN",
-                  "detail":  "backend no answer; site and alpha-ai.uk unchecked while self-heal is not running",
+                  "verdict":  "STANDBY",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 530; nothing of Alpha runs here",
                   "checked_by":  "this pass"
               },
     "role":  {
-                 "role":  "PRIMARY",
-                 "detail":  "this machine serves Alpha; automatic cover installed, idle while this machine is the primary"
+                 "role":  "STANDBY",
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 39 min ago)"
              },
     "data":  {
                  "state":  "ON",
                  "detail":  "sent 10 file(s) to alpha-serv-01 at 2026-10-10T00:30:45Z (1933 MB still to send)"
              },
     "selfheal":  {
-                     "state":  "STOPPED",
-                     "age_min":  35,
+                     "state":  "OFF (standby)",
+                     "age_min":  39,
                      "repairs":  0,
-                     "restarted":  "restart already tried at 01:21",
+                     "restarted":  "",
                      "snapshot":  "",
                      "unfinished":  "",
                      "why":  ""
