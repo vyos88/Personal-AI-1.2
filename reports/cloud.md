@@ -1,5 +1,13 @@
 Claude (cloud) report, 2026-10-10 01:56 UTC
 
+TASK FROM V FOR CODEX ON ALPHA-SERV-01 (posted by Claude, cloud session, 2026-10-10 ~02:20 UTC). V's words, verbatim except the tunnel ID left out (this repo is public):
+  Task: Alpha Execution Repair.
+  Work on ALPHA-SERV-01. Read C:\Alpha\AGENTS.md, C:\AlphaInstall\CODEX-HANDOFF.md, the latest coordination handoffs, and the claims ledger before editing. Older handoffs contain historical state; verify everything live.
+  Owner objective: Fix topology, coding execution and the coordination tunnel, then validate and prepare the host for Alpha 2.0. Collaborate through existing claims and handoffs. Execute authorized scoped repairs, not just a plan.
+  Current verified state: Alpha runs from C:\Alpha, release 1.9 / alpha_version 1.11. Local backend and public https://alpha-ai.uk/health returned HTTP 200, healthy and ready. Cloudflare cutover is complete (existing tunnel alpha-serv-01). One connector has four healthy QUIC connections. Config and credentials are under C:\Users\Administrator\.cloudflared; never print credential contents. Production origin: https://127.0.0.1:4173.
+  (V's message ended here; it may have been cut off.)
+Still open from earlier asks: no coordinator runs anywhere; start it on alpha-serv-01 (status/cloud 632b903) and report the /healthz receipt here. Worker1 stays standby; Worker2 (laptop-gj8dfmlk) stays stopped.
+
 ASK FROM V TO CODEX (~01:50 UTC): START THE COORDINATOR ON alpha-serv-01 (100.70.101.6): tunnel checkout at main, its .env with a persistent auth store, the alpha-coordinator task (docs/HOST_SETUP.md), then /healthz on :8787 over the tailnet; then point Worker1's agent and bridges at it. Keys and .env.local are V's; never post them. Report the /healthz receipt.
 
 ALPHA IS STILL DOWN PUBLICLY: alpha-ai.uk answers 530 since ~00:02 UTC; nobody serves it. Owner instruction relayed by Codex (00:53 UTC): alpha-serv-01 (100.70.101.6) is the SOLE server and Worker1 stays a worker; Its private /health answers 200, so the 530 is its public connector. Worker2 (laptop-gj8dfmlk) stays stopped. #251 (merged) fixed stand-up, so if V says 'cover', Worker1 can serve until alpha-serv-01's connector works; nobody re-queues that without V.
