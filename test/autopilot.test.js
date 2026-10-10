@@ -1016,7 +1016,16 @@ test('the live report is written every pass, and a stopped self-heal is started 
   const ok = { ok: true, status: 200 };
   const kicks = join(dir, 'kicks');
   // Stand-ins for the Windows cmdlets: a task that can be started, a backend that answers.
-  const fakes = `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; function Invoke-WebRequest { [pscustomobject]@{ StatusCode = 200 } }; `;
+  // 200 for everything unless codes.json names a URI substring: that is what
+  // lets the self-heal-is-down branch be told apart from the branch that reads
+  // self-heal's own probes. A code of 0 is a URI that answers nothing.
+  const codes = join(dir, 'codes.json');
+  writeFileSync(codes, JSON.stringify({}));
+  const answer = (map) => writeFileSync(codes, JSON.stringify(map));
+  const fakes = `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; `
+    + `function Invoke-WebRequest { param($Uri) $m = Get-Content -LiteralPath '${codes}' -Raw | ConvertFrom-Json; $c = 200; `
+    + `foreach ($p in $m.PSObject.Properties) { if ("$Uri" -like "*$($p.Name)*") { $c = [int]$p.Value } }; `
+    + `if ($c -eq 0) { throw 'nothing listening' }; [pscustomobject]@{ StatusCode = $c } }; `;
   const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
     `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
   { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
@@ -1058,10 +1067,34 @@ test('the live report is written every pass, and a stopped self-heal is started 
   r = run();
   md = live();
   assert.match(md, /\| Repair agent \(self-heal\) \| STOPPED \| last pass 20 min ago.*started its task again/);
-  assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not running/);
+  assert.match(md, /\| BACKEND UP \| backend 200, site 200, alpha-ai\.uk 200; checked here because self-heal is not running/);
   run();
   assert.equal(readFileSync(kicks, 'utf8').trim().split('\n').length, 1, 'one restart per 30 minutes');
   assert.match(live(), /restart already tried at/);
+
+  // 2026-10-10 01:29: the page read "site and alpha-ai.uk unchecked while
+  // self-heal is not running" while alpha-ai.uk was answering 530 and nothing
+  // served Alpha. This branch runs exactly when self-heal is down, so it is
+  // the window the page matters most in -- and it now says what the public URL
+  // and the site actually answered.
+  answer({ '8001': 0, '4173': 0, 'alpha-ai.uk': 530 });
+  run();
+  md = live();
+  assert.match(md, /^# Alpha is DOWN - DESKTOP-41HPLCN/);
+  assert.match(md, /\| DOWN \| backend no answer, site no answer, alpha-ai\.uk 530; checked here because self-heal is not running/);
+  assert.doesNotMatch(md, /unchecked/, 'nothing it could have checked is reported as unchecked');
+
+  // A code is not silence: a connector with no origin behind it and nothing
+  // listening at all send an operator to different places.
+  answer({ '8001': 0, '4173': 0, 'alpha-ai.uk': 0 });
+  run();
+  assert.match(live(), /alpha-ai\.uk no answer; checked here because self-heal is not running/);
+
+  // The backend being up while the public URL is not is still worth saying.
+  answer({ 'alpha-ai.uk': 502 });
+  run();
+  assert.match(live(), /\| BACKEND UP \| backend 200, site 200, alpha-ai\.uk 502;/);
+  answer({});   // back to all-200 for what follows
 
   // Quiet, with the reason on disk: a lock left by a pass that is gone, then
   // a config self-heal cannot read. "STOPPED" alone sent a person to Task Scheduler.
@@ -1079,7 +1112,7 @@ test('the live report is written every pass, and a stopped self-heal is started 
   run();
   md = live();
   assert.match(md, /\| RUNNING \| last pass 0 min ago, 0 repair\(s\) in it; the last pass did not finish \(still running after 240 s, at probe\)/);
-  assert.match(md, /\| BACKEND UP \| backend 200; site and alpha-ai\.uk unchecked while self-heal is not finishing its passes/);
+  assert.match(md, /\| BACKEND UP \| backend 200, site 200, alpha-ai\.uk 200; checked here because self-heal is not finishing its passes/);
 
   // A standby: who serves, and no self-heal restart, however old its log.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk' }));

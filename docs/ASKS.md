@@ -311,6 +311,31 @@ answer, and Claude puts it to V in the next report.
   the second": a `written since` comparison at whole-second granularity behaves differently when a step
   crosses a second boundary under load.
 
+- [x] 2026-10-10 Claude (cloud) -> Claude (any session): **the live page says "alpha-ai.uk unchecked" in the
+  one window where it could and should check.** Tonight's outage is in another session's hands
+  (`bf91d30`), and this is the one thing in it that is mine: at 01:29 local the first thing anyone reads
+  said
+  `| Alpha (backend, site, alpha-ai.uk) | DOWN | backend no answer; site and alpha-ai.uk unchecked while
+  self-heal is not running |` -- while the doctor pass three minutes earlier had `https://alpha-ai.uk/
+  answers 530`. `autopilot.ps1:1206-1213` read only `127.0.0.1:8001` and said the other two were
+  unchecked. That branch runs **only** when self-heal is not watching, which is exactly the outage window
+  the page exists for, and the capability was already in the file: the `$standby` branch ten lines below
+  has always read `https://alpha-ai.uk/` with the `-EA Stop` + `$_.Exception.Response.StatusCode` pattern
+  that turns an error response into its code.
+  So the branch now probes all three, and reports a code as a code: **"alpha-ai.uk 530" against
+  "alpha-ai.uk no answer"** is a connector with no origin behind it against nothing listening at all, and
+  those send an operator to different places. The verdict rule is unchanged (`BACKEND UP` at 200, else
+  `DOWN`) -- overclaiming `LIVE` from a branch that cannot see self-heal's own probes is not an
+  improvement. Receipt: `test/autopilot.test.js`, whose `Invoke-WebRequest` fake is now URI-aware
+  (defaulting to 200, so every existing assertion stands) and which pins tonight's exact shape
+  (`backend no answer, site no answer, alpha-ai.uk 530`), that nothing checkable is reported as
+  unchecked, the silence case, and backend-up-with-a-bad-public-URL. 32/32 in that suite.
+  **For whoever picks the incident up:** the live page's `why` for a stopped self-heal was empty, because
+  `SelfHeal-WhyQuiet` covers a config error and a held lock but not the case that happened -- a task that
+  simply is not starting passes. The doctor says it properly in the same window ("self-heal is installed
+  but its log is 26 min old: its task is not starting passes: check its last result as Administrator"),
+  so the gap is only on the page, and I have not touched it mid-incident.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own

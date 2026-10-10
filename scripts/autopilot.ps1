@@ -1204,11 +1204,31 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.detail = (($parts.Keys | ForEach-Object { "$_ $(if ($parts[$_]) { $parts[$_].status } else { '?' })" }) -join ', ') + $(if ($down.Count) { "; not answering: $($down -join ', ')" } else { '' })
     $alpha.checked_by = "self-heal, $($sh.age) min ago"
   } elseif ($hbAlpha) {
-    # Self-heal is not watching, so look at the backend directly (only that).
-    $code = $null
-    try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
+    # Self-heal is not watching, so this pass checks all three itself. It read
+    # only 127.0.0.1:8001 and said "site and alpha-ai.uk unchecked" -- and on
+    # 2026-10-10 at 01:29 the page said exactly that while alpha-ai.uk was
+    # answering 530 and nothing served Alpha at all. This branch runs only
+    # while self-heal is down, which is the window the page matters most in, so
+    # two more requests are the cheapest thing in the pass.
+    #
+    # An error response carries its code, and reporting it is the difference
+    # between "alpha-ai.uk answers 530" and "alpha-ai.uk is silent" -- a
+    # connector with no origin behind it against nothing listening at all,
+    # which send an operator to different places. Same shape as the standby
+    # branch below, which has always read the public URL this way.
+    $probe = {
+      param([string]$uri, [int]$sec)
+      try { return [int](Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $sec -EA Stop).StatusCode }
+      catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { return [int]$r.StatusCode }; return 0 }
+    }
+    $said = { param($c) if ($c) { "$c" } else { 'no answer' } }
+    $code = & $probe 'http://127.0.0.1:8001/health' 8
+    # 4173 as the standby branch below hardcodes it: the site port is Vite
+    # preview's and is not a parameter of this script.
+    $site = & $probe 'http://127.0.0.1:4173/' 8
+    $pub = & $probe 'https://alpha-ai.uk/' 10
     $alpha.verdict = if ($code -eq 200) { 'BACKEND UP' } else { 'DOWN' }
-    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
+    $alpha.detail = "backend $(& $said $code), site $(& $said $site), alpha-ai.uk $(& $said $pub); checked here because self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
     $alpha.checked_by = 'this pass'
   }
   # A standby serves nothing here, on purpose: say who does, and say loudly if
