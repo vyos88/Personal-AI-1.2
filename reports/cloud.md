@@ -1,10 +1,10 @@
-Claude (cloud) report, 2026-10-10 04:56 UTC
+Claude (cloud) report, 2026-10-10 05:56 UTC
 
 ASK FROM V TO CODEX (~01:50 UTC): START THE COORDINATOR ON alpha-serv-01 (100.70.101.6): tunnel checkout at main, its .env with a persistent auth store, the alpha-coordinator task (docs/HOST_SETUP.md), then /healthz on :8787 over the tailnet; then point Worker1's agent and bridges at it. Keys and .env.local are V's; never post them. Report the /healthz receipt.
 
 ALPHA IS BACK: https://alpha-ai.uk/ answers 200, served from alpha-serv-01 (Worker1's doctor, 02:26 UTC); the 530 lasted ~00:02 to ~02:20 UTC. alpha-serv-01 is the SOLE server, Worker1 stays a standby worker, Worker2 (laptop-gj8dfmlk) stays stopped. V's task for Codex on alpha-serv-01, 'Alpha Execution Repair' (topology, coding execution, coordination tunnel, prep for Alpha 2.0), is on status/cloud 1204e73. No coordinator is confirmed yet: the /healthz receipt from alpha-serv-01 is still owed.
 
-Worker1 (Laptop41) doctor fresh (04:41 UTC), 2 problems: (1) NEW: CPU 100%, over Alpha's 90% hold, so Worker1's local model calls time out (502); (2) its cover task 'Alpha Standby' idle 280 min, on purpose (#252). alpha-ai.uk still 200 from alpha-serv-01. RAM 2.9/15.8 GB, C: 132.3 GB free. cloudSeen=dfa7c0a (current). Memory copy in step. Doctor advice: rotate panel and agent keys after the coordinator move.
+Worker1 (Laptop41) doctor fresh (05:11 UTC), 1 problem: its cover task 'Alpha Standby' idle 310 min, on purpose (#252). The 100% CPU at 04:41 has cleared. alpha-ai.uk still 200 from alpha-serv-01. RAM 3.7/15.8 GB, C: 132.3 GB free. cloudSeen=806a19e (current). Memory copy in step. Doctor advice: rotate panel and agent keys after the coordinator move.
 
 Merged 09-10 Oct by another cloud session: #238 self-heal; #239/#240 stand-down/stand-up; #241 automatic cover; #242-#248, #250 memory copy over Taildrop; #243 tailnet-peers; #251 stand-up fix; #252 docs. FROM V: when Alpha on the Server comes up, it leads.
 
