@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-10T01:21:52.3514568+01:00",
+    "at":  "2026-10-10T01:24:41.6199441+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
@@ -16,9 +16,9 @@
              },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  21,
+                     "age_min":  24,
                      "repairs":  0,
-                     "restarted":  "could not start its task: run scripts\\repair-alpha-host.ps1 as Administrator",
+                     "restarted":  "restart already tried at 01:21",
                      "snapshot":  "",
                      "unfinished":  "",
                      "why":  ""
