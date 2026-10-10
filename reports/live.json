@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-10T03:24:19.6366156+01:00",
+    "at":  "2026-10-10T03:29:21.0311001+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 143 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 148 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 16 file(s) to alpha-serv-01 at 2026-10-10T02:10:44Z (576 MB still to send)"
+                 "detail":  "sent 20 file(s) to alpha-serv-01 at 2026-10-10T02:20:45Z (479 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  143,
+                     "age_min":  148,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
