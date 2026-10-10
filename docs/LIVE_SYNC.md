@@ -36,6 +36,30 @@ tried. That is also how a refusal is fixed: push a commit that resolves it.
 The owner chose updates "any time", not a nightly window, because every
 failure puts itself back.
 
+**No git call waits for ever.** Every `git` here is killed after
+`ALPHA_GIT_TIMEOUT_MS` (two minutes by default), because a hang costs more than
+a failure: `Publish-Live` runs at the *end* of an autopilot pass
+(`autopilot.ps1:850`), so a pass stuck in git writes no live report, reaches no
+later action, and the next pass finds the same wedge. Laptop41's live branch
+went 126 minutes without a write on 2026-10-08 — last at 23:29:08Z, read at
+01:35Z — while its separately scheduled doctor kept pushing every ~15 minutes
+from the same machine with the same credentials. A timed-out fetch is reported
+as a fetch failure, which by the rule below leaves the tip for the next pass.
+
+**Only a verdict the patch produced counts as having tried a tip.** A fetch
+that never reached the patch is reported (`STOP: <tip> was not tried`) and the
+same tip is tried again on the next pass. Laptop41 lost a commit to the older
+rule on 2026-10-08: its fetch of `claude/friendly-...` failed once with
+`Empty reply from server` at 00:19, fifteen minutes after one that worked, and
+every pass after that said `WAITING: 5147fef was tried here and failed` — the
+commit was skipped until somebody pushed another one. A pass whose own fetch
+succeeds also names the tip to `apply-alpha-update.mjs` with `--to`, so a
+second fetch failing cannot change which commit is applied; the cache the
+first fetch filled is enough. The remedy printed for a failed fetch now
+depends on what git said: the sign-in advice is for a refusal
+(`Authentication failed`, `403`, `Repository not found`), not for a machine
+that could not get an answer.
+
 ## Knowledge: what Alpha learns, every pass
 
 Alpha does not learn by retraining. It reads `memory\knowledge\*.json` once,

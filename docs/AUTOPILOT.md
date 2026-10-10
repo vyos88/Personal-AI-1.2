@@ -152,8 +152,30 @@ changes. They are turned on in the same `actions.json`:
   reported once and its end once more. It fetches status refs and reads commit
   times; it writes nothing.
 
-- `heartbeat` (`true`): every pass, whether or not anything changed, writes
-  `reports/live.md` (and `live.json`) to `status/<channel>-live`.
+- `heartbeat` (`true`, or `{"alpha": false}`): every pass, whether or not
+  anything changed, writes `reports/live.md` (and `live.json`) to
+  `status/<channel>-live`.
+  - **`{"alpha": false}` is the machine that does not run Alpha** -- the Host,
+    which runs the coordinator and an agent. It gets a page for the same reason
+    the Alpha machine does, because the point of the page is that a reporter is
+    alive, but the rows are the two things this machine can be asked about
+    without a credential and that nothing could see from off it: the
+    coordinator's `/healthz` (its only unauthenticated GET) and whether this
+    checkout is still updating. The Alpha, repair-agent and deck rows are left
+    out rather than answered about a machine that does not have them.
+
+    Without the flag the Host could not have a page at all. With no self-heal
+    log the Alpha row falls through to probing `127.0.0.1:8001` and calls a
+    no-answer `DOWN`, so every page would be a permanently red claim about the
+    wrong machine -- worse than no page. The self-heal restart below is
+    likewise never attempted on a machine that has no such task.
+
+    The checkout row is why it was built. `autopilot.ps1`'s checkout note says
+    it "in every report", but a report goes out only when a queued id ran, so
+    on a quiet machine nobody read it: the Host sat on `e175472` for fifteen
+    hours over one uncommitted `scripts/usb-inventory.ps1`, 18 commits behind,
+    while `self-update.mjs` refused by design (rule 2, never over local work)
+    and no pass could ever clear it.
   - Alpha's state is read from self-heal's own last probes (backend, site,
     alpha-ai.uk), so nothing is probed twice.
   - It also shows the repair agent's last pass, the decks' last verdicts and
@@ -162,6 +184,17 @@ changes. They are turned on in the same `actions.json`:
     again, at most once every 30 minutes. While it is stopped, only the
     backend is checked directly. The heartbeat never repairs Alpha itself:
     two repairers would fight over the same processes.
+  - **Somebody else has to read it.** `Publish-Live` is the *last* thing a pass
+    does, so a pass stuck in an action publishes nothing and a hung pass cannot
+    report itself. That is what `channelWatch` above is for, run on the other
+    machine. When a `<machine>-live` channel is silent it also names the commits
+    pushed to `control/<machine>` since that last write, because work nothing is
+    going to run is what the silence actually costs.
+
+    On 2026-10-08 Laptop41's pass stopped publishing at 23:29:08Z and was still
+    silent four hours later while its separately scheduled doctor kept pushing
+    from the same machine, and three commits of queued work landed in the
+    meantime.
 
 - `homeWifi` (`{ "ssid": "Starlink V" }`): keeps this machine on the Wi-Fi
   the CrowPanel is on. On 2026-10-07 that network blinked for a moment at

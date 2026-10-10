@@ -1,11 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { main, findSoftwareRoot, isTestPath, nearestHunk, needsPackageInstall, readLive, writeLive } from '../scripts/apply-alpha-update.mjs';
+import {
+  main, fetchBranch, findSoftwareRoot, gitSpawnError, gitTimeoutMs, isTestPath, looksUnauthorized, nearestHunk,
+  needsPackageInstall, readLive, writeLive, sameAsBranch,
+} from '../scripts/apply-alpha-update.mjs';
 
 const SUB = 'BuildArtifacts/installers/Alpha-Full/software';
 const SCRIPTS = 'BuildArtifacts/installers/Alpha-Full/scripts';
@@ -172,7 +175,71 @@ test('an unreachable repository stops with what to do, and writes nothing', asyn
   const log = quiet();
   const bad = args(f).map((a) => (a === f.repo ? `file://${join(f.dir, 'nope')}` : a));
   assert.equal(await main(bad, log), 1);
-  assert.match(log.lines.join('\n'), /could not fetch alpha-full[\s\S]*credentials/);
+  const out = log.lines.join('\n');
+  assert.match(out, /could not fetch alpha-full/);
+  assert.match(out, /the repository or the network rather than credentials/);
+  assert.doesNotMatch(out, /gh auth login/, 'a machine that was never refused is not told to sign in');
+});
+
+test('a git call that hangs is given up on, and said to have been', { skip: process.platform === 'win32' && 'needs a PATH stub' }, async () => {
+  assert.equal(gitTimeoutMs(), 120_000, 'two minutes unless the machine says otherwise');
+  assert.match(gitSpawnError(['fetch', 'origin', 'live'], { code: 'ETIMEDOUT' }).message,
+    /^git fetch origin live gave up after 120s/);
+  assert.match(gitSpawnError(['status'], { code: 'ENOENT', message: 'spawnSync git ENOENT' }).message, /^git not found/);
+
+  // The real path, with a git that answers nothing: autopilot.ps1:850 publishes
+  // the live report at the end of a pass, so a git that never returns stops
+  // every later pass as well as this one.
+  const dir = mkdtempSync(join(tmpdir(), 'git-hang-'));
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'git'), '#!/bin/sh\nsleep 30\n');
+  chmodSync(join(bin, 'git'), 0o755);
+  const path = process.env.PATH;
+  const was = process.env.ALPHA_GIT_TIMEOUT_MS;
+  process.env.PATH = `${bin}:${path}`;
+  process.env.ALPHA_GIT_TIMEOUT_MS = '400';
+  try {
+    const started = Date.now();
+    assert.throws(() => fetchBranch({ cache: join(dir, 'cache.git'), repo: 'https://example.invalid/x', branch: 'live' }),
+      /gave up after 0s \(raise ALPHA_GIT_TIMEOUT_MS/);
+    assert.ok(Date.now() - started < 10_000, 'it gave up rather than waiting out the stub');
+  } finally {
+    process.env.PATH = path;
+    if (was === undefined) delete process.env.ALPHA_GIT_TIMEOUT_MS; else process.env.ALPHA_GIT_TIMEOUT_MS = was;
+  }
+});
+
+test('only git\'s own words for a refusal are read as one', () => {
+  for (const refused of [
+    "fatal: could not read Username for 'https://github.com': terminal prompts disabled",
+    'remote: Invalid username or password.\nfatal: Authentication failed',
+    'fatal: unable to access: The requested URL returned error: 403',
+    "remote: Repository not found.\nfatal: repository 'https://github.com/vyos88/Alpha/' not found",
+  ]) assert.equal(looksUnauthorized(refused), true, refused);
+  for (const reachability of [
+    // What Laptop41 actually got, fifteen minutes after a fetch that worked.
+    "fatal: unable to access 'https://github.com/vyos88/Alpha/': Empty reply from server",
+    'fatal: unable to access: Could not resolve host: github.com',
+    'fatal: the remote end hung up unexpectedly\nfatal: early EOF',
+    // git says this after every failure, reachable or not, so it proves nothing.
+    'fatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.',
+  ]) assert.equal(looksUnauthorized(reachability), false, reachability);
+});
+
+test('a commit already in the cache is applied although the fetch fails', { skip: !PY && 'no python' }, async () => {
+  const f = fixture();
+  // One pass that reaches the repository, which is what fills the cache.
+  assert.equal(await main(args(f), quiet()), 0);
+  const tip = git(f.repo.replace('file://', ''), 'rev-parse', 'alpha-full').trim();
+
+  const log = quiet();
+  const offline = args(f, '--apply', '--to', tip).map((a) => (a === f.repo ? `file://${join(f.dir, 'nope')}` : a));
+  assert.equal(await main(offline, log), 0, log.lines.join('\n'));
+  const out = log.lines.join('\n');
+  assert.match(out, new RegExp(`could not fetch alpha-full \\(.*\\), but ${tip.slice(0, 7)} is already in the cache`));
+  assert.doesNotMatch(out, /^STOP:/m, 'nothing stopped: the network was not needed');
+  assert.match(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), /return "new"/);
 });
 
 test('the scripts folder beside software is updated too, and rolled back with it', { skip: !PY && 'no python' }, async () => {
@@ -470,6 +537,56 @@ test('a restart stops whatever holds each port before running the task again', a
   assert.match(off[0], /only does something on the Windows host/);
 });
 
+
+// Worker1 reported the same "line 18004: invalid syntax" for route-b's
+// main.py in jobs 38, 40 and 41, 2300 lines from any change. Three sessions
+// improved where the report says the break is; none could say whose file was
+// broken, which is the only thing that decides what to do about it.
+test('a merge is compared with the branch\'s own copy, whatever endings this machine keeps', () => {
+  const branch = 'import os\n\ndef f():\n    return 1\n';
+  assert.equal(sameAsBranch(branch, branch), true);
+  assert.equal(sameAsBranch('﻿import os\r\n\r\ndef f():\r\n    return 1\r\n', branch), true,
+    'a CRLF host with a BOM holds the same code');
+  assert.equal(sameAsBranch(branch.replace('return 1', 'return 2'), branch), false);
+  assert.equal(sameAsBranch(branch, null), false, 'a cache that cannot show the file proves nothing');
+});
+
+/** A Python that refuses any file holding `return "new"`, and is otherwise PY. */
+function pythonRefusing(dir, marker) {
+  const stub = join(dir, 'picky-python');
+  writeFileSync(stub, `#!/bin/sh\nfor a; do last=$a; done\nif [ -f "$last" ] && grep -q '${marker}' "$last"; then echo "line 4: invalid syntax" >&2; exit 1; fi\nexec ${PY} "$@"\n`, { mode: 0o755 });
+  return stub;
+}
+
+const pickyArgs = (f, stub) => [
+  '--alpha-root', join(f.live, '..'), '--repo', f.repo, '--from', f.base, '--ops', f.ops,
+  '--skip-build', '--python', stub, '--apply',
+];
+
+test('a merge that is exactly what the branch holds is reported as the branch\'s, not as a bad hunk', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();
+  // No local drift: the merge can only reproduce what alpha-full holds.
+  write(f.live, 'backend/main.py', BASE_MAIN);
+  const log = quiet();
+  assert.equal(await main(pickyArgs(f, pythonRefusing(f.dir, 'return "new"')), log), 1);
+  const out = log.lines.join('\n');
+  assert.match(out, /main\.py does not parse: line 4/);
+  assert.match(out, /this is exactly what alpha-full holds for backend\/main\.py/);
+  assert.match(out, /does read it, so this is a Python mismatch rather than a bad merge/);
+  assert.doesNotMatch(out, /is no longer the one/);
+  assert.doesNotMatch(out, /return "new"/, 'still never the line\'s text');
+  assert.equal(readFileSync(join(f.live, 'backend/main.py'), 'utf8'), BASE_MAIN, 'and it is still put back');
+});
+
+test('a merge into a copy that has moved on says so, and where to re-take the branch', { skip: (!PY || process.platform === 'win32') && 'needs python, not Windows' }, async () => {
+  const f = fixture();  // its live main.py carries a local edit alpha-full never had
+  const log = quiet();
+  assert.equal(await main(pickyArgs(f, pythonRefusing(f.dir, 'return "new"')), log), 1);
+  const out = log.lines.join('\n');
+  assert.match(out, new RegExp(`this machine's backend/main\\.py is no longer the one ${f.base.slice(0, 7)} holds`));
+  assert.match(out, /re-take the branch from this machine's current files/);
+  assert.doesNotMatch(out, /exactly what alpha-full holds/);
+});
 test('line endings come back as the file had them, whatever git apply wrote', () => {
   // On Windows `git apply` writes CRLF into the scratch tree. Restoring CRLF on
   // top of that turned every line end of Worker1's alpha_agent_manager.ps1 into

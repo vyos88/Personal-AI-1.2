@@ -4,7 +4,7 @@ The one page for where Alpha and this tunnel stand. Keep it current: a session
 that changes what is true here edits this file in the same PR, and puts
 anything longer in a dated handoff that this page links to.
 
-*Last updated 2026-10-06.*
+*Last updated 2026-10-08.*
 
 ## Read this first
 
@@ -16,6 +16,21 @@ anything longer in a dated handoff that this page links to.
   `git show origin/status/laptop41:reports/latest.txt` (the host's doctor) and
   `git show origin/status/cloud:reports/cloud.md` (the cloud relay). See
   `CLOUD_RELAY.md`.
+- **The CrowPanel is live, as of 2026-10-08 08:26Z** — the "panel is dark"
+  thread that several handoffs carry is closed, and it closes the standing
+  recommendation to put `fix-panel-host` on the autopilot menu with it, which
+  no longer has the demonstrated need this repo asks for. Laptop41's doctor:
+  `self 192.168.2.151 ... Wi-Fi` and `backend listens on: ::1, 100.69.243.25,
+  127.0.0.1, 192.168.2.151` — **the two agree now**, which is the whole of what
+  was wrong; `ok: the panel's way in answers: http://192.168.2.151:8001/health
+  200 (Wi-Fi)`; `ok: Alpha's deck feed is live (assistant heartbeat 30s old)`;
+  and `ok: home-network devices that called the backend in the last couple of
+  minutes: 192.168.2.97 (37 connections)`, which is the panel
+  (`dc:b4:d9:01:3c:38`, Reachable). Note the direction, because the older notes
+  have it the other way round: the panel's network is `192.168.2.x` and
+  `192.168.1.151` was the stale address. #224's `home-wifi` standing check
+  reported `0 (on the home network, backend reachable)` at 06:33Z and has not
+  reported since, which for a standing check means unchanged.
 - **What to do next:** [`BACKLOG.md`](BACKLOG.md), the standing work queue: claim an item, one PR, check it, delete it.
   Since the host move: **F1-F30** in `BACKLOG.md` ("Fleet after the host move"), the owner's list, which includes teaching Alpha.
 - **Decided 2026-10-07, in progress:** Alpha moves to the Host as well, and Laptop41 becomes the warm copy and standby (`HANDOFF_2026-10-07d_alpha-moves-to-host.md`). Until the switch-over, the paragraph below is still how the machines run.

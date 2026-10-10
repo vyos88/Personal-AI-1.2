@@ -100,9 +100,41 @@ export function parseArgs(argv) {
   return opts;
 }
 
+/**
+ * How long one git call may take before it is killed, and what to call it then.
+ *
+ * A git call that hangs is worse here than one that fails. `Publish-Live` runs
+ * at the *end* of an autopilot pass (`autopilot.ps1:850`), so a pass stuck in
+ * git writes no live report and reaches no later action -- and the next pass
+ * finds the same wedge. Laptop41's live branch went 126 minutes without a
+ * write on 2026-10-08 (last 23:29:08Z, read at 01:35Z) while its separately
+ * scheduled doctor kept pushing every ~15 minutes from the same machine with
+ * the same credentials: the pass, not the network. Its own live-sync had
+ * reported `Empty reply from server` ten minutes earlier, which is the fast
+ * version of what a server that accepts a connection and sends nothing does;
+ * `spawnSync` with no timeout is the slow one, and waits for ever.
+ *
+ * Two minutes is generous for a blob-filtered fetch and well inside the
+ * five-minute pass. A timeout that is too short is loud and self-correcting --
+ * the tip is reported as not tried and comes round next pass -- where no
+ * timeout at all is silent.
+ */
+export const gitTimeoutMs = () => {
+  const n = Number(process.env.ALPHA_GIT_TIMEOUT_MS);
+  return Number.isFinite(n) && n > 0 ? n : 120_000;
+};
+
+/** A timeout is not a missing git, and must not be reported as one. */
+export function gitSpawnError(args, error) {
+  const what = `git ${args.slice(0, 3).join(' ')}`;
+  return error.code === 'ETIMEDOUT'
+    ? new Error(`${what} gave up after ${Math.round(gitTimeoutMs() / 1000)}s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)`)
+    : new Error(`git not found: ${error.message}`);
+}
+
 function git(args, { cwd, input, allowFail = false } = {}) {
-  const r = spawnSync('git', args, { cwd, input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  if (r.error) throw new Error(`git not found: ${r.error.message}`);
+  const r = spawnSync('git', args, { cwd, input, encoding: 'utf8', timeout: gitTimeoutMs(), maxBuffer: 256 * 1024 * 1024 });
+  if (r.error) throw gitSpawnError(args, r.error);
   if (r.status !== 0 && !allowFail) {
     throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${(r.stderr || r.stdout).trim()}`);
   }
@@ -119,6 +151,24 @@ export function findSoftwareRoot(start) {
 }
 
 /** A bare, blob-less clone: commits and trees only, file contents on demand. */
+const firstLine = (message) => String(message).split('\n')[0].trim();
+
+/**
+ * Whether a failed fetch says this machine was refused, rather than that it
+ * could not get an answer.
+ *
+ * The remedy used to be printed for every fetch failure, and it is the wrong
+ * one most of the time: Laptop41 fetched this branch at 00:04 on 2026-10-08
+ * and failed at 00:19 with `Empty reply from server`, and the report told its
+ * owner to sign in -- on a machine that had just authenticated fine fifteen
+ * minutes earlier. Only git's own words for a refusal count; its generic
+ * "make sure you have the correct access rights" follows every failure,
+ * including an unreachable one, so it is deliberately not among them.
+ */
+export function looksUnauthorized(message) {
+  return /could not read Username|Authentication failed|Invalid username or password|terminal prompts disabled|returned error: 40[13]|HTTP 40[13]|40[13] Forbidden|Repository not found/i.test(String(message));
+}
+
 export function fetchBranch({ cache, repo, branch }) {
   if (!existsSync(join(cache, 'HEAD'))) {
     mkdirSync(dirname(cache), { recursive: true });
@@ -353,6 +403,29 @@ export function nearestHunk(patch, path, line, applyLog = '') {
   return `${dist(near)} line(s) from ${label(near)}`;
 }
 
+/** The branch's own copy of a file, BOM-stripped and LF-normalised, or null. */
+export function branchText({ cache, to, subdir, path }) {
+  const r = git(['show', `${to}:${subdir}/${path}`], { cwd: cache, allowFail: true });
+  return r.status === 0 ? r.stdout.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n') : null;
+}
+
+/**
+ * Whether a merged file says exactly what the branch says.
+ *
+ * The write-back restores this machine's BOM and line endings, so the bytes
+ * differ on a CRLF host while the code is identical: compare the text, not the
+ * file. A match means the merge added nothing the branch does not already
+ * hold, so a parser's complaint about it is a complaint about the branch's own
+ * copy, or about the Python reading it -- never about a hunk that landed
+ * badly. Worker1 jobs 38, 40 and 41 reported the same "line 18004: invalid
+ * syntax", 2300 lines from any change, three times; what the report could not
+ * say was whose file was broken, which is the only thing that decides what to
+ * do about it.
+ */
+export function sameAsBranch(mergedText, branch) {
+  return branch != null && mergedText.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n') === branch;
+}
+
 function findPowerShell() {
   for (const name of platform() === 'win32' ? ['powershell', 'pwsh'] : ['pwsh']) {
     const r = spawnSync(name, ['-NoProfile', '-Command', '$PSVersionTable.PSVersion.Major'], { encoding: 'utf8' });
@@ -528,16 +601,30 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
     return EXIT_ERROR;
   }
   const cache = join(ops, 'alpha-full-cache.git');
+  let fetchFailed = null;
   try {
     fetchBranch({ cache, repo: opts.repo ?? DEFAULTS.repo, branch });
   } catch (e) {
-    log(`STOP: could not fetch ${branch}: ${e.message}`);
-    log('  Alpha is a private repository: this machine needs git credentials for github.com (sign in once with `git credential-manager` or `gh auth login`).');
+    fetchFailed = e;
+  }
+  // A failed first fetch leaves no cache to ask, and git run inside a directory
+  // that is not there reports itself missing rather than the commit.
+  const cached = existsSync(join(cache, 'HEAD'));
+  const from = cached ? resolveCommit(cache, opts.from ?? recorded?.to ?? DEFAULTS.from) : null;
+  const to = cached ? resolveCommit(cache, opts.to ?? branch) : null;
+  // A fetch is only needed for the commits it brings. When both ends are
+  // already in the cache -- live-sync.mjs fetches the branch itself and then
+  // names the tip with --to, seconds before this runs -- the network was not
+  // needed and a blip in it must not be reported as an update that failed.
+  if (fetchFailed && (!from || !to)) {
+    log(`STOP: could not fetch ${branch}: ${fetchFailed.message}`);
+    log(looksUnauthorized(fetchFailed.message)
+      ? '  Alpha is a private repository: this machine needs git credentials for github.com (sign in once with `git credential-manager` or `gh auth login`).'
+      : '  git was not refused, so this is the repository or the network rather than credentials; a pass that reaches it tries again.');
     return EXIT_ERROR;
   }
-  const from = resolveCommit(cache, opts.from ?? recorded?.to ?? DEFAULTS.from);
-  const to = resolveCommit(cache, opts.to ?? branch);
   if (!from || !to) { log(`STOP: cannot resolve ${!from ? 'the --from commit' : 'the --to commit'} in ${branch}`); return EXIT_ERROR; }
+  if (fetchFailed) log(`  could not fetch ${branch} (${firstLine(fetchFailed.message)}), but ${to.slice(0, 7)} is already in the cache: this update needs nothing from the network`);
   log(`changes: ${from.slice(0, 7)}..${to.slice(0, 7)} of ${branch}${recorded ? ` (last applied here: ${recorded.to.slice(0, 7)})` : ''}`);
 
   const areas = [{ name: 'software', root: softwareRoot, from, ...buildPatch({ cache, from, to, subdir: DEFAULTS.subdir }) }];
@@ -657,6 +744,22 @@ export async function main(argv = process.argv.slice(2), log = console.log) {
         mkdirSync(dirname(kept), { recursive: true });
         cpSync(file, kept);
         log(`  the merged file is kept at ${kept}`);
+        // Whose file is broken. A merge into a copy that still matches `from`
+        // can only produce what the branch holds, so there the answer is the
+        // branch or the Python; a copy that has moved on is the other answer,
+        // and the two send whoever reads this report to different places.
+        if (rel) {
+          const sub = area.name === 'scripts' ? DEFAULTS.scriptsSubdir : DEFAULTS.subdir;
+          if (sameAsBranch(readFileSync(file, 'utf8'), branchText({ cache, to, subdir: sub, path: rel }))) {
+            const other = usable.find((py) => py !== python && pythonParses(py, file).ok);
+            log(`  this is exactly what ${branch} holds for ${rel}: the merge added nothing the branch does not already say.`);
+            log(other
+              ? `  ${other.join(' ')} on this machine does read it, so this is a Python mismatch rather than a bad merge (--python takes one command).`
+              : `  no Python on this machine reads it, so the branch's own ${rel} is broken: fix it on ${branch}.`);
+          } else {
+            log(`  this machine's ${rel} is no longer the one ${from.slice(0, 7)} holds, so the hunks applied into a file ${branch} does not have: re-take the branch from this machine's current files.`);
+          }
+        }
         return undo(`${file} does not parse: ${res.detail}${where ? ` (${where})` : ''}`);
       }
       log(`  ok: ${pyFiles.length} Python file(s) parse`);

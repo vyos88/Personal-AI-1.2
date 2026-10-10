@@ -578,6 +578,36 @@ viewer, never a second manager:
   `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
   the "Managed control denied (HTTP=403)" in its supervisor log.
 
+`scripts/channel-watch.mjs` is a viewer of the same kind, for the one thing
+the autopilot writes every pass and nothing read. `Publish-Live` is the last
+step of a pass (`autopilot.ps1:850`), so a pass stuck in an action publishes
+nothing, and a hung pass cannot report itself — the watchdog's reason for
+asking the host about the laptop, applied to the pass. It asks git rather than
+the coordinator, so it needs no key and no tailnet, and it runs as the *other*
+machine's standing check (`autofix.channelWatch` on the Host watches Laptop41).
+Three rules it keeps:
+
+- **A verdict line carries no age.** `autopilot.ps1:751` builds its
+  change-detection key from the lines starting `OK`/`SILENT`/`MISSING`, so an
+  age in one of them would re-report the same silence every five minutes. The
+  ages go on a detail line, and anything added to this check belongs there too.
+- **Silence on `status/<channel>-autopilot` is not a channel to watch.** That
+  branch is pushed only when a queued id ran (`autopilot.ps1:733`), so hours of
+  quiet are ordinary; only `-live` and the doctor are heartbeats, which is why
+  the channels and their minutes are configuration rather than a list in code.
+- **A silent `<machine>-live` names the cost, not just the symptom** — the
+  commits pushed to `control/<machine>` since that last write, which are work
+  nothing is going to pick up. On 2026-10-08 Laptop41's pass went four hours
+  without publishing while its doctor kept pushing from the same machine, and
+  three commits of queued work landed on top. An age alone does not tell an
+  operator whether it matters yet.
+
+Two sessions wrote this check 26 minutes apart on 2026-10-08 (`70573bc` and a
+`fleet-heartbeat.mjs` removed in favour of it). It is the shape of duplicate
+this file warns about two paragraphs up, and `control/*` is where to look for a
+standing check before building one — `autofix.channelWatch` was in
+`control/host` before either landed on main.
+
 Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
 that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
 not `ALPHA_REPO_ROOT`), then on any machine:
@@ -1129,6 +1159,13 @@ Unlike `alpha.render`, the generator contract is defined *here*
 `scripts/generate_music.py` (MusicGen via `transformers`, imported lazily).
 A test runs the handler against the real script in its `ALPHA_MUSIC_DRY_RUN`
 mode, so the two cannot drift apart; if either changes, change both together.
+The sidecar's `engine` field is part of that contract: the handler reads it
+into `stats`, which is one of the three keys a trimmed result keeps, so the
+ledger, `/music/tasks/:id`, `/music/recipes` and the live test all say what
+made each track. It used to travel only in the generator's stdout, which
+`summarizeResult` drops -- so when Worker1 timed out at 721s twice on
+2026-10-06 while the Host made a track in 38s, nothing durable said whether
+either of them had run MusicGen on a GPU or on a CPU.
 The script refuses `--vocals` itself too, and every failure path exits
 non-zero, because a clean exit is what the handler reads as success.
 
@@ -1214,6 +1251,42 @@ over stubs — most of the bugs above were only findable that way.
 `AuthStore` takes `path: null` for an in-memory store, and `createHost({ token })`
 builds an ephemeral auth service with that token as its only credential. Both
 exist for tests.
+
+**The PowerShell suites need `pwsh`, not Windows.** Fifteen suites skip when
+`PWSH` names nothing runnable — `agent-setup`, `alpha-data-in`,
+`alpha-standdown`, `autopilot`, `comfyui-off`, `coord-post`, `enable-image`,
+`enable-music`, `install-always-on`, `laptop41-doctor`, `ollama-keepalive`,
+`panel-endpoint`, `python-one-liners`, `repair-alpha-host`, `songs-check` —
+and reading that as "they run only on the two laptops" is what left `.ps1`
+work merged with nothing behind the rule against it. They do not touch
+Windows: each stands in for the cmdlets it needs, over a JSON file —
+`alpha-standdown.test.js` fakes the scheduled tasks, the service, the process
+table, the listeners and both URLs — so PowerShell 7 on Linux runs them. In a
+cloud container:
+
+```bash
+curl -sSLo pwsh.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz
+mkdir -p ~/pwsh && tar -xzf pwsh.tar.gz -C ~/pwsh && chmod +x ~/pwsh/pwsh
+PATH=~/pwsh:$PATH npm test
+```
+
+On **PATH**, not only `PWSH`: `test/login-checks.test.js:21` and
+`test/apply-alpha-update.test.js:293` look it up by name, and the second is
+right to — `apply-alpha-update.mjs:430` resolves `pwsh` from PATH itself, so a
+test that took it from an environment variable would stop testing what the
+script does. `PWSH` stays the override for an install that is not on PATH.
+
+That is how the no-Alpha heartbeat page turned out to be untested rather than
+passing: its test ran the script under a machine name `-ExpectHost` refuses,
+so every run exited 3 at `autopilot.ps1:519` having asserted nothing about the
+page it was written for.
+
+What it does **not** prove is the half the fakes replace. A real
+`Get-NetTCPConnection`, `Get-ScheduledTask`, `mode.com` or `schtasks` is still
+only exercised on Windows, and `$env:COMPUTERNAME` is unset here unless a test
+sets it. So pwsh-on-Linux is the gate for parse errors, argv contracts and
+pure logic — most of what these scripts are — and a laptop is still the only
+place a cmdlet's own behaviour is checked.
 
 ## Working with other sessions
 

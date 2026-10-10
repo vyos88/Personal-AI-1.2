@@ -577,8 +577,18 @@ function Restart-Backend {
 }
 
 # role.json (alpha-standdown.ps1): "standby" while another machine serves Alpha.
+#
+# [IO.Path]::Combine, not Join-Path: this runs above the -Plan seam, which
+# Resolve-Action needs $standby for, and Join-Path resolves the drive -- so on
+# a host with no C: it throws "Cannot find drive. A drive with the name 'C'
+# does not exist." $ErrorActionPreference is Continue, so the plan still
+# printed, with an unrelated drive error interleaved on stderr; reading that
+# error is how a session started writing up a seam failure that was not one.
+# The rule is the one -ReadAgentList and -ParseStatus keep: a test seam that
+# touches the machine is not one, and laptop41-doctor's test asserts the
+# absence of this exact string. Combine is string work and resolves nothing.
 function Read-Role {
-  $f = Join-Path $OpsDir 'role.json'
+  $f = [IO.Path]::Combine($OpsDir, 'role.json')
   if (-not (Test-Path -LiteralPath $f)) { return $null }
   try { return (Get-Content -LiteralPath $f -Raw) -replace '^\uFEFF', '' | ConvertFrom-Json } catch { return $null }
 }
@@ -1200,7 +1210,18 @@ function Publish-Live([string]$md, [string]$json, [string]$headline) {
 }
 if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   $now = Get-Date
-  $sh = Read-SelfHeal
+  # autofix.heartbeat is `true` on the machine that runs Alpha, or an object
+  # with alpha:false on one that does not -- the Host, which runs the
+  # coordinator and an agent. Both get a page every pass, because the point of
+  # the page is that a reporter is alive; what differs is what there is to say.
+  # Without this the Host could not have one at all: with no self-heal log the
+  # Alpha row falls through to probing 127.0.0.1:8001 and calls a no-answer
+  # DOWN, so every page would be a red claim about a machine that is not
+  # supposed to run Alpha.
+  $hb = $control.autofix.heartbeat
+  $hbAlpha = $true
+  if ($hb -isnot [bool] -and $null -ne $hb.alpha) { $hbAlpha = [bool]$hb.alpha }
+  $sh = $(if ($hbAlpha) { Read-SelfHeal } else { $null })
   $alpha = [ordered]@{ verdict = 'UNKNOWN'; detail = ''; checked_by = '' }
   $heal = [ordered]@{ state = 'NOT INSTALLED'; age_min = $null; repairs = 0; restarted = ''; snapshot = ''; unfinished = ''; why = '' }
   if ($sh) {
@@ -1221,17 +1242,37 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.verdict = if ($down.Count) { 'DOWN' } else { 'LIVE' }
     $alpha.detail = (($parts.Keys | ForEach-Object { "$_ $(if ($parts[$_]) { $parts[$_].status } else { '?' })" }) -join ', ') + $(if ($down.Count) { "; not answering: $($down -join ', ')" } else { '' })
     $alpha.checked_by = "self-heal, $($sh.age) min ago"
-  } else {
-    # Self-heal is not watching, so look at the backend directly (only that).
-    $code = $null
-    try { $code = [int](Invoke-WebRequest -Uri 'http://127.0.0.1:8001/health' -UseBasicParsing -TimeoutSec 8).StatusCode } catch { $code = $null }
+  } elseif ($hbAlpha) {
+    # Self-heal is not watching, so this pass checks all three itself. It read
+    # only 127.0.0.1:8001 and said "site and alpha-ai.uk unchecked" -- and on
+    # 2026-10-10 at 01:29 the page said exactly that while alpha-ai.uk was
+    # answering 530 and nothing served Alpha at all. This branch runs only
+    # while self-heal is down, which is the window the page matters most in, so
+    # two more requests are the cheapest thing in the pass.
+    #
+    # An error response carries its code, and reporting it is the difference
+    # between "alpha-ai.uk answers 530" and "alpha-ai.uk is silent" -- a
+    # connector with no origin behind it against nothing listening at all,
+    # which send an operator to different places. Same shape as the standby
+    # branch below, which has always read the public URL this way.
+    $probe = {
+      param([string]$uri, [int]$sec)
+      try { return [int](Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $sec -EA Stop).StatusCode }
+      catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { return [int]$r.StatusCode }; return 0 }
+    }
+    $said = { param($c) if ($c) { "$c" } else { 'no answer' } }
+    $code = & $probe 'http://127.0.0.1:8001/health' 8
+    # 4173 as the standby branch below hardcodes it: the site port is Vite
+    # preview's and is not a parameter of this script.
+    $site = & $probe 'http://127.0.0.1:4173/' 8
+    $pub = & $probe 'https://alpha-ai.uk/' 10
     $alpha.verdict = if ($code -eq 200) { 'BACKEND UP' } else { 'DOWN' }
-    $alpha.detail = "backend $(if ($code) { $code } else { 'no answer' }); site and alpha-ai.uk unchecked while self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
+    $alpha.detail = "backend $(& $said $code), site $(& $said $site), alpha-ai.uk $(& $said $pub); checked here because self-heal is $(if ($heal.state -eq 'RUNNING') { 'not finishing its passes' } else { 'not running' })"
     $alpha.checked_by = 'this pass'
   }
   # A standby serves nothing here, on purpose: say who does, and say loudly if
   # anything here is serving too, since two Alphas write two histories.
-  if ($standby) {
+  if ($hbAlpha -and $standby) {
     $here = @()
     try { if (Get-NetTCPConnection -LocalPort 8001 -State Listen -EA Stop) { $here += 'backend' } } catch { }
     try { if (Get-NetTCPConnection -LocalPort 4173 -State Listen -EA Stop) { $here += 'site' } } catch { }
@@ -1244,7 +1285,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     $alpha.checked_by = 'this pass'
     $heal.state = 'OFF (standby)'; $heal.why = ''; $heal.unfinished = ''
   }
-  if ($heal.state -eq 'STOPPED') {
+  if ($hbAlpha -and $heal.state -eq 'STOPPED') {
     $kickFile = Join-Path $dir 'selfheal-restart.txt'
     $lastKick = [datetime]::MinValue
     if (Test-Path -LiteralPath $kickFile) { [void][datetime]::TryParse((Get-Content -LiteralPath $kickFile -Raw).Trim(), [ref]$lastKick) }
@@ -1290,7 +1331,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   } elseif ($ds) { $data.state = 'ON'; $data.detail = "copying with $($ds.peer); no pass yet" }
   $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
   $receipt = Join-Path (Join-Path (Split-Path -Parent $AlphaRoot) 'memory\local\deck-liveness') 'latest.json'
-  if (Test-Path -LiteralPath $receipt) {
+  if ($hbAlpha -and (Test-Path -LiteralPath $receipt)) {
     try {
       $r = Get-Content -LiteralPath $receipt -Raw | ConvertFrom-Json
       # One count per deck, not per check: the CrowPanel has two checks (its
@@ -1329,6 +1370,49 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
   $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; data = $data; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  # The Host runs the coordinator and an agent, not Alpha, so the page above
+  # is about a machine that is not here: with no self-heal log the Alpha row
+  # falls through to probing 127.0.0.1:8001 and calls a no-answer DOWN. It is
+  # built and replaced rather than branched around, so the rows above stay
+  # byte-identical to the ones every other session adds to -- four merges in
+  # one day conflicted here only because this block was indented into an if.
+  if (-not $hbAlpha) {
+    # The two things this machine can be asked about without a credential, and
+    # the two nothing could see from off it. /healthz is the coordinator's only
+    # unauthenticated GET, so a scheduled pass can read it; and the checkout
+    # note above says whether fixes sent through this repository are still
+    # arriving. That note already exists and says so "in every report" -- but a
+    # report goes out only when a queued id ran, so on a quiet machine it was
+    # never read. The Host sat on e175472 for fifteen hours over one
+    # uncommitted scripts/usb-inventory.ps1 on 2026-10-08, 18 commits behind,
+    # and that line was in a report nobody had reason to open.
+    $port = 8787
+    $n = 0; if ($env:ALPHA_HOST_PORT -and [int]::TryParse($env:ALPHA_HOST_PORT, [ref]$n)) { $port = $n }
+    $hz = $null
+    try { $hz = [string](Invoke-WebRequest -Uri "http://127.0.0.1:$port/healthz" -UseBasicParsing -TimeoutSec 8).Content } catch { $hz = $null }
+    $coord = [ordered]@{ verdict = 'DOWN'; port = $port; detail = 'no answer' }
+    if ($hz -match '"ok"\s*:\s*true') {
+      $coord.verdict = 'LISTENING'
+      $coord.detail = $hz.Substring(0, [math]::Min(160, $hz.Length))
+    } elseif ($hz) {
+      # Something holds the port and is not the coordinator, which sends an
+      # operator somewhere different from nothing listening at all.
+      $coord.detail = 'answered but not ok: ' + $hz.Substring(0, [math]::Min(160, $hz.Length))
+    }
+    $stale = $updateExit -ne 0
+    $note = Redact $checkoutNote
+    $headline = "coordinator $($coord.verdict); checkout $(if ($stale) { 'STALE' } else { 'current' })"
+    $md = @(
+      "# Coordinator is $($coord.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
+      'Written every autopilot pass (5 minutes), whether or not anything changed.',
+      'This machine does not run Alpha, so its rows are the coordinator and this checkout.', '',
+      '| Check | State | Detail |', '|---|---|---|',
+      "| Coordinator (/healthz on $port) | $($coord.verdict) | $($coord.detail) |",
+      "| Checkout | $(if ($stale) { 'STALE' } else { 'CURRENT' }) | $note |",
+      "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
+    ) -join "`n"
+    $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; role = 'coordinator'; coordinator = $coord; checkout = [ordered]@{ stale = $stale; note = $note }; sync = $syncState } | ConvertTo-Json -Depth 5
+  }
   Publish-Live $md $json $headline
 }
 
