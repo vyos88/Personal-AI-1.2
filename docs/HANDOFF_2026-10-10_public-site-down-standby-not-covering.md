@@ -1,5 +1,27 @@
 ## Hourly alpha-tunnel handoff check — 2026-10-10, 01:14 pass
 
+### RESOLVED (03:26 pass): site is back to 200
+
+`https://alpha-ai.uk/` now answers **200, served from alpha-serv-01**.
+Another session had already diagnosed and fixed the real bug —
+**[#251](https://github.com/vyos88/Personal-AI-1.2/pull/251)** ("Stand-up:
+bring Alpha back whatever the newest record saw", merged 00:42 UTC) fixed
+`alpha-standup`'s `-Undo` reading only the newest stand-down record and
+missing `-StartConnector`, which is exactly why the connector never came
+back after the 530. **[#252](https://github.com/vyos88/Personal-AI-1.2/pull/252)**
+(docs-only, merged 01:33 UTC) added the correction appended below,
+explaining the two things I'd read as open questions at 02:11 were both
+intentional. Nothing further needed from this check; leaving the history
+below as-is since it's an accurate record of what was seen in the moment.
+
+The `NEEDS A PERSON — automatic cover has not run for 145 min` line that
+appears in later passes is **not a new problem**: per the correction below,
+Worker1's standby cover is deliberately disabled on the owner's
+instruction (alpha-serv-01 is the sole server now), so the doctor's line
+is expected and will keep appearing. Not re-flagging it.
+
+---
+
 ### New, more severe than the prior outage: the public site is fully down
 
 Laptop41's report changed shape entirely this pass — it's now the
