@@ -599,6 +599,11 @@
       "id": "20261010-codex-0112-alignment-doctor",
       "do": "doctor",
       "why": "Check-only after Worker1 stood down. Verify actual standby primary URL/status and resources. Server HTTPS /health is ready1.9; IP8001 and8787 timeout, public530 observed00:06UTC. No Fix, restart, reinstall, new credentials or old Host restoration. Report actual evidence; stale advice to start laptop-gj8dfmlk coordinator is superseded by human roles."
+    },
+    {
+      "id": "20261010-16-standup-cover",
+      "do": "alpha-standup",
+      "why": "V 2026-10-10 ~00:20 UTC: alpha-ai.uk answers 530 since Worker1 stood down at 00:02 UTC; alpha-serv-01's backend (8001) and coordinator (8787) do not answer yet, and 'Alpha Standby' is disabled, so no cover runs. Serve Alpha here again until alpha-serv-01 serves; then hand over again. No force: it refuses if alpha-ai.uk already answers."
     }
   ],
   "autofix": {
