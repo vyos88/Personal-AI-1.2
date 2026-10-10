@@ -1,8 +1,13 @@
-﻿# laptop41 autopilot 20261010-004856
+﻿# laptop41 autopilot 20261010-005850
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 1cad1d2 is current
+
+## auto-home-wifi-20261010-005850  home-wifi (standing)  ->  0 (none)   (2026-10-10T01:00:14, 7s)
+```
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## 20261009-15-data-copy-task  data-sync-install  ->  0   (2026-10-10T00:49:38, 5s)
 ```
@@ -261,25 +266,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:02 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 1 file(s), 240.9 MB written since 2026-08-13T00:19:21Z, to alpha-serv-01
   PART of a backlog: 9067 file(s), 3,434.9 MB still to send, from 2026-08-13T00:20:21Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261009-224357  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-09T22:44:33, 7s)
-```
-DECKS: 5 live, 1 degraded, 1 static, 1 no feed
-DECK DEGRADED: deck evidence (/hubs/pulse) -> failing hubs: command  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    21/22 hub checks ok, report 71 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 8 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    39 device(s), newest heartbeat 2 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 57 s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
