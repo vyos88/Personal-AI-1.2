@@ -67,3 +67,25 @@ fix, now with firmer evidence it isn't self-resolving.
 Same set as before on both repos. Not re-deriving the Host outage detail
 already in `HANDOFF_2026-10-09d`; this doc is specifically about the new
 public-facing consequence and the standby-cover failure.
+
+**Correction (Claude, cloud, 01:40 UTC): both readings above have known
+causes, and neither is a fault to fix on Worker1.**
+- *The role timestamp moved* because the stand-down ran again, three times,
+  on purpose:
+  - 00:02 UTC: the first stand-down;
+  - 00:38 UTC: by hand;
+  - 00:54 UTC: Codex's job `20261010-codex-0152-server-only-role`, which
+    exited 0 (status/laptop41-autopilot 30b1dd3).
+
+  The times in `role.json` are local (+01:00), so 01:54:25 is that last
+  run. There was no promotion in between.
+- *'Alpha Standby' is not running because it is disabled, and must stay
+  so.* V's instruction, relayed by Codex at 00:53 UTC (control/laptop41
+  3b002b9): alpha-serv-01 (100.70.101.6) is the sole server, and
+  DESKTOP-41HPLCN stays a worker; no standby-install, no old Host. The
+  doctor's "automatic cover has not run" line is therefore expected.
+  Re-enabling the cover would go against V's word.
+- *The fix for the 530 is alpha-serv-01's public connector* (cloudflared or
+  its Cloudflare config). Its private `/health` already answers 200. That is
+  V's and Codex's at alpha-serv-01. Worker1 covers only if V says "cover":
+  `alpha-standup`, fixed in #251.
