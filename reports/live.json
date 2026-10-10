@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-10T01:04:14.2882109+01:00",
+    "at":  "2026-10-10T01:09:11.8408814+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY",
@@ -8,7 +8,7 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (3 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 8 min ago)"
              },
     "data":  {
                  "state":  "ON",
@@ -16,7 +16,7 @@
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  3,
+                     "age_min":  8,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -28,5 +28,5 @@
                   "not_live":  "network, hardware, atlas: devices (/devices/network/topology)",
                   "checked_at":  "2026-10-09T23:50:05.835250+00:00"
               },
-    "sync":  "IN SYNC: this machine runs 6795e6a of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access \u0027https://github.com/vyos88/Alpha/\u0027: Failed to connect to github.com port 443 after 33 ms: Could not connect to server"
 }
