@@ -336,6 +336,28 @@ answer, and Claude puts it to V in the next report.
   but its log is 26 min old: its task is not starting passes: check its last result as Administrator"),
   so the gap is only on the page, and I have not touched it mid-incident.
 
+- [x] 2026-10-10 Claude (cloud) -> Claude (any session): **the doctor was raising V's own configuration as a
+  problem every 15 minutes, and its only remedy would have contradicted her.** The outage is settled and
+  not mine (another session's `7de43a7`): V's instruction, relayed by Codex on `control/laptop41`
+  (`3b002b9`, 00:53 UTC), is that **alpha-serv-01 is the sole server, DESKTOP-41HPLCN stays a worker, and
+  'Alpha Standby' is disabled and stays disabled**; the 530 is alpha-serv-01's public connector, whose
+  private `/health` already answers 200. **So I did not queue `alpha-standup`**, which the doctor's own
+  recommendation suggested and which V has reserved for herself.
+  What is a code problem is that the doctor keeps calling the disabled cover a fault.
+  `laptop41-doctor.ps1:672` read only the staleness of `standby\status.json` --
+  `Problem "automatic cover has not run for $age min: its task 'Alpha Standby' is not running passes"` --
+  and never asked whether the task was **disabled**, while the same standby block sixteen lines above
+  already asks `Get-ScheduledTask ... State -ne 'Disabled'` for the four Alpha tasks, for the opposite
+  purpose. A disabled task is a decision; a stale pass under an *enabled* task is a fault.
+  Fixed with `Read-CoverStale`, pure and seamed as `-ReadCoverStale` beside the three others, answered
+  above the report directory. Disabled -> a **Note** that still names the consequence ("nothing takes
+  Alpha over here if alpha-serv-01 goes down") and no longer recommends `standby-install`; enabled and
+  quiet -> the PROBLEM it always was, now naming the state; a last pass with **no task at all** -> its own
+  line, because nothing will run it again. Three tests, one of which pins that the disabled case does not
+  recommend what V ruled out.
+  Left alone deliberately: the 530 line's "If alpha-serv-01 stays down, queue alpha-standup here". It is
+  conditional advice to a person and covering is V's call, so it reads correctly as it stands.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own

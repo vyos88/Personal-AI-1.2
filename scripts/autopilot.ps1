@@ -51,6 +51,8 @@
     standby-uninstall  install-alpha-standby.ps1 -Uninstall: remove that task (its standby.json stays)
     data-sync        alpha-data-sync.ps1 once: send what changed in memory\ here (while serving) and apply what arrived (while not)  ("peer", "since", "resend")
     data-apply       alpha-data-sync.ps1 -ApplyHeld: stop the backend, apply what was held, start it
+    data-sync-install  install-alpha-data-sync.ps1: the copy as its own task 'Alpha Data Copy', hours to a run  ("peer", "everyMin")
+    data-sync-uninstall  install-alpha-data-sync.ps1 -Uninstall: remove that task (the copy's state stays)
     tailnet-peers    tailnet-peers.ps1: the machines on the tailnet (name, address, OS, online), no accounts (takes no arguments)
 
   Standing check, every pass: autofix.dataSync = {"peer": "<other machine>",
@@ -395,8 +397,23 @@ function Resolve-Action($a) {
     # are what the other settings point at. Read-only, and it prints no account.
     'tailnet-peers' { $spec = Ps1 'tailnet-peers.ps1' @(); $out.timeoutMin = 2 }
     'data-apply' { $spec = Ps1 'alpha-data-sync.ps1' @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot, '-ApplyHeld', '-NoSend'); $out.timeoutMin = 20 }
+    # The copy as its own task, for a backlog with files too big for the
+    # standing check's 15 minutes (install-alpha-data-sync.ps1).
+    'data-sync-install' {
+      if ([string]$a.peer -notmatch '^[A-Za-z0-9][A-Za-z0-9-]{0,62}$') { $out.reason = 'peer must be a machine name'; return $out }
+      $rest = @('-OpsDir', $OpsDir, '-AlphaRoot', $AlphaRoot, '-Peer', [string]$a.peer)
+      if ($a.everyMin) {
+        if ([string]$a.everyMin -notmatch '^\d{1,4}$' -or [int]$a.everyMin -lt 5) { $out.reason = 'everyMin must be a number of minutes, 5 or more'; return $out }
+        $rest += @('-EveryMin', [string][int]$a.everyMin)
+      }
+      $spec = Ps1 'install-alpha-data-sync.ps1' $rest; $out.timeoutMin = 3
+    }
+    'data-sync-uninstall' { $spec = Ps1 'install-alpha-data-sync.ps1' @('-OpsDir', $OpsDir, '-Uninstall'); $out.timeoutMin = 2 }
     'alpha-standup' {
-      $rest = @('-OpsDir', $OpsDir, '-Undo')
+      # -StartConnector, as the automatic cover does: Worker1's connector was
+      # never the cloudflared service, so a stand-up that restored only what
+      # the service had been left alpha-ai.uk at 530 (2026-10-10).
+      $rest = @('-OpsDir', $OpsDir, '-Undo', '-StartConnector')
       if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
       if ($a.force -eq $true) { $rest += '-Force' }
       $spec = Ps1 'alpha-standdown.ps1' $rest; $out.timeoutMin = 6
@@ -1073,7 +1090,27 @@ if ($wifi) {
 $dsKey = if ($state -and $state.dataSyncKey) { [string]$state.dataSyncKey } else { '' }
 $dsAt = if ($state -and $state.dataSyncAt) { [string]$state.dataSyncAt } else { '' }
 $ds = if ($control -and $control.autofix -and $control.autofix.dataSync -and $control.autofix.dataSync.peer) { $control.autofix.dataSync } else { $null }
-if ($ds) {
+# Once the copy runs as its own task, the pass only reports it: a run that
+# finished since the last pass, with the task's result and its output.
+$dsTask = $null
+if (Get-Command Get-ScheduledTask -EA SilentlyContinue) { $dsTask = Get-ScheduledTask -TaskName 'Alpha Data Copy' -EA SilentlyContinue }
+if ($dsTask) {
+  $info = Get-ScheduledTaskInfo -TaskName 'Alpha Data Copy' -EA SilentlyContinue
+  $taskLog = Join-Path $OpsDir 'data-sync\task-last.log'
+  # 267011 is "has not run yet" (its LastRunTime is a date in 1999); a run in
+  # progress is reported once it ends.
+  if ($info -and $info.LastRunTime -and [int64]$info.LastTaskResult -ne 267011 -and [string]$dsTask.State -ne 'Running') {
+    $k = 'task|' + ([datetime]$info.LastRunTime).ToString('s')
+    if ($k -ne $dsKey) {
+      $code = [int64]$info.LastTaskResult
+      $res = if ($code -eq 0) { '0 (in step)' } elseif ($code -eq 3) { '3 (held, or still arriving)' } else { "$code (failed)" }
+      $tail = ((Get-Content -LiteralPath $taskLog -EA SilentlyContinue) -join "`n").Trim()
+      [void]$ran.Add([ordered]@{ id = "auto-data-sync-task-$stamp"; do = "data-sync (task 'Alpha Data Copy', run at $(([datetime]$info.LastRunTime).ToString('s')))"; result = $res; at = (Get-Date).ToString('s'); seconds = 0; tail = (Redact $tail) })
+      Write-Host "data sync task: $res"
+      $dsKey = $k
+    }
+  }
+} elseif ($ds) {
   $every = 10
   if ($ds.everyMin -and [int]$ds.everyMin -ge 5) { $every = [int]$ds.everyMin }
   $lastDs = [datetime]::MinValue
@@ -1089,7 +1126,9 @@ if ($ds) {
         $proc = Start-Process -FilePath 'powershell.exe' -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$(Join-Path $PSScriptRoot 'alpha-data-sync.ps1')`"", '-OpsDir', "`"$OpsDir`"", '-AlphaRoot', "`"$AlphaRoot`"", '-Peer', [string]$ds.peer, '-MaxBytes', '104857600') `
                   -WorkingDirectory $repo -NoNewWindow -PassThru -RedirectStandardOutput $dsLog -RedirectStandardError "$dsLog.err"
         $null = $proc.Handle
-        if ($proc.WaitForExit(15 * 60000)) { $dsCode = $proc.ExitCode } else { Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $dsCode = 'timeout after 15 min' }
+        # The whole tree on a timeout: killing only PowerShell left its
+        # `tailscale file cp` uploading beside the next pass's (2026-10-09).
+        if ($proc.WaitForExit(15 * 60000)) { $dsCode = $proc.ExitCode } else { taskkill.exe /T /F /PID $proc.Id 2>&1 | Out-Null; Stop-Process -Id $proc.Id -Force -EA SilentlyContinue; $dsCode = 'timeout after 15 min' }
         $dsOut = ((Get-Content -LiteralPath $dsLog, "$dsLog.err" -EA SilentlyContinue) -join "`n").Trim()
       } catch { $dsOut = "could not start: $($_.Exception.Message)" }
     }

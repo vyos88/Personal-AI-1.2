@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync, spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -30,6 +30,7 @@ function tailscale {
     $peer = ([string]$args[-1]).TrimEnd(':')
     $to = Join-Path $env:FAKE_TAILDROP $peer
     New-Item -ItemType Directory -Force -Path $to | Out-Null
+    if ($env:FAKE_TAILDROP_SLEEP) { Start-Sleep -Seconds ([int]$env:FAKE_TAILDROP_SLEEP) }
     foreach ($f in $args[2..($args.Count - 2)]) { Copy-Item -LiteralPath $f -Destination $to }
     if ($env:FAKE_TAILDROP_FAILS) { $global:LASTEXITCODE = 1; 'peer is offline' } else { $global:LASTEXITCODE = 0 }
   } elseif ($args[0] -eq 'file' -and $args[1] -eq 'get') {
@@ -422,4 +423,49 @@ test('a package from before format 2 (memory\\ in the tar) is still applied', { 
   assert.equal(r.code, 0, r.out);
   assert.match(r.out, /APPLIED alpha-data-desktop-41hplcn-20261009-192017\.tar from DESKTOP-41HPLCN: 1 file\(s\) written/);
   assert.equal(server.read('chats/from-job-13.json'), 'part 1');
+});
+
+// The 'Alpha Data Copy' task and an autopilot job could otherwise pack, send
+// and write state.json at the same time.
+test('one copy at a time: a second run while one is sending does nothing, and says so', { skip }, async () => {
+  const root = mkdtempSync(join(tmpdir(), 'data-sync-'));
+  const w1 = machine(root, 'desktop-41hplcn');
+  w1.write('chats/a.json', 'a', Date.parse('2026-10-01T00:00:00Z'));
+  // the first run, with a slow Taildrop, in the background
+  const first = spawn(PWSH, ['-NoProfile', '-Command', `${FAKES}; & '${SCRIPT}' -OpsDir '${w1.ops}' -AlphaRoot '${join(w1.home, 'software')}' -Inbox '${w1.inbox}' -Peer alpha-serv-01 -Since 2000-01-01T00:00:00Z; exit $LASTEXITCODE`],
+    { env: { ...process.env, FAKE_TAILDROP: join(root, 'taildrop'), FAKE_ME: w1.name, FAKE_TASKLOG: join(root, 'tasks.log'), COMPUTERNAME: 'DESKTOP-41HPLCN', FAKE_SERVING: '1', FAKE_TAILDROP_SLEEP: '8' } });
+  let out = '';
+  first.stdout.on('data', (d) => { out += d; });
+  const done = new Promise((resolve) => first.on('exit', resolve));
+  // wait until it holds the lock
+  for (let i = 0; i < 100 && !existsSync(join(w1.ops, 'data-sync', 'sync.lock')); i++) await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 1500));
+  const r = w1.run(['-Peer', 'alpha-serv-01'], serving);
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /DATA SYNC DESKTOP-41HPLCN busy: another data sync is running here, so this one did nothing/);
+  assert.doesNotMatch(r.out, /SENT|baseline/);
+  assert.equal(await done, 0, out);
+  assert.match(out, /SENT 1 file\(s\)/, 'the first run finished its send');
+  // and with the first one gone, the next run is not refused
+  const again = w1.run(['-Peer', 'alpha-serv-01'], serving);
+  assert.match(again.out, /nothing written here since/);
+});
+
+const INSTALL = join(import.meta.dirname, '..', 'scripts', 'install-alpha-data-sync.ps1');
+test('install-alpha-data-sync runs the copy as its own task, with its output in a file, and refuses what it cannot quote', { skip }, () => {
+  const run = (...args) => {
+    const r = spawnSync(PWSH, ['-NoProfile', '-File', INSTALL, ...args], { encoding: 'utf8' });
+    return { code: r.status, out: r.stdout + r.stderr };
+  };
+  let r = run('-OpsDir', 'C:\\AlphaData\\alpha-ops', '-AlphaRoot', 'C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software', '-Peer', 'alpha-serv-01', '-PrintOnly');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /^cmd\.exe \/c ""[^"]*powershell(\.exe)?" -NoProfile -ExecutionPolicy Bypass -File "[^"]*alpha-data-sync\.ps1" -OpsDir "C:\\AlphaData\\alpha-ops" -AlphaRoot "C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software" -Peer alpha-serv-01 -MaxBytes 104857600 > "C:\\AlphaData\\alpha-ops[\\/]data-sync[\\/]task-last\.log" 2>&1"$/m);
+  r = run('-Peer', 'x; calc', '-PrintOnly');
+  assert.equal(r.code, 1);
+  assert.match(r.out, /REFUSED: -Peer must be a machine name/);
+  r = run('-Peer', 'alpha-serv-01', '-EveryMin', '1', '-PrintOnly');
+  assert.match(r.out, /REFUSED: -EveryMin must be 5 to 1440/);
+  r = run('-Peer', 'alpha-serv-01', '-OpsDir', 'C:\\x" & calc & "', '-PrintOnly');
+  assert.equal(r.code, 1);
+  assert.match(r.out, /REFUSED: -OpsDir holds a character cmd\.exe would read/);
 });

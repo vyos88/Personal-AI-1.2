@@ -67,6 +67,9 @@ param(
   # Test seam: a JSON file of { files: [{path, at}], built }; prints whether
   # the build predates anything it would have shipped.
   [string]$ReadStaleBuild,
+  # Test seam: a JSON file of { ageMin, taskState, primary }; prints whether a
+  # cover that has not run is a decision or a fault.
+  [string]$ReadCoverStale,
   # Test seam: judge self-heal from what it left in -OpsDir (log, lock, config
   # error) and print the verdict as JSON. Writes nothing.
   [switch]$ExplainSelfHeal
@@ -184,6 +187,35 @@ function Read-StaleBuild($Files, [datetime]$Built) {
   return [ordered]@{ stale = $stale; newest = $newest; skippedNewer = $skippedNewer; note = $note }
 }
 
+# Is the automatic cover off on purpose, or broken? The task's own state is
+# what answers it, and the standby section already asks Get-ScheduledTask for
+# the four Alpha tasks sixteen lines above this -- for the opposite purpose,
+# refusing a standby whose Alpha tasks are still enabled.
+#
+# Without that question, a cover deliberately disabled reads as a fault. V's
+# instruction of 2026-10-10, relayed by Codex on control/laptop41 (3b002b9),
+# is that alpha-serv-01 is the sole server and DESKTOP-41HPLCN stays a worker,
+# with 'Alpha Standby' disabled and staying disabled. The doctor raised
+# "automatic cover has not run for 70 min: its task is not running passes" as
+# a PROBLEM every 15 minutes anyway, and the only remedy it points at --
+# re-installing the cover -- would have gone against that instruction. A
+# disabled task is a decision; a stale pass under an enabled task is a fault.
+#
+# Pure, so it is tested off Windows. $TaskState is '' when there is no task.
+function Read-CoverStale([int]$AgeMin, [string]$TaskState, [string]$Primary) {
+  $who = if ($Primary) { $Primary } else { 'the primary' }
+  if ($TaskState -eq 'Disabled') {
+    return [ordered]@{ problem = $false
+      note = "automatic cover is off: its task 'Alpha Standby' is disabled, so nothing takes Alpha over here if $who goes down" }
+  }
+  if (-not $TaskState.Trim()) {
+    return [ordered]@{ problem = $true
+      note = "automatic cover last ran $AgeMin min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)" }
+  }
+  return [ordered]@{ problem = $true
+    note = "automatic cover has not run for $AgeMin min: its task 'Alpha Standby' is $TaskState and not running passes" }
+}
+
 # Is self-heal running, and if its log went quiet, why?
 #
 # Its task is SYSTEM and hidden from the account the doctor runs as, so its log
@@ -237,6 +269,11 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadCoverStale')) {
+  $f = Get-Content -LiteralPath $ReadCoverStale -Raw | ConvertFrom-Json
+  Read-CoverStale ([int]$f.ageMin) ([string]$f.taskState) ([string]$f.primary) | ConvertTo-Json -Compress
   exit 0
 }
 if ($PSBoundParameters.ContainsKey('ReadStaleBuild')) {
@@ -669,7 +706,12 @@ function Cover-Checks([string]$primary, [bool]$publicServed) {
   if (-not (Test-Path -LiteralPath $f)) { Problem "automatic cover is not installed: if $primary goes down, nothing takes Alpha over here (queue standby-install)"; return }
   $age = [int]((Get-Date) - (Get-Item -LiteralPath $f).LastWriteTime).TotalMinutes
   $pass = try { Get-Content -LiteralPath $f -Raw | ConvertFrom-Json } catch { $null }
-  if ($age -gt 5) { Problem "automatic cover has not run for $age min: its task 'Alpha Standby' is not running passes"; return }
+  if ($age -gt 5) {
+    $cst = Get-ScheduledTask -TaskName 'Alpha Standby' -EA SilentlyContinue
+    $v = Read-CoverStale $age ([string]$cst.State) $primary
+    if ($v.problem) { Problem $v.note } else { Note $v.note }
+    return
+  }
   OK "automatic cover: $($pass.why) ($age min ago)"
   $seen = $pass -and $pass.probes -and [int]$pass.probes.primary -ge 200 -and [int]$pass.probes.primary -lt 300
   if ($pass -and $pass.role -eq 'standby' -and $publicServed -and -not $seen) {

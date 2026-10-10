@@ -624,6 +624,42 @@ test('a minute of slack survives, and a src of nothing but tests says which empt
   assert.match(onlyTests.note, /no build input under src\\ \(only tests and fixtures\)/);
 });
 
+// V's instruction of 2026-10-10, relayed by Codex on control/laptop41
+// (3b002b9): alpha-serv-01 is the sole server, DESKTOP-41HPLCN stays a worker,
+// and 'Alpha Standby' is disabled and stays disabled. The doctor raised
+// "automatic cover has not run for 70 min: its task is not running passes" as
+// a PROBLEM anyway, every 15 minutes, and the only remedy it pointed at was
+// re-installing the cover -- which would have gone against that instruction.
+const readCover = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-cover-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCoverStale', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a cover whose task is disabled is a decision, not a fault', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Disabled', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, false, 'a disabled task is somebody deciding, and does not need a person');
+  // It still says the consequence, because that is what a reader needs.
+  assert.match(out.note, /automatic cover is off: its task 'Alpha Standby' is disabled, so nothing takes Alpha over here if alpha-serv-01 goes down/);
+  assert.doesNotMatch(out.note, /standby-install/, 'and does not recommend what V ruled out');
+});
+
+test('a cover whose task is enabled and quiet is still the fault it was', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Ready', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /automatic cover has not run for 70 min: its task 'Alpha Standby' is Ready and not running passes/);
+});
+
+test('a cover with a last pass but no task at all says nothing will run it again', { skip }, () => {
+  const out = readCover({ ageMin: 9, taskState: '', primary: '' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /its task 'Alpha Standby' is not on this machine: nothing will run it again/);
+  assert.match(out.note, /if the primary goes down|stand this machine down/, 'and names a way out either way');
+});
+
 test('a sample window of nothing does not divide by it', { skip }, () => {
   const out = readBusiest({ seconds: 0, cores: 0, before: [{ name: 'a', pid: 1, cpu: 1 }], after: [{ name: 'a', pid: 1, cpu: 2 }] });
   assert.equal(out.rows[0].percent, 0);
