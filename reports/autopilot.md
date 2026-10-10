@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-031346
+﻿# laptop41 autopilot 20261010-032853
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout e916c31 is current
+checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-032853  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:20:41)  ->  0 (in step)   (2026-10-10T03:29:20, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 20 file(s), 96.7 MB written since 2026-09-29T18:55:03Z, to alpha-serv-01
+  PART of a backlog: 3602 file(s), 479.1 MB still to send, from 2026-09-29T18:55:05Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-031346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:10:41)  ->  0 (in step)   (2026-10-10T03:14:19, 0s)
 ```
@@ -261,10 +269,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:50 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 1 file(s), 617.0 MB written since 2026-08-13T04:24:38Z, to alpha-serv-01
   PART of a backlog: 9001 file(s), 2,127.3 MB still to send, from 2026-08-13T04:31:39Z; the next pass carries on
-```
-
-## auto-live-sync-20261010-010845  live-sync (standing)  ->  1 (could not run)   (2026-10-10T01:09:05, 1s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access 'https://github.com/vyos88/Alpha/': Failed to connect to github.com port 443 after 33 ms: Could not connect to server
 ```
 
