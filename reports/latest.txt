@@ -1,4 +1,4 @@
-laptop41-doctor 20261010-082603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 24eff93 2026-10-10)
+laptop41-doctor 20261010-094102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 24eff93 2026-10-10)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-10T01:54:25.0428893+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,24 +6,24 @@ laptop41-doctor 20261010-082603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover has not run for 445 min: its task 'Alpha Standby' is not running passes
+  PROBLEM: automatic cover has not run for 520 min: its task 'Alpha Standby' is not running passes
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.7 of 15.8 GB RAM free
+  ok: 3.3 of 15.8 GB RAM free
   ok: C: 132.3 GB free
-  ok: CPU 64% (Alpha holds GPU admission at 90%)
-  Memory Compression              648 MB  pid 3840
-  claude                          621 MB  pid 2164
-  ChatGPT                         448 MB  pid 22856
-  chrome                          414 MB  pid 13364
-  MsMpEng                         411 MB  pid 6040
-  ChatGPT                         393 MB  pid 19812
-  ChatGPT                         326 MB  pid 17956
+  ok: CPU 20% (Alpha holds GPU admission at 90%)
+  Memory Compression              641 MB  pid 3840
+  claude                          602 MB  pid 2164
+  ChatGPT                         486 MB  pid 22856
+  MsMpEng                         438 MB  pid 6040
+  chrome                          409 MB  pid 13364
+  ChatGPT                         407 MB  pid 19812
   explorer                        325 MB  pid 10108
+  ChatGPT                         323 MB  pid 17956
 
 === SUMMARY ===
   this pass took 10s
-  - NEEDS A PERSON - automatic cover has not run for 445 min: its task 'Alpha Standby' is not running passes  (open 28 run(s), since 2026-10-10T01:41:23)
+  - NEEDS A PERSON - automatic cover has not run for 520 min: its task 'Alpha Standby' is not running passes  (open 33 run(s), since 2026-10-10T01:41:23)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
