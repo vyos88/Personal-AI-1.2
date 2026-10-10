@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-015346
+﻿# laptop41 autopilot 20261010-020845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 52c897e is current
+
+## auto-data-sync-task-20261010-020845  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:00:41)  ->  0 (in step)   (2026-10-10T02:09:15, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 01:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 2 file(s), 569.7 MB written since 2026-08-15T01:58:06Z, to alpha-serv-01
+  PART of a backlog: 8956 file(s), 1,267.2 MB still to send, from 2026-08-15T01:58:57Z; the next pass carries on
+```
 
 ## 20261010-codex-0152-server-only-role  alpha-standdown  ->  0   (2026-10-10T01:54:11, 67s)
 ```
@@ -285,11 +293,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:31 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   taildrop: 502 Bad Gateway: 
   NOT SENT: 1 file(s) wait for the next pass (nothing is lost: the next send starts from 2026-08-13T04:24:38Z)
-```
-
-## auto-data-sync-20261010-000848  data-sync (standing)  ->  timeout after 15 min (failed)   (2026-10-10T00:09:59, 900s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
 ```
 
