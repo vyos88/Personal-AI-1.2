@@ -25,8 +25,10 @@
        cloudflared takes --token on it.
 
   Tasks are disabled, never deleted, and every change is written to
-  standdown\standdown-<time>.json, which -Undo reads back: it enables only what
-  was enabled before and restores the service's start type.
+  standdown\standdown-<time>.json. -Undo reads back every record since the
+  last stand-up. 'Alpha Backend', 'Alpha' and 'Alpha Self-Heal' are always
+  enabled, because serving here is what they are; any other task only if a
+  record saw it enabled. The service gets the start type the first record saw.
 
   Alpha's own runtime (the Agent Manager, alpha_runtime_always_on.ps1,
   alpha_runtime_watchdog.ps1) is Alpha's to stop, through the Agent Manager.
@@ -165,9 +167,16 @@ function Kill-Tree([int]$id, [string]$what) {
 # ------------------------------------------------------------------ undo
 if ($Undo) {
   Say "ALPHA STAND-UP $env:COMPUTERNAME $(Get-Date -Format 'yyyy-MM-dd HH:mm')"
-  $last = Get-ChildItem -LiteralPath $recordDir -Filter 'standdown-*.json' -EA SilentlyContinue | Sort-Object Name | Select-Object -Last 1
-  $record = if ($last) { Get-Content -LiteralPath $last.FullName -Raw | ConvertFrom-Json } else { $null }
-  Say $(if ($record) { "record: $($last.Name)" } else { 'no stand-down record here: every Alpha task present is enabled, and the service set to Automatic' })
+  # Every record since the last stand-up, not only the newest: on 2026-10-10
+  # a stand-down recorded everything as already off, and a stand-up that read
+  # only it restored nothing. The first of them saw the machine before any
+  # stand-down touched it, so the service is put back as that one saw it.
+  $since = Get-ChildItem -LiteralPath $recordDir -Filter 'role-*.json' -EA SilentlyContinue | Sort-Object Name | Select-Object -Last 1
+  $records = @(Get-ChildItem -LiteralPath $recordDir -Filter 'standdown-*.json' -EA SilentlyContinue | Sort-Object Name |
+      Where-Object { -not $since -or $_.Name.Substring(10) -gt $since.Name.Substring(5) })
+  $first = $records | Select-Object -First 1
+  $record = if ($first) { Get-Content -LiteralPath $first.FullName -Raw | ConvertFrom-Json } else { $null }
+  Say $(if ($record) { "record: $(@($records | ForEach-Object { $_.Name }) -join ', ')" } else { 'no stand-down record here: every Alpha task present is enabled, and the service set to Automatic' })
   $now = Read-State
   Show-State $now
   $code = Public-Code
@@ -175,9 +184,15 @@ if ($Undo) {
     Say "REFUSED: $PublicUrl answers $code and no connector runs here, so another machine serves Alpha. Standing up here would make two. Stop that one first, or pass -Force."
     exit 3
   }
+  # On in any of them is on. Alpha's servers and its self-heal are what
+  # serving here is, so standing up turns them on whatever a record saw.
   $wasEnabled = @{}
-  if ($record) { foreach ($t in @($record.tasks) + @($record.connectorTasks)) { $wasEnabled[[string]$t.name] = [bool]$t.enabled } }
-  $enable = { param($n) if ($wasEnabled.ContainsKey($n)) { $wasEnabled[$n] } else { $true } }
+  foreach ($f in $records) {
+    $r = Get-Content -LiteralPath $f.FullName -Raw | ConvertFrom-Json
+    foreach ($t in @($r.tasks) + @($r.connectorTasks)) { if ($t) { $wasEnabled[[string]$t.name] = ($wasEnabled[[string]$t.name] -eq $true) -or [bool]$t.enabled } }
+  }
+  $always = @($servers) + 'Alpha Self-Heal'
+  $enable = { param($n) if ($always -contains $n -or -not $wasEnabled.ContainsKey($n)) { $true } else { $wasEnabled[$n] } }
   if ($ReportOnly) {
     Say 'WOULD: enable and start Alpha Backend and Alpha; restore the connector; enable the watchers; set role.json aside'
     exit 0

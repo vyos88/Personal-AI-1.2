@@ -460,7 +460,7 @@ test('standing Alpha down needs V\'s word in the action, or is a rehearsal; a st
   assert.match(p.d3.args.at(-4), /alpha-standdown\.ps1$/);
   assert.deepEqual(p.d4.args.slice(-4), ['-OpsDir', ops, '-Primary', 'laptop-gj8dfmlk']);
   assert.equal(p.d5.ok, false);
-  assert.deepEqual(p.u1.args.slice(-5), ['-OpsDir', ops, '-Undo', '-ReportOnly', '-Force']);
+  assert.deepEqual(p.u1.args.slice(-6), ['-OpsDir', ops, '-Undo', '-StartConnector', '-ReportOnly', '-Force']);
   assert.equal(p.b1.ok, true, 'a machine that serves Alpha may restart it');
   assert.match(p.i1.args.at(-5), /install-alpha-standby\.ps1$/);
   assert.deepEqual(p.i1.args.slice(-4), ['-OpsDir', ops, '-AlphaRoot', 'C:\\A\\software']);

@@ -410,7 +410,10 @@ function Resolve-Action($a) {
     }
     'data-sync-uninstall' { $spec = Ps1 'install-alpha-data-sync.ps1' @('-OpsDir', $OpsDir, '-Uninstall'); $out.timeoutMin = 2 }
     'alpha-standup' {
-      $rest = @('-OpsDir', $OpsDir, '-Undo')
+      # -StartConnector, as the automatic cover does: Worker1's connector was
+      # never the cloudflared service, so a stand-up that restored only what
+      # the service had been left alpha-ai.uk at 530 (2026-10-10).
+      $rest = @('-OpsDir', $OpsDir, '-Undo', '-StartConnector')
       if ($a.reportOnly -eq $true) { $rest += '-ReportOnly' }
       if ($a.force -eq $true) { $rest += '-Force' }
       $spec = Ps1 'alpha-standdown.ps1' $rest; $out.timeoutMin = 6

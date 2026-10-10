@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -183,6 +183,53 @@ test('standing up again refuses while another machine serves, then restores exac
   const again = setup(serving({ public: 200, backendUp: true, procs: serving().procs.filter((p) => p.Name !== 'cloudflared.exe') }));
   assert.equal(again.run('-Undo').code, 3);
   assert.equal(again.run('-Undo', '-Force').code, 0);
+});
+
+// 2026-10-10: Worker1 was stood down while its tasks were already off, and the
+// stand-up read only that newest record, so it turned nothing back on and
+// alpha-ai.uk stayed at 530. Every record since the last stand-up counts; one
+// from before it does not; and the servers and self-heal come back regardless.
+test('standing up reads every record since the last stand-up, and always brings Alpha back', { skip }, () => {
+  const { ops, run, read, set } = setup(serving());
+  const records = join(ops, 'standdown');
+  const rename = (to) => {
+    const f = readdirSync(records).find((n) => /^standdown-\d{8}-\d{6}\.json$/.test(n) && !n.startsWith('standdown-2000'));
+    renameSync(join(records, f), join(records, to));
+  };
+  // Before the last stand-up: the guard was on. It must not count now.
+  assert.equal(run().code, 0);
+  rename('standdown-20000101-000000.json');
+  writeFileSync(join(records, 'role-20000101-120000.json'), '{"role":"standby"}');
+  // Since then: the guard off, the rest serving; then a second stand-down
+  // that finds everything already off.
+  const tasks = serving().tasks.map((t) => (t.name === 'Alpha Server - Health Guard' ? { ...t, state: 'Disabled' } : t));
+  set({ ...serving(), tasks });
+  assert.equal(run().code, 0);
+  rename('standdown-20000102-000000.json');
+  assert.equal(run().code, 0);
+  assert.equal(taskState(read(), 'Alpha Backend'), 'Disabled');
+
+  set({ backendUp: true, log: [] });
+  const r = run('-Undo');
+  assert.equal(r.code, 0, r.out);
+  assert.match(r.out, /record: standdown-20000102-000000\.json, standdown-\d{8}-\d{6}\.json/);
+  assert.doesNotMatch(r.out, /20000101/);
+  const s = read();
+  for (const n of ['Alpha Backend', 'Alpha', 'Alpha Self-Heal', 'Cloudflared at logon']) assert.equal(taskState(s, n), 'Ready', n);
+  assert.equal(taskState(s, 'Alpha Server - Health Guard'), 'Disabled', 'off since before the last stand-up');
+  assert.deepEqual(s.service, { status: 'Running', startType: 'Automatic', exitCode: 0 }, 'as the first record since then saw it');
+
+  // Only the record that saw everything off, and still: serving here is what
+  // these three are.
+  const bare = setup(serving());
+  assert.equal(bare.run().code, 0);
+  assert.equal(bare.run().code, 0);
+  const names = readdirSync(join(bare.ops, 'standdown')).sort();
+  if (names.length > 1) rmSync(join(bare.ops, 'standdown', names[0]));
+  bare.set({ backendUp: true });
+  assert.equal(bare.run('-Undo').code, 0);
+  for (const n of ['Alpha Backend', 'Alpha', 'Alpha Self-Heal']) assert.equal(taskState(bare.read(), n), 'Ready', n);
+  assert.equal(taskState(bare.read(), 'Cloudflared at logon'), 'Disabled', 'a connector task only comes back on a record');
 });
 
 // Worker1 as the rehearsal found it: the service Stopped (start Automatic)
