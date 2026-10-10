@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-023846
+﻿# laptop41 autopilot 20261010-024846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e916c31 is current
+
+## auto-data-sync-task-20261010-024846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:40:41)  ->  0 (in step)   (2026-10-10T02:49:13, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 02:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 1387 file(s), 99.7 MB written since 2026-09-02T06:49:38Z, to alpha-serv-01
+  PART of a backlog: 6268 file(s), 869.5 MB still to send, from 2026-09-29T18:54:45Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-023846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:30:41)  ->  0 (in step)   (2026-10-10T02:39:54, 0s)
 ```
@@ -250,31 +258,5 @@ on 'Starlink V'; standby: Alpha serves from the primary, so the backend here sta
 ```
 task 'Alpha Data Copy' copies to alpha-serv-01 every 10 minutes and at startup, as SYSTEM, up to 4 h a run
 its output: C:\AlphaData\alpha-ops\data-sync\task-last.log (each run replaces it); the autopilot's standing check no longer copies while this task exists
-```
-
-## auto-deck-audit-20261010-004856  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-10T00:50:09, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T23:49:41.707034+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 2, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 3, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 0)
-WORKING terminal: answers with data (logs 100)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
 ```
 
