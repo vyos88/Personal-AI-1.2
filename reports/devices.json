@@ -1,0 +1,44 @@
+{
+    "at":  "2026-10-10T01:27:19.3100702+01:00",
+    "host":  "DESKTOP-41HPLCN",
+    "usb":  [
+                {
+                    "port":  "COM24",
+                    "vidPid":  "1a86:7523",
+                    "instance":  "5\u0026228C54A3\u00260\u00264",
+                    "deviceId":  "USB\\VID_1A86\u0026PID_7523\\5\u0026228C54A3\u00260\u00264",
+                    "name":  "USB-SERIAL CH340 (COM24)"
+                },
+                {
+                    "port":  "COM7",
+                    "vidPid":  "303a:1001",
+                    "instance":  "8\u002613DABE55\u00260\u00260000",
+                    "deviceId":  "USB\\VID_303A\u0026PID_1001\u0026MI_00\\8\u002613DABE55\u00260\u00260000",
+                    "name":  "USB Serial Device (COM7)"
+                }
+            ],
+    "self":  [
+                 {
+                     "ip":  "192.168.2.151",
+                     "mac":  "30:c9:ab:54:31:71",
+                     "adapter":  "Wi-Fi"
+                 }
+             ],
+    "lan":  [
+                {
+                    "ip":  "192.168.2.1",
+                    "mac":  "74:24:9f:59:99:d6",
+                    "state":  "Reachable"
+                },
+                {
+                    "ip":  "192.168.2.97",
+                    "mac":  "dc:b4:d9:01:3c:38",
+                    "state":  "Stale"
+                },
+                {
+                    "ip":  "192.168.2.157",
+                    "mac":  "64:d8:1b:e8:89:14",
+                    "state":  "Stale"
+                }
+            ]
+}

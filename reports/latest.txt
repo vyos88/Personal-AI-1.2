@@ -1,0 +1,36 @@
+laptop41-doctor 20261010-235602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 24eff93 2026-10-10)
+
+=== 0. Standby: Alpha serves from alpha-serv-01 ===
+  role.json says standby since 2026-10-10T01:54:25.0428893+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
+  ok: no backend here (port 8001 free)
+  ok: no site here (port 4173 free)
+  ok: no connector here
+  PROBLEM: automatic cover has not run for 1375 min: its task 'Alpha Standby' is not running passes
+
+=== 7. Memory, disk, heaviest processes ===
+  ok: 2.9 of 15.8 GB RAM free
+  ok: C: 132.2 GB free
+  ok: CPU 21% (Alpha holds GPU admission at 90%)
+  Memory Compression              746 MB  pid 3840
+  WindowsTerminal                 655 MB  pid 15916
+  claude                          628 MB  pid 2164
+  ChatGPT                         465 MB  pid 22856
+  MsMpEng                         442 MB  pid 6040
+  chrome                          410 MB  pid 13364
+  ChatGPT                         401 MB  pid 19812
+  explorer                        334 MB  pid 10108
+
+=== SUMMARY ===
+  this pass took 10s
+  - NEEDS A PERSON - automatic cover has not run for 1375 min: its task 'Alpha Standby' is not running passes  (open 90 run(s), since 2026-10-10T01:41:23)
+
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
