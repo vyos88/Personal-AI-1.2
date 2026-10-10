@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-022853
+﻿# laptop41 autopilot 20261010-023846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout 5fed5aa is current
+checkout e916c31 is current
+
+## auto-data-sync-task-20261010-023846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:30:41)  ->  0 (in step)   (2026-10-10T02:39:54, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 02:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 558 file(s), 99.6 MB written since 2026-08-22T02:12:59Z, to alpha-serv-01
+  PART of a backlog: 7650 file(s), 969.2 MB still to send, from 2026-09-02T06:49:38Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-022853  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:20:41)  ->  0 (in step)   (2026-10-10T02:29:32, 0s)
 ```
@@ -268,12 +276,5 @@ WORKING terminal: answers with data (logs 100)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-live-sync-20261010-002846  live-sync (standing)  ->  0 (in sync)   (2026-10-10T00:29:28, 91s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 6795e6a of claude/frie...(30)
-CAPTURED: nothing; every source file here matches 6795e6a
 ```
 
