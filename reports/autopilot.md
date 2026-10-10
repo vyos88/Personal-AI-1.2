@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-024846
+﻿# laptop41 autopilot 20261010-025846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e916c31 is current
+
+## auto-data-sync-task-20261010-025846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:50:41)  ->  0 (in step)   (2026-10-10T02:59:30, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 02:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 2054 file(s), 99.3 MB written since 2026-09-29T18:54:45Z, to alpha-serv-01
+  PART of a backlog: 4220 file(s), 770.2 MB still to send, from 2026-09-29T18:54:49Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-024846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:40:41)  ->  0 (in step)   (2026-10-10T02:49:13, 0s)
 ```
@@ -252,11 +260,5 @@ DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ## auto-home-wifi-20261010-005850  home-wifi (standing)  ->  0 (none)   (2026-10-10T01:00:14, 7s)
 ```
 on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
-```
-
-## 20261009-15-data-copy-task  data-sync-install  ->  0   (2026-10-10T00:49:38, 5s)
-```
-task 'Alpha Data Copy' copies to alpha-serv-01 every 10 minutes and at startup, as SYSTEM, up to 4 h a run
-its output: C:\AlphaData\alpha-ops\data-sync\task-last.log (each run replaces it); the autopilot's standing check no longer copies while this task exists
 ```
 
