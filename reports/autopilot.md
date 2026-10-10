@@ -1,8 +1,116 @@
-﻿# laptop41 autopilot 20261010-010845
+﻿# laptop41 autopilot 20261010-011345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 1cad1d2 is current
+
+## 20261010-codex-0112-alignment-inventory  fleet-inventory  ->  0   (2026-10-10T01:14:01, 9s)
+```
+FLEET INVENTORY DESKTOP-41HPLCN 2026-10-10 01:14
+TASKS (8 enabled, 32 disabled): name | state | last run | result | next | runs
+  Alpha Autopilot | Running | 10-10 01:13 | 0x41301 | 10-10 01:18 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Data Copy | Ready | 10-10 01:10 | 0x0 | 10-10 01:20 | cmd.exe /c ""C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe...
+  Alpha Doctor | Ready | 10-10 01:11 | 0x0 | 10-10 01:26 | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  Alpha Ollama | Ready | never | 0x41303 | - | ollama.exe serve
+  Alpha peer report | Ready | 10-10 01:11 | 0x0 | 10-10 01:14 | powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\AlphaData\a...
+  Alpha Windows Compute Worker | Running | 10-10 01:07 | 0x800710E0 | 10-10 01:17 | python.exe "C:\Users\Vyo\AppData\Local\AlphaWindowsWorker\alpha_window...
+  alpha-image bridge | Running | 10-08 06:34 | 0x41301 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+  alpha-music bridge | Running | 10-08 06:33 | 0x41301 | - | powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden ...
+ disabled: Alpha, Backend, Client - Follow Host Updates, Fleet Render Maintenance, Fleet Transport Receiver, Hourly Governed Improvement, Self-Heal, Server - Health Guard, Server - Start at Logon, Standby, Steward - agent-officer, Steward - api-improvement, Steward - chat-improvement, Steward - cloudflare-commander, Steward - deck-improvement, Steward - evolution, Steward - fleet-verify, Steward -...
+SERVICES: alpha-agent=Running/Automatic; cloudflared=Stopped/Manual
+PROCESSES (21 roles): role xN | MB | pids | command
+  ps: alpha_generation_monitor.ps1 x1 | 17 MB | 9088 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  py: alpha_fleet_transport.py x1 | 18 MB | 9520 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" "C:\Users...
+  py: alpha_comfyui_bridge.py x1 | 3 MB | 16876 | "C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\.venv\Scripts\python.exe" C:\Users\...
+  ps: alpha_coordination_tunnel.ps1 x1 | 120 MB | 9824 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -Executio...
+  ps: alpha-desktop-tray.ps1 x1 | 121 MB | 1196 | "C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe" -NoLogo -NoProfile -...
+  llama-server x4 | 70 MB | 7428,21356,20808,1040 | C:\Users\Vyo\AppData\Local\Programs\Ollama\lib\ollama\llama-server.exe --model E...
+  py: main.py x1 | 8 MB | 17736 | "C:\Users\Vyo\ComfyUI\venv\Scripts\python.exe" main.py --port 8188 --listen 127....
+  agent keeper x1 | 42 MB | 17072 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\keep-agent.m...
+  tunnel agent x1 | 67 MB | 18424 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\src\agent\index.js
+  ps: start-music-bridge.ps1 x1 | 4 MB | 14408 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  music bridge x1 | 7 MB | 21832 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\music-bridge...
+  ps: start-image-bridge.ps1 x1 | 4 MB | 21404 | "powershell.exe" -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C...
+  image bridge x1 | 6 MB | 21308 | "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge...
+  ollama x1 | 47 MB | 23308 | "C:\Users\Vyo\AppData\Local\Programs\Ollama\ollama app.exe" 
+  py: alpha_windows_supervisor.py x2 | 33 MB | 2024,17864 | "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" "C:\Users\Vyo\...
+  py: alpha_windows_worker.py x2 | 27 MB | 1096,16004 | C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe C:\Users\Vyo\App...
+  codex x3 | 3384 MB | 21896,19812,6524 | "C:\Program Files\WindowsApps\OpenAI.Codex_26.1002.7124.0_x64__2p2nqsd0c76g0\app...
+  claude x1 | 1566 MB | 20576 | "C:\Program Files\WindowsApps\Claude_2.31226.1.0_x64__pzs8sxrjxfjjc\app\claude.e...
+  node: npx-cli.js x1 | 55 MB | 5380 | "C:\Program Files\nodejs\\node.exe" "C:\Program Files\nodejs\\node_modules\npm\b...
+  node: index.js x1 | 75 MB | 22324 | "node" "C:\Users\Vyo\AppData\Local\npm-cache\_npx\4b4c857f6efdfb61\node_modules\...
+  ... 1 more role(s)
+DUPLICATES: py: alpha_windows_supervisor.py x2; py: alpha_windows_worker.py x2 (each of these should run once)
+PORTS: 8001=- 4173=- 8787=- 8790=node(21832) 7861=node(21308) 7860=python(16160) 8188=python(8008) 11434=ollama(8056) 8080=-
+AGENT MANAGER: 34 agent(s), snapshot 0 min old
+  alpha-runtime-caretaker=RUNTIME-DISABLED, alpha-fullscreen-caretaker=RUNTIME-DISABLED, manager=SUPERVISING, alpha-local=RUNTIME-PAUSED, alpha-coding=R
+  UNTIME-PAUSED, alpha-design-steward=RUNTIME-DISABLED, alpha-api-steward=RUNTIME-DISABLED, alpha-chat-improver=RUNTIME-DISABLED, alpha-voice-steward=RU
+  NTIME-DISABLED, alpha-music-steward=RUNTIME-DISABLED, alpha-fleet-verifier=RUNTIME-DISABLED, alpha-spatial-signal-steward=RUNTIME-DISABLED, alpha-evol
+  ution-steward=RUNTIME-DISABLED, alpha-interface-style-steward=RUNTIME-DISABLED, alpha-cloudflare-commander=RUNTIME-DISABLED, alpha-gmail-steward=RUNTI
+  ME-DISABLED, alpha-package-steward=RUNTIME-DISABLED, alpha-surface-health-steward=RUNTIME-DISABLED, alpha-agent-officer=RUNTIME-DISABLED, codex-mirror
+  =MIRROR-ONLY, claude-mirror=MIRROR-ONLY, chatgpt-mirror=MIRROR-ONLY, model:alph...(40), model:alph...(27)
+  d54=ATTENTION, model:alph...(36), model:alph...(33), model:alph...(41), m
+  odel:alph...(41), model:alph...(37), model:alph...(34), model:alpha-cha
+  t-di...(30), model:alph...(39), model:alph...(35), model:alpha-chat-qc-c63eb759
+  =ATTENTION
+```
+
+## 20261010-codex-0112-alignment-doctor  doctor  ->  0   (2026-10-10T01:14:10, 19s)
+```
+laptop41-doctor 20261010-011411 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 1cad1d2 2026-10-09)
+=== 0. Standby: Alpha serves from alpha-serv-01 ===
+  role.json says standby since 2026-10-10T01:02:21.8112031+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  PROBLEM: https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
+  ok: no backend here (port 8001 free)
+  ok: no site here (port 4173 free)
+  ok: no connector here
+  PROBLEM: automatic cover has not run for 13 min: its task 'Alpha Standby' is not running passes
+=== 7. Memory, disk, heaviest processes ===
+  ok: 4.2 of 15.8 GB RAM free
+  ok: C: 132.6 GB free
+  ok: CPU 28% (Alpha holds GPU admission at 90%)
+  Memory Compression              816 MB  pid 3840
+  claude                          600 MB  pid 2164
+  ChatGPT                         508 MB  pid 22856
+  WindowsTerminal                 478 MB  pid 9648
+  ChatGPT                         435 MB  pid 19812
+  MsMpEng                         361 MB  pid 6040
+  ChatGPT                         348 MB  pid 17956
+  explorer                        333 MB  pid 10108
+=== SUMMARY ===
+  this pass took 12s
+  - automatic cover has not run for 13 min: its task 'Alpha Standby' is not running passes  (open 2 run(s), since 2026-10-10T01:11:13)
+  - https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 2 run(s), since 2026-10-10T01:11:13)
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+report: C:\AlphaData\alpha-ops\reports\lapt...(31).txt
+  To https://github.com/vyos88/Personal-AI-1.2
+     6f59845..e843ce4  HEAD -> status/laptop41
+pushed to status/laptop41 - tell Claude 'doctor pushed'
+```
+
+## auto-live-sync-20261010-011345  live-sync (standing)  ->  0 (in sync)   (2026-10-10T01:14:30, 8s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 6795e6a of claude/frie...(30)
+CAPTURED: nothing; every source file here matches 6795e6a
+```
+
+## auto-data-sync-task-20261010-011345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T01:10:41)  ->  0 (in step)   (2026-10-10T01:14:44, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 1 file(s), 617.0 MB written since 2026-08-13T04:24:38Z, to alpha-serv-01
+  PART of a backlog: 9001 file(s), 2,127.3 MB still to send, from 2026-08-13T04:31:39Z; the next pass carries on
+```
 
 ## auto-live-sync-20261010-010845  live-sync (standing)  ->  1 (could not run)   (2026-10-10T01:09:05, 1s)
 ```
@@ -181,66 +289,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:24 (memory\ at C:\Users\Vyo\Downloads\Vy
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 6795e6a of claude/frie...(30)
 CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 6795e6a on claude/frie...(30)
-```
-
-## auto-deck-audit-20261009-231847  deck-audit (Alpha)  ->  0 (21 working, 0 empty, 0 broken)   (2026-10-09T23:19:42, 0s)
-```
-DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-10-09T22:19:26.072543+00:00: 21 working, 0 empty, 0 broken
-WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 1, profile.visual_contract.palette 4)
-WORKING command: answers with data (attention 6)
-WORKING control-center: answers with data (11 field(s))
-WORKING devices: answers with data (boards 9)
-WORKING operations: answers with data (events 20)
-WORKING memory: answers with data (gaps 2, sources 7)
-WORKING core: answers with data (blockers 3, metacognition.gaps 1)
-WORKING beta-assistant: answers with data (allowed_tasks 5, detected_ports 0, restricted_tasks 5)
-WORKING coding: answers with data (idea_method 8, languages.embedded 3, languages.javascript 5, languages.powershell 3)
-WORKING extensions: answers with data (safeguards 5, skills.sources 5)
-WORKING virtual-reality: answers with data (projection.axes 3, projection.camera_evidence_blocks 0, projection.measurement_quality.protocols 7, projection.rf_map.edges 3)
-WORKING automation: answers with data (items 5)
-WORKING learning: answers with data (queued_jobs 0)
-WORKING diagnostics: answers with data (discovered 2, registry_summary.connected_names 2, registry_summary.disconnected_names 0, registry_summary.statements 2)
-WORKING kol-kos: answers with data (system.boolean_algebra.operators 7, system.opcodes 23, system.routing_tiers 4, ternary_model.states 3)
-WORKING phone: answers with data (7 field(s))
-WORKING network: answers with data (links 39, nodes 39, resources.awaiting_first_heartbeat 29, resources.capability_set 9)
-WORKING terminal: answers with data (logs 100)
-WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
-WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
-WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-live-sync-20261009-231346  live-sync (standing)  ->  0 (in sync)   (2026-10-09T23:14:13, 67s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 20c58f5 of claude/frie...(30)
-CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 6795e6a on claude/frie...(30)
-```
-
-## auto-data-sync-20261009-231346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:15:26, 108s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:15 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 21 file(s), 13.1 MB written since 2026-08-13T00:20:21Z, to alpha-serv-01
-  PART of a backlog: 9046 file(s), 3,422.0 MB still to send, from 2026-08-13T03:36:01Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261009-225732  deck-liveness (standing)  ->  0 (every deck live)   (2026-10-09T23:01:58, 14s)
-```
-DECKS: 6 live, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 41 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 2 s old
-DECK LIVE: devices (/devices/network/topology) -> devices reporting  [decks: network, hardware, atlas]
-    39 device(s), newest heartbeat 8 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 3 s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
