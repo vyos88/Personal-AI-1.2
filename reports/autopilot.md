@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-065345
+﻿# laptop41 autopilot 20261010-070345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-070345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T07:00:41)  ->  0 (in step)   (2026-10-10T07:04:27, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 07:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-065345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T06:50:41)  ->  0 (in step)   (2026-10-10T06:54:13, 0s)
 ```
@@ -137,25 +144,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:50 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 2598 file(s), 73.0 MB written since 2026-09-29T18:55:09Z, to alpha-serv-01
   PART of a backlog: 995 file(s), 224.9 MB still to send, from 2026-10-02T18:46:56Z; the next pass carries on
-```
-
-## auto-bridges-20261010-034846  bridges (standing)  ->  0 (restarted)   (2026-10-10T03:49:07, 0s)
-```
-'alpha-music bridge' task was Ready; last run 10/08/2026 06:33:58, last result 0xC000013A
-  log: 2026-10-07T01:28:54 starting the music bridge (machines: host,worker1)
-  log: music bridge on http://127.0.0.1:8790/music/ -> http://100.93.104.24:8787
-  log: subscriptions off: every click generates
-  log: 2026-10-07T02:15:29 the bridge exited (-1); restarting in 5s
-  log: 2026-10-07T02:15:34 starting the music bridge (machines: host,worker1)
-  log: 2026-10-08T06:33:59 starting the music bridge (machines: host,worker1)
-'alpha-music bridge' was not listening on 8790: restarted, it answers now
-'alpha-image bridge' task was Ready; last run 10/10/2026 03:39:12, last result 0xC000013A
-  log: 2026-10-07T01:29:01 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
-  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
-  log: 2026-10-08T06:34:07 starting the image bridge (machines: host,worker1)
-  log: 2026-10-10T03:39:14 starting the image bridge (machines: host,worker1)
-'alpha-image bridge' was not listening on 7861: restarted, it answers now
 ```
 
