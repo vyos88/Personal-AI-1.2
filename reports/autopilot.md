@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-034846
+﻿# laptop41 autopilot 20261010-035846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-035846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:50:41)  ->  0 (in step)   (2026-10-10T03:59:23, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 2598 file(s), 73.0 MB written since 2026-09-29T18:55:09Z, to alpha-serv-01
+  PART of a backlog: 995 file(s), 224.9 MB still to send, from 2026-10-02T18:46:56Z; the next pass carries on
+```
 
 ## auto-bridges-20261010-034846  bridges (standing)  ->  0 (restarted)   (2026-10-10T03:49:07, 0s)
 ```
@@ -204,10 +212,5 @@ record: stan...(25).json
   cloudflared start type back to Manual; it was not running before, so not started
   role.json set aside: this machine serves Alpha again
 RESULT: the backend did not answer /health within 120 s: run the doctor
-```
-
-## auto-home-wifi-20261010-011845  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-10-10T01:21:46, 4s)
-```
-on 'Starlink V'; nothing listens on the backend port (self-heal restarts it)
 ```
 
