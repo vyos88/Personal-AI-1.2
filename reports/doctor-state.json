@@ -1,14 +1,14 @@
 {
     "cloudSeen":  "ea6b0d12cf7b6feefc627fb07cda2a778d70e52f",
-    "lastRun":  "2026-10-10T22:41:13",
+    "lastRun":  "2026-10-10T23:56:11",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "automatic cover has not run for # min: its task \u0027Alpha Standby\u0027 is not running passes":  {
                                                                                                                          "since":  "2026-10-10T01:41:23",
-                                                                                                                         "runs":  85,
-                                                                                                                         "text":  "automatic cover has not run for 1300 min: its task \u0027Alpha Standby\u0027 is not running passes"
+                                                                                                                         "runs":  90,
+                                                                                                                         "text":  "automatic cover has not run for 1375 min: its task \u0027Alpha Standby\u0027 is not running passes"
                                                                                                                      }
              },
-    "lastPost":  "2026-10-10T22:41:13",
+    "lastPost":  "2026-10-10T23:56:11",
     "relay":  "relayed status/cloud ea6b0d1"
 }
