@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-030346
+﻿# laptop41 autopilot 20261010-031346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e916c31 is current
+
+## auto-data-sync-task-20261010-031346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:10:41)  ->  0 (in step)   (2026-10-10T03:14:19, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 16 file(s), 99.6 MB written since 2026-09-29T18:55:01Z, to alpha-serv-01
+  PART of a backlog: 3617 file(s), 575.8 MB still to send, from 2026-09-29T18:55:03Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-030346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:00:41)  ->  0 (in step)   (2026-10-10T03:04:17, 0s)
 ```
@@ -258,10 +266,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:50 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-live-sync-20261010-010845  live-sync (standing)  ->  1 (could not run)   (2026-10-10T01:09:05, 1s)
 ```
 STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access 'https://github.com/vyos88/Alpha/': Failed to connect to github.com port 443 after 33 ms: Could not connect to server
-```
-
-## auto-deck-liveness-20261010-010845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-10T01:09:05, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
