@@ -1,8 +1,16 @@
-﻿# laptop41 autopilot 20261010-025846
+﻿# laptop41 autopilot 20261010-030346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout e916c31 is current
+
+## auto-data-sync-task-20261010-030346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T03:00:41)  ->  0 (in step)   (2026-10-10T03:04:17, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 600 file(s), 94.9 MB written since 2026-09-29T18:54:49Z, to alpha-serv-01
+  PART of a backlog: 3625 file(s), 675.4 MB still to send, from 2026-09-29T18:55:01Z; the next pass carries on
+```
 
 ## auto-data-sync-task-20261010-025846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T02:50:41)  ->  0 (in step)   (2026-10-10T02:59:30, 0s)
 ```
@@ -255,10 +263,5 @@ STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://g
 ## auto-deck-liveness-20261010-010845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-10T01:09:05, 0s)
 ```
 DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
-```
-
-## auto-home-wifi-20261010-005850  home-wifi (standing)  ->  0 (none)   (2026-10-10T01:00:14, 7s)
-```
-on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
 ```
 
