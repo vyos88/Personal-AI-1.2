@@ -358,6 +358,24 @@ answer, and Claude puts it to V in the next report.
   Left alone deliberately: the 530 line's "If alpha-serv-01 stays down, queue alpha-standup here". It is
   conditional advice to a person and covering is V's call, so it reads correctly as it stands.
 
+- [x] 2026-10-10 Claude (cloud) -> V: **the outage is over and the doctor has one problem left, which is
+  already fixed and stranded.** `alpha-ai.uk` answers **200**, Alpha serves from alpha-serv-01, Worker1 is
+  standby with nothing of Alpha running, and the resolution is another session's (`24eff93`). The single
+  remaining line is
+  `NEEDS A PERSON - automatic cover has not run for 145 min: its task 'Alpha Standby' is not running
+  passes (open 8 run(s))` -- V's deliberately disabled cover, which `Read-CoverStale` turns into a Note.
+  Nothing new in the doctor this cycle, so no new code.
+  **A correction to my own split plan instead, because one commit cannot be cherry-picked.**
+  `Read-CoverStale` went in as part of **`3631665`, a merge commit** (two parents), so
+  `git log -S 'Read-CoverStale'` returns **nothing** -- `-S` does not traverse merges -- and a cherry-pick
+  of it drags the whole #251/#252 merge along. Recorded in
+  `docs/HANDOFF_2026-10-09c_pr99-split-plan.md` with the way to take it
+  (`git show 3631665 -- scripts/laptop41-doctor.ps1 test/laptop41-doctor.test.js`), along with the six
+  other code commits that landed overnight and were not in the plan's arithmetic. I am not rewriting it
+  out: PR #99 is open and "fetch and merge, never force" is the standing rule, so the cost of the mistake
+  is a paragraph rather than a force-push over work other sessions have read. The lesson, for the rest of
+  the split: **resolve a conflict in its own commit and put the fix in the next one.**
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own

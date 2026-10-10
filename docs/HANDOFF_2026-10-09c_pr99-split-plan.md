@@ -76,3 +76,40 @@ and the order below takes one pass:
 
 Until then PR #99 stays what 09b calls it: a draft that is not a merge
 candidate. That is my doing, not a property of the work in it.
+
+## Correction, 2026-10-10: the plan is now eight commits out of date, and one
+## of them cannot be cherry-picked at all
+
+Written after a night of doctor and autopilot fixes, so the arithmetic above is
+stale. The branch now carries **15 non-merge commits** that main does not have,
+six of them code landed on 2026-10-09/10:
+
+| Commit | What |
+|---|---|
+| `b82d045` | the `.ps1` suites run under pwsh on Linux; the parse gate |
+| `b091bd8` | `alpha-standdown`'s stand-up rehearsal reads the record |
+| `ed31365` | the doctor ranks processes by CPU while the hold is on |
+| `f7fff36` | the `-Plan` seam resolves nothing off the machine |
+| `98fe8fa` | a test file newer than the build is not a stale build |
+| `2d28d88` | the live page checks the public URL when self-heal is down |
+
+**And one that is not in that list, because of how I committed it.**
+`Read-CoverStale` -- the fix for the only problem the doctor still has open
+(`automatic cover has not run for 145 min`, 8 runs, which is V's deliberately
+disabled 'Alpha Standby') -- went in as part of **`3631665`, a merge commit**
+(`git log -1 --format=%P 3631665` gives two parents). Two consequences a
+session executing this split will hit:
+
+- `git log -S 'Read-CoverStale'` returns **nothing**, because `-S` does not
+  traverse merges. Searching for it by content finds no commit at all.
+- cherry-picking it drags the whole #251/#252 merge with it.
+
+Take it with `git show 3631665 -- scripts/laptop41-doctor.ps1
+test/laptop41-doctor.test.js` instead, which is the only part of that commit
+that is not someone else's merge. I am not rewriting it out: PR #99 is open and
+"fetch and merge, never force" is the standing rule, so the cost of my mistake
+is this paragraph rather than a force-push over work other sessions have read.
+
+The lesson for the rest of the split: **resolve a conflict in its own commit,
+and put the fix in the next one.** Mixing the two is what made this one
+unreachable by every tool that would look for it.
