@@ -1,19 +1,19 @@
 {
-    "cloudSeen":  "65287d81b76732c24ec716e93d8b247168aa7d7e",
-    "lastRun":  "2026-10-10T01:56:16",
+    "cloudSeen":  "bc89a2c47529626e58b89f8219bd5213c3635013",
+    "lastRun":  "2026-10-10T02:11:15",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
                                                                                                                                                                "since":  "2026-10-10T01:41:23",
-                                                                                                                                                               "runs":  2,
+                                                                                                                                                               "runs":  3,
                                                                                                                                                                "text":  "https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
                                                                                                                                                            },
                  "automatic cover has not run for # min: its task \u0027Alpha Standby\u0027 is not running passes":  {
                                                                                                                          "since":  "2026-10-10T01:41:23",
-                                                                                                                         "runs":  2,
-                                                                                                                         "text":  "automatic cover has not run for 55 min: its task \u0027Alpha Standby\u0027 is not running passes"
+                                                                                                                         "runs":  3,
+                                                                                                                         "text":  "automatic cover has not run for 70 min: its task \u0027Alpha Standby\u0027 is not running passes"
                                                                                                                      }
              },
     "lastPost":  "2026-10-10T01:56:16",
-    "relay":  "relayed status/cloud 65287d8"
+    "relay":  "relayed status/cloud bc89a2c"
 }
