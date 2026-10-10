@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-063345
+﻿# laptop41 autopilot 20261010-064345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-064345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T06:40:41)  ->  0 (in step)   (2026-10-10T06:44:13, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 06:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-063345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T06:30:41)  ->  0 (in step)   (2026-10-10T06:34:09, 0s)
 ```
@@ -151,17 +158,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 03:40 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 14 file(s), 94.2 MB written since 2026-09-29T18:55:07Z, to alpha-serv-01
   PART of a backlog: 3587 file(s), 297.9 MB still to send, from 2026-09-29T18:55:09Z; the next pass carries on
-```
-
-## auto-bridges-20261010-033856  bridges (standing)  ->  0 (restarted)   (2026-10-10T03:39:17, 0s)
-```
-'alpha-image bridge' task was Ready; last run 10/08/2026 06:34:06, last result 0xC000013A
-  log: 2026-10-06T21:51:14 starting the image bridge (machines: host,worker1)
-  log: 2026-10-07T01:29:01 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.93.104.24:8787 (machines: host,worker1)
-  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
-  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
-  log: 2026-10-08T06:34:07 starting the image bridge (machines: host,worker1)
-'alpha-image bridge' was not listening on 7861: restarted, it answers now
 ```
 
