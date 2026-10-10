@@ -589,6 +589,16 @@
       "peer": "alpha-serv-01",
       "everyMin": 10,
       "why": "#250: the full copy to alpha-serv-01 reached files too big for the standing check's 15 minutes (160-240 MB each at ~400 KB/s, the next bigger), so every pass timed out. 'Alpha Data Copy' runs the same alpha-data-sync.ps1 as its own SYSTEM task every 10 minutes with 4 hours a run; it carries on from 2026-08-13 (about 2.7 GB to go), and the pass reports each finished run. The standing dataSync stays paused; it would not copy while the task exists anyway"
+    },
+    {
+      "id": "20261010-codex-0112-alignment-inventory",
+      "do": "fleet-inventory",
+      "why": "Direct owner now requests alignment of RDP-connected Worker1. Read current role, process ownership, updater, listeners and capacity after stand-down/data-copy task changes; preserve RDP, all active leases and the existing Alpha Data Copy task."
+    },
+    {
+      "id": "20261010-codex-0112-alignment-doctor",
+      "do": "doctor",
+      "why": "Check-only after Worker1 stood down. Verify actual standby primary URL/status and resources. Server HTTPS /health is ready1.9; IP8001 and8787 timeout, public530 observed00:06UTC. No Fix, restart, reinstall, new credentials or old Host restoration. Report actual evidence; stale advice to start laptop-gj8dfmlk coordinator is superseded by human roles."
     }
   ],
   "autofix": {
