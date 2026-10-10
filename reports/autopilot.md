@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-232346
+﻿# laptop41 autopilot 20261010-233346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-233346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T23:30:41)  ->  0 (in step)   (2026-10-10T23:34:13, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 23:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-232346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T23:20:41)  ->  0 (in step)   (2026-10-10T23:24:13, 0s)
 ```
@@ -133,13 +140,6 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 20:30 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-data-sync-task-20261010-202345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T20:20:41)  ->  0 (in step)   (2026-10-10T20:24:12, 0s)
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-10-10 20:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261010-201345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T20:10:41)  ->  0 (in step)   (2026-10-10T20:14:11, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 20:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
 ```
