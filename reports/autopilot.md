@@ -1,8 +1,32 @@
-﻿# laptop41 autopilot 20261010-011345
+﻿# laptop41 autopilot 20261010-011845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 1cad1d2 is current
+
+## 20261010-16-standup-cover  alpha-standup  ->  1   (2026-10-10T01:19:02, 152s)
+```
+ALPHA STAND-UP DESKTOP-41HPLCN 2026-10-10 01:19
+record: stan...(25).json
+  task Alpha Self-Heal                disabled
+  task Alpha Server - Health Guard    disabled
+  task Alpha Backend                  disabled
+  task Alpha                          disabled
+  task AlphaGalaxy Public Tunnel      disabled
+  backend  :8001 nothing listens
+  site     :4173 nothing listens
+  service  cloudflared Stopped, start Manual, last exit code 0, --token on its command line no
+  connector processes: none
+  Alpha's own runtime: none running
+  cloudflared start type back to Manual; it was not running before, so not started
+  role.json set aside: this machine serves Alpha again
+RESULT: the backend did not answer /health within 120 s: run the doctor
+```
+
+## auto-home-wifi-20261010-011845  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-10-10T01:21:46, 4s)
+```
+on 'Starlink V'; nothing listens on the backend port (self-heal restarts it)
+```
 
 ## 20261010-codex-0112-alignment-inventory  fleet-inventory  ->  0   (2026-10-10T01:14:01, 9s)
 ```
@@ -274,20 +298,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:35 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 41 file(s), 92.5 MB written since 2026-08-13T03:56:37Z, to alpha-serv-01
   PART of a backlog: 9004 file(s), 3,137.2 MB still to send, from 2026-08-13T04:14:54Z; the next pass carries on
-```
-
-## auto-data-sync-20261009-232346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:24:42, 502s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:24 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1 file(s), 192.4 MB written since 2026-08-13T03:36:01Z, to alpha-serv-01
-  PART of a backlog: 9045 file(s), 3,229.7 MB still to send, from 2026-08-13T03:56:37Z; the next pass carries on
-```
-
-## auto-live-sync-20261009-231847  live-sync (standing)  ->  0 (in sync)   (2026-10-09T23:19:23, 12s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 6795e6a of claude/frie...(30)
-CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 6795e6a on claude/frie...(30)
 ```
 
