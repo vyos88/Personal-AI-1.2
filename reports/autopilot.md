@@ -1,8 +1,42 @@
-﻿# laptop41 autopilot 20261010-014846
+﻿# laptop41 autopilot 20261010-015346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 52c897e is current
+
+## 20261010-codex-0152-server-only-role  alpha-standdown  ->  0   (2026-10-10T01:54:11, 67s)
+```
+ALPHA STAND-DOWN DESKTOP-41HPLCN -> alpha-serv-01 2026-10-10 01:54
+  task Alpha Self-Heal                disabled
+  task Alpha Server - Health Guard    disabled
+  task Alpha Backend                  disabled
+  task Alpha                          disabled
+  task AlphaGalaxy Public Tunnel      disabled
+  backend  :8001 nothing listens
+  site     :4173 nothing listens
+  service  cloudflared Stopped, start Manual, last exit code 0, --token on its command line no
+  connector processes: none
+  Alpha's own runtime: none running
+DONE:
+  role.json: standby, primary alpha-serv-01
+  stopped and disabled 'Alpha Backend'
+  stopped and disabled 'Alpha'
+  stopped cloudflared, start Manual (was Manual)
+AFTER:
+  task Alpha Self-Heal                disabled
+  task Alpha Server - Health Guard    disabled
+  task Alpha Backend                  disabled
+  task Alpha                          disabled
+  task AlphaGalaxy Public Tunnel      disabled
+  backend  :8001 nothing listens
+  site     :4173 nothing listens
+  service  cloudflared Stopped, start Manual, last exit code 0, --token on its command line no
+  connector processes: none
+  Alpha's own runtime: none running
+  https://alpha-ai.uk/ answers 530: down until alpha-serv-01 serves it
+  record: C:\AlphaData\alpha-ops\standdown\stan...(25).json (-Undo reads it)
+RESULT: stood down. alpha-serv-01 can serve Alpha now
+```
 
 ## auto-data-sync-task-20261010-014846  data-sync (task 'Alpha Data Copy', run at 2026-10-10T01:40:41)  ->  0 (in step)   (2026-10-10T01:49:19, 0s)
 ```
@@ -257,25 +291,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:31 (memory\ at C:\Users\Vyo\Downloads\Vy
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-10-10 00:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
-```
-
-## auto-deck-liveness-20261009-235346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-09T23:54:44, 7s)
-```
-DECKS: 5 live, 1 stale, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 75 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 15 s old
-DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
-    39 device(s), newest heartbeat 646 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 39 s old, live within 420 s
-DECK LIVE: CrowPanel display (LAN reads) -> a panel is reading the feed  [decks: CrowPanel]
-    last read 0 s ago from the home network
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    8 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
