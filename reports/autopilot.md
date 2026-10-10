@@ -1,8 +1,15 @@
-﻿# laptop41 autopilot 20261010-044345
+﻿# laptop41 autopilot 20261010-044852
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout 24eff93 is current
+
+## auto-data-sync-task-20261010-044852  data-sync (task 'Alpha Data Copy', run at 2026-10-10T04:50:41)  ->  0 (in step)   (2026-10-10T04:56:11, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-10-10 04:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261010-044345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T04:40:41)  ->  0 (in step)   (2026-10-10T04:44:16, 0s)
 ```
@@ -166,39 +173,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 01:50 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 2 file(s), 569.7 MB written since 2026-08-15T01:58:06Z, to alpha-serv-01
   PART of a backlog: 8956 file(s), 1,267.2 MB still to send, from 2026-08-15T01:58:57Z; the next pass carries on
-```
-
-## 20261010-codex-0152-server-only-role  alpha-standdown  ->  0   (2026-10-10T01:54:11, 67s)
-```
-ALPHA STAND-DOWN DESKTOP-41HPLCN -> alpha-serv-01 2026-10-10 01:54
-  task Alpha Self-Heal                disabled
-  task Alpha Server - Health Guard    disabled
-  task Alpha Backend                  disabled
-  task Alpha                          disabled
-  task AlphaGalaxy Public Tunnel      disabled
-  backend  :8001 nothing listens
-  site     :4173 nothing listens
-  service  cloudflared Stopped, start Manual, last exit code 0, --token on its command line no
-  connector processes: none
-  Alpha's own runtime: none running
-DONE:
-  role.json: standby, primary alpha-serv-01
-  stopped and disabled 'Alpha Backend'
-  stopped and disabled 'Alpha'
-  stopped cloudflared, start Manual (was Manual)
-AFTER:
-  task Alpha Self-Heal                disabled
-  task Alpha Server - Health Guard    disabled
-  task Alpha Backend                  disabled
-  task Alpha                          disabled
-  task AlphaGalaxy Public Tunnel      disabled
-  backend  :8001 nothing listens
-  site     :4173 nothing listens
-  service  cloudflared Stopped, start Manual, last exit code 0, --token on its command line no
-  connector processes: none
-  Alpha's own runtime: none running
-  https://alpha-ai.uk/ answers 530: down until alpha-serv-01 serves it
-  record: C:\AlphaData\alpha-ops\standdown\stan...(25).json (-Undo reads it)
-RESULT: stood down. alpha-serv-01 can serve Alpha now
 ```
 
