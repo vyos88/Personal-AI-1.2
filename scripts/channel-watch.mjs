@@ -18,7 +18,10 @@
  *   OK: status/laptop41-live
  *   SILENT: status/laptop41 (last write 2026-10-08T00:24:00Z)
  *   MISSING: status/nowhere
- * followed by one detail line with every age.
+ * followed by one detail line with every age, and for a silent
+ * `<machine>-live` one more naming what is queued on `control/<machine>` and
+ * will not run. Detail lines only: autopilot.ps1:751 keys its change detection
+ * off the verdict lines, so anything that ages belongs below them.
  *
  * Exit 0 every channel talking, 2 one is silent or missing, 1 could not run.
  * It only fetches status/* refs and reads commit times; it writes nothing.
@@ -55,17 +58,67 @@ export function judgeChannels(channels, lastWrites, nowMs) {
   });
 }
 
-export function formatReport(results) {
+const iso = (seconds) => new Date(seconds * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
+
+/** The machine a `<machine>-live` channel is the heartbeat of, or null. */
+export function liveMachine(name) {
+  const m = /^(.+)-live$/.exec(String(name ?? ''));
+  return m ? m[1] : null;
+}
+
+/**
+ * Pure: what a silent heartbeat has stranded.
+ *
+ * An age says a pass stopped; this says whether that matters yet. Work pushed
+ * to `control/<machine>` after the last completed pass is work nothing is going
+ * to pick up, and on 2026-10-08 three commits landed on Laptop41's queue over
+ * the four hours its pass was quiet. Commit times are epoch seconds, as
+ * `git log --format=%ct` gives them; `liveAt` is that channel's last write.
+ */
+export function describeQueued({ machine, commits = [], liveAt } = {}) {
+  const after = commits.filter((at) => Number.isFinite(at) && at > liveAt);
+  if (!after.length) return null;
+  return `  control/${machine}: ${after.length} commit(s) pushed since that last write`
+    + ` (newest ${iso(Math.max(...after))}), and nothing has run them`;
+}
+
+export function formatReport(results, queued = {}) {
   const lines = results.map((r) =>
     r.verdict === 'SILENT'
-      ? `SILENT: status/${r.name} (last write ${new Date(r.at * 1000).toISOString().replace(/\.\d+Z$/, 'Z')})`
+      ? `SILENT: status/${r.name} (last write ${iso(r.at)})`
       : `${r.verdict}: status/${r.name}`,
   );
   lines.push(
     '  ages: ' +
       results.map((r) => `${r.name} ${r.ageMin === null ? 'never' : `${r.ageMin} min`} (silent after ${r.staleMin ?? '?'})`).join(', '),
   );
+  for (const r of results) {
+    const machine = r.verdict === 'SILENT' ? liveMachine(r.name) : null;
+    const line = machine ? describeQueued({ machine, commits: queued[machine] ?? [], liveAt: r.at }) : null;
+    if (line) lines.push(line);
+  }
   return lines.join('\n');
+}
+
+/** Commit times on `control/<machine>`, newest first, or [] when there is no such branch. */
+function controlWrites(repo, machine) {
+  const ref = `refs/remotes/origin/control/${machine}`;
+  try {
+    execFileSync('git', ['-C', repo, 'fetch', '--quiet', 'origin', `+refs/heads/control/${machine}:${ref}`], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+      timeout: 60_000,
+    });
+  } catch {
+    // A machine with no queue is not a failure to run: there is simply nothing
+    // stranded, which is what an empty list says.
+    return [];
+  }
+  try {
+    return execFileSync('git', ['-C', repo, 'log', '-30', '--format=%ct', ref], { encoding: 'utf8', timeout: 30_000 })
+      .trim().split('\n').filter(Boolean).map(Number);
+  } catch {
+    return [];
+  }
 }
 
 function lastWrite(repo, name) {
@@ -98,7 +151,12 @@ function main(argv) {
   const writes = {};
   for (const c of channels) writes[c.name] = lastWrite(args.repo, c.name);
   const results = judgeChannels(channels, writes, args.now || Date.now());
-  process.stdout.write(`${formatReport(results)}\n`);
+  const queued = {};
+  for (const r of results) {
+    const machine = r.verdict === 'SILENT' ? liveMachine(r.name) : null;
+    if (machine) queued[machine] = controlWrites(args.repo, machine);
+  }
+  process.stdout.write(`${formatReport(results, queued)}\n`);
   return results.some((r) => r.verdict !== 'OK') ? 2 : 0;
 }
 

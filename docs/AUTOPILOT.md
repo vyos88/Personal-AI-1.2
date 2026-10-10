@@ -162,6 +162,17 @@ changes. They are turned on in the same `actions.json`:
     again, at most once every 30 minutes. While it is stopped, only the
     backend is checked directly. The heartbeat never repairs Alpha itself:
     two repairers would fight over the same processes.
+  - **Somebody else has to read it.** `Publish-Live` is the *last* thing a pass
+    does, so a pass stuck in an action publishes nothing and a hung pass cannot
+    report itself. That is what `channelWatch` above is for, run on the other
+    machine. When a `<machine>-live` channel is silent it also names the commits
+    pushed to `control/<machine>` since that last write, because work nothing is
+    going to run is what the silence actually costs.
+
+    On 2026-10-08 Laptop41's pass stopped publishing at 23:29:08Z and was still
+    silent four hours later while its separately scheduled doctor kept pushing
+    from the same machine, and three commits of queued work landed in the
+    meantime.
 
 - `homeWifi` (`{ "ssid": "Starlink V" }`): keeps this machine on the Wi-Fi
   the CrowPanel is on. On 2026-10-07 that network blinked for a moment at
