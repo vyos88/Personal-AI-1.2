@@ -1,49 +1,39 @@
-laptop41-doctor 20261010-014105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ bf91d30 2026-10-09)
+laptop41-doctor 20261010-015604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 52c897e 2026-10-09)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-10-10T00:38:39.7646116+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-10-10T01:54:25.0428893+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   PROBLEM: https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover has not run for 40 min: its task 'Alpha Standby' is not running passes
+  PROBLEM: automatic cover has not run for 55 min: its task 'Alpha Standby' is not running passes
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.4 of 15.8 GB RAM free
-  ok: C: 132.6 GB free
-  PROBLEM: CPU 91% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
-  Memory Compression            1,095 MB  pid 3840
-  claude                          598 MB  pid 2164
-  ChatGPT                         505 MB  pid 22856
-  ChatGPT                         501 MB  pid 19812
-  MsMpEng                         424 MB  pid 6040
-  WindowsTerminal                 402 MB  pid 9648
-  explorer                        325 MB  pid 10108
-  ChatGPT                         325 MB  pid 17956
+  ok: 4.8 of 15.8 GB RAM free
+  ok: C: 131.5 GB free
+  ok: CPU 85% (Alpha holds GPU admission at 90%)
+  Memory Compression              960 MB  pid 3840
+  claude                          590 MB  pid 2164
+  ChatGPT                         533 MB  pid 22856
+  ChatGPT                         413 MB  pid 19812
+  WindowsTerminal                 408 MB  pid 9648
+  MsMpEng                         407 MB  pid 6040
+  ChatGPT                         323 MB  pid 17956
+  explorer                        308 MB  pid 10108
 
 === SUMMARY ===
-  this pass took 20s
-  - CPU 91% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract  (open 1 run(s), since 2026-10-10T01:41:23)
-  - https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 1 run(s), since 2026-10-10T01:41:23)
-  - automatic cover has not run for 40 min: its task 'Alpha Standby' is not running passes  (open 1 run(s), since 2026-10-10T01:41:23)
-  + fixed since last run: self-heal is installed but its log is 26 min old: its task is not starting passes: check its last result as Administrator (0x00041301 = still running, 3 = config unreadable, 4 = a pass did not finish)
-  + fixed since last run: nothing listens on 4173 (connection refused or timed out)
-  + fixed since last run: the build is older than the source: the site shows the old Alpha until dist is rebuilt
-  + fixed since last run: backend /ready does not answer (HTTP 0)
-  + fixed since last run: Alpha's deck feed answered 000
-  + fixed since last run: https://alpha-ai.uk/ answers 530
-  + fixed since last run: backend /health answered 000
-  + fixed since last run: /chat without a login answers HTTP 0, expected 401 (route missing or failing)
-  + fixed since last run: image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)
-  + fixed since last run: no coordinator answering at http://100.93.104.24:8787
+  this pass took 13s
+  - automatic cover has not run for 55 min: its task 'Alpha Standby' is not running passes  (open 2 run(s), since 2026-10-10T01:41:23)
+  - https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 2 run(s), since 2026-10-10T01:41:23)
+  + fixed since last run: CPU 91% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7 names the heaviest processes; llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run.
-  2. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
-  3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  4. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  6. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  7. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  8. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  9. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  1. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
