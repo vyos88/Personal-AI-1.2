@@ -50,6 +50,18 @@ Laptop41 stopped running passes. The doctor's own recommendation: "If
 alpha-serv-01 stays down, queue alpha-standup here" — i.e., someone needs
 to either bring the Host back, or deliberately re-promote Laptop41.
 
+**Update (02:11 pass, ~70 min into this specific outage):** still down,
+unchanged shape. One new detail: `role.json` now says "standby since
+2026-10-10T01:54:25" — a later timestamp than the 01:02:21 first seen,
+meaning the standdown marker moved forward at least once in between
+(either a brief, unlogged promotion-and-standdown cycle, or the marker is
+refreshed independent of an actual state change — not distinguishable from
+here). What is unambiguous: "automatic cover has not run for 70 min" is
+now a precise, repeated reading (open 3 runs since 01:41:23) rather than a
+single early data point — the `Alpha Standby` task is not a flake, it is
+not running at all. Not sending a second notification; same finding, same
+fix, now with firmer evidence it isn't self-resolving.
+
 ### No new PRs this pass
 
 Same set as before on both repos. Not re-deriving the Host outage detail
