@@ -1,8 +1,13 @@
-﻿# laptop41 autopilot 20261010-013345
+﻿# laptop41 autopilot 20261010-013847
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout bf91d30 is current
+
+## auto-home-wifi-20261010-013847  home-wifi (standing)  ->  0 (none)   (2026-10-10T01:39:44, 4s)
+```
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## auto-data-sync-task-20261010-013345  data-sync (task 'Alpha Data Copy', run at 2026-10-10T01:30:41)  ->  0 (in step)   (2026-10-10T01:35:28, 0s)
 ```
@@ -290,13 +295,5 @@ WORKING terminal: answers with data (logs 100)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 3, devices.connected_names 2, devices.disconnected_names 0, devices.statements 2)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-data-sync-20261009-235346  data-sync (standing)  ->  0 (in step)   (2026-10-09T23:54:57, 580s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-09 23:54 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 1 file(s), 234.8 MB written since 2026-08-13T04:22:34Z, to alpha-serv-01
-  PART of a backlog: 9002 file(s), 2,743.2 MB still to send, from 2026-08-13T04:24:38Z; the next pass carries on
 ```
 
