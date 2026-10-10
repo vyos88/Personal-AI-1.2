@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-10T01:29:17.4183758+01:00",
+    "at":  "2026-10-10T01:35:28.5061212+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 50 file(s) to alpha-serv-01 at 2026-10-10T00:20:45Z (2017 MB still to send)"
+                 "detail":  "sent 10 file(s) to alpha-serv-01 at 2026-10-10T00:30:45Z (1933 MB still to send)"
              },
     "selfheal":  {
                      "state":  "STOPPED",
-                     "age_min":  28,
+                     "age_min":  35,
                      "repairs":  0,
                      "restarted":  "restart already tried at 01:21",
                      "snapshot":  "",
