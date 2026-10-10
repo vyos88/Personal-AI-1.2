@@ -1,4 +1,4 @@
-laptop41-doctor 20261010-011103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 1cad1d2 2026-10-09)
+laptop41-doctor 20261010-011411 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 1cad1d2 2026-10-09)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-10T01:02:21.8112031+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,28 @@ laptop41-doctor 20261010-011103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover has not run for 10 min: its task 'Alpha Standby' is not running passes
+  PROBLEM: automatic cover has not run for 13 min: its task 'Alpha Standby' is not running passes
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.9 of 15.8 GB RAM free
-  ok: C: 131.4 GB free
+  ok: 4.2 of 15.8 GB RAM free
+  ok: C: 132.6 GB free
   ok: CPU 28% (Alpha holds GPU admission at 90%)
-  Memory Compression            1,235 MB  pid 3840
-  claude                          592 MB  pid 2164
+  Memory Compression              816 MB  pid 3840
+  claude                          600 MB  pid 2164
   ChatGPT                         508 MB  pid 22856
-  WindowsTerminal                 482 MB  pid 9648
-  ChatGPT                         436 MB  pid 19812
-  MsMpEng                         354 MB  pid 6040
-  ChatGPT                         351 MB  pid 17956
-  explorer                        334 MB  pid 10108
+  WindowsTerminal                 478 MB  pid 9648
+  ChatGPT                         435 MB  pid 19812
+  MsMpEng                         361 MB  pid 6040
+  ChatGPT                         348 MB  pid 17956
+  explorer                        333 MB  pid 10108
 
 === SUMMARY ===
   this pass took 12s
-  - automatic cover has not run for 10 min: its task 'Alpha Standby' is not running passes  (open 1 run(s), since 2026-10-10T01:11:13)
-  - https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 1 run(s), since 2026-10-10T01:11:13)
-  + fixed since last run: only 1.3 of 15.8 GB RAM free
-  + fixed since last run: CPU 100% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
-  + fixed since last run: image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)
-  + fixed since last run: the build is older than the source: the site shows the old Alpha until dist is rebuilt
-  + fixed since last run: no coordinator answering at http://100.93.104.24:8787
+  - automatic cover has not run for 13 min: its task 'Alpha Standby' is not running passes  (open 2 run(s), since 2026-10-10T01:11:13)
+  - https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 2 run(s), since 2026-10-10T01:11:13)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  1. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
