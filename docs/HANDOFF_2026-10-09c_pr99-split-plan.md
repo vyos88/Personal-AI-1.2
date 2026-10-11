@@ -116,8 +116,8 @@ unreachable by every tool that would look for it.
 
 ## Executed, 2026-10-11: nine PRs, and three things this plan got wrong
 
-The owner said go. The split is done and is on nine draft PRs off `main`
-(#253-#261). Every one was verified with **`npm test` under PowerShell 7.4.6
+The owner said go. The split is done and is on **ten** PRs off `main`
+(#253-#262). #256, the music item, was merged by the owner the same day. Every one was verified with **`npm test` under PowerShell 7.4.6
 on PATH**, so all fifteen `.ps1` suites ran rather than skipped; the baseline
 on clean `main` is **923 tests, 921 pass, 0 fail, 2 skipped** (the 2 want
 `ffmpeg`), and no branch was pushed with a failure.
@@ -127,12 +127,13 @@ on clean `main` is **923 tests, 921 pass, 0 fail, 2 skipped** (the 2 want
 | #253 | 1, login lockout | none, clean |
 | #254 | 2, self-update names the cost | none, clean |
 | #255 | 3, channel-watch | none, clean (pair squashed) |
-| #256 | 6, music `stats.engine` | 1 hunk, as predicted |
+| #256 | 6, music `stats.engine` | 1 hunk, as predicted -- **merged** |
 | #257 | 7, apply-update blame | 2 hunks, as predicted |
 | #258 | 5 + the pwsh discovery + 2 autopilot fixes | file content |
 | #259 | the doctor group + `alpha-standdown` | file content |
 | #260 | 8, live-sync | file content, **stacked on #257** |
 | #261 | 4, setup-host on Ubuntu | none, clean |
+| #262 | the running board, docs only | -- |
 
 **Three corrections to this plan, for whoever reads it next.**
 
@@ -167,4 +168,20 @@ The `docs/ASKS.md` entries each code commit carried were stripped from those
 commits and land here instead, so the running board lands once rather than
 conflicting across nine branches.
 
-PR #99 can be closed once these nine are merged. It holds nothing they do not.
+One gap the per-concern review did not catch, and the check that did.
+Merging all ten branches and diffing the union against the source branch left
+two files over: `docs/LIVE_SYNC.md`, and `scripts/snapshot-alpha-live.mjs` --
+whose own `git()` helper was the third of the three the timeout fix was
+written for. Shipping two of three would have left a hang in the fleet in
+exactly the place the fix exists for. Both are in #260, and the union diff is
+now clean but for this section. **Run that check on any split**: anything the
+branches do not cover shows up as a leftover, and nothing else would have
+found it.
+
+With #256 merged, the music item is unblocked: run
+`live-test --only music --count 2` on the fleet. If worker1 reports `on cpu`
+and the Host `on cuda`, the answer is not a longer timeout -- worker1 should
+stop offering `alpha.music`. That cannot be run from a cloud container: no
+tailnet, no key.
+
+PR #99 can be closed once these are merged. It holds nothing they do not.
