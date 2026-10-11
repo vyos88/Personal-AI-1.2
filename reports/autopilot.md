@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261011-054345
+﻿# laptop41 autopilot 20261011-054848
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout fbf01fb is current
+
+## auto-bridges-20261011-054848  bridges (standing)  ->  1 (still down)   (2026-10-11T05:50:40, 0s)
+```
+'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
+  log: subscriptions off: every click generates
+  log: 2026-10-07T02:15:29 the bridge exited (-1); restarting in 5s
+  log: 2026-10-07T02:15:34 starting the music bridge (machines: host,worker1)
+  log: 2026-10-08T06:33:59 starting the music bridge (machines: host,worker1)
+  log: 2026-10-10T03:48:58 starting the music bridge (machines: host,worker1)
+  log: 2026-10-11T01:18:55 starting the music bridge (machines: host,worker1)
+'alpha-music bridge' was not listening on 8790: restarted, still nothing on 8790 after 45s (its log is in %TEMP%)
+'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
+  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
+  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
+  log: 2026-10-08T06:34:07 starting the image bridge (machines: host,worker1)
+  log: 2026-10-10T03:39:14 starting the image bridge (machines: host,worker1)
+  log: 2026-10-10T03:49:04 starting the image bridge (machines: host,worker1)
+  log: 2026-10-11T01:19:01 starting the image bridge (machines: host,worker1)
+'alpha-image bridge' was not listening on 7861: restarted, still nothing on 7861 after 45s (its log is in %TEMP%)
+```
 
 ## auto-bridges-20261011-054345  bridges (standing)  ->  1 (still down)   (2026-10-11T05:45:27, 0s)
 ```
@@ -379,13 +399,5 @@ WORKING terminal: answers with data (logs 42)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 0, devices.connected_names 1, devices.disconnected_names 0, devices.statements 1)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-data-sync-task-20261011-012346  data-sync (task 'Alpha Data Copy', run at 2026-10-11T01:20:41)  ->  0 (in step)   (2026-10-11T01:24:31, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-11 01:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 680 file(s), 50.1 MB written since 2026-10-09T23:54:35Z, to alpha-serv-01
-  PART of a backlog: 371 file(s), 89.1 MB still to send, from 2026-10-11T00:16:20Z; the next pass carries on
 ```
 
