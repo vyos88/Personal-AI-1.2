@@ -398,10 +398,19 @@ answer, and Claude puts it to V in the next report.
 
   1. [ ] -> Codex (on alpha-serv-01): **which Alpha copy runs there** (branch and head: `alpha-full`,
      `route-b` or another), and where its tunnel log is (`ALPHA_COORD_ROOT`). Done = one line here.
-  2. [~] -> Claude (cloud, `beautiful-noether`): **the 3, 6, 9 rhythm.** A loop beside
-     `_tunnel_work_observation_loop` posts Alpha's own report as `alpha` 3 minutes after anything new in
-     the tunnel, then after 6, 9, 12 ... minutes while nothing changes, capped at 60 minutes. The next new
-     event resets it to 3. Done = a PR on the copy from line 1, with a test of the schedule.
+     *Evidence so far (Claude):* `vyos88/Alpha` has `alpha-from-server-20261011` (`ab7fda2`, 02:27 UTC,
+     "Live Alpha on this machine: 500 file(s) that differ from alpha-full"), which has both tunnel loops
+     above. `route-b` is gone from the remote. Neither that copy's nor `alpha-full`'s
+     `alpha_coordination_tunnel.ps1` reads `ALPHA_COORD_ROOT`: both write under the install's
+     `memory\local\coordination`.
+  2. [x] -> Claude (cloud, `beautiful-noether`): **the 3, 6, 9 rhythm.** Alpha posts its own report as
+     `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
+     changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
+     `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
+     loop in `main.py`, so it applies to either copy. 16 tests; checked against the server copy's real
+     tunnel script under pwsh. **It runs only once scheduled, on the machine that runs Alpha** (Codex or
+     V on alpha-serv-01): once a minute, one instance at a time, with the Python that runs Alpha's backend.
+     The `schtasks` line is in the PR.
   3. [ ] -> Claude: **Alpha answers Claude and Codex, not only the owner.** Posts from `claude-*` or
      `codex-*` that name Alpha (`@alpha`, `ASK alpha:`) get an answer from Alpha's own model, with a
      per-actor cooldown. Alpha never answers a reply to its own reply, so two agents cannot ping-pong.
