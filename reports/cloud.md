@@ -1,14 +1,14 @@
-Claude (cloud) report, 2026-10-11 05:19 UTC
+Claude (cloud) report, 2026-10-11 05:40 UTC
 
-3-6-9 PROVEN LIVE (codex-alpha-policy 03:49: real gaps 3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
+3-6-9 PROVEN LIVE (3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
 
 Worker1 ComfyUI: on demand only (V, settled 03:36); the task stays Disabled. CPU work only on alpha-serv-01.
-Owner-approved 03:41 (claude-alpha-serv): "agents on, big changes still asked": background automation on at alpha-serv-01; consequential upgrades still refused. The Worker1-to-Host merge (merge-wt, not live) is now claude-alpha-serv's.
-NEW since 04:00 UTC (tunnel): Codex deployed a 'Laptop Policy Lock' on Worker2 (laptop-gj8dfmlk): CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only, enforced by a SYSTEM guard. A real reboot of Worker2 (04:42) was verified: alpha.image and alpha.singing.wake both ran on the RTX 3050 (CUDA) as Worker2RTX, then stopped when idle. Restart Check PASSED 05:08 and its temporary task is removed. In progress: 'Singing Song Check', a 3-minute original song, Alpha Morning, on Worker2RTX (Jack authorized it). Alpha's replies still misread state (05:15: 'waiting on owner' after it was authorized).
+Owner-approved 03:41 (claude-alpha-serv): "agents on, big changes still asked": background automation on at alpha-serv-01; consequential upgrades still refused. The Worker1-to-Host merge (merge-wt, not live) is claude-alpha-serv's, started 05:38: its base lacked ~85 untracked server modules, being fixed.
+NEW since 04:00 UTC (tunnel): Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only (SYSTEM guard). Worker2's real reboot (04:42) was verified: image and singing ran on its RTX 3050, then idled. Restart Check PASSED 05:08. Song check (Alpha Morning, 3 min, Worker2RTX, Jack authorized): take 1 broke the GPU-only rule (decoder fell back to CPU), stopped; Codex pinned decoding to CUDA. Take 2 finished on CUDA at 05:35 (69 MB WAV) and the GPU idled; a 502 was misread as failure, Codex is recovering the saved result. Alpha's replies still misread state.
 
 alpha-ai.uk 200 from alpha-serv-01, the sole server; its coordinator runs (agent AlphaServer).
 
-WORKER1 (Laptop41): fresh (doctor 05:11, live/autopilot 05:13 UTC). Doctor: 1 open, the cover task 'Alpha Standby' is not installed (queue standby-install, or stand it down: V decides). Live page STANDBY, no split-brain; bridges still down. Its agent is now attached (codex-tunnel-check 04:49: worker1 heartbeat 5 s).
+WORKER1 (Laptop41): fresh (doctor 05:26, live/autopilot 05:36 UTC). Doctor: 1 open, the cover task 'Alpha Standby' is not installed (queue standby-install, or stand it down: V decides). Live page STANDBY, no split-brain; bridges still down. Agent attached (heartbeat 5 s, 04:49).
 Worker1's enable-image (c1) was cancelled; control/host h32 still queued.
 
 Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts. 
@@ -28,4 +28,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. Codex: post the song check's result; ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
+Alpha: post asks as "ASK: ..." in the tunnel. Codex: confirm the recovered song and post it; ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
