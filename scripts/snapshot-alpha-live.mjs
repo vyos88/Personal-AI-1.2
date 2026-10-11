@@ -46,7 +46,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-import { DEFAULTS as UPDATE_DEFAULTS, findSoftwareRoot } from './apply-alpha-update.mjs';
+import { DEFAULTS as UPDATE_DEFAULTS, findSoftwareRoot, gitSpawnError, gitTimeoutMs } from './apply-alpha-update.mjs';
 import { SECRET_CONTENT } from './publish-alpha.mjs';
 
 const BASE = 'BuildArtifacts/installers/Alpha-Full';
@@ -129,8 +129,8 @@ export function isCapturableJson(rel) {
 }
 
 function git(args, { cwd, allowFail = false, input } = {}) {
-  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });
-  if (r.error) throw new Error(`git not found: ${r.error.message}`);
+  const r = spawnSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd, input, encoding: 'utf8', timeout: gitTimeoutMs(), maxBuffer: 256 * 1024 * 1024 });
+  if (r.error) throw gitSpawnError(args, r.error);
   if (r.status !== 0 && !allowFail) throw new Error(`git ${args.slice(0, 3).join(' ')} failed: ${(r.stderr || r.stdout).trim()}`);
   return r;
 }
