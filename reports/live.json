@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-11T10:30:44.7725492+01:00",
+    "at":  "2026-10-11T10:35:42.3528486+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY",
@@ -8,7 +8,7 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 2009 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 2014 min ago)"
              },
     "data":  {
                  "state":  "ON",
@@ -16,7 +16,7 @@
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  2010,
+                     "age_min":  2015,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
