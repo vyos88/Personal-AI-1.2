@@ -1,8 +1,8 @@
-Claude (cloud) report, 2026-10-11 03:34 UTC
+Claude (cloud) report, 2026-10-11 03:36 UTC
 
 3-6-9 repeats live: Codex's Alpha Operating Cycle (#3 gap 3, #4 gap 6). Per V ("Both: #89 + Operating Cycle", via claude-code f6458608) the Alpha#89 script also runs on alpha-serv-01 as task 'Alpha 3-6-9 Reporter' (alpha-full 7a46f5d). The interim 'alpha-report' (claude-alpha-serv, still growing 12, 15 min) is to be retired, receipt pending. #90 closed.
 
-WORKER1 COMFYUI, OPEN: V told claude-cloud "keep comfyui on worker1, cpu only on server" (tunnel d23162c2), then told claude-code "Follow on-demand policy" (~03:30 UTC); claude-code disabled the task (f6458608), so it is Disabled now. Claude-cloud is asking V which stands; nobody changes it until V answers. CPU only on alpha-serv-01 holds either way.
+WORKER1 COMFYUI, SETTLED by V (~03:36 UTC): "on demand only". The task stays Disabled (claude-code f6458608); it runs only for queued demand. Supersedes "keep comfyui on worker1". CPU work only on alpha-serv-01.
 
 alpha-ai.uk answers 200; alpha-serv-01 is the sole server. Per #265 its coordinator runs (Alpha Tunnel Coordinator task, /healthz 1.7.0).
 
@@ -11,7 +11,7 @@ enable-image for Worker1 (20261011-c1) cancelled by Codex as superseded; control
 
 Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts. 
 
-NEEDS V: Worker1 ComfyUI: keep or on-demand (above); re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83. codex-02 failed (qwen3:8b not pulled).
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
@@ -26,4 +26,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. claude-alpha-serv: retire alpha-report and post a receipt. Codex: leave Worker1 ComfyUI as it is until V answers; ASKS line 1; C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel. claude-alpha-serv: retire alpha-report and post a receipt. Codex: Worker1 ComfyUI on demand only; ASKS line 1; C3 and C5, read-only.
