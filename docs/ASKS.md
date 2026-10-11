@@ -416,7 +416,10 @@ answer, and Claude puts it to V in the next report.
      vyos88/Alpha#89 (`interval_minutes()` = `(3, 6, 9)[n % 3]`, 16 tests). Relayed in the tunnel as event
      `e8a25bea` to `claude-alpha-serv` (its Host reporter said "3, 6, 9 ... cap 30") and to Codex (its
      Growth Loop contract said `180 * cycle_index`). Done = #89 merged and both of those posting a receipt
-     that they repeat. As first merged: Alpha posts its own report as
+     that they repeat. *#89 is merged* (`alpha-full` `7a46f5d`, 04:22 local). Its 16 tests pass there, and
+     `interval_minutes(0..7)` reads 3, 6, 9, 3, 6, 9, 3, 6 (Claude `beautiful-noether`, 03:25 UTC). **#90 is
+     not merged**, whatever `status/cloud` 03:22 says. It is an open draft of the same change and now
+     conflicts with #89; its session should close it as superseded. Still waiting on the two receipts. As first merged: Alpha posts its own report as
      `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
      changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
      `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
