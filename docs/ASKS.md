@@ -403,3 +403,64 @@ answer, and Claude puts it to V in the next report.
   queued ids drained. The localisation held: no pass had reached `autopilot.ps1:471`, so the bridge
   restart, the queued actions, the live report and the self-heal restart were all skipped together.
   Self-heal is the one thing that did **not** come back — see Open.
+
+## 2026-10-11 00:44 UTC — Worker1 is serving Alpha again, and alpha-serv-01 is too
+
+**For V. Reported, not acted on: stopping a running Alpha is V's call, and the last
+automated attempt here moved `role.json` aside.**
+
+The doctor went from 1 open problem to 4 in half an hour, and three of them are new:
+
+```
+PROBLEM: standby, but the backend runs here (pid 12564 python.exe:
+  ...\Downloads\VyoS-advance-tech-ai\softwareackendun_server.py
+  --host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151 --port 8001): two Alphas
+PROBLEM: standby, but 1 cloudflared process(es) run here:
+  alpha-ai.uk's traffic is split between two machines
+PROBLEM: CPU 94% is at or above Alpha's 90% GPU-admission hold
+```
+
+**The arithmetic.** The live page is written every 5 minutes. Pass
+`20261011-011346` (00:13:46Z) said `Alpha STANDBY`; pass `20261011-011846`
+(00:18:46Z) said `Alpha STANDBY BUT SERVING`. So Alpha's backend and a
+cloudflared came up on DESKTOP-41HPLCN inside that one five-minute window. The
+00:26Z doctor report carries all three lines; the 23:56Z one before it carried
+only the disabled-cover line (94 runs then, 96 now).
+
+**The public site is not down, which is why this is a split and not an outage.**
+The live page reads `Alpha serves from alpha-serv-01: alpha-ai.uk 200`, and the
+Role row still says `alpha-serv-01 serves Alpha`. Two connectors are up, so
+Cloudflare is splitting the traffic between them — `CLAUDE.md`'s "only one Alpha
+may serve alpha-ai.uk" is being violated without anything going dark, which is
+the failure mode that hides.
+
+**A coincidence I can date but cannot explain, flagged as unproven.** In that
+same pass, `auto-bridges` fired at 00:19:04Z reporting `0 (restarted)` — and it
+appears **exactly once** in the whole autopilot report history, so that was its
+first ever run. The page that first said `BUT SERVING` was written 67 seconds
+after it. But the bridges check starts the music (8790) and image (7861)
+bridges, which are logon tasks (`autopilot.ps1:719-720`), and neither is
+`run_server.py`. So the timing lines up and the mechanism does not. Worth
+checking whether those logon tasks on that machine also start the backend;
+I am not asserting they do.
+
+**One more thing the command line settles.** It reads
+`--host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151` — **both** home
+addresses, old and new. The long-standing CrowPanel item ("`HOST` still lists
+only `192.168.2.151`") is out of date for this process at least.
+
+**Also worth noting: the backend that is running is the `Downloads` copy**
+(`C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\...`), not `C:\AlphaData\Alpha`.
+That is the path ambiguity the drive-backup plan flagged as a live hazard,
+because `cleanup-alpha.ps1 -Delete` classifies Downloads copies as removable.
+Do not run that cleanup with `-Delete` while this is the serving tree.
+
+**What I did not do, and why.** The doctor's own remedy is "queue
+`alpha-standdown` again, or `alpha-standup` to serve here", and V's instruction
+of 2026-10-10 (relayed by Codex, `3b002b9`) says alpha-serv-01 is the sole
+server and DESKTOP-41HPLCN stays a worker — so stand-down is the aligned
+action. I have not queued it: it stops a running service on a live machine
+while the public URL is currently answering, and `actions.json`'s own
+`20261010-codex-0152-server-only-role` entry records that the previous
+automated attempt ("failed Claude job 20261010-16-standup-cover") moved
+`role.json` aside. That is V's call, not a cloud session's.
