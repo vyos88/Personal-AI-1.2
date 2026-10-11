@@ -1,5 +1,7 @@
 import { execFile } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
+import {
+  existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, renameSync, rmSync, statSync,
+} from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
@@ -310,6 +312,33 @@ export function genreFolder(genre) {
   return genre.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
+/**
+ * What produced the audio, from the sidecar the generator writes beside it.
+ *
+ * `generate_music.py` records `engine` -- "facebook/musicgen-small on cuda",
+ * or "on cpu", which is the whole difference between a track in 40s and one
+ * that outruns its lease. It travelled only in `stdout`, which
+ * `summarizeResult` drops, so nothing durable ever said which machine made
+ * music on what: Worker1 timed out at 721s on 2026-10-06 twice while the Host
+ * managed 38s warm, and no report could say whether that was a cold cache or
+ * a CPU. `stats` is one of the three keys a trimmed result keeps, so this
+ * reaches the ledger and survives a restart.
+ *
+ * The sidecar rather than that stdout line: both are this repo's own contract
+ * with the generator, but a named JSON field cannot be broken by rewording
+ * the line a person reads.
+ */
+function engineFrom(outputs) {
+  const sidecar = outputs.find((file) => file.name.endsWith('.json'));
+  if (!sidecar) return null;
+  try {
+    const { engine } = JSON.parse(readFileSync(sidecar.path, 'utf8'));
+    return typeof engine === 'string' && engine ? engine : null;
+  } catch {
+    return null; // A track with no readable sidecar is still a track.
+  }
+}
+
 export async function run(payload, { signal, log } = {}) {
   const root = requireRoot();
   const script = requireScript(root);
@@ -392,11 +421,16 @@ export async function run(payload, { signal, log } = {}) {
   }
   outputs.sort((a, b) => a.name.localeCompare(b.name));
 
+  const generatedInMs = Date.now() - startedAt;
+  const engine = engineFrom(outputs);
   return {
     recipe,
     bpmTypical: isBpmTypical(recipe.genre, recipe.subgenre, recipe.bpm),
     outputs,
-    generatedInMs: Date.now() - startedAt,
+    generatedInMs,
+    // Kept here as well as above because a trimmed result keeps `stats` and
+    // drops the rest: how long it took is only comparable next to what ran it.
+    stats: { engine, generatedInMs },
     stdout: stdout.slice(-8_000),
     stderr: stderr.slice(-8_000),
   };

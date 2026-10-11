@@ -51,7 +51,11 @@ function fakeBridges({ failImage = false, stuckMusic = false, track = wav(), pla
       if (task) {
         const t = tasks.get(task[1]); t.polls++;
         const done = !stuckMusic && t.polls > 1;
-        return send(res, 200, { taskId: task[1], status: done ? 'succeeded' : 'running', done, agent: t.machine, outputs: OUTPUTS });
+        return send(res, 200, {
+          taskId: task[1], status: done ? 'succeeded' : 'running', done, agent: t.machine, outputs: OUTPUTS,
+          // The real bridge passes this on from the result's `stats`.
+          engine: `facebook/musicgen-small on ${t.machine === 'host' ? 'cuda' : 'cpu'}`,
+        });
       }
       if (req.url === '/sdapi/v1/sd-models') return send(res, 200, [{ title: 'alpha-tunnel (worker1, host)' }]);
       if (req.url === '/sdapi/v1/txt2img') {
@@ -98,11 +102,14 @@ test('the live test makes tracks and images and says which machine made each', {
   const { code, text } = await runAgainst(fakeBridges());
   assert.equal(code, 0, text);
   assert.match(text, /ok: the site .* routes \/music to the music bridge/);
-  assert.match(text, /ok: track 1 made by worker1 in \d+s, rollers_seed1000_5s\.wav 80044 bytes, plays \(WAV, 5\.0s, 8000 Hz mono, peak -\d+ dBFS\)/);
+  assert.match(text, /ok: track 1 made by worker1 \(facebook\/musicgen-small on cpu\) in \d+s, rollers_seed1000_5s\.wav 80044 bytes, plays \(WAV, 5\.0s, 8000 Hz mono, peak -\d+ dBFS\)/);
   assert.doesNotMatch(text, /511 bytes/);
   assert.match(text, /ok: track t1 is in the playlist \(\/music\/recipes\), rollers_seed1000_5s\.wav/);
   assert.match(text, /playlist: 1\/1 worked/);
-  assert.match(text, /ok: track 2 made by host/);
+  assert.match(text, /ok: track 2 made by host \(facebook\/musicgen-small on cuda\) in \d+s/);
+  // Worker1 timed out at 721s twice on 2026-10-06 while the Host made one in
+  // 38s, and the report gave the seconds with nothing to read them against.
+  assert.match(text, /ok: track 1 made by worker1 \(facebook\/musicgen-small on cpu\) in \d+s/);
   assert.match(text, /ok: image 1 made by worker1 \(a1111\) .* PNG/);
   assert.match(text, /ok: image 2 made by host \(comfyui\)/);
   assert.match(text, /music: 2\/2 worked; by machine: worker1 x1, host x1 \(work was shared\)/);
@@ -144,7 +151,7 @@ test('stuck tracks share one deadline, and images are still tested', { timeout: 
 test('a silent track fails the live test', { timeout: 120_000 }, async () => {
   const { code, text } = await runAgainst(fakeBridges({ track: wav({ silent: true }) }), ['--only', 'music']);
   assert.equal(code, 1);
-  assert.match(text, /PROBLEM: track 1 made by \w+ in \d+s, rollers_seed1000_5s\.wav \d+ bytes, the audio is silent/);
+  assert.match(text, /PROBLEM: track 1 made by \w+ \(facebook\/musicgen-small on cpu\) in \d+s, rollers_seed1000_5s\.wav \d+ bytes, the audio is silent/);
 });
 
 test('a track much shorter than asked for fails the live test', { timeout: 120_000 }, async () => {
