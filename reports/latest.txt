@@ -1,4 +1,4 @@
-laptop41-doctor 20261011-222604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 0e692111 2026-10-11)
+laptop41-doctor 20261011-224113 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ 0e692111 2026-10-11)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,41 +6,32 @@ laptop41-doctor 20261011-222604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 2725 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 2740 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
   ok: 2.7 of 15.8 GB RAM free
   ok: C: 136.4 GB free
-  PROBLEM: CPU 93% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
-  Memory Compression              744 MB  pid 3840
+  ok: CPU 70% (Alpha holds GPU admission at 90%)
+  Memory Compression              759 MB  pid 3840
   claude                          639 MB  pid 2164
-  ChatGPT                         516 MB  pid 22856
-  ChatGPT                         478 MB  pid 13628
-  ChatGPT                         452 MB  pid 19812
-  WindowsTerminal                 422 MB  pid 15916
-  chrome                          421 MB  pid 10176
-  MsMpEng                         365 MB  pid 6040
-  --- using the CPU, over 2.5s across 8 logical core(s)
-  chrome                        12.7% CPU   2.58s  pid 10176
-  ChatGPT                       11.8% CPU   2.41s  pid 13628
-  chrome                         6.7% CPU   1.36s  pid 23860
-  OneDrive.Sync.Service          1.5% CPU   0.30s  pid 7456
-  powershell                     1.1% CPU   0.22s  pid 12092
-  ChatGPT                        0.9% CPU   0.19s  pid 19404
-  not measured: aesm_service (5688) time hidden; AggregatorHost (7404) time hidden; amdfendrsr (3300) time hidden; atieclxx (3740) time hidden; atiesrxx (3308) time hidden; BuildService (6276) time hidden; codex-windows-sandbox-service (21896) time hidden; conhost (22004) time hidden; conhost (22740) time hidden; CoordService (6260) time hidden; cowork-svc (8952) time hidden; csrss (1136) time hidden; csrss (1280) time hidden; CxAudioSvc (5320) time hidden; CxAudMsg64 (5328) time hidden; dasHost (6904) time hidden; dwm (1964) time hidden; EasyResume (5772) time hidden; esif_uf (5560) time hidden; ETDService (3712) time hidden; fontdrvhost (1632) time hidden; fontdrvhost (1640) time hidden; HD-Adb (5720) time hidden; ibmpmsvc (5440) time hidden; Idle (0) time hidden; igfxCUIService (2716) time hidden; IntelAudioService (5584) time hidden; IntelCpHDCPSvc (2132) time hidden; IntelCpHeciSvc (2548) time hidden; jhi_service (5620) time hidden; LITSSvc (5836) time hidden; LsaIso (1428) time hidden; lsass (1436) time hidden; mDNSResponder (5344) time hidden; Memory Compression (3840) time hidden; MpDefenderCoreService (5820) time hidden; MsMpEng (6040) time hidden; NisSrv (15344) time hidden; node (14368) time hidden; node (19696) time hidden; nssm (15796) time hidden; OneApp.IGCC.WinService (5448) time hidden; powershell (5656) time hidden; PresentationFontCache (9276) time hidden; Registry (180) time hidden; RstMwService (6000) time hidden; RtkBtManServ (5972) time hidden; SearchIndexer (13464) time hidden; Secure System (140) time hidden; SecurityHealthService (8348) time hidden; services (1384) time hidden; smss (752) time hidden; spoolsv (5080) time hidden; sqlwriter (6016) time hidden; svchost (932) time hidden; svchost (1512) time hidden; svchost (1580) time hidden; svchost (1748) time hidden; svchost (1788) time hidden; svchost (1792) time hidden; svchost (1976) time hidden; svchost (1984) time hidden; svchost (2140) time hidden; svchost (2148) time hidden; svchost (2200) time hidden; svchost (2228) time hidden; svchost (2236) time hidden; svchost (2308) time hidden; svchost (2320) time hidden; svchost (2376) time hidden; svchost (2480) time hidden; svchost (2508) time hidden; svchost (2588) time hidden; svchost (2996) time hidden; svchost (3008) time hidden; svchost (3124) time hidden; svchost (3192) time hidden; svchost (3224) time hidden; svchost (3256) time hidden; svchost (3316) time hidden; svchost (3384) time hidden; svchost (3496) time hidden; svchost (3572) time hidden; svchost (3724) time hidden; svchost (3732) time hidden; svchost (3820) time hidden; svchost (3828) time hidden; svchost (3924) time hidden; svchost (4008) time hidden; svchost (4052) time hidden; svchost (4124) time hidden; svchost (4132) time hidden; svchost (4228) time hidden; svchost (4240) time hidden; svchost (4580) time hidden; svchost (4716) time hidden; svchost (4724) time hidden; svchost (4860) time hidden; svchost (5212) time hidden; svchost (5288) time hidden; svchost (5312) time hidden; svchost (5352) time hidden; svchost (5372) time hidden; svchost (5384) time hidden; svchost (5488) time hidden; svchost (5572) time hidden; svchost (5808) time hidden; svchost (5912) time hidden; svchost (5956) time hidden; svchost (5984) time hidden; svchost (6092) time hidden; svchost (6696) time hidden; svchost (7420) time hidden; svchost (7556) time hidden; svchost (7684) time hidden; svchost (8392) time hidden; svchost (8492) time hidden; svchost (8540) time hidden; svchost (8656) time hidden; svchost (9060) time hidden; svchost (9416) time hidden; svchost (9536) time hidden; svchost (9668) time hidden; svchost (10064) time hidden; svchost (10216) time hidden; svchost (10456) time hidden; svchost (10588) time hidden; svchost (10684) time hidden; svchost (11080) time hidden; svchost (11172) time hidden; svchost (11268) time hidden; svchost (11348) time hidden; svchost (12212) time hidden; svchost (16988) time hidden; svchost (17128) time hidden; svchost (17296) time hidden; svchost (17724) time hidden; svchost (20604) time hidden; svchost (21276) time hidden; svchost (22468) time hidden; System (4) time hidden; tailscaled (6032) time hidden; tailscaled (8044) time hidden; vmcompute (4216) time hidden; vmms (3152) time hidden; wininit (1272) time hidden; winlogon (1364) time hidden; WmiPrvSE (3956) time hidden; WmiPrvSE (4316) time hidden; WmiPrvSE (22016) time hidden; WMIRegistrationService (6060) time hidden; wslservice (912) time hidden; WUDFHost (1608) time hidden; WUDFHost (1872) time hidden; WUDFHost (11232) time hidden
+  ChatGPT                         591 MB  pid 22856
+  ChatGPT                         489 MB  pid 13628
+  chrome                          411 MB  pid 10176
+  ChatGPT                         397 MB  pid 19812
+  WindowsTerminal                 395 MB  pid 15916
+  MsMpEng                         391 MB  pid 6040
 
 === SUMMARY ===
-  this pass took 20s
-  - NEEDS A PERSON - automatic cover last ran 2725 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 72 run(s), since 2026-10-11T04:41:17)
-  - CPU 93% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract  (open 1 run(s), since 2026-10-11T22:26:22)
+  this pass took 23s
+  - NEEDS A PERSON - automatic cover last ran 2740 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 73 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: CPU 93% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7's 'using the CPU' list names them with their share of the machine, measured over a two-second window while the hold is on; the MB list above it answers a different question. llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run.
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
