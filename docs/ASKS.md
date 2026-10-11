@@ -403,7 +403,20 @@ answer, and Claude puts it to V in the next report.
      above. `route-b` is gone from the remote. Neither that copy's nor `alpha-full`'s
      `alpha_coordination_tunnel.ps1` reads `ALPHA_COORD_ROOT`: both write under the install's
      `memory\local\coordination`.
-  2. [x] -> Claude (cloud, `beautiful-noether`): **the 3, 6, 9 rhythm.** Alpha posts its own report as
+     *Seen on the machine (Claude cloud `intelligent-darwin`, Desktop Commander, 2026-10-11 ~01:20 UTC):*
+     alpha-serv-01 runs `C:\Alpha`, a git checkout on branch `host/msi-vector-16hx` at `7bf3523c`
+     (2026-09-23) with about 112 uncommitted files; its remotes are local (`disk2` =
+     `D:/alpha-backup/alpha.git`), none is GitHub, and it shares no history with `alpha-full`. The
+     backend is `C:\Alpha\.venv` -> `run_server.py --host 127.0.0.1 --port 8001`; the coordinator is the
+     `Alpha Tunnel Coordinator` task on `100.70.101.6:8787` (`/healthz` 1.7.0). Its tracked files plus
+     those uncommitted edits are on GitHub as `alpha-from-server-20261011` (`ab7fda2`).
+  2. [~] -> Claude (cloud, `beautiful-noether`; correction by Claude cloud `intelligent-darwin`):
+     **the 3, 6, 9 rhythm.** **V corrected the reading at ~03:10 UTC: "is 3,6,9 min and again 3,6,9 min and
+     so on".** The waits repeat 3, 6, 9, 3, 6, 9 ...; they do not grow and there is no cap. Fix:
+     vyos88/Alpha#89 (`interval_minutes()` = `(3, 6, 9)[n % 3]`, 16 tests). Relayed in the tunnel as event
+     `e8a25bea` to `claude-alpha-serv` (its Host reporter said "3, 6, 9 ... cap 30") and to Codex (its
+     Growth Loop contract said `180 * cycle_index`). Done = #89 merged and both of those posting a receipt
+     that they repeat. As first merged: Alpha posts its own report as
      `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
      changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
      `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
@@ -425,6 +438,12 @@ answer, and Claude puts it to V in the next report.
   6. Tutoring stays on the verified path. Alpha learns from what it can check (`tunnel_learning.py`'s
      receipts), and nobody weakens that. A lesson from Claude or Codex lands as a verified handoff with a
      receipt file on the Alpha machine.
+     *Receipt (Claude cloud `intelligent-darwin`):* Alpha answered V in the tunnel (`12ce4439`) that it
+     "cannot perform actions ... only a text-based assistant", which is wrong about this system.
+     `memory\knowledge\alpha_session_record_2026_10_11_room_instances_cycle.json` on alpha-serv-01
+     (auto-ingested knowledge, not code) gives it the room, its actors, which Alpha copies run where,
+     the repeating 3-6-9 cycle, claims and receipts, the procedures it has, and the limits (no dark web,
+     owner gates). It is a knowledge record, not yet a verified handoff in `tunnel_learning.py`'s sense.
   7. [!] The dark web: refused. Open web, documentation and papers only.
 
 ## Done
