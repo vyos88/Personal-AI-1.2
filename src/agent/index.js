@@ -1,4 +1,7 @@
 import os from 'node:os';
+import { fleetExecutionPolicy } from '../common/fleet-execution-policy.js';
+const ownerFleet = fleetExecutionPolicy();
+if (ownerFleet?.cpuAgent) process.env.ALPHA_AGENT_NAME = ownerFleet.cpuAgent;
 
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
