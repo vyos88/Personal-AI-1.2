@@ -578,6 +578,36 @@ viewer, never a second manager:
   `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
   the "Managed control denied (HTTP=403)" in its supervisor log.
 
+`scripts/channel-watch.mjs` is a viewer of the same kind, for the one thing
+the autopilot writes every pass and nothing read. `Publish-Live` is the last
+step of a pass (`autopilot.ps1:850`), so a pass stuck in an action publishes
+nothing, and a hung pass cannot report itself — the watchdog's reason for
+asking the host about the laptop, applied to the pass. It asks git rather than
+the coordinator, so it needs no key and no tailnet, and it runs as the *other*
+machine's standing check (`autofix.channelWatch` on the Host watches Laptop41).
+Three rules it keeps:
+
+- **A verdict line carries no age.** `autopilot.ps1:751` builds its
+  change-detection key from the lines starting `OK`/`SILENT`/`MISSING`, so an
+  age in one of them would re-report the same silence every five minutes. The
+  ages go on a detail line, and anything added to this check belongs there too.
+- **Silence on `status/<channel>-autopilot` is not a channel to watch.** That
+  branch is pushed only when a queued id ran (`autopilot.ps1:733`), so hours of
+  quiet are ordinary; only `-live` and the doctor are heartbeats, which is why
+  the channels and their minutes are configuration rather than a list in code.
+- **A silent `<machine>-live` names the cost, not just the symptom** — the
+  commits pushed to `control/<machine>` since that last write, which are work
+  nothing is going to pick up. On 2026-10-08 Laptop41's pass went four hours
+  without publishing while its doctor kept pushing from the same machine, and
+  three commits of queued work landed on top. An age alone does not tell an
+  operator whether it matters yet.
+
+Two sessions wrote this check 26 minutes apart on 2026-10-08 (`70573bc` and a
+`fleet-heartbeat.mjs` removed in favour of it). It is the shape of duplicate
+this file warns about two paragraphs up, and `control/*` is where to look for a
+standing check before building one — `autofix.channelWatch` was in
+`control/host` before either landed on main.
+
 Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
 that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
 not `ALPHA_REPO_ROOT`), then on any machine:
