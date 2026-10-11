@@ -47,19 +47,19 @@ function EmitTable($rows, $props) {
 
 # VID/PID is the stable identity; FriendlyName is not (it changes with drivers).
 function Get-Ids($instanceId) {
-  $vid = $null; $pid = $null; $serial = $null
+  $vid = $null; $productId = $null; $serial = $null
   if ($instanceId -match 'VID_([0-9A-Fa-f]{4})') { $vid = $Matches[1].ToUpper() }
-  if ($instanceId -match 'PID_([0-9A-Fa-f]{4})') { $pid = $Matches[1].ToUpper() }
+  if ($instanceId -match 'PID_([0-9A-Fa-f]{4})') { $productId = $Matches[1].ToUpper() }
   $tail = ($instanceId -split '\\')[-1]
   # A tail with no & is a real serial; with & it is a port-derived instance id.
   if ($tail -and $tail -notmatch '&') { $serial = $tail }
-  [pscustomobject]@{ vid = $vid; pid = $pid; serial = $serial }
+  [pscustomobject]@{ vid = $vid; pid = $productId; serial = $serial }
 }
 
 Emit ("usb-inventory - {0} - {1}" -f $env:COMPUTERNAME, (Get-Date).ToString('u'))
 
 Section "USB devices"
-$usb = Get-PnpDevice -PresentOnly |
+$usb = Get-PnpDevice -PresentOnly -ErrorAction Stop |
   Where-Object { $_.InstanceId -like 'USB*' -or $_.InstanceId -like '*VID_*' } |
   ForEach-Object {
     $ids = Get-Ids $_.InstanceId
@@ -89,13 +89,13 @@ if ($bad) {
 # Serial ports are what the robot, Arduino and RF panels actually talk over,
 # so they get their own section even though they appear above too.
 Section "Serial / COM ports"
-$ports = Get-CimInstance Win32_SerialPort | ForEach-Object {
+$ports = Get-CimInstance Win32_SerialPort -ErrorAction Stop | ForEach-Object {
   [pscustomobject]@{ port = $_.DeviceID; name = $_.Name; description = $_.Description; pnpId = $_.PNPDeviceID }
 }
 if ($ports) { EmitTable $ports @('port', 'name') } else { Emit "  none" }
 
 Section "Cameras and audio capture"
-$av = Get-PnpDevice -PresentOnly |
+$av = Get-PnpDevice -PresentOnly -ErrorAction Stop |
   Where-Object { $_.Class -in @('Camera','Image','Media','AudioEndpoint') } |
   ForEach-Object { [pscustomobject]@{ name = $_.FriendlyName; class = $_.Class; status = $_.Status } }
 if ($av) { EmitTable $av @('name', 'class', 'status') } else { Emit "  none" }
@@ -103,11 +103,14 @@ if ($av) { EmitTable $av @('name', 'class', 'status') } else { Emit "  none" }
 $payload = [pscustomobject]@{
   machine     = $env:COMPUTERNAME
   collectedAt = (Get-Date).ToUniversalTime().ToString('o')
-  usb         = @($usb)
-  serialPorts = @($ports)
-  avDevices   = @($av)
+  usb         = @($usb | Where-Object { $null -ne $_ })
+  serialPorts = @($ports | Where-Object { $null -ne $_ })
+  avDevices   = @($av | Where-Object { $null -ne $_ })
 }
-$payload | ConvertTo-Json -Depth 6 | Set-Content $json -Encoding UTF8
+# Windows PowerShell 5.1's UTF8 Set-Content adds a BOM, which JSON.parse
+# rejects. Write the wire artifact with the same UTF-8 bytes on both shells.
+$jsonText = $payload | ConvertTo-Json -Depth 6
+[System.IO.File]::WriteAllText($json, $jsonText, [System.Text.UTF8Encoding]::new($false))
 
 Section "Written"
 Emit "  $json   <- feed this to Alpha"

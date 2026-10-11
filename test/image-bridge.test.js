@@ -18,6 +18,23 @@ import { describeAgent, parsePool, pickMachine } from '../src/bridge/pick.js';
 const TOKEN = 'test-token-that-is-long-enough';
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
+test('on-demand bridge queues an image before its fixed GPU worker is attached', async (t) => {
+  const host = await startHost(t);
+  const bridge = await startBridge(t, host.url, { targetAgent: 'sleeping-gpu', onDemand: true, timeoutMs: 80 });
+  const models = await get(bridge, '/sdapi/v1/sd-models');
+  assert.equal(models.status, 200);
+  assert.equal(models.body[0].execution_policy, 'on-demand');
+  const request = txt2img(bridge, { prompt: 'test' });
+  const [task] = await queuedTasks(host, 'alpha.image');
+  assert.equal(task.targetAgent, 'sleeping-gpu');
+  assert.equal(task.status, 'queued');
+  await request; // A sleeping worker may miss this test's deliberately tiny deadline.
+});
+
+test('on-demand bridge refuses an automatic pool', () => {
+  assert.throws(() => createImageBridge({ hostUrl: 'http://127.0.0.1', token: TOKEN, onDemand: true }), /fixed GPU machine/);
+});
+
 const listen = (server) =>
   new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${server.address().port}`)));
 

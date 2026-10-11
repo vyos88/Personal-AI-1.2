@@ -58,7 +58,10 @@ try {
     hostUrl,
     token: env('ALPHA_IMAGE_BRIDGE_TOKEN', env('ALPHA_MUSIC_BRIDGE_TOKEN', env('ALPHA_REPORT_TOKEN', null))),
     targetAgent: env('ALPHA_IMAGE_AGENT', 'auto'),
-    directUrl: env('ALPHA_IMAGE_DIRECT_URL', 'http://127.0.0.1:7860'),
+    onDemand: env('ALPHA_IMAGE_ON_DEMAND', '0') === '1',
+    minMemoryMB: Number(env('ALPHA_IMAGE_MIN_MEMORY_MB', 0)),
+    directUrl: env('ALPHA_IMAGE_DIRECT_URL', 'http://127.0.0.1:7860') === 'disabled'
+      ? null : env('ALPHA_IMAGE_DIRECT_URL', 'http://127.0.0.1:7860'),
     leaseMs,
   });
 } catch (error) {

@@ -107,6 +107,8 @@ export function createImageBridge({
   hostUrl,
   token,
   targetAgent = 'auto',
+  onDemand = false,
+  minMemoryMB = 0,
   leaseMs = DEFAULT_LEASE_MS,
   fetch = fetchJson,
   pollMs = 250,
@@ -129,6 +131,7 @@ export function createImageBridge({
   // could not say which machine holds the PNG.
   const pool = parsePool(targetAgent || 'auto');
   const fixedAgent = pool ? null : String(targetAgent).trim();
+  if (onDemand && !fixedAgent) throw new Error('on-demand images require one fixed GPU machine');
   const inPool = (name) => (pool === 'auto' ? true : pool ? pool.includes(name) : name === fixedAgent);
 
   async function coordinator(path, options = {}) {
@@ -170,6 +173,9 @@ export function createImageBridge({
   }
 
   async function machineForImage(tried = new Set()) {
+    // The named worker polls the queued task to wake. Absence is expected while
+    // asleep; do not require a resident worker to create the wake-up demand.
+    if (onDemand && !tried.has(fixedAgent)) return fixedAgent;
     let list;
     try {
       list = await agents();
@@ -195,6 +201,8 @@ export function createImageBridge({
   }
 
   async function sdModels(res) {
+    if (onDemand) return send(res, 200, [{ title: `${MODEL_NAME} (${fixedAgent}, on demand)`,
+      model_name: MODEL_NAME, execution_policy: 'on-demand', target_agent: fixedAgent }]);
     const list = await agents();
     // A key without agents:read cannot tell; say "up" rather than switching
     // Alpha's image feature off over a scope.
@@ -258,7 +266,7 @@ export function createImageBridge({
     const machine = await machineForImage(tried);
     const { body: queued } = await coordinator('/tasks', {
       method: 'POST',
-      body: { type: 'alpha.image', payload: settings, leaseMs, ...(machine ? { targetAgent: machine } : {}) },
+      body: { type: 'alpha.image', payload: settings, leaseMs, minMemoryMB, ...(machine ? { targetAgent: machine } : {}) },
     });
     let task;
     try {
