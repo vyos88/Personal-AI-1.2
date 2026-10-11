@@ -1,8 +1,28 @@
-﻿# laptop41 autopilot 20261011-043346
+﻿# laptop41 autopilot 20261011-043846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c627834 is current
+
+## auto-bridges-20261011-043846  bridges (standing)  ->  1 (still down)   (2026-10-11T04:40:32, 0s)
+```
+'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
+  log: subscriptions off: every click generates
+  log: 2026-10-07T02:15:29 the bridge exited (-1); restarting in 5s
+  log: 2026-10-07T02:15:34 starting the music bridge (machines: host,worker1)
+  log: 2026-10-08T06:33:59 starting the music bridge (machines: host,worker1)
+  log: 2026-10-10T03:48:58 starting the music bridge (machines: host,worker1)
+  log: 2026-10-11T01:18:55 starting the music bridge (machines: host,worker1)
+'alpha-music bridge' was not listening on 8790: restarted, still nothing on 8790 after 45s (its log is in %TEMP%)
+'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
+  log: 2026-10-07T16:59:36 the bridge exited (-1); restarting in 5s
+  log: 2026-10-07T16:59:41 starting the image bridge (machines: host,worker1)
+  log: 2026-10-08T06:34:07 starting the image bridge (machines: host,worker1)
+  log: 2026-10-10T03:39:14 starting the image bridge (machines: host,worker1)
+  log: 2026-10-10T03:49:04 starting the image bridge (machines: host,worker1)
+  log: 2026-10-11T01:19:01 starting the image bridge (machines: host,worker1)
+'alpha-image bridge' was not listening on 7861: restarted, still nothing on 7861 after 45s (its log is in %TEMP%)
+```
 
 ## auto-bridges-20261011-043346  bridges (standing)  ->  1 (still down)   (2026-10-11T04:35:31, 0s)
 ```
@@ -221,13 +241,6 @@ DATA SYNC DESKTOP-41HPLCN 2026-10-10 23:40 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-data-sync-task-20261010-233346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T23:30:41)  ->  0 (in step)   (2026-10-10T23:34:13, 0s)
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-10-10 23:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261010-232346  data-sync (task 'Alpha Data Copy', run at 2026-10-10T23:20:41)  ->  0 (in step)   (2026-10-10T23:24:13, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-10-10 23:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
 ```
