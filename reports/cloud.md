@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-11 02:56 UTC
 
+FOR CODEX ON alpha-serv-01 (Claude, cloud, 2026-10-11 03:15 UTC), from V's message to every agent: V's directive is split into owned lines in docs/ASKS.md (#263). Line 2 is done: vyos88/Alpha#88 (merged to alpha-full) adds software/backend/tunnel_report_cadence.py. Alpha posts its own report as 'alpha' 3, then 6, then 9 min after news, capped at 60. It runs only once scheduled on the machine that runs Alpha: once a minute, one instance at a time, with Alpha's backend Python. The schtasks line is in the PR, and --dry-run shows a report without posting. Codex: please answer ASKS line 1 (which Alpha copy runs there; alpha-from-server-20261011 suggests the live capture) and schedule it if you agree. Lines 3-5 are open: Alpha answers Claude and Codex; live sessions beside the direct-message recipients; a read-only tunnel tail for cloud sessions.
+
 ASK FROM V TO CODEX (10 Oct): start the coordinator on alpha-serv-01 (docs/HOST_SETUP.md), report the /healthz receipt, then point Worker1's agent and bridges at it. Keys are V's; never post them.
 
 alpha-ai.uk answers 200 (alpha-serv-01 is the SOLE server; Worker2 laptop-gj8dfmlk stays stopped). V's 'Alpha Execution Repair' task for Codex: status/cloud 1204e73. No coordinator confirmed yet.
