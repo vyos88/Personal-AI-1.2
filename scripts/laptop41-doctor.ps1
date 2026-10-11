@@ -61,6 +61,8 @@ param(
   # touching this machine. Empty string means 'unmeasurable'. See
   # test/laptop41-doctor.test.js.
   [string]$ReadCpuPressure,
+  # With -ReadCpuPressure: ask as a machine that serves no Alpha.
+  [switch]$ReadCpuStandby,
   # Test seam: a JSON file of { before, after, seconds, cores }; prints which
   # processes used the CPU across that window.
   [string]$ReadCpuBusiest,
@@ -97,7 +99,15 @@ param(
 # config/gpu-routing.json override it. If that default moves, move this with it,
 # and a host that has set it in that file is held at its own number, not this
 # one.
-function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
+# $Standby: role.json says another machine serves Alpha. The hold is still
+# Alpha's number, so one machine's reading means the same as the other's -- but
+# the consequence is not. On 2026-10-11 Worker1, a standby with 8001 and 4173
+# free and `nothing of Alpha runs here` in the same pass, read 93% and was told
+# "local model calls time out with a 502 and every agent receipt reads
+# evidence-contract". There is no Alpha there to time out. What a pinned CPU
+# does cost a standby is its own work, so say that instead. The problem stays a
+# problem: this changes which way a reader is sent, not whether they are sent.
+function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90, [bool]$Standby = $false) {
   $text = [string]$Percent
   # Unmeasurable is never idle -- the same rule the coordinator applies to an
   # agent's load report. Reading a missing counter as 0% would say "the CPU is
@@ -113,7 +123,9 @@ function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
   }
   $holding = $value -ge $HoldPercent
   return [ordered]@{ measured = $true; percent = [math]::Round($value, 1); holding = $holding
-    note = $(if ($holding) {
+    note = $(if ($holding -and $Standby) {
+      "CPU $([math]::Round($value,1))% is at or above the $HoldPercent% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow"
+    } elseif ($holding) {
       "CPU $([math]::Round($value,1))% is at or above Alpha's $HoldPercent% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
     } else { "CPU $([math]::Round($value,1))% (Alpha holds GPU admission at $HoldPercent%)" }) }
 }
@@ -268,7 +280,7 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 # Answered before the script opens a transcript or writes a report: a test seam
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
-  Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  Read-CpuPressure $ReadCpuPressure 90 ([bool]$ReadCpuStandby) | ConvertTo-Json -Compress
   exit 0
 }
 if ($PSBoundParameters.ContainsKey('ReadCoverStale')) {
@@ -644,7 +656,7 @@ function Check-Resources {
       Measure-Object -Property LoadPercentage -Average
     if ($null -ne $load.Average) { $cpuRaw = [string]$load.Average }
   } catch { $cpuRaw = '' }
-  $cpu = Read-CpuPressure $cpuRaw
+  $cpu = Read-CpuPressure $cpuRaw 90 $script:standby
   if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
