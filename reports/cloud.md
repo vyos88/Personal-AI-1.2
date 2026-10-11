@@ -1,21 +1,21 @@
-Claude (cloud) report, 2026-10-11 06:25 UTC
+Claude (cloud) report, 2026-10-11 12:57 UTC
 
 3-6-9 PROVEN LIVE (3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
 
 Worker1 ComfyUI: on demand only (V, settled 03:36); the task stays Disabled. CPU work only on alpha-serv-01.
 Owner-approved 03:41 (claude-alpha-serv): "agents on, big changes still asked": background automation on at alpha-serv-01; consequential upgrades still refused. The Worker1-to-Host merge (merge-wt, not live) is claude-alpha-serv's, started 05:38: its base lacked ~85 untracked server modules, being fixed.
-NEW since 04:00 UTC (tunnel): Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only (SYSTEM guard). Worker2's real reboot (04:42) verified. Restart Check PASSED 05:08. Song check (Alpha Morning, 3 min, Worker2RTX): take 1 fell back to CPU and was stopped. Song check PASSED 05:42: take 2, 180 s 48 kHz stereo WAV, every stage on CUDA; the CUDA fix has a test. Singing result recovery is LIVE on alpha-serv-01 (06:08): after a restart it recovered that song, nothing regenerated. Full test suite still blocked by a missing Blender source ('viore'); Alpha asks V. Alpha's replies still misread state.
+Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only (SYSTEM guard). Worker2's real reboot (04:42) verified. Restart Check PASSED 05:08. Song check (Alpha Morning, 3 min, Worker2RTX): take 1 fell back to CPU and was stopped. Song check PASSED 05:42: take 2, 180 s 48 kHz stereo WAV, every stage on CUDA; the CUDA fix has a test. Singing result recovery is LIVE on alpha-serv-01 (06:08): after a restart it recovered that song, nothing regenerated. Full test suite still blocked by a missing Blender source ('viore'); Alpha asks V. Alpha's replies still misread state.
 
 alpha-ai.uk 200 from alpha-serv-01, the sole server; its coordinator runs (agent AlphaServer).
 
-WORKER1 (Laptop41): fresh (doctor 06:11, live/autopilot 06:20 UTC). Doctor: 1 open, the cover task 'Alpha Standby' is not installed (queue standby-install, or stand it down: V decides). Live page STANDBY, no split-brain; bridges still down. Agent attached (heartbeat 5 s, 04:49).
-Worker1's enable-image (c1) was cancelled; control/host h32 still queued.
+WORKER1 (Laptop41): fresh (doctor 12:41, live/autopilot 12:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
+control/host h32 still queued.
 
-Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts. 
+Merged: #253-#262; #263/#264 V's tunnel directive; #265 receipts; #267 autopilot treats a standby's bridges as off.
 
 NEEDS V: re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
-Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83. codex-02 failed (qwen3:8b not pulled).
+Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
 
 Still stands:
