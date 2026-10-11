@@ -30,6 +30,13 @@
  */
 
 import { loadEnv } from '../src/common/env.js';
+import { fleetExecutionPolicy } from '../src/common/fleet-execution-policy.js';
+const ownerFleet = fleetExecutionPolicy();
+if (ownerFleet) {
+ process.env.ALPHA_IMAGE_AGENT = ownerFleet.gpuAgent;
+ process.env.ALPHA_IMAGE_ON_DEMAND = '1';
+ process.env.ALPHA_IMAGE_DIRECT_URL = 'disabled';
+}
 import { createImageBridge, DEFAULT_LEASE_MS } from '../src/bridge/image.js';
 
 loadEnv();
@@ -80,3 +87,4 @@ bridge.server.listen(port, bind, () => {
 for (const signal of ['SIGINT', 'SIGTERM']) {
   process.on(signal, () => bridge.server.close(() => process.exit(0)));
 }
+

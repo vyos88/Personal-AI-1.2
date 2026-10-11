@@ -1,6 +1,7 @@
-import { assertGeneralWorkerAllowed } from './execution-policy.js';
-try { assertGeneralWorkerAllowed(); } catch (error) { console.error(error.message); process.exit(0); }
 import os from 'node:os';
+import { fleetExecutionPolicy } from '../common/fleet-execution-policy.js';
+const ownerFleet = fleetExecutionPolicy();
+if (ownerFleet?.cpuAgent) process.env.ALPHA_AGENT_NAME = ownerFleet.cpuAgent;
 
 import { TunnelAgent } from './agent.js';
 import { HandlerRegistry } from './handlers/index.js';
@@ -23,7 +24,7 @@ const log = createLogger('agent:main');
 loadEnv('.env.agent');
 loadEnv();
 
-// An agent authenticates with its own API key â€” one issued to it, scoped to
+// An agent authenticates with its own API key — one issued to it, scoped to
 // `agent:connect`, and revocable on its own without disturbing anyone else.
 // ALPHA_TUNNEL_TOKEN still works so an existing deployment keeps running, but
 // it is the shared break-glass credential and should be replaced by a key.
@@ -40,7 +41,7 @@ if (!process.env.ALPHA_AGENT_KEY && process.env.ALPHA_TUNNEL_TOKEN) {
 }
 
 // One address, or several separated by commas: primary first, then wherever
-// else a coordinator might be answering â€” a laptop running the standby while
+// else a coordinator might be answering — a laptop running the standby while
 // the host is off. The agent tries them in order and comes back to the primary
 // on its own.
 const hostUrl = process.env.ALPHA_HOST_URL;
@@ -58,7 +59,7 @@ const handlers = new HandlerRegistry();
 
 // Opt-in handlers, by module name from ./handlers. Kept out of the default set
 // because some of them (alpha-coordination) run an external program, and that
-// should be a deliberate per-machine decision â€” but a deployment shouldn't
+// should be a deliberate per-machine decision — but a deployment shouldn't
 // have to hand-edit source to make it, so it is configuration rather than a
 // code change.
 const extraHandlers = (process.env.ALPHA_EXTRA_HANDLERS ?? '')
@@ -68,7 +69,7 @@ const extraHandlers = (process.env.ALPHA_EXTRA_HANDLERS ?? '')
 
 // Printed unconditionally, including when empty. `.env.agent` only takes
 // effect on the next process start, so "I edited the file" and "this process
-// saw the edit" are two different facts â€” a machine that should be offering
+// saw the edit" are two different facts — a machine that should be offering
 // `alpha-devices` and silently isn't should show that gap here, in the one
 // line an operator is already looking at, rather than needing to notice the
 // handler's own absence from `handlers available` further down.
@@ -89,7 +90,7 @@ for (const name of extraHandlers) {
       log.info('registered extra handler', { handler: name });
     } else {
       // Not fatal, and not silent. This machine goes on lending everything
-      // else; it simply stops claiming work it would only fail â€” which is the
+      // else; it simply stops claiming work it would only fail — which is the
       // likely state of a laptop set up by copying the host's configuration.
       log.warn('not offering a handler this machine cannot run', {
         handler: name,
@@ -161,7 +162,7 @@ try {
 
 log.info('handlers available', { handlers: handlers.describe() });
 
-// Handlers holding a budget of their own â€” memory.store â€” take their headroom
+// Handlers holding a budget of their own — memory.store — take their headroom
 // off the offer as well, so say so rather than leaving an operator wondering
 // why a 16 GB laptop is lending less than its free memory.
 const committedBytes = handlers.committedBytes();
@@ -173,7 +174,7 @@ const snapshot = memorySnapshot({
 log.info('memory offered to the host', {
   totalMB: Math.round(snapshot.totalBytes / MB),
   availableMB: Math.round(snapshot.freeBytes / MB),
-  // What was actually held back, which is the larger of the two reserves â€”
+  // What was actually held back, which is the larger of the two reserves —
   // printing the configured MB alone would explain the wrong number.
   reservedMB: Math.round(snapshot.reserveBytes / MB),
   reservePercent: memoryReservePercent,
@@ -211,7 +212,7 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
 
 // Started by a supervisor (scripts/keep-agent.mjs) rather than by hand. It
 // restarts this process to pick up an update, and on Windows it has no signal
-// to ask with â€” SIGTERM there is a kill, which skips the drain and leaves the
+// to ask with — SIGTERM there is a kill, which skips the drain and leaves the
 // host to re-run work that in fact succeeded. So take the same request over the
 // IPC channel the supervisor opened.
 if (process.send) {
