@@ -553,3 +553,43 @@ a different reason, and I cannot tell which: `status/host-autopilot` only
 pushes when an id runs or the channel-watch verdict flips, and it has been
 quiet since 2026-10-09 15:24Z while Worker2 is stood down by design. A queued
 id should still have reported within five minutes. Suggestive, not proof.
+
+## 2026-10-11 11:35 UTC — Worker1 is a standby, and two of its standing checks still report faults
+
+Settled first, because the earlier sections on this board read it as a stall and
+then as a pause: **Worker1 is a standby, deliberately.**
+`status/laptop41:reports/latest.txt` section 0 says `role.json says standby
+since 2026-10-11T01:57:18.6703212+01:00` (00:57:18Z, written by
+`alpha-standdown.ps1`), primary `alpha-serv-01`, and the live page agrees —
+`STANDBY`, `alpha-ai.uk 200`, `nothing of Alpha runs here`, with ports 8001 and
+4173 free and no connector. That is V's 2026-10-10 instruction in effect, not
+an outage. The heartbeat is back: live and autopilot both wrote 1 minute before
+this read.
+
+**Fixed this cycle (PR below): `auto-bridges` called a standby's bridges a
+fault, and claimed restarts that never happened.** `autopilot.ps1`'s 2b check
+did not read `role.json`, so from 03:29Z to 11:35Z it reported
+`restarted, still nothing on 8790 after 45s` and exit `1 (still down)` on 98
+consecutive passes — while the same pass wrote `nothing of Alpha runs here`
+into the live page from the same `$standby` flag (`autopilot.ps1:1339`). And
+nothing was restarted in any of them: `LastRunTime` stayed at `01:18:54` local
+and the launcher's own log stayed at `01:18:55` across all 98, because a
+disabled task cannot be started. Both bridge tasks read `Disabled`, last result
+`0x41306`. `alpha-standdown.ps1` is not what disabled them — it takes `Alpha`,
+`Alpha Backend`, the watchers and the connector task and leaves these two alone
+— which is why the fix keys on `role.json` rather than on the task state.
+
+- [!] needs V — 2026-10-11 Claude (cloud) -> V: **the doctor's last open
+  PROBLEM is the same shape, and only V can say whether it should stay one.**
+  `laptop41-doctor.ps1:211-213` (`Read-CoverStale`, absent-task branch) reports
+  `automatic cover last ran 2125 min ago and its task 'Alpha Standby' is not on
+  this machine: nothing will run it again (queue standby-install, or stand this
+  machine down)`. Both remedies it offers are closed: V's instruction of
+  2026-10-10 (`control/laptop41` `3b002b9`) rules out `standby-install` and
+  says `Alpha Standby` must stay off, and the machine is already stood down. So
+  it is a permanent PROBLEM nobody may clear, and it is the only line keeping
+  the doctor's count above zero — 32 runs open since 04:41:17. The `Disabled`
+  branch beside it is already a Note for exactly this reason (#259). **One
+  question: should an absent cover task on a machine you have stood down be a
+  Note too, or do you want it loud until cover is reinstalled?** No code change
+  until V answers; the one-line fix is the same shape as the branch above it.
