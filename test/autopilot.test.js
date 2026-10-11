@@ -356,6 +356,54 @@ test('down bridges are restarted before queued actions, and do not hold back the
   assert.match(text, /-replace '\(alpha_key_\|sk-\|ghp_\|github_pat_\)\\S\+', '\$1\*\*\*'/, 'keys in a log line are masked');
 });
 
+// 2026-10-11: role.json has said standby since 00:57:18Z (alpha-serv-01
+// serves Alpha), and both bridge tasks were stopped and disabled with the rest
+// of Alpha's. Every pass from 03:29Z to 11:35Z then reported "restarted, still
+// nothing on 8790 after 45s" and exit 1 -- while LastRunTime stayed at
+// 01:18:54 local and the launcher's own log stayed at 01:18:55, so not one of
+// the 98 passes ran it. Two different not-a-restart: a standby's bridges are
+// meant to be off, and a disabled task cannot be started at all.
+test('the bridge check asks role.json and the task state before claiming a restart', { skip }, () => {
+  const plan = (...args) => {
+    const r = pwsh([SCRIPT, ...args]);
+    assert.equal(r.status, 0, r.stderr);
+    return JSON.parse(r.stdout);
+  };
+  // A standby repairs nothing: not a fault, and nothing is started.
+  const off = plan('-BridgeDecide', 'Ready', '-BridgeStandby');
+  assert.equal(off.restart, false);
+  assert.equal(off.fault, false, "a standby's bridges being off is not a problem");
+  assert.match(off.note, /standby: Alpha serves from the primary/);
+  // Standby wins over the state, because on a standby a disabled bridge task
+  // is the state alpha-standdown left on purpose.
+  assert.deepEqual(plan('-BridgeDecide', 'Disabled', '-BridgeStandby'), off);
+  // On a machine that does serve Alpha, a disabled task is a fault -- with a
+  // different remedy from a bridge that was started and did not come up.
+  const held = plan('-BridgeDecide', 'Disabled');
+  assert.equal(held.restart, false, 'a disabled task is not started');
+  assert.equal(held.fault, true);
+  assert.match(held.note, /disabled/);
+  assert.match(held.note, /enable it/, 'the note names the remedy');
+  // Everything else is restarted, as before. An empty state still answers at
+  // the seam rather than falling through into a real pass.
+  for (const state of ['Ready', 'Running', 'Queued', 'Unknown', '']) {
+    assert.equal(plan('-BridgeDecide', state).restart, true, `${state || '(empty)'} is still restarted`);
+  }
+
+  const text = readFileSync(SCRIPT, 'utf8');
+  // The plan is made from role.json and the state, and before the 45s wait.
+  assert.match(text, /\$plan = Get-BridgePlan \(\[string\]\$registered\.State\) \$standby/);
+  assert.match(text, /if \(-not \$plan\.restart\) \{[\s\S]*?continue\n\s*\}/);
+  assert.ok(text.indexOf('$plan = Get-BridgePlan') < text.indexOf('Stop-ScheduledTask -TaskName $b.task'), 'decided before the restart');
+  // Nothing enables a task somebody disabled.
+  assert.ok(!/Enable-ScheduledTask/.test(text), 'the autopilot never enables a disabled task');
+  // The flags decide the verdict, so rewording a line cannot change it.
+  assert.match(text, /if \(\$bridgeDown\) \{ \$bridgeWhy \+= 'still down' \}/);
+  assert.match(text, /if \(\$bridgeHeld\) \{ \$bridgeWhy \+= 'disabled' \}/);
+  assert.match(text, /elseif \(\$bridgeOff\) \{ '0 \(off: standby\)' \}/);
+  assert.ok(!/-match 'still nothing'/.test(text), 'the verdict is not read back out of the report text');
+});
+
 test('panel-endpoint takes nothing from the action, and reads the deck STATUS line', { skip }, () => {
   const dir = mkdtempSync(join(tmpdir(), 'autopilot-panel-'));
   const file = join(dir, 'actions.json');

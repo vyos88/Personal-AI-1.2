@@ -102,7 +102,10 @@ param(
   # the pass to the new code; such a run does not update again.
   [switch]$AfterUpdate,
   # Test seam: a JSON file of facts; prints what the home Wi-Fi check would do.
-  [string]$HomeWifiDecide
+  [string]$HomeWifiDecide,
+  # Test seam: a scheduled task's state; prints what the bridge check would do.
+  [string]$BridgeDecide,
+  [switch]$BridgeStandby
 )
 
 $ErrorActionPreference = 'Continue'
@@ -484,6 +487,53 @@ if ($HomeWifiDecide) {
   exit 0
 }
 
+# What the bridge check (2b, below) may do about a registered task whose port
+# is empty, from the two things already in hand: role.json and the task's own
+# state. Pure, so it is tested off Windows (-BridgeDecide/-BridgeStandby).
+#
+# A standby repairs nothing -- the rule self-heal and the home Wi-Fi check
+# already follow from the same role.json. Alpha does not run here, so its
+# bridges are supposed to be down, and starting them would put a second
+# Alpha's bridges on the network. That is not a fault and must not be reported
+# as one.
+#
+# A task somebody disabled is not a bridge that will not start either: it
+# cannot be started at all, and saying "restarted, still nothing on 8790"
+# sends a reader to the bridge instead of to Task Scheduler. On 2026-10-11
+# both bridge tasks were stopped and disabled with the rest of Alpha's (not by
+# alpha-standdown.ps1, which disables 'Alpha', 'Alpha Backend', the watchers
+# and the connector task, and leaves these two alone), and the 98 passes from
+# 03:29Z to 11:35Z each claimed a restart while LastRunTime stayed at 01:18:54
+# local and the launcher's own log stayed at 01:18:55 -- not one of them ran
+# it. So the state is named, and the 45-second wait is not spent on a task
+# that cannot run.
+#
+# That alpha-standdown leaves them alone is also why the standby branch above
+# is the load-bearing one: on a machine stood down without a pause these tasks
+# are still enabled, and this check would start them.
+#
+# Enabling it again is deliberately not done here: whoever disabled it meant
+# to, and a standing check that undoes a person's decision every five minutes
+# is the eviction loop in another costume.
+function Get-BridgePlan([string]$State, [bool]$Standby) {
+  if ($Standby) {
+    return [ordered]@{ restart = $false; fault = $false
+      note = 'standby: Alpha serves from the primary, so its bridges stay off here' }
+  }
+  if ($State -eq 'Disabled') {
+    return [ordered]@{ restart = $false; fault = $true
+      note = 'its task is disabled, so nothing here can start it: enable it to get the bridge back' }
+  }
+  return [ordered]@{ restart = $true; fault = $true; note = '' }
+}
+
+# ContainsKey, not truthiness: an empty state is still a question asked of the
+# seam, and falling through to a real pass is what a seam exists to prevent.
+if ($PSBoundParameters.ContainsKey('BridgeDecide') -or $BridgeStandby) {
+  Get-BridgePlan $BridgeDecide ([bool]$BridgeStandby) | ConvertTo-Json -Compress
+  exit 0
+}
+
 # The addresses the backend is told to bind: the boot wrapper's --host, which
 # wins (run_server.py), else HOST in the .env.local beside -AlphaRoot.
 function Get-BackendHosts {
@@ -723,6 +773,9 @@ else {
 # port is started again here, before any queued action (a live test needs them).
 $ran = New-Object System.Collections.ArrayList
 $bridgeLines = New-Object System.Collections.ArrayList
+$bridgeDown = $false
+$bridgeHeld = $false
+$bridgeOff = $false
 if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
   foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790; log = 'alpha-music-bridge.log' }, @{ task = 'alpha-image bridge'; port = 7861; log = 'alpha-image-bridge.log' })) {
     $registered = Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue
@@ -733,6 +786,12 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     # of its log. Keys are masked; the bridges never log them, but be sure.
     $info = Get-ScheduledTaskInfo -TaskName $b.task -EA SilentlyContinue
     [void]$bridgeLines.Add("'$($b.task)' task was $($registered.State); last run $($info.LastRunTime), last result 0x$('{0:X}' -f [int64]$info.LastTaskResult)")
+    $plan = Get-BridgePlan ([string]$registered.State) $standby
+    if (-not $plan.restart) {
+      if ($plan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
+      [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($plan.note)")
+      continue
+    }
     $logFile = Join-Path $env:TEMP $b.log
     if (Test-Path -LiteralPath $logFile) {
       Get-Content -LiteralPath $logFile -Tail 6 -EA SilentlyContinue | ForEach-Object {
@@ -747,11 +806,16 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     $deadline = (Get-Date).AddSeconds(45)
     while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 3 }
     $up = [bool](Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)
+    if (-not $up) { $bridgeDown = $true }
     [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): restarted, " + $(if ($up) { 'it answers now' } else { "still nothing on $($b.port) after 45s (its log is in %TEMP%)" }))
   }
 }
 if ($bridgeLines.Count) {
-  [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if (($bridgeLines -join ' ') -match 'still nothing') { '1 (still down)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
+  # The flags decide, not the text: 'disabled' and 'still down' want different
+  # people to do different things, and matching the lines back would have to be
+  # revisited every time one of them is reworded.
+  $bridgeWhy = @(); if ($bridgeDown) { $bridgeWhy += 'still down' }; if ($bridgeHeld) { $bridgeWhy += 'disabled' }
+  [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if ($bridgeWhy.Count) { "1 ($($bridgeWhy -join ', '))" } elseif ($bridgeOff) { '0 (off: standby)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
   $bridgeLines | ForEach-Object { Write-Host $_ }
 }
 
