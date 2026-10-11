@@ -459,8 +459,8 @@ test("Alpha's deck feed: the panel's calls are counted, this machine's own are n
 // repair-alpha-host.ps1 exposes `-ReadAgentList`, and answered before the
 // script creates a directory or writes a report.
 const DOCTOR = join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1');
-const readCpu = (percent) => {
-  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuPressure', percent], { encoding: 'utf8' });
+const readCpu = (percent, ...extra) => {
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuPressure', percent, ...extra], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   // The seam must answer before the script touches the machine. On a host with
   // no C: drive the rest of the doctor cannot run, so a clean stderr is also
@@ -479,6 +479,34 @@ test('a CPU at or above the hold is a problem that names the consequence', { ski
     assert.match(verdict.note, /GPU-admission hold/, value);
     assert.match(verdict.note, /evidence-contract/, value);
   }
+});
+
+// 2026-10-11: Worker1 is a standby -- role.json names alpha-serv-01, and the
+// same pass reported `nothing of Alpha runs here` with 8001 and 4173 free. It
+// read 93% and was told "local model calls time out with a 502 and every agent
+// receipt reads evidence-contract". There is no Alpha there to time out. The
+// hold stays Alpha's number so one machine's reading means the same as the
+// other's, and the problem stays a problem; only the consequence changes, to
+// what a pinned CPU actually costs a machine that serves no Alpha.
+test('on a standby the CPU hold names what it costs here, not Alpha\'s admission', { skip }, () => {
+  const held = readCpu('93', '-ReadCpuStandby');
+  assert.equal(held.measured, true);
+  assert.equal(held.holding, true, 'still a problem: the threshold does not move');
+  assert.equal(held.percent, 93);
+  assert.doesNotMatch(held.note, /GPU-admission|evidence-contract|502/, 'no Alpha runs here to time out');
+  assert.match(held.note, /no Alpha runs here/);
+  assert.match(held.note, /ALPHA_AGENT_MAX_LOAD/, 'the agent stops asking for tunnel work');
+  // The serving machine's line is untouched.
+  assert.match(readCpu('93').note, /GPU-admission hold/);
+  assert.match(readCpu('93').note, /evidence-contract/);
+  // Inclusive on a standby too, and below the hold both say where 90 comes from.
+  assert.equal(readCpu('90', '-ReadCpuStandby').holding, true);
+  assert.equal(readCpu('89.9', '-ReadCpuStandby').holding, false);
+  assert.equal(readCpu('56', '-ReadCpuStandby').note, readCpu('56').note);
+  // The doctor asks the role it already read; Check-Resources runs after it.
+  const text = readFileSync(DOCTOR, 'utf8');
+  assert.match(text, /\$cpu = Read-CpuPressure \$cpuRaw 90 \$script:standby/);
+  assert.ok(text.indexOf('$script:standby = [bool]') < text.indexOf('Run-Checks\n'), 'the role is read before the checks run');
 });
 
 test('the CPU hold is inclusive, because Alpha compares with >=', { skip }, () => {
