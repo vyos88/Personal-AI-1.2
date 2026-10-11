@@ -474,6 +474,11 @@ needed it wait for it to come back rather than failing.
 Run both processes as Windows services so they start at boot, restart on
 failure, and never need you to log in.
 
+**On a Linux server, skip to [9b](#9b-the-coordinator-on-ubuntu-systemd).** The
+coordinator has no platform-specific code -- nothing under `src/host/` branches
+on `process.platform`, and the whole suite passes on Linux -- so the only thing
+that was ever Windows-only about running it was the service manager.
+
 ### Install
 
 ```powershell
@@ -612,6 +617,115 @@ against `vite.js` directly and restarts it with backoff; its output is in
 `C:\AlphaData\logs\frontend*.log`. It never edits cloudflared, DNS, WAF or
 Access. If the public site still 502s with 4173 answering locally, the report's
 cloudflared section names the ingress port the tunnel is actually using.
+
+## 9b. The coordinator on Ubuntu (systemd)
+
+A server takes the fleet off depending on a laptop being awake. What moves is
+only the coordinator -- the queue and the account store behind an HTTP
+listener. `node scripts/setup-host.mjs` prints the unit for whichever platform
+it runs on, so the version below is the same text that command gives you.
+
+**Nothing in the coordinator needed changing for this.** `src/host/` has no
+`process.platform` anywhere in it; the two places this repo does branch
+(`src/common/kill-tree.js`, `src/common/resolve-executable.js`) are the agent
+and supervisor side. `npm test` passes on Linux, and a coordinator started on
+Linux answers its own health endpoint:
+
+```console
+$ ALPHA_BIND=127.0.0.1 ALPHA_HOST_PORT=18799 node src/host/index.js
+INFO [host] coordinator listening binds=["127.0.0.1"] port=18799 users=0
+$ curl -s http://127.0.0.1:18799/healthz
+{"ok":true,"protocolVersion":1,"version":"1.7.0"}
+```
+
+### The unit
+
+```bash
+sudo useradd --system --home /opt/alpha-tunnel --shell /usr/sbin/nologin alpha
+sudo mkdir -p /opt/alpha-tunnel/logs
+sudo tee /etc/systemd/system/alpha-coordinator.service >/dev/null <<'UNIT'
+[Unit]
+Description=alpha-tunnel coordinator
+After=network-online.target tailscaled.service
+Wants=network-online.target
+
+[Service]
+User=alpha
+WorkingDirectory=/opt/alpha-tunnel
+ExecStart=/usr/bin/node /opt/alpha-tunnel/src/host/index.js
+EnvironmentFile=/etc/alpha-tunnel.env
+Restart=always
+RestartSec=5
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/opt/alpha-tunnel/data /opt/alpha-tunnel/logs
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo systemctl daemon-reload
+sudo systemctl enable --now alpha-coordinator
+```
+
+Five of those lines are load-bearing, and each is a way this goes wrong:
+
+- **`After=... tailscaled.service`.** At boot Tailscale has not yet assigned
+  the `100.x` address the coordinator binds. `ALPHA_BIND_WAIT_MS` exists for
+  exactly that race and will wait it out; ordering after `tailscaled` means
+  the wait is usually unnecessary rather than usually used. A port already in
+  use still fails fast, because waiting could never fix that.
+- **`EnvironmentFile=`, not `Environment=`.** A unit file is world-readable.
+  `/etc/alpha-tunnel.env` is `chmod 600`, owned by root, and holds
+  `ALPHA_AUTH_STORE`, `ALPHA_HOST_PORT`, `ALPHA_BIND` and nothing that needs
+  to be read by anyone but this service.
+- **`ProtectHome=yes` only when the checkout is not under `/home`.** It hides
+  `/home` from the service, so a checkout living there becomes unreadable to
+  the unit that runs it -- the service fails to start and the reason looks
+  nothing like the cause. `setup-host.mjs` prints `ProtectHome=no` with the
+  reason when it sees a root under `/home`; `/opt` is the right home for a
+  server checkout.
+- **`ReadWritePaths=` names `data/` and `logs/` only**, because
+  `ProtectSystem=strict` makes the rest read-only and those are the only two
+  the coordinator writes: the auth store, the receipt ledger and the task
+  journal.
+- **`Restart=always`.** There is no keeper on a server: `scripts/keep-agent.mjs`
+  supervises an *agent* on a laptop and has rules about standing down that make
+  no sense for a coordinator. systemd is the supervisor here.
+
+### The data directory holds every account
+
+```bash
+sudo chown -R alpha /opt/alpha-tunnel/data
+sudo chmod 700 /opt/alpha-tunnel/data
+```
+
+`data/auth.json` is the only copy of the fleet's accounts and `data/receipts.json`
+the only copy of the ledger. Both are secrets by any reasonable reading, and
+`docs/AUTO_UPDATE.md` is the other half of this: `self-update.mjs` is
+fast-forward-only and never over local work, so a server checkout stays clean
+or stops updating -- and says how far behind it is when it does.
+
+### What does not move to the server
+
+- **The agent on the Alpha machine stays there.** `alpha.coordination` drives
+  `scripts/alpha_coordination_tunnel.ps1` inside `ALPHA_REPO_ROOT`, and
+  `alpha.panel` and `alpha.devices` drive a board and `usb-inventory.ps1`. A
+  server could run none of them, which is why `setup-host.mjs` stops naming
+  `alpha-agent` beside the coordinator on Linux. Agents dial *out*, so the
+  coordinator moving is invisible to them beyond one URL.
+- **`scripts/autopilot.ps1` and the doctor are PowerShell**, and stay on the
+  two laptops. A server gets its standing checks from systemd and from
+  `channelWatch` running on a machine that has PowerShell.
+- **ComfyUI, MusicGen and Blender** want the GPU, which is the Host's RTX 3050.
+  Moving the coordinator does not move the work; `--agent <machine>` and each
+  handler's `available()` still decide where a task lands.
+
+[COORDINATOR_MIGRATION.md](COORDINATOR_MIGRATION.md) is the runbook for the
+move itself -- which files to carry by hand, and what a restart does to work in
+flight.
 
 ## The verified contract
 
