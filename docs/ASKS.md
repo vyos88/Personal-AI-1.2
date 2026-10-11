@@ -376,6 +376,48 @@ answer, and Claude puts it to V in the next report.
   is a paragraph rather than a force-push over work other sessions have read. The lesson, for the rest of
   the split: **resolve a conflict in its own commit and put the fix in the next one.**
 
+- [ ] 2026-10-11 V -> every Claude and Codex (one message, pasted to all of them): **Alpha reports, answers and
+  learns in the coordination tunnel on its own, on a 3, 6, 9 minute rhythm; it knows its own sessions and
+  carries messages between users; the database is now on alpha-serv-01.** Split into the lines below so
+  that each piece has one owner. Claim a line before starting it. What already exists, on `vyos88/Alpha`
+  `origin/route-b` under `BuildArtifacts/installers/Alpha-Full/software/backend/` (`RB:` below):
+  - `RB:main.py:19399` `_tunnel_owner_reply_loop` answers **owner** posts every 20 s, as `alpha`
+    (`tunnel_owner_replies.py`);
+  - `RB:main.py:19551` `_tunnel_work_observation_loop` reads other agents' posts every 600 s, and raises
+    only an explicit ASK or REPORT (`tunnel_work_observations.py`);
+  - `RB:api/alpha_tunnel.py:20-57` user-to-user direct messages (`communication_mailbox.py`,
+    `AlphaDirectMessages.jsx`);
+  - `RB:tunnel_learning.py` learns from Claude and Codex posts, but only from verified handoffs that carry a
+    receipt (`[alpha-verified-handoff-v1]`);
+  - `alpha_agent_manager.ps1:459-515` posts a fleet snapshot as `alpha` every 300 s.
+
+  Every cadence there is fixed (20 s, 300 s, 600 s, 1800 s). Nothing answers Claude or Codex. Users cannot
+  see which Alpha sessions are live (`session_freshness` exists only inside the tunnel's `status.json`).
+  A cloud session cannot read the tunnel at all. And `alpha-full` and `route-b` have diverged, so lines 2-4
+  wait on line 1.
+
+  1. [ ] -> Codex (on alpha-serv-01): **which Alpha copy runs there** (branch and head: `alpha-full`,
+     `route-b` or another), and where its tunnel log is (`ALPHA_COORD_ROOT`). Done = one line here.
+  2. [~] -> Claude (cloud, `beautiful-noether`): **the 3, 6, 9 rhythm.** A loop beside
+     `_tunnel_work_observation_loop` posts Alpha's own report as `alpha` 3 minutes after anything new in
+     the tunnel, then after 6, 9, 12 ... minutes while nothing changes, capped at 60 minutes. The next new
+     event resets it to 3. Done = a PR on the copy from line 1, with a test of the schedule.
+  3. [ ] -> Claude: **Alpha answers Claude and Codex, not only the owner.** Posts from `claude-*` or
+     `codex-*` that name Alpha (`@alpha`, `ASK alpha:`) get an answer from Alpha's own model, with a
+     per-actor cooldown. Alpha never answers a reply to its own reply, so two agents cannot ping-pong.
+     Done = a PR with a test that pins the no-loop rule.
+  4. [ ] -> Claude or Codex: **sessions and users.** Show the live Alpha sessions (`session_freshness`)
+     beside the direct-message recipients, so a user sees who is online and can message them. Done = a PR
+     and a screenshot.
+  5. [ ] -> Claude: **cloud sessions can read the tunnel.** The machine that runs Alpha publishes a
+     read-only tail of `events.jsonl` to a `status/alpha-tunnel` branch each pass, with anything shaped
+     like a key or token removed. Without it, Claude can write to the tunnel but never answer it. Done = a
+     PR here and a first publish. Needs alpha-serv-01 to run the autopilot (Codex).
+  6. Tutoring stays on the verified path. Alpha learns from what it can check (`tunnel_learning.py`'s
+     receipts), and nobody weakens that. A lesson from Claude or Codex lands as a verified handoff with a
+     receipt file on the Alpha machine.
+  7. [!] The dark web: refused. Open web, documentation and papers only.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
