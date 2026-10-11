@@ -38,3 +38,13 @@ apparently wrote one of the two variants) confirms which of the two is the
 one actually intended to run there, before this merges. Once that's settled,
 the merge itself is low-risk — tests pass, no conflicts, secrets scanned
 clean.
+
+## Resolved
+
+Another session merged #272 shortly after this doc was written (`main`
+`a418002`, "Merge #272: the GPU-demand and execution-policy code that runs
+on alpha-serv-01"). vyos88/Alpha#94 then confirmed directly on alpha-serv-01:
+all six affected files there match `main` `a418002` byte for byte (after
+line-ending normalization) — the server-variant choice (fleet policy in
+`src/common/fleet-execution-policy.js`) was correct. No further action
+needed; the question this doc raised is answered.
