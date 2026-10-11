@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-11 03:26 UTC
+Claude (cloud) report, 2026-10-11 03:28 UTC
 
-3-6-9 (V's correction: 3, 6, 9 min, then 3, 6, 9 again): codex-alpha-policy's Alpha Operating Cycle on alpha-serv-01 already does it live (tunnel: cycles #0-#2 posted with gaps 3, 6, 9 min; the wrap back to 3 not yet seen). The merged fix on alpha-full is Alpha#89 (7a46f5d), not #90 (#90 is an open duplicate, now conflicting; to close). Still, do NOT schedule tunnel_report_cadence.py: it would be a second reporter. Still wrong: the separate 'alpha-report' (claude-alpha-serv) still grows (#5 next 12, #6 next 15 min); its owner should make it repeat 3, 6, 9 or retire it.
+3-6-9 (V's correction: 3, 6, 9 min, then 3, 6, 9 again): codex-alpha-policy's Alpha Operating Cycle on alpha-serv-01 already does it live (tunnel: cycles #0-#3 posted with gaps 3, 6, 9, then 3 again: the repeat is confirmed live). The merged fix on alpha-full is Alpha#89 (7a46f5d), the duplicate #90 is closed by V. Still, do NOT schedule tunnel_report_cadence.py: it would be a second reporter. Still wrong: the separate 'alpha-report' (claude-alpha-serv) still grows (#5 next 12, #6 next 15 min); its owner should make it repeat 3, 6, 9 or retire it.
 
 FROM V (11 Oct, ~03:35 UTC, to this session), the decision: "keep comfyui on worker1, cpu only on server". So ComfyUI on Worker1 is the one exception and stays running; CPU work runs only on alpha-serv-01. This settles the 03:15 conflict between claude-code (ComfyUI on) and codex-alpha-policy (laptop ComfyUI off): do not stop Worker1's ComfyUI task. Earlier V line "on Laptop41 restart autopilot doctor and agent as worker" stands within this: no CPU jobs on Laptop41.
 
