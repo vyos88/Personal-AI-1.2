@@ -392,9 +392,9 @@ test('the bridge check asks role.json and the task state before claiming a resta
 
   const text = readFileSync(SCRIPT, 'utf8');
   // The plan is made from role.json and the state, and before the 45s wait.
-  assert.match(text, /\$plan = Get-BridgePlan \(\[string\]\$registered\.State\) \$standby/);
-  assert.match(text, /if \(-not \$plan\.restart\) \{[\s\S]*?continue\n\s*\}/);
-  assert.ok(text.indexOf('$plan = Get-BridgePlan') < text.indexOf('Stop-ScheduledTask -TaskName $b.task'), 'decided before the restart');
+  assert.match(text, /\$bridgePlan = Get-BridgePlan \(\[string\]\$registered\.State\) \$standby/);
+  assert.match(text, /if \(-not \$bridgePlan\.restart\) \{[\s\S]*?continue\n\s*\}/);
+  assert.ok(text.indexOf('$bridgePlan = Get-BridgePlan') < text.indexOf('Stop-ScheduledTask -TaskName $b.task'), 'decided before the restart');
   // Nothing enables a task somebody disabled.
   assert.ok(!/Enable-ScheduledTask/.test(text), 'the autopilot never enables a disabled task');
   // The flags decide the verdict, so rewording a line cannot change it.
@@ -402,6 +402,83 @@ test('the bridge check asks role.json and the task state before claiming a resta
   assert.match(text, /if \(\$bridgeHeld\) \{ \$bridgeWhy \+= 'disabled' \}/);
   assert.match(text, /elseif \(\$bridgeOff\) \{ '0 \(off: standby\)' \}/);
   assert.ok(!/-match 'still nothing'/.test(text), 'the verdict is not read back out of the report text');
+});
+
+// 2026-10-11: V queued 20261011-c1-enable-image on control/laptop41 at
+// 01:18:27Z and it had not run eleven hours and ~130 published reports later.
+// Nothing in a report could say which of three things it was -- the id already
+// in state.json's `done`, an actions.json the pass never read, or no control
+// branch -- because each of those writes only to the console, which is a
+// transcript on the machine. The header now carries one line that separates
+// all three, beside the $checkoutNote line that exists for the same reason.
+test('the report says what queue the pass read, so an id that never runs is answerable', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-queue-'));
+  const note = (facts) => {
+    const f = join(dir, `q-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(f, JSON.stringify(facts));
+    const r = pwsh([SCRIPT, '-QueueNoteDecide', f]);
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  const base = { channel: 'laptop41', ids: [], done: [] };
+  // The three indistinguishable cases, now distinct.
+  assert.match(note({ ...base, read: false }), /^queue: control\/laptop41 could not be read$/);
+  assert.match(note({ ...base, read: true }), /^queue: nothing on control\/laptop41$/);
+  assert.match(note({ ...base, read: true, ids: ['a', 'b'], done: ['a', 'b'] }),
+    /^queue: 2 action\(s\) on control\/laptop41, all of them already run$/);
+  // And the one that answers the question: the id is named, not just counted.
+  assert.equal(note({ ...base, read: true, ids: ['20261006-01-repair', '20261011-c1-enable-image'], done: ['20261006-01-repair'] }),
+    'queue: 2 action(s) on control/laptop41, 1 not run yet: 20261011-c1-enable-image');
+  // A backlog does not fill the header: three ids, then a count.
+  assert.equal(note({ ...base, read: true, ids: ['a', 'b', 'c', 'd', 'e'], done: ['a'] }),
+    'queue: 5 action(s) on control/laptop41, 4 not run yet: b, c, d and 1 more');
+  // These ids come straight out of actions.json and Resolve-Action has not
+  // checked them yet, so each is cut to the 64 its pattern allows.
+  const long = note({ ...base, read: true, ids: ['x'.repeat(200)], done: [] });
+  assert.ok(long.length < 140, `one id must not fill the header: ${long.length} chars`);
+  assert.match(long, /x{64}(?!x)/);
+
+  // The pass computes it from the queue it read and the ids already done, and
+  // puts it in the header through Redact, beside the checkout line.
+  const text = readFileSync(SCRIPT, 'utf8');
+  assert.match(text, /\$queueNote = Get-QueueNote \$queueRead \$Channel @\(@\(\$queued\) \| ForEach-Object \{ \$_\.id \}\) @\(\$done\.Keys\)/);
+  assert.match(text, /\(Redact \$checkoutNote\), \(Redact \$queueNote\)/, 'redacted, like every other line in the report');
+  assert.ok(text.indexOf('$queueNote = Get-QueueNote') < text.indexOf('# 3. Run what has not run.'),
+    'read before the loop that skips, so it describes the queue the loop saw');
+  // It never makes a pass report: the gate at the end still asks what ran.
+  assert.match(text, /if \(-not \$ran\.Count -and -not \(\$noteChanged -and \$updateExit -ne 0\)\) \{ Write-Host 'nothing new to run'; exit 0 \}/);
+});
+
+// 2026-10-11, and the reason this is a test rather than a renamed variable:
+// the bridge check assigned its plan to `$plan`, and `-Plan` is a parameter of
+// this script, typed [string]. PowerShell variable names are case-insensitive,
+// so the assignment stringified the whole plan; every field read as $null,
+// which made `-not $plan.restart` true for every state -- so no bridge was
+// restarted at all, and the note printed as nothing. The 12:33:51Z pass on
+// Worker1 shows it: `was not listening on 8790: ` with an empty tail. Three
+// assertions on the source had named `$plan` and all three passed, because
+// they read the spelling and not the behaviour. A parameter is the one name a
+// local must never reuse here, so check every one of them.
+test('no local shadows one of this script\'s own parameters', () => {
+  const text = readFileSync(SCRIPT, 'utf8');
+  const block = text.slice(text.indexOf('\nparam('), text.indexOf('\n$ErrorActionPreference'));
+  assert.ok(block.length > 100 && block.includes('$AlphaRoot'), 'found the param block');
+  const params = [...block.matchAll(/^\s*(?:\[[^\]]+\]\s*)*\$([A-Za-z_][A-Za-z0-9_]*)\s*(?:=|,|\))/gm)].map((m) => m[1]);
+  assert.ok(params.length >= 10, `expected the parameters, got ${params.join(', ')}`);
+  const body = text.slice(text.indexOf('\n$ErrorActionPreference'));
+  // The one deliberate reassignment: the task's own ExecutionTimeLimit wins
+  // over -PassMinutes, which is read from Get-ScheduledTaskInfo at the top of
+  // the pass and documented there. It stays [int], so nothing is lost.
+  const allowed = ['PassMinutes'];
+  const shadowed = [];
+  for (const name of params) {
+    if (allowed.includes(name)) continue;
+    // An assignment to the parameter's own name, anywhere below the block.
+    // Case-insensitive, because that is the whole trap.
+    const re = new RegExp(`(^|[^\\w$.])\\$${name}\\s*=[^=]`, 'im');
+    if (re.test(body)) shadowed.push(name);
+  }
+  assert.deepEqual(shadowed, [], `these locals reuse a parameter name, and take its type: ${shadowed.join(', ')}`);
 });
 
 test('panel-endpoint takes nothing from the action, and reads the deck STATUS line', { skip }, () => {

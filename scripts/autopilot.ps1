@@ -105,7 +105,9 @@ param(
   [string]$HomeWifiDecide,
   # Test seam: a scheduled task's state; prints what the bridge check would do.
   [string]$BridgeDecide,
-  [switch]$BridgeStandby
+  [switch]$BridgeStandby,
+  # Test seam: a JSON file of facts; prints the queue line the report carries.
+  [string]$QueueNoteDecide
 )
 
 $ErrorActionPreference = 'Continue'
@@ -534,6 +536,45 @@ if ($PSBoundParameters.ContainsKey('BridgeDecide') -or $BridgeStandby) {
   exit 0
 }
 
+# What the queue read produced (section 2, below), as one line for the report's
+# header beside $checkoutNote. Pure, so it is tested off Windows
+# (-QueueNoteDecide).
+#
+# V queued 20261011-c1-enable-image on control/laptop41 at 01:18:27Z and it had
+# not run eleven hours and ~130 published reports later -- and no report could
+# say which of three things it was: the id already in state.json's `done`, an
+# actions.json the pass never read, or no control branch at all. Every one of
+# those writes a line to the console, and the console is a transcript on the
+# machine. The report says what this checkout is and what the standing checks
+# did, and nothing at all about the queue it read. $checkoutNote exists one
+# section earlier for exactly this reason -- "a checkout that cannot update is
+# silent otherwise" -- and this is its other half.
+#
+# It only ever adds a line to a report already being published: the gate at the
+# end still asks whether anything ran, so this never makes a pass report.
+function Get-QueueNote([bool]$Read, [string]$Channel, $Ids, $DoneIds) {
+  if (-not $Read) { return "queue: control/$Channel could not be read" }
+  $all = @(@($Ids) | ForEach-Object { [string]$_ } | Where-Object { $_.Trim() })
+  if (-not $all.Count) { return "queue: nothing on control/$Channel" }
+  $doneIdList = @(@($DoneIds) | ForEach-Object { [string]$_ })
+  $todo = @($all | Where-Object { $doneIdList -notcontains $_ })
+  if (-not $todo.Count) { return "queue: $($all.Count) action(s) on control/$Channel, all of them already run" }
+  # The ids, not just the count: "one has not run" sends nobody anywhere, and
+  # the whole point is to name the id a person queued and never saw run. Each
+  # is cut to the 64 characters Resolve-Action's own pattern allows, because
+  # these come straight out of actions.json and have not been checked yet --
+  # the bridge check cuts its log lines for the same reason.
+  $show = @($todo | Select-Object -First 3 | ForEach-Object { $_.Substring(0, [math]::Min(64, $_.Length)) })
+  return "queue: $($all.Count) action(s) on control/$Channel, $($todo.Count) not run yet: " + ($show -join ', ') +
+    $(if ($todo.Count -gt $show.Count) { " and $($todo.Count - $show.Count) more" } else { '' })
+}
+
+if ($PSBoundParameters.ContainsKey('QueueNoteDecide')) {
+  $f = Get-Content -LiteralPath $QueueNoteDecide -Raw | ConvertFrom-Json
+  Get-QueueNote ([bool]$f.read) ([string]$f.channel) @($f.ids) @($f.done)
+  exit 0
+}
+
 # The addresses the backend is told to bind: the boot wrapper's --host, which
 # wins (run_server.py), else HOST in the .env.local beside -AlphaRoot.
 function Get-BackendHosts {
@@ -757,14 +798,17 @@ if ($updateExit -ne 0) {
 $queued = @()
 $control = $null
 git -C $repo fetch -q origin "control/$Channel" 2>&1 | Out-Null
+$queueRead = $false
 if ($LASTEXITCODE -ne 0) { Write-Host "nothing queued (no control/$Channel branch)" }
 else {
   $raw = git -C $repo show 'FETCH_HEAD:actions.json' 2>$null | Out-String
-  if (-not $raw.Trim()) { Write-Host 'nothing queued' }
+  if (-not $raw.Trim()) { Write-Host 'nothing queued'; $queueRead = $true }
   else {
-    try { $control = ConvertFrom-Json $raw; $queued = @(@($control.actions) | Where-Object { $_ }) } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
+    try { $control = ConvertFrom-Json $raw; $queued = @(@($control.actions) | Where-Object { $_ }); $queueRead = $true } catch { Write-Host "actions.json does not parse: $($_.Exception.Message)" -ForegroundColor Red; exit 1 }
   }
 }
+$queueNote = Get-QueueNote $queueRead $Channel @(@($queued) | ForEach-Object { $_.id }) @($done.Keys)
+Write-Host $queueNote
 
 # 2b. The bridges come back by themselves. Both are logon tasks on this
 # machine; on 2026-10-06 the music (8790) and image (7861) bridges were found
@@ -786,10 +830,17 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     # of its log. Keys are masked; the bridges never log them, but be sure.
     $info = Get-ScheduledTaskInfo -TaskName $b.task -EA SilentlyContinue
     [void]$bridgeLines.Add("'$($b.task)' task was $($registered.State); last run $($info.LastRunTime), last result 0x$('{0:X}' -f [int64]$info.LastTaskResult)")
-    $plan = Get-BridgePlan ([string]$registered.State) $standby
-    if (-not $plan.restart) {
-      if ($plan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
-      [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($plan.note)")
+    # $bridgePlan, not $plan: PowerShell variable names are case-insensitive,
+    # so $plan is the -Plan parameter -- typed [string]. Assigning the plan to
+    # it stringified the whole thing, every field read as $null, and the
+    # 12:33:51Z pass on Worker1 printed the note as nothing and took the
+    # no-restart branch for every state, which is the one thing this check
+    # exists to do. The shape test that named $plan passed throughout: it read
+    # the source, not the behaviour.
+    $bridgePlan = Get-BridgePlan ([string]$registered.State) $standby
+    if (-not $bridgePlan.restart) {
+      if ($bridgePlan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
+      [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($bridgePlan.note)")
       continue
     }
     $logFile = Join-Path $env:TEMP $b.log
@@ -1484,7 +1535,7 @@ if (-not $ran.Count -and -not ($noteChanged -and $updateExit -ne 0)) { Write-Hos
 
 # 4. Report, from a temporary worktree so this checkout is never switched or dirtied.
 $branch = "status/$Channel-autopilot"
-$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '', (Redact $checkoutNote), '')
+$body = @("# $Channel autopilot $stamp", '', "Host: $env:COMPUTERNAME   Alpha: $AlphaRoot", '', (Redact $checkoutNote), (Redact $queueNote), '')
 foreach ($h in $history) {
   $body += "## $($h.id)  $($h.do)  ->  $($h.result)   ($($h.at), $($h.seconds)s)"
   $body += '```'; $body += $h.tail; $body += '```'; $body += ''
