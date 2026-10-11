@@ -1263,7 +1263,27 @@ if ($state -and $state.history) { $history = @($state.history) }
 $history = @(@($ran) + $pending + $history | Select-Object -First 20)
 $ran = @(@($ran) + $pending)
 $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
-@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @() } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+# `pending` is kept here, not cleared, and only emptied once the report is
+# actually pushed (section 4, the end of this file). Both messages down there
+# say "report kept in state.json" and neither was true: this write cleared
+# pending nearly 300 lines before the push, so a pass whose push was rejected,
+# or which hit the `exit 1` when its worktree could not be made, lost its
+# entries from every later report -- while `done` above kept the ids, so no
+# pass would run or mention them again.
+#
+# V's 20261011-c1-enable-image is that case. Queued on control/laptop41 at
+# 01:18:27Z, inside this branch's 00:20Z -> 03:31Z gap; the queue line now
+# reports `109 action(s) on control/laptop41, all of them already run`; and the
+# id appears in none of the 804 commit subjects on status/laptop41-autopilot.
+# Run and never reported, which is the one combination this ordering produces.
+#
+# Capped at the 20 $history keeps, one number rather than two. Known cost: a
+# machine that cannot push for an hour and a half loses the oldest entries,
+# which is still better than losing all of them to the first failed push. And
+# if the push lands but the clearing write does not, the next pass reports the
+# same entries twice, which is the harmless direction.
+$stateOut = [ordered]@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @(@($ran) | Select-Object -First 20) }
+$stateOut | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
 # live. The owner asked for a report every 5 minutes, and a report written only
@@ -1555,5 +1575,13 @@ git -C $wt -c "user.name=$Channel-autopilot" -c "user.email=autopilot@$($Channel
 git -C $wt push -q origin "HEAD:refs/heads/$branch" 2>&1 | Out-Null
 $pushed = ($LASTEXITCODE -eq 0)
 git -C $repo worktree remove --force $wt 2>&1 | Out-Null
+# Only now: reported, so these entries are no longer pending. A push that was
+# rejected leaves them where the write above put them, and the next pass puts
+# them back in front of its own -- which is what "report kept in state.json"
+# has always claimed.
+if ($pushed) {
+  $stateOut.pending = @()
+  $stateOut | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
+}
 Write-Host $(if ($pushed) { "reported to $branch" } else { 'push failed; report kept in state.json' })
 exit 0

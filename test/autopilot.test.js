@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
@@ -479,6 +479,70 @@ test('no local shadows one of this script\'s own parameters', () => {
     if (re.test(body)) shadowed.push(name);
   }
   assert.deepEqual(shadowed, [], `these locals reuse a parameter name, and take its type: ${shadowed.join(', ')}`);
+});
+
+// 2026-10-11: V queued 20261011-c1-enable-image on control/laptop41 at
+// 01:18:27Z and it ran, and no report ever named it -- `all of them already
+// run` from the queue line, and absent from all 804 commit subjects on
+// status/laptop41-autopilot. The state write cleared `pending` nearly 300
+// lines before the push, so a rejected push (or the `exit 1` when the worktree
+// could not be made) dropped the entries for good, while `done` kept the ids
+// so nothing would run or mention them again. Both messages at the push said
+// "report kept in state.json" and neither was true.
+test('a report that could not be pushed is kept, and reaches the next pass', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-keep-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'control/laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'actions.json'), JSON.stringify({ actions: [{ id: 'k1', do: 'ollama-pull', model: 'llama3.2:3b' }] }));
+  git(work, 'add', 'actions.json');
+  git(work, 'commit', '-qm', 'queue');
+  git(work, 'push', '-q', 'origin', 'control/laptop41');
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'ollama'), '#!/bin/sh\necho "pulling $2"\n');
+  chmodSync(join(bin, 'ollama'), 0o755);
+  const env = { PATH: `${bin}${delimiter}${process.env.PATH}`, COMPUTERNAME: '' };
+  const ops = join(dir, 'ops');
+  const args = [join(work, 'scripts', 'autopilot.ps1'), '-OpsDir', ops, '-AlphaRoot', join(dir, 'sw')];
+
+  // The remote takes fetches and refuses pushes: a rejected report, with the
+  // queue still readable, which is the shape of the failure that lost V's id.
+  const hook = join(remote, 'hooks', 'pre-receive');
+  writeFileSync(hook, '#!/bin/sh\nexit 1\n');
+  chmodSync(hook, 0o755);
+
+  const first = pwsh(args, env);
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.match(first.stdout, /k1 ollama-pull: 0/, 'the action ran');
+  assert.match(first.stdout, /push failed; report kept in state\.json/);
+  // Kept, which is what that message says. Before the fix it was cleared here.
+  const state = () => JSON.parse(readFileSync(join(ops, 'autopilot', 'state.json'), 'utf8'));
+  assert.ok(state().pending.some((e) => e.id === 'k1'), 'k1 is still pending after the failed push');
+  assert.ok(state().done.k1, 'and done, so it is not run twice');
+
+  // The next pass can push, and carries it.
+  rmSync(hook);
+  const second = pwsh(args, env);
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  assert.doesNotMatch(second.stdout, /k1 ollama-pull: 0/, 'not run again');
+  assert.match(second.stdout, /reported to status\/laptop41-autopilot/);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /## k1 {2}ollama-pull/, "the first pass's entry is in the report");
+  assert.match(report, /pulling llama3\.2:3b/, 'with its output');
+  assert.deepEqual(state().pending, [], 'and pending is empty only now');
 });
 
 test('panel-endpoint takes nothing from the action, and reads the deck STATUS line', { skip }, () => {
