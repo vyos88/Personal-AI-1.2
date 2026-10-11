@@ -611,6 +611,13 @@
       "confirm": "hand-over",
       "primary": "alpha-serv-01",
       "why": "Direct human instruction in this chat: Alpha-serv-01 100.70.101.6 is sole server; DESKTOP-41HPLCN stays worker. Private server HTTPS /health200 and signed-in remote executor verified; public530 is connector/config failure, not authority to restore laptop Host. Repair role after failed Claude job20261010-16-standup-cover moved role.json aside. Preserve tunnel agent, compute workers, media bridges, RDP, enabled worker updaters and existing Alpha Data Copy task; no standby-install or old Host enable."
+    },
+    {
+      "id": "20261011-c1-enable-image",
+      "do": "enable-image",
+      "installComfy": true,
+      "backend": "comfyui",
+      "why": "V 2026-10-11: keep ComfyUI running on Worker1 and offer alpha.image again (undoes 20261007-63-comfyui-off). installComfy registers the logon task 'ComfyUI' (start-comfyui.ps1 restarts it when it exits; CPU, no NVIDIA GPU here) and starts it; alpha-image handlers back in .env.agent; agent restarted. No bridge: alpha-serv-01 serves Alpha. Watch RAM: ComfyUI held about 3.8 GB here on 2026-10-07."
     }
   ],
   "autofix": {
