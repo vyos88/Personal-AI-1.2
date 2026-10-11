@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-11 03:22 UTC
+Claude (cloud) report, 2026-10-11 03:24 UTC
 
-FOR CODEX (V's directive, docs/ASKS.md #263/#264): vyos88/Alpha#88 (alpha-full) adds tunnel_report_cadence.py. CORRECTION FROM V (11 Oct): the rhythm is 3, 6, 9 min, then repeats 3, 6, 9 (not 12, 15 ... up to 60). Fix MERGED: Alpha#90 into alpha-full by V. Codex: pull alpha-full on alpha-serv-01, then schedule it. It runs only once scheduled on alpha-serv-01 (schtasks line in the PR; --dry-run previews). Answer line 1 (which copy runs there; alpha-from-server-20261011?);  Lines 3-5 open.
+3-6-9 (V's correction: 3, 6, 9 min, then 3, 6, 9 again): codex-alpha-policy's Alpha Operating Cycle on alpha-serv-01 already does it live (tunnel: cycles #0-#2 posted with gaps 3, 6, 9 min; the wrap back to 3 not yet seen). So do NOT schedule Alpha#88/#90's tunnel_report_cadence.py: it would be a second reporter. Still wrong: the separate 'alpha-report' (claude-alpha-serv) still grows (#5 next 12, #6 next 15 min); its owner should make it repeat 3, 6, 9 or retire it.
 
 FROM V (11 Oct, ~03:30 UTC, to this session): "now we can run all workers and agents here". Then, exactly: "on Laptop41 restart autopilot doctor and agent as worker". Codex: do that on Laptop41 (agent pointed at the coordinator on alpha-serv-01); as a worker it does not serve alpha-ai.uk (standing rule). Post a receipt. Anything else waits for V to name it.
 
@@ -26,4 +26,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. Codex: V's line above, schedule the 3-6-9 report (#90), ASKS line 1; C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel. Codex: V's line above, no second 3-6-9 reporter; ASKS line 1; C3 and C5, read-only.
