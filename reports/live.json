@@ -1,14 +1,14 @@
 ﻿{
-    "at":  "2026-10-11T01:14:21.5770505+01:00",
+    "at":  "2026-10-11T01:20:00.5573653+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, connector (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 1453 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 1459 min ago)"
              },
     "data":  {
                  "state":  "ON",
@@ -16,7 +16,7 @@
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1453,
+                     "age_min":  1459,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,9 +24,12 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "4 live, 1 stale, 1 static, 1 no feed",
-                  "not_live":  "network, hardware, atlas: devices (/devices/network/topology)",
-                  "checked_at":  "2026-10-09T23:50:05.835250+00:00"
+                  "summary":  "3 live, 1 stale, 1 down, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "network, hardware, atlas: devices (/devices/network/topology)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
+                               ],
+                  "checked_at":  "2026-10-11T00:19:46.653030+00:00"
               },
     "sync":  "IN SYNC: this machine runs 6795e6a of claude/frie...(30)"
 }
