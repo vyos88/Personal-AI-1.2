@@ -404,6 +404,51 @@ test('the bridge check asks role.json and the task state before claiming a resta
   assert.ok(!/-match 'still nothing'/.test(text), 'the verdict is not read back out of the report text');
 });
 
+// 2026-10-11: V queued 20261011-c1-enable-image on control/laptop41 at
+// 01:18:27Z and it had not run eleven hours and ~130 published reports later.
+// Nothing in a report could say which of three things it was -- the id already
+// in state.json's `done`, an actions.json the pass never read, or no control
+// branch -- because each of those writes only to the console, which is a
+// transcript on the machine. The header now carries one line that separates
+// all three, beside the $checkoutNote line that exists for the same reason.
+test('the report says what queue the pass read, so an id that never runs is answerable', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-queue-'));
+  const note = (facts) => {
+    const f = join(dir, `q-${Math.random().toString(36).slice(2)}.json`);
+    writeFileSync(f, JSON.stringify(facts));
+    const r = pwsh([SCRIPT, '-QueueNoteDecide', f]);
+    assert.equal(r.status, 0, r.stderr);
+    return r.stdout.trim();
+  };
+  const base = { channel: 'laptop41', ids: [], done: [] };
+  // The three indistinguishable cases, now distinct.
+  assert.match(note({ ...base, read: false }), /^queue: control\/laptop41 could not be read$/);
+  assert.match(note({ ...base, read: true }), /^queue: nothing on control\/laptop41$/);
+  assert.match(note({ ...base, read: true, ids: ['a', 'b'], done: ['a', 'b'] }),
+    /^queue: 2 action\(s\) on control\/laptop41, all of them already run$/);
+  // And the one that answers the question: the id is named, not just counted.
+  assert.equal(note({ ...base, read: true, ids: ['20261006-01-repair', '20261011-c1-enable-image'], done: ['20261006-01-repair'] }),
+    'queue: 2 action(s) on control/laptop41, 1 not run yet: 20261011-c1-enable-image');
+  // A backlog does not fill the header: three ids, then a count.
+  assert.equal(note({ ...base, read: true, ids: ['a', 'b', 'c', 'd', 'e'], done: ['a'] }),
+    'queue: 5 action(s) on control/laptop41, 4 not run yet: b, c, d and 1 more');
+  // These ids come straight out of actions.json and Resolve-Action has not
+  // checked them yet, so each is cut to the 64 its pattern allows.
+  const long = note({ ...base, read: true, ids: ['x'.repeat(200)], done: [] });
+  assert.ok(long.length < 140, `one id must not fill the header: ${long.length} chars`);
+  assert.match(long, /x{64}(?!x)/);
+
+  // The pass computes it from the queue it read and the ids already done, and
+  // puts it in the header through Redact, beside the checkout line.
+  const text = readFileSync(SCRIPT, 'utf8');
+  assert.match(text, /\$queueNote = Get-QueueNote \$queueRead \$Channel @\(@\(\$queued\) \| ForEach-Object \{ \$_\.id \}\) @\(\$done\.Keys\)/);
+  assert.match(text, /\(Redact \$checkoutNote\), \(Redact \$queueNote\)/, 'redacted, like every other line in the report');
+  assert.ok(text.indexOf('$queueNote = Get-QueueNote') < text.indexOf('# 3. Run what has not run.'),
+    'read before the loop that skips, so it describes the queue the loop saw');
+  // It never makes a pass report: the gate at the end still asks what ran.
+  assert.match(text, /if \(-not \$ran\.Count -and -not \(\$noteChanged -and \$updateExit -ne 0\)\) \{ Write-Host 'nothing new to run'; exit 0 \}/);
+});
+
 // 2026-10-11, and the reason this is a test rather than a renamed variable:
 // the bridge check assigned its plan to `$plan`, and `-Plan` is a parameter of
 // this script, typed [string]. PowerShell variable names are case-insensitive,
