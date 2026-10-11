@@ -1,29 +1,19 @@
 {
-    "cloudSeen":  "ea6b0d12cf7b6feefc627fb07cda2a778d70e52f",
-    "lastRun":  "2026-10-11T01:26:22",
+    "cloudSeen":  "7d1b60771089d33d40b7d9f687a98155b9afe420",
+    "lastRun":  "2026-10-11T04:27:52",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "automatic cover has not run for # min: its task \u0027Alpha Standby\u0027 is not running passes":  {
-                                                                                                                         "since":  "2026-10-10T01:41:23",
-                                                                                                                         "runs":  96,
-                                                                                                                         "text":  "automatic cover has not run for 1465 min: its task \u0027Alpha Standby\u0027 is not running passes"
-                                                                                                                     },
-                 "standby, but # cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines":  {
-                                                                                                                                   "since":  "2026-10-11T01:26:22",
-                                                                                                                                   "runs":  1,
-                                                                                                                                   "text":  "standby, but 1 cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines"
-                                                                                                                               },
-                 "standby, but the backend runs here (pid # python.exe: \"C:\\Users\\Vyo\\AppData\\Local\\Programs\\Python\\Python#\\python.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\backend\\run_server.py --host #.#.#.#,#.#.#.#,#.#.#.#,#.#.#.# --port # ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                                                                                                                                                                                                                                      "since":  "2026-10-11T01:26:22",
-                                                                                                                                                                                                                                                                                                                                                                      "runs":  1,
-                                                                                                                                                                                                                                                                                                                                                                      "text":  "standby, but the backend runs here (pid 12564 python.exe: \"C:\\Users\\Vyo\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\backend\\run_server.py --host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151 --port 8001 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                                                                                                                                                                                                                                  },
                  "CPU #% is at or above Alpha\u0027s #% GPU-admission hold: local model calls time out with a # and every agent receipt reads evidence-contract":  {
                                                                                                                                                                        "since":  "2026-10-11T01:26:22",
-                                                                                                                                                                       "runs":  1,
-                                                                                                                                                                       "text":  "CPU 94% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
-                                                                                                                                                                   }
+                                                                                                                                                                       "runs":  2,
+                                                                                                                                                                       "text":  "CPU 93% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
+                                                                                                                                                                   },
+                 "automatic cover has not run for # min: its task \u0027Alpha Standby\u0027 is not running passes":  {
+                                                                                                                         "since":  "2026-10-10T01:41:23",
+                                                                                                                         "runs":  97,
+                                                                                                                         "text":  "automatic cover has not run for 1646 min: its task \u0027Alpha Standby\u0027 is not running passes"
+                                                                                                                     }
              },
-    "lastPost":  "2026-10-11T01:26:22",
-    "relay":  "relayed status/cloud ea6b0d1"
+    "lastPost":  "2026-10-11T04:27:52",
+    "relay":  "relayed status/cloud 7d1b607"
 }
