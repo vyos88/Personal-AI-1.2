@@ -786,10 +786,17 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     # of its log. Keys are masked; the bridges never log them, but be sure.
     $info = Get-ScheduledTaskInfo -TaskName $b.task -EA SilentlyContinue
     [void]$bridgeLines.Add("'$($b.task)' task was $($registered.State); last run $($info.LastRunTime), last result 0x$('{0:X}' -f [int64]$info.LastTaskResult)")
-    $plan = Get-BridgePlan ([string]$registered.State) $standby
-    if (-not $plan.restart) {
-      if ($plan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
-      [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($plan.note)")
+    # $bridgePlan, not $plan: PowerShell variable names are case-insensitive,
+    # so $plan is the -Plan parameter -- typed [string]. Assigning the plan to
+    # it stringified the whole thing, every field read as $null, and the
+    # 12:33:51Z pass on Worker1 printed the note as nothing and took the
+    # no-restart branch for every state, which is the one thing this check
+    # exists to do. The shape test that named $plan passed throughout: it read
+    # the source, not the behaviour.
+    $bridgePlan = Get-BridgePlan ([string]$registered.State) $standby
+    if (-not $bridgePlan.restart) {
+      if ($bridgePlan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
+      [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($bridgePlan.note)")
       continue
     }
     $logFile = Join-Path $env:TEMP $b.log

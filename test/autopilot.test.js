@@ -392,9 +392,9 @@ test('the bridge check asks role.json and the task state before claiming a resta
 
   const text = readFileSync(SCRIPT, 'utf8');
   // The plan is made from role.json and the state, and before the 45s wait.
-  assert.match(text, /\$plan = Get-BridgePlan \(\[string\]\$registered\.State\) \$standby/);
-  assert.match(text, /if \(-not \$plan\.restart\) \{[\s\S]*?continue\n\s*\}/);
-  assert.ok(text.indexOf('$plan = Get-BridgePlan') < text.indexOf('Stop-ScheduledTask -TaskName $b.task'), 'decided before the restart');
+  assert.match(text, /\$bridgePlan = Get-BridgePlan \(\[string\]\$registered\.State\) \$standby/);
+  assert.match(text, /if \(-not \$bridgePlan\.restart\) \{[\s\S]*?continue\n\s*\}/);
+  assert.ok(text.indexOf('$bridgePlan = Get-BridgePlan') < text.indexOf('Stop-ScheduledTask -TaskName $b.task'), 'decided before the restart');
   // Nothing enables a task somebody disabled.
   assert.ok(!/Enable-ScheduledTask/.test(text), 'the autopilot never enables a disabled task');
   // The flags decide the verdict, so rewording a line cannot change it.
@@ -402,6 +402,38 @@ test('the bridge check asks role.json and the task state before claiming a resta
   assert.match(text, /if \(\$bridgeHeld\) \{ \$bridgeWhy \+= 'disabled' \}/);
   assert.match(text, /elseif \(\$bridgeOff\) \{ '0 \(off: standby\)' \}/);
   assert.ok(!/-match 'still nothing'/.test(text), 'the verdict is not read back out of the report text');
+});
+
+// 2026-10-11, and the reason this is a test rather than a renamed variable:
+// the bridge check assigned its plan to `$plan`, and `-Plan` is a parameter of
+// this script, typed [string]. PowerShell variable names are case-insensitive,
+// so the assignment stringified the whole plan; every field read as $null,
+// which made `-not $plan.restart` true for every state -- so no bridge was
+// restarted at all, and the note printed as nothing. The 12:33:51Z pass on
+// Worker1 shows it: `was not listening on 8790: ` with an empty tail. Three
+// assertions on the source had named `$plan` and all three passed, because
+// they read the spelling and not the behaviour. A parameter is the one name a
+// local must never reuse here, so check every one of them.
+test('no local shadows one of this script\'s own parameters', () => {
+  const text = readFileSync(SCRIPT, 'utf8');
+  const block = text.slice(text.indexOf('\nparam('), text.indexOf('\n$ErrorActionPreference'));
+  assert.ok(block.length > 100 && block.includes('$AlphaRoot'), 'found the param block');
+  const params = [...block.matchAll(/^\s*(?:\[[^\]]+\]\s*)*\$([A-Za-z_][A-Za-z0-9_]*)\s*(?:=|,|\))/gm)].map((m) => m[1]);
+  assert.ok(params.length >= 10, `expected the parameters, got ${params.join(', ')}`);
+  const body = text.slice(text.indexOf('\n$ErrorActionPreference'));
+  // The one deliberate reassignment: the task's own ExecutionTimeLimit wins
+  // over -PassMinutes, which is read from Get-ScheduledTaskInfo at the top of
+  // the pass and documented there. It stays [int], so nothing is lost.
+  const allowed = ['PassMinutes'];
+  const shadowed = [];
+  for (const name of params) {
+    if (allowed.includes(name)) continue;
+    // An assignment to the parameter's own name, anywhere below the block.
+    // Case-insensitive, because that is the whole trap.
+    const re = new RegExp(`(^|[^\\w$.])\\$${name}\\s*=[^=]`, 'im');
+    if (re.test(body)) shadowed.push(name);
+  }
+  assert.deepEqual(shadowed, [], `these locals reuse a parameter name, and take its type: ${shadowed.join(', ')}`);
 });
 
 test('panel-endpoint takes nothing from the action, and reads the deck STATUS line', { skip }, () => {
