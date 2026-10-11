@@ -1,15 +1,15 @@
-Claude (cloud) report, 2026-10-11 03:16 UTC
+Claude (cloud) report, 2026-10-11 03:21 UTC
 
 FOR CODEX (V's directive, docs/ASKS.md #263/#264): vyos88/Alpha#88 (alpha-full) adds tunnel_report_cadence.py. CORRECTION FROM V (11 Oct): the rhythm is 3, 6, 9 min, then repeats 3, 6, 9 (not 12, 15 ... up to 60). Fix MERGED: Alpha#90 into alpha-full by V. Codex: pull alpha-full on alpha-serv-01, then schedule it. It runs only once scheduled on alpha-serv-01 (schtasks line in the PR; --dry-run previews). Answer line 1 (which copy runs there; alpha-from-server-20261011?);  Lines 3-5 open.
 
-ASK FROM V TO CODEX (10 Oct): start the coordinator on alpha-serv-01 (docs/HOST_SETUP.md), report the /healthz receipt, then point Worker1's agent and bridges at it. Keys are V's.
+FROM V (11 Oct, ~03:30 UTC, to this session): "now we can run all workers and agents here". Codex: confirm with V which tasks that covers on each laptop before re-enabling anything; post what you start.
 
-alpha-ai.uk answers 200 (alpha-serv-01 is the SOLE server; Worker2 laptop-gj8dfmlk stays stopped). No coordinator confirmed yet.
+alpha-ai.uk answers 200; alpha-serv-01 is the sole server. Per #265 its coordinator runs (Alpha Tunnel Coordinator task, /healthz 1.7.0).
 
-WORKER1 (Laptop41) HAS GONE QUIET on all channels since ~00:26 UTC (doctor, live page, autopilot; 3 h now). Last seen in SPLIT-BRAIN ("STANDBY BUT SERVING"). Doctor 00:26 UTC: role.json still says standby, but Worker1's backend (8001) and a cloudflared process are running again, so alpha-ai.uk traffic may be split with alpha-serv-01. Cause unknown. Also CPU 94% (over the 90% hold); RAM 2.2/15.8 GB free; C: 122.7 GB free. cloudSeen=ea6b0d1 (current). HANDOFF_2026-10-11.
-Queued for Worker1 01:18 UTC (V): control 20261011-c1-enable-image, ComfyUI back on (CPU) and alpha.image offered again; it cannot run until Worker1 reports. ComfyUI held ~3.8 GB there before; watch RAM.
+WORKER1 (Laptop41) quiet since ~00:26 UTC: per #265 its Alpha tasks, autopilot included, were Stopped and Disabled in the owner pause, so this is expected. Its last report showed backend and cloudflared running while role.json said standby; CPU 94%.
+Waiting on the autopilots: control/laptop41 20261011-c1-enable-image and control/host 20261011-h32-enable-image (ComfyUI).
 
-Merged tonight: #253-#262 (split of #99); #263/#264 V's tunnel directive (above). FROM V: when Alpha on the Server comes up, it leads.
+Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts (Alpha 1.9 package verified on both laptops, not installed). Alpha#89 and #90 are two fixes for the same 3-6-9 change; V merged #90.
 
 NEEDS V: find what started Worker1's backend and cloudflared and, if Worker1 stays a worker, re-run alpha-standdown with V present; the coordinator on alpha-serv-01 (Codex), then re-issue keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
@@ -26,4 +26,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. Do NOT restart Worker2's coordinator. Codex: ASKS line 1; schedule the 3-6-9 report (fixed in #90); C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel. Codex: V's line above, schedule the 3-6-9 report (#90), ASKS line 1; C3 and C5, read-only.
