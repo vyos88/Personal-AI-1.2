@@ -61,6 +61,15 @@ param(
   # touching this machine. Empty string means 'unmeasurable'. See
   # test/laptop41-doctor.test.js.
   [string]$ReadCpuPressure,
+  # Test seam: a JSON file of { before, after, seconds, cores }; prints which
+  # processes used the CPU across that window.
+  [string]$ReadCpuBusiest,
+  # Test seam: a JSON file of { files: [{path, at}], built }; prints whether
+  # the build predates anything it would have shipped.
+  [string]$ReadStaleBuild,
+  # Test seam: a JSON file of { ageMin, taskState, primary }; prints whether a
+  # cover that has not run is a decision or a fault.
+  [string]$ReadCoverStale,
   # Test seam: judge self-heal from what it left in -OpsDir (log, lock, config
   # error) and print the verdict as JSON. Writes nothing.
   [switch]$ExplainSelfHeal
@@ -107,6 +116,104 @@ function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90) {
     note = $(if ($holding) {
       "CPU $([math]::Round($value,1))% is at or above Alpha's $HoldPercent% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
     } else { "CPU $([math]::Round($value,1))% (Alpha holds GPU admission at $HoldPercent%)" }) }
+}
+
+# Which processes are actually using the CPU, from two samples of each one's
+# total processor seconds. The list beside the CPU problem was ranked by
+# WorkingSet64 and printed only MB, so on the one pass where CPU is the fault
+# -- Worker1, 2026-10-09, 93% for four runs -- the eight names under it were
+# the memory hogs, topped by Memory Compression, and no row carried a CPU
+# figure at all. The problem's own recommendation says "Section 7 names the
+# heaviest processes", which was true of memory and false of CPU.
+#
+# Pure, so it is tested off Windows: give it the two snapshots and the window.
+# Each is a list of { name, pid, cpu } where cpu is total processor seconds.
+function Read-CpuBusiest($Before, $After, [double]$Seconds, [int]$Cores = 1, [int]$Top = 6) {
+  $was = @{}
+  foreach ($p in @($Before)) { if ($null -ne $p.cpu) { $was["$($p.pid)"] = [double]$p.cpu } }
+  $rows = @(); $unknown = @()
+  foreach ($p in @($After)) {
+    $key = "$($p.pid)"
+    $name = [string]$p.name
+    # Unmeasurable is never idle, the rule Read-CpuPressure follows above:
+    # the scheduled doctor is unelevated and Windows hides another account's
+    # process times, so a null reads as unknown and is named, never as 0%.
+    if ($null -eq $p.cpu) { $unknown += "$name ($key) time hidden"; continue }
+    if (-not $was.ContainsKey($key)) { $unknown += "$name ($key) started during the sample"; continue }
+    $delta = [double]$p.cpu - $was[$key]
+    # Processor time only goes up, so a drop means this pid is a different
+    # process now. Scoring it 0 would call a reused pid idle.
+    if ($delta -lt 0) { $unknown += "$name ($key) pid reused during the sample"; continue }
+    $share = if ($Seconds -gt 0 -and $Cores -gt 0) { 100 * $delta / ($Seconds * $Cores) } else { 0 }
+    $rows += [ordered]@{ name = $name; pid = [int]$p.pid; percent = [math]::Round($share, 1); seconds = [math]::Round($delta, 2) }
+  }
+  $rows = @($rows | Sort-Object { -$_.percent } | Select-Object -First $Top)
+  return [ordered]@{ seconds = $Seconds; cores = $Cores; rows = $rows; unknown = @($unknown) }
+}
+
+# Does the build predate anything it would actually have shipped?
+#
+# This compared dist\index.html against the newest file anywhere under src\,
+# unfiltered. So on 2026-10-09 src\liveCoordinationLabels.test.js, written at
+# 22:55, raised "the build is older than the source: the site shows the old
+# Alpha until dist is rebuilt" and held it open for seven runs into NEEDS A
+# PERSON -- while the three lines printed under it had dist, :4173 and the
+# public site all serving index-DrRVpMIZ.js. A test file is not something a
+# build ships, and the remedy that problem points at is a 45-minute rebuild of
+# a site that was already serving the right bundle.
+#
+# The filter says what a build cannot ship rather than what it can: an
+# inclusion list has to be revisited every time the toolchain learns an
+# extension, and a too-short one fails silently as an OK. A skipped file that
+# is newer is counted and said, because "build is newer than every source
+# file" would otherwise contradict somebody who just saved one.
+#
+# Pure, so it is tested off Windows: $Files is a list of { path, at }.
+function Read-StaleBuild($Files, [datetime]$Built) {
+  $inputs = @(); $skippedNewer = 0
+  foreach ($f in @($Files)) {
+    $path = [string]$f.path
+    $at = [datetime]$f.at
+    $isTest = $path -match '\.(test|spec)\.[A-Za-z0-9]+$' -or $path -match '(^|[\\/])(__tests__|__snapshots__|__mocks__)([\\/]|$)'
+    if ($isTest) { if ($at -gt $Built.AddMinutes(1)) { $skippedNewer++ }; continue }
+    $inputs += [ordered]@{ path = $path; at = $at }
+  }
+  $newest = @($inputs | Sort-Object { $_.at } -Descending | Select-Object -First 1)[0]
+  $stale = [bool]($newest -and $newest.at -gt $Built.AddMinutes(1))
+  $note = if (-not $newest) { 'no build input under src\ (only tests and fixtures)' }
+    elseif ($stale) { 'the build is older than the source: the site shows the old Alpha until dist is rebuilt' }
+    else { 'build is newer than every source file' }
+  if ($skippedNewer -gt 0) { $note += "; $skippedNewer newer file(s) under src\ are tests, which a build does not ship" }
+  return [ordered]@{ stale = $stale; newest = $newest; skippedNewer = $skippedNewer; note = $note }
+}
+
+# Is the automatic cover off on purpose, or broken? The task's own state is
+# what answers it, and the standby section already asks Get-ScheduledTask for
+# the four Alpha tasks sixteen lines above this -- for the opposite purpose,
+# refusing a standby whose Alpha tasks are still enabled.
+#
+# Without that question, a cover deliberately disabled reads as a fault. V's
+# instruction of 2026-10-10, relayed by Codex on control/laptop41 (3b002b9),
+# is that alpha-serv-01 is the sole server and DESKTOP-41HPLCN stays a worker,
+# with 'Alpha Standby' disabled and staying disabled. The doctor raised
+# "automatic cover has not run for 70 min: its task is not running passes" as
+# a PROBLEM every 15 minutes anyway, and the only remedy it points at --
+# re-installing the cover -- would have gone against that instruction. A
+# disabled task is a decision; a stale pass under an enabled task is a fault.
+#
+# Pure, so it is tested off Windows. $TaskState is '' when there is no task.
+function Read-CoverStale([int]$AgeMin, [string]$TaskState, [string]$Primary) {
+  $who = if ($Primary) { $Primary } else { 'the primary' }
+  if ($TaskState -eq 'Disabled') {
+    return [ordered]@{ problem = $false
+      note = "automatic cover is off: its task 'Alpha Standby' is disabled, so nothing takes Alpha over here if $who goes down" }
+  }
+  if (-not $TaskState.Trim()) {
+    return [ordered]@{ problem = $true
+      note = "automatic cover last ran $AgeMin min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)" }
+  }
+  return [ordered]@{ problem = $true
+    note = "automatic cover has not run for $AgeMin min: its task 'Alpha Standby' is $TaskState and not running passes" }
 }
 
 # Is self-heal running, and if its log went quiet, why?
@@ -162,6 +269,21 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 # that touches the machine is not one.
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure | ConvertTo-Json -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadCoverStale')) {
+  $f = Get-Content -LiteralPath $ReadCoverStale -Raw | ConvertFrom-Json
+  Read-CoverStale ([int]$f.ageMin) ([string]$f.taskState) ([string]$f.primary) | ConvertTo-Json -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadStaleBuild')) {
+  $f = Get-Content -LiteralPath $ReadStaleBuild -Raw | ConvertFrom-Json
+  Read-StaleBuild $f.files ([datetime]$f.built) | ConvertTo-Json -Depth 5 -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('ReadCpuBusiest')) {
+  $f = Get-Content -LiteralPath $ReadCpuBusiest -Raw | ConvertFrom-Json
+  Read-CpuBusiest $f.before $f.after ([double]$f.seconds) ([int]$f.cores) | ConvertTo-Json -Depth 5 -Compress
   exit 0
 }
 if ($ExplainSelfHeal) {
@@ -526,6 +648,26 @@ function Check-Resources {
   if ($cpu.holding) { Problem $cpu.note } elseif ($cpu.measured) { OK $cpu.note } else { Note $cpu.note }
   Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8 |
     ForEach-Object { Note ("{0,-28} {1,6:n0} MB  pid {2}" -f $_.ProcessName, ($_.WorkingSet64 / 1MB), $_.Id) }
+  # Only while the hold is on. The list above answers the RAM problem and the
+  # "close the heaviest processes" remedy; it does not answer this one, and a
+  # second list on every pass would bury the one that is usually wanted.
+  if ($cpu.holding) {
+    $snap = { @(Get-Process -EA SilentlyContinue | ForEach-Object {
+          $t = $null; try { $t = $_.CPU } catch { $t = $null }
+          [ordered]@{ name = $_.ProcessName; pid = $_.Id; cpu = $t } }) }
+    $cores = 1
+    try { $cores = [int]((Get-CimInstance Win32_ComputerSystem -EA Stop).NumberOfLogicalProcessors) } catch { $cores = [Environment]::ProcessorCount }
+    if ($cores -lt 1) { $cores = 1 }
+    $t0 = Get-Date
+    $before = & $snap
+    Start-Sleep -Seconds 2
+    $after = & $snap
+    $busy = Read-CpuBusiest $before $after ((Get-Date) - $t0).TotalSeconds $cores
+    Note "--- using the CPU, over $([math]::Round($busy.seconds,1))s across $($busy.cores) logical core(s)"
+    foreach ($r in @($busy.rows)) { Note ("{0,-28} {1,5:n1}% CPU  {2,5:n2}s  pid {3}" -f $r.name, $r.percent, $r.seconds, $r.pid) }
+    if (-not @($busy.rows).Count) { Note 'no process CPU time could be read (run the doctor as Administrator to see other accounts)' }
+    if (@($busy.unknown).Count) { Note "not measured: $(@($busy.unknown) -join '; ')" }
+  }
 }
 
 # A standby (role.json, written by alpha-standdown.ps1) serves nothing here on
@@ -564,7 +706,12 @@ function Cover-Checks([string]$primary, [bool]$publicServed) {
   if (-not (Test-Path -LiteralPath $f)) { Problem "automatic cover is not installed: if $primary goes down, nothing takes Alpha over here (queue standby-install)"; return }
   $age = [int]((Get-Date) - (Get-Item -LiteralPath $f).LastWriteTime).TotalMinutes
   $pass = try { Get-Content -LiteralPath $f -Raw | ConvertFrom-Json } catch { $null }
-  if ($age -gt 5) { Problem "automatic cover has not run for $age min: its task 'Alpha Standby' is not running passes"; return }
+  if ($age -gt 5) {
+    $cst = Get-ScheduledTask -TaskName 'Alpha Standby' -EA SilentlyContinue
+    $v = Read-CoverStale $age ([string]$cst.State) $primary
+    if ($v.problem) { Problem $v.note } else { Note $v.note }
+    return
+  }
   OK "automatic cover: $($pass.why) ($age min ago)"
   $seen = $pass -and $pass.probes -and [int]$pass.probes.primary -ge 200 -and [int]$pass.probes.primary -lt 300
   if ($pass -and $pass.role -eq 'standby' -and $publicServed -and -not $seen) {
@@ -730,16 +877,12 @@ function Run-Checks {
     } else {
       $fileBundle = BundleOf (Get-Content $distIndex -Raw)
       $built = (Get-Item $distIndex).LastWriteTime
-      $newest = Get-ChildItem (Join-Path $script:frontend 'src') -Recurse -File -EA SilentlyContinue |
-                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+      $srcFiles = @(Get-ChildItem (Join-Path $script:frontend 'src') -Recurse -File -EA SilentlyContinue |
+                    ForEach-Object { [ordered]@{ path = $_.FullName.Substring($script:frontend.Length + 1); at = $_.LastWriteTime } })
+      $verdict = Read-StaleBuild $srcFiles $built
       Note ("dist built     {0:yyyy-MM-dd HH:mm}" -f $built)
-      if ($newest) {
-        Note ("newest source  {0:yyyy-MM-dd HH:mm}  {1}" -f $newest.LastWriteTime, $newest.FullName.Substring($script:frontend.Length + 1))
-        if ($newest.LastWriteTime -gt $built.AddMinutes(1)) {
-          $script:frontendStale = $true
-          Problem 'the build is older than the source: the site shows the old Alpha until dist is rebuilt'
-        } else { OK 'build is newer than every source file' }
-      }
+      if ($verdict.newest) { Note ("newest source  {0:yyyy-MM-dd HH:mm}  {1}" -f $verdict.newest.at, $verdict.newest.path) }
+      if ($verdict.stale) { $script:frontendStale = $true; Problem $verdict.note } else { OK $verdict.note }
     }
   }
   # The cloudflared ingress on Laptop41 is https://127.0.0.1:4173: Vite preview
@@ -907,6 +1050,12 @@ function Run-Checks {
     $models = Body "http://127.0.0.1:$ImageBridgePort/sdapi/v1/sd-models"
     if ($models -match 'no_image_machine') { Problem 'no machine offers alpha.image: the image bridge has nowhere to send work' }
     elseif ($models -match '"title"\s*:\s*"[^"]*\(([^)"]+)\)"') { OK "machines that make images (the image bridge's view): $($Matches[1])" }
+    # An empty answer is the bridge not answering in time, not a narrow key:
+    # its model list asks the coordinator (bounded at 15 s, longer than Body
+    # waits), so with none answering this said "it needs agents:read" about a
+    # key that may be fine -- Worker1, 2026-10-09 19:11. The music side above
+    # says "did not say" for the same case and does not guess a cause.
+    elseif (-not "$models".Trim()) { Note "which machines make images is not known here: the image bridge did not answer its model list in time, which it cannot do while no coordinator answers (section 5)" }
     else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge's key cannot list machines (it needs agents:read)" }
   }
   else { Note "which machines make images is not known here: the doctor cannot read the coordinator's agent list, and the image bridge is down" }
@@ -983,6 +1132,28 @@ function Run-Checks {
     $comfy = Http 'http://127.0.0.1:8188/system_stats'
     if ($comfy -like '2*') { OK "port $imgPort is Alpha's ComfyUI bridge, and ComfyUI answers on 8188 ($comfy)" }
     else { Problem "image port $imgPort is Alpha's ComfyUI bridge, but ComfyUI does not answer on 8188 ($comfy): chat images fail with HTTP 503" }
+    return
+  }
+  # This repo's own scripts\image-bridge.mjs answers A1111-style txt2img on
+  # this port too, and hands each image to a machine over the tunnel. Its
+  # /sdapi/v1/sd-models asks the coordinator for the agent list, bounded at
+  # fetchJson's 15 s (src/common/http.js), which is longer than Http's
+  # --max-time 10 -- so with no coordinator answering, the probe below comes
+  # back '000' and reported "image backend not running: nothing answers" about
+  # a bridge that was up and had answered /healthz four lines earlier in 5c
+  # (Worker1, 2026-10-09 19:11, three passes running). Its recommendation then
+  # sent a person to webui-user.bat on a machine that has no Stable Diffusion.
+  # One fault, the coordinator in section 5, read as two.
+  #
+  # So this is a verification that could not run, and is reported as that: the
+  # coordinator's own PROBLEM above carries the remedy, and a second one here
+  # would only say the same thing about the wrong component. What is on the
+  # port is taken from the port's own answer rather than from the OS, for the
+  # reason the 404 branch below gives -- a scheduled doctor is unelevated and
+  # Windows hides an elevated process's command line -- and Stable Diffusion's
+  # API has no /healthz to answer.
+  if ($imageUp -and $imgPort -eq $ImageBridgePort -and -not $hz) {
+    Note "port $imgPort is the tunnel's image bridge and it answers /healthz (5c); whether chat images work is not known here, because its model list asks the coordinator for the agent list and none is answering (section 5)"
     return
   }
   $api = Http "$imgBase/sdapi/v1/sd-models"
@@ -1135,7 +1306,7 @@ $rules = @(
   @{ m = 'splits the fleet';                                                                    r = 'Stop the coordinator on this machine and keep it stopped (HANDOFF_2026-10-05b_host-move.md, A3): the fleet now dials the Host.' },
   @{ m = 'TEMP points at';                                                                      r = "Point TEMP back at C:: [Environment]::SetEnvironmentVariable('TEMP', `"`$env:LOCALAPPDATA\Temp`", 'User') and the same for TMP, then sign out and in." },
   @{ m = 'RAM free|GB free';                                                                    r = 'Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.' },
-  @{ m = "at or above Alpha's";                                                                  r = "Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7 names the heaviest processes; llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run." },
+  @{ m = "at or above Alpha's";                                                                  r = "Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7's 'using the CPU' list names them with their share of the machine, measured over a two-second window while the hold is on; the MB list above it answers a different question. llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run." },
   @{ m = 'ComfyUI does not answer on 8188';                                                       r = "Start ComfyUI (its run_cpu.bat or run_nvidia_gpu.bat, or python main.py --listen 127.0.0.1 --port 8188) and leave it running; Alpha's bridge on 7860 forwards chat images to it. Section 8 then shows ComfyUI answering 200." },
   @{ m = 'image port .* is held by';                                                            r = "Another program holds the image port (section 8 names it; ACE-Step's Gradio app also defaults to 7860). Start Stable Diffusion WebUI with --api --port 7861 and set IMAGE_GEN_URL=http://127.0.0.1:7861/sdapi/v1/txt2img where the backend reads it, then restart the backend." },
   @{ m = 'image backend not running|image backend on .* answers';                                r = 'Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.' },

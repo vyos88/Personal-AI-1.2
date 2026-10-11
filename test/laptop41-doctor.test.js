@@ -243,9 +243,15 @@ test('the Music Creator path is checked link by link', { skip, timeout: 300_000 
 // Signed out of the coordinator, the doctor's agent list is the "Not signed
 // in" text. Read as a fleet, it said "no machine offers alpha.music" on every
 // run (Worker1, 2026-10-06), so the bridges are asked instead.
-async function doctorWithBridges(routes) {
+async function doctorWithBridges(routes, { env: extraEnv = () => ({}), hits } = {}) {
+  // A route given 'never' is accepted and left unanswered, so curl's
+  // --max-time decides -- what the doctor actually saw from a bridge waiting
+  // on an unreachable coordinator. 404 is not the same input.
+  const unanswered = new Set();
   const server = createServer((req, res) => {
+    if (hits) hits.push(req.url);
     const hit = routes[req.url];
+    if (hit?.[2] === 'never') return void unanswered.add(res);
     if (hit) return json(res, hit[0], hit[1]);
     json(res, 404, {});
   });
@@ -257,10 +263,11 @@ async function doctorWithBridges(routes) {
   mkdirSync(bin);
   writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
   chmodSync(join(bin, 'curl.exe'), 0o755);
-  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ...extraEnv(port) };
   const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
     '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', port, '-BackendPort', port,
     '-MusicBridgePort', port, '-ImageBridgePort', port, '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  for (const res of unanswered) res.socket?.destroy();
   server.close();
   return out;
 }
@@ -288,6 +295,35 @@ test('signed out, a bridge that cannot tell is not read as an empty fleet', { sk
   assert.match(out, /which machines make music is not known here: .*cannot list machines \(it needs agents:read\)/);
   assert.doesNotMatch(out, /no machine offers alpha\.music/);
   assert.match(out, /PROBLEM: no machine offers alpha\.image: the image bridge has nowhere to send work/);
+});
+
+// Worker1, 2026-10-09 19:11: three passes running, section 5c said "ok: image
+// bridge answers on 127.0.0.1:7861" and section 8 said "PROBLEM: image backend
+// not running: nothing answers on http://127.0.0.1:7861" -- the same port, the
+// same pass, and section 8 printed image-bridge.mjs's own pid on the line
+// above. The bridge's /sdapi/v1/sd-models asks the coordinator for the agent
+// list (bounded at fetchJson's 15 s) and Http waits 10, so an unreachable
+// coordinator makes that probe '000'. One fault was reported as two, and the
+// second recommended starting Stable Diffusion on a machine that has none.
+test('a tunnel image bridge with no coordinator could not be verified, which is not a missing backend', { skip, timeout: 300_000 }, async () => {
+  const hits = [];
+  const out = await doctorWithBridges({ '/healthz': [200, { ok: true }], '/sdapi/v1/sd-models': [0, {}, 'never'] }, {
+    hits,
+    // IMAGE_GEN_URL on the bridge's own port is how Alpha is configured on
+    // Worker1; port 1 is a coordinator nothing answers on.
+    env: (port) => ({ IMAGE_GEN_URL: `http://127.0.0.1:${port}/sdapi/v1/txt2img`, ALPHA_HOST_URL: 'http://127.0.0.1:1' }),
+  });
+  assert.match(out, /PROBLEM: no coordinator answering at http:\/\/127\.0\.0\.1:1/, 'the one real fault');
+  assert.match(out, /ok: image bridge answers on 127\.0\.0\.1:\d+/, '5c, unchanged');
+  assert.match(out, /port \d+ is the tunnel's image bridge and it answers \/healthz \(5c\); whether chat images work is not known here/);
+  assert.doesNotMatch(out, /PROBLEM: image backend not running/, 'a bridge that answers is not a missing backend');
+  assert.doesNotMatch(out, /webui-user\.bat/, 'and nobody is sent to start Stable Diffusion on a machine without it');
+  // 5c asks the bridge for its model list once, legitimately. Section 8 asked
+  // for the same route again and read the empty answer as a missing backend;
+  // once is the fix, twice is the bug.
+  assert.equal(hits.filter((u) => u === '/sdapi/v1/sd-models').length, 1, 'section 8 does not re-run 5c\'s probe to call its silence a failure');
+  assert.match(out, /which machines make images is not known here: the image bridge did not answer its model list in time/);
+  assert.doesNotMatch(out, /it needs agents:read/, 'an unanswered probe is not blamed on a narrow key');
 });
 
 // Alpha's deck panel polls /panel/crowpanel/public-state with no credential.
@@ -483,6 +519,153 @@ test('a CPU reading that is not a number is unreadable, and says what it got', {
 });
 
 // Self-heal's log went quiet on Laptop41 at 13:22 on 2026-10-09 and the doctor
+// Worker1, 2026-10-09: CPU 93% for four doctor runs, raised as NEEDS A PERSON,
+// and the eight lines printed under it were ranked by WorkingSet64 and carried
+// only MB -- topped by Memory Compression, which is not what an operator can
+// act on. The problem's own recommendation says "Section 7 names the heaviest
+// processes", true of memory and false of CPU. Read-CpuBusiest is the seam.
+const readBusiest = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-busy-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuBusiest', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('while the hold is on, the processes are ranked by CPU and the unmeasurable are named', { skip }, () => {
+  const out = readBusiest({
+    seconds: 2, cores: 8,
+    before: [
+      { name: 'llama-server', pid: 1040, cpu: 100 },
+      { name: 'Memory Compression', pid: 3840, cpu: 50 },
+      { name: 'node', pid: 21168, cpu: 10 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'oldthing', pid: 777, cpu: 900 },
+    ],
+    after: [
+      // 12 of 16 available core-seconds: three quarters of the machine.
+      { name: 'llama-server', pid: 1040, cpu: 112 },
+      // The memory list's top row barely touches the CPU.
+      { name: 'Memory Compression', pid: 3840, cpu: 50.1 },
+      { name: 'node', pid: 21168, cpu: 10.8 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'newthing', pid: 4242, cpu: 3 },
+      { name: 'reused', pid: 777, cpu: 1 },
+    ],
+  });
+  assert.deepEqual(out.rows.map((r) => [r.name, r.percent]), [
+    ['llama-server', 75],
+    ['node', 5],
+    ['Memory Compression', 0.6],
+  ], 'ranked by CPU share of the whole machine, not by megabytes');
+  assert.equal(out.rows[0].seconds, 12);
+  // Unmeasurable is never idle -- the rule Read-CpuPressure follows. Each of
+  // these would have sorted last as 0% and read as an idle process.
+  assert.deepEqual(out.unknown.sort(), [
+    'MsMpEng (6040) time hidden',
+    'newthing (4242) started during the sample',
+    'reused (777) pid reused during the sample',
+  ].sort());
+  assert.ok(!out.rows.some((r) => r.percent === 0), 'nothing unmeasured is scored zero');
+});
+
+// Worker1, 2026-10-09 23:02-00:28 local: "the build is older than the source:
+// the site shows the old Alpha until dist is rebuilt" held open for seven runs
+// into NEEDS A PERSON. Section 3's own lines said dist was built 2026-10-08
+// 06:38, the newest "source" was src\liveCoordinationLabels.test.js at
+// 2026-10-09 22:55, and dist, :4173 and the public site were all serving
+// index-DrRVpMIZ.js. A test file is not a thing a build ships, and the remedy
+// that problem points at is a 45-minute rebuild.
+const readStale = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-stale-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadStaleBuild', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a test file newer than the build is not a stale build, and says so', { skip }, () => {
+  const built = '2026-10-08T06:38:00';
+  // Worker1's own shape: one real source older than the build, the newest file
+  // a test, written 40 hours after it.
+  const out = readStale({ built, files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-08T06:20:00' },
+    { path: 'src\\liveCoordinationLabels.test.js', at: '2026-10-09T22:55:00' },
+    { path: 'src\\__snapshots__\\deck.snap', at: '2026-10-09T22:56:00' },
+  ] });
+  assert.equal(out.stale, false, 'a build is not stale because a test was saved');
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx', 'the newest build input, not the newest file');
+  assert.equal(out.skippedNewer, 2);
+  // It never contradicts somebody who just saved one of those files.
+  assert.match(out.note, /build is newer than every source file; 2 newer file\(s\) under src\\ are tests/);
+});
+
+test('a real source newer than the build is still the problem it was', { skip }, () => {
+  const out = readStale({ built: '2026-10-08T06:38:00', files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-09T22:55:00' },
+    { path: 'src\\thing.test.ts', at: '2026-10-09T23:10:00' },
+  ] });
+  assert.equal(out.stale, true);
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx');
+  assert.match(out.note, /^the build is older than the source/);
+  assert.match(out.note, /1 newer file\(s\) under src\\ are tests/, 'and the skipped one is still accounted for');
+});
+
+test('a minute of slack survives, and a src of nothing but tests says which empty it is', { skip }, () => {
+  // The build writes dist\index.html a moment after reading its inputs.
+  const close = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.ts', at: '2026-10-08T06:38:30' }] });
+  assert.equal(close.stale, false, 'half a minute is the build itself, not a change');
+
+  const onlyTests = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.test.ts', at: '2026-10-09T22:55:00' }] });
+  assert.equal(onlyTests.stale, false);
+  assert.equal(onlyTests.newest, null, 'nothing to compare against');
+  assert.match(onlyTests.note, /no build input under src\\ \(only tests and fixtures\)/);
+});
+
+// V's instruction of 2026-10-10, relayed by Codex on control/laptop41
+// (3b002b9): alpha-serv-01 is the sole server, DESKTOP-41HPLCN stays a worker,
+// and 'Alpha Standby' is disabled and stays disabled. The doctor raised
+// "automatic cover has not run for 70 min: its task is not running passes" as
+// a PROBLEM anyway, every 15 minutes, and the only remedy it pointed at was
+// re-installing the cover -- which would have gone against that instruction.
+const readCover = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-cover-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCoverStale', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a cover whose task is disabled is a decision, not a fault', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Disabled', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, false, 'a disabled task is somebody deciding, and does not need a person');
+  // It still says the consequence, because that is what a reader needs.
+  assert.match(out.note, /automatic cover is off: its task 'Alpha Standby' is disabled, so nothing takes Alpha over here if alpha-serv-01 goes down/);
+  assert.doesNotMatch(out.note, /standby-install/, 'and does not recommend what V ruled out');
+});
+
+test('a cover whose task is enabled and quiet is still the fault it was', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Ready', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /automatic cover has not run for 70 min: its task 'Alpha Standby' is Ready and not running passes/);
+});
+
+test('a cover with a last pass but no task at all says nothing will run it again', { skip }, () => {
+  const out = readCover({ ageMin: 9, taskState: '', primary: '' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /its task 'Alpha Standby' is not on this machine: nothing will run it again/);
+  assert.match(out.note, /if the primary goes down|stand this machine down/, 'and names a way out either way');
+});
+
+test('a sample window of nothing does not divide by it', { skip }, () => {
+  const out = readBusiest({ seconds: 0, cores: 0, before: [{ name: 'a', pid: 1, cpu: 1 }], after: [{ name: 'a', pid: 1, cpu: 2 }] });
+  assert.equal(out.rows[0].percent, 0);
+  assert.equal(out.rows[0].seconds, 1, 'the seconds it used are still true');
+});
+
 // said "check the task's last result as Administrator (3 = config unreadable)"
 // -- a guess, and the wrong one: a pass that died holding the lock silences
 // every pass after it. alpha-selfheal.mjs now leaves the reason on disk, and
