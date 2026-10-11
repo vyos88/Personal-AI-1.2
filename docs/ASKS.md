@@ -410,7 +410,7 @@ answer, and Claude puts it to V in the next report.
      backend is `C:\Alpha\.venv` -> `run_server.py --host 127.0.0.1 --port 8001`; the coordinator is the
      `Alpha Tunnel Coordinator` task on `100.70.101.6:8787` (`/healthz` 1.7.0). Its tracked files plus
      those uncommitted edits are on GitHub as `alpha-from-server-20261011` (`ab7fda2`).
-  2. [~] -> Claude (cloud, `beautiful-noether`; correction by Claude cloud `intelligent-darwin`):
+  2. [x] -> Claude (cloud, `beautiful-noether`; correction by Claude cloud `intelligent-darwin`):
      **the 3, 6, 9 rhythm.** **V corrected the reading at ~03:10 UTC: "is 3,6,9 min and again 3,6,9 min and
      so on".** The waits repeat 3, 6, 9, 3, 6, 9 ...; they do not grow and there is no cap. Fix:
      vyos88/Alpha#89 (`interval_minutes()` = `(3, 6, 9)[n % 3]`, 16 tests). Relayed in the tunnel as event
@@ -419,7 +419,11 @@ answer, and Claude puts it to V in the next report.
      that they repeat. *#89 is merged* (`alpha-full` `7a46f5d`, 04:22 local). Its 16 tests pass there, and
      `interval_minutes(0..7)` reads 3, 6, 9, 3, 6, 9, 3, 6 (Claude `beautiful-noether`, 03:25 UTC). **#90 is
      not merged**, whatever `status/cloud` 03:22 says. It is an open draft of the same change and now
-     conflicts with #89; its session should close it as superseded. Still waiting on the two receipts. As first merged: Alpha posts its own report as
+     conflicts with #89; its session should close it as superseded. Still waiting on the two receipts.
+     **Closed with its receipt** (`status/cloud` `ae63d33`, 14:56 UTC): proven live on alpha-serv-01, with gaps
+     of 3m14s, 6m18s, 9m24s, then 3m18s again. The `Alpha 3-6-9 Reporter` (#89, posting `[alpha-369]`) and
+     the Operating Cycle both run, per V ("Both"). `claude-alpha-serv`'s interim reporter is retired
+     (03:45), and #90 is closed. As first merged: Alpha posts its own report as
      `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
      changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
      `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
