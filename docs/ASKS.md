@@ -376,6 +376,79 @@ answer, and Claude puts it to V in the next report.
   is a paragraph rather than a force-push over work other sessions have read. The lesson, for the rest of
   the split: **resolve a conflict in its own commit and put the fix in the next one.**
 
+- [ ] 2026-10-11 V -> every Claude and Codex (one message, pasted to all of them): **Alpha reports, answers and
+  learns in the coordination tunnel on its own, on a 3, 6, 9 minute rhythm; it knows its own sessions and
+  carries messages between users; the database is now on alpha-serv-01.** Split into the lines below so
+  that each piece has one owner. Claim a line before starting it. What already exists, on `vyos88/Alpha`
+  `origin/route-b` under `BuildArtifacts/installers/Alpha-Full/software/backend/` (`RB:` below):
+  - `RB:main.py:19399` `_tunnel_owner_reply_loop` answers **owner** posts every 20 s, as `alpha`
+    (`tunnel_owner_replies.py`);
+  - `RB:main.py:19551` `_tunnel_work_observation_loop` reads other agents' posts every 600 s, and raises
+    only an explicit ASK or REPORT (`tunnel_work_observations.py`);
+  - `RB:api/alpha_tunnel.py:20-57` user-to-user direct messages (`communication_mailbox.py`,
+    `AlphaDirectMessages.jsx`);
+  - `RB:tunnel_learning.py` learns from Claude and Codex posts, but only from verified handoffs that carry a
+    receipt (`[alpha-verified-handoff-v1]`);
+  - `alpha_agent_manager.ps1:459-515` posts a fleet snapshot as `alpha` every 300 s.
+
+  Every cadence there is fixed (20 s, 300 s, 600 s, 1800 s). Nothing answers Claude or Codex. Users cannot
+  see which Alpha sessions are live (`session_freshness` exists only inside the tunnel's `status.json`).
+  A cloud session cannot read the tunnel at all. And `alpha-full` and `route-b` have diverged, so lines 2-4
+  wait on line 1.
+
+  1. [ ] -> Codex (on alpha-serv-01): **which Alpha copy runs there** (branch and head: `alpha-full`,
+     `route-b` or another), and where its tunnel log is (`ALPHA_COORD_ROOT`). Done = one line here.
+     *Evidence so far (Claude):* `vyos88/Alpha` has `alpha-from-server-20261011` (`ab7fda2`, 02:27 UTC,
+     "Live Alpha on this machine: 500 file(s) that differ from alpha-full"), which has both tunnel loops
+     above. `route-b` is gone from the remote. Neither that copy's nor `alpha-full`'s
+     `alpha_coordination_tunnel.ps1` reads `ALPHA_COORD_ROOT`: both write under the install's
+     `memory\local\coordination`.
+     *Seen on the machine (Claude cloud `intelligent-darwin`, Desktop Commander, 2026-10-11 ~01:20 UTC):*
+     alpha-serv-01 runs `C:\Alpha`, a git checkout on branch `host/msi-vector-16hx` at `7bf3523c`
+     (2026-09-23) with about 112 uncommitted files; its remotes are local (`disk2` =
+     `D:/alpha-backup/alpha.git`), none is GitHub, and it shares no history with `alpha-full`. The
+     backend is `C:\Alpha\.venv` -> `run_server.py --host 127.0.0.1 --port 8001`; the coordinator is the
+     `Alpha Tunnel Coordinator` task on `100.70.101.6:8787` (`/healthz` 1.7.0). Its tracked files plus
+     those uncommitted edits are on GitHub as `alpha-from-server-20261011` (`ab7fda2`).
+  2. [~] -> Claude (cloud, `beautiful-noether`; correction by Claude cloud `intelligent-darwin`):
+     **the 3, 6, 9 rhythm.** **V corrected the reading at ~03:10 UTC: "is 3,6,9 min and again 3,6,9 min and
+     so on".** The waits repeat 3, 6, 9, 3, 6, 9 ...; they do not grow and there is no cap. Fix:
+     vyos88/Alpha#89 (`interval_minutes()` = `(3, 6, 9)[n % 3]`, 16 tests). Relayed in the tunnel as event
+     `e8a25bea` to `claude-alpha-serv` (its Host reporter said "3, 6, 9 ... cap 30") and to Codex (its
+     Growth Loop contract said `180 * cycle_index`). Done = #89 merged and both of those posting a receipt
+     that they repeat. *#89 is merged* (`alpha-full` `7a46f5d`, 04:22 local). Its 16 tests pass there, and
+     `interval_minutes(0..7)` reads 3, 6, 9, 3, 6, 9, 3, 6 (Claude `beautiful-noether`, 03:25 UTC). **#90 is
+     not merged**, whatever `status/cloud` 03:22 says. It is an open draft of the same change and now
+     conflicts with #89; its session should close it as superseded. Still waiting on the two receipts. As first merged: Alpha posts its own report as
+     `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
+     changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
+     `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
+     loop in `main.py`, so it applies to either copy. 16 tests; checked against the server copy's real
+     tunnel script under pwsh. **It runs only once scheduled, on the machine that runs Alpha** (Codex or
+     V on alpha-serv-01): once a minute, one instance at a time, with the Python that runs Alpha's backend.
+     The `schtasks` line is in the PR.
+  3. [ ] -> Claude: **Alpha answers Claude and Codex, not only the owner.** Posts from `claude-*` or
+     `codex-*` that name Alpha (`@alpha`, `ASK alpha:`) get an answer from Alpha's own model, with a
+     per-actor cooldown. Alpha never answers a reply to its own reply, so two agents cannot ping-pong.
+     Done = a PR with a test that pins the no-loop rule.
+  4. [ ] -> Claude or Codex: **sessions and users.** Show the live Alpha sessions (`session_freshness`)
+     beside the direct-message recipients, so a user sees who is online and can message them. Done = a PR
+     and a screenshot.
+  5. [ ] -> Claude: **cloud sessions can read the tunnel.** The machine that runs Alpha publishes a
+     read-only tail of `events.jsonl` to a `status/alpha-tunnel` branch each pass, with anything shaped
+     like a key or token removed. Without it, Claude can write to the tunnel but never answer it. Done = a
+     PR here and a first publish. Needs alpha-serv-01 to run the autopilot (Codex).
+  6. Tutoring stays on the verified path. Alpha learns from what it can check (`tunnel_learning.py`'s
+     receipts), and nobody weakens that. A lesson from Claude or Codex lands as a verified handoff with a
+     receipt file on the Alpha machine.
+     *Receipt (Claude cloud `intelligent-darwin`):* Alpha answered V in the tunnel (`12ce4439`) that it
+     "cannot perform actions ... only a text-based assistant", which is wrong about this system.
+     `memory\knowledge\alpha_session_record_2026_10_11_room_instances_cycle.json` on alpha-serv-01
+     (auto-ingested knowledge, not code) gives it the room, its actors, which Alpha copies run where,
+     the repeating 3-6-9 cycle, claims and receipts, the procedures it has, and the limits (no dark web,
+     owner gates). It is a knowledge record, not yet a verified handoff in `tunnel_learning.py`'s sense.
+  7. [!] The dark web: refused. Open web, documentation and papers only.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
@@ -403,3 +476,80 @@ answer, and Claude puts it to V in the next report.
   queued ids drained. The localisation held: no pass had reached `autopilot.ps1:471`, so the bridge
   restart, the queued actions, the live report and the self-heal restart were all skipped together.
   Self-heal is the one thing that did **not** come back — see Open.
+
+## 2026-10-11 01:40 UTC — four facts about the split brain that the handoff does not have
+
+**The finding itself belongs to another session**, which got there first and is
+already on main: `docs/HANDOFF_2026-10-11_split-brain-two-alphas-serving.md`
+(merged alongside #257). Read that for the diagnosis and the "needs a person,
+not a merge" call, both of which I agree with. This entry is only the parts it
+could not know, because it was written *from* the 01:26 pass and three of these
+need either an earlier pass or a later one.
+
+1. **The onset is one five-minute window, and it is earlier than the doctor's
+   `since`.** The handoff dates it from `open 1 run, since 2026-10-11T01:26:22`,
+   which is when the *doctor* first saw it. The live page, which writes every
+   five minutes, is more precise: pass `20261011-011346` (00:13:46Z) said
+   `Alpha STANDBY`; pass `20261011-011846` (00:18:46Z) said `Alpha STANDBY BUT
+   SERVING`. So the backend and the connector came up between those two, about
+   eight minutes before the doctor's pass noticed.
+
+2. **One coincidence I can date but not explain, flagged as unproven.** In that
+   same pass, `auto-bridges` fired at 00:19:04Z reporting `0 (restarted)` — and
+   it appears **exactly once** in the whole autopilot report history, so that was
+   its first ever run, 67 seconds before the page flipped. The handoff asks
+   whether a stale scheduled task started the backend; this is the only
+   scheduled thing that ran in the window. But the bridges check starts the
+   music (8790) and image (7861) bridges, which are logon tasks
+   (`autopilot.ps1:719-720`), and neither is `run_server.py`. The timing lines
+   up and the mechanism does not. Worth checking whether those logon tasks on
+   that machine also start the backend; I am not asserting they do.
+
+3. **The serving tree is the `Downloads` copy**, not `C:\AlphaData\Alpha`:
+   `...\Downloads\VyoS-advance-tech-ai\software\backend\run_server.py`. That
+   is the path ambiguity the drive-backup plan flagged as a live hazard, because
+   `cleanup-alpha.ps1` identifies Alpha copies under `~\Downloads` (L131-158),
+   keeps the newest and labels the rest removable, and `-Delete` recycles them.
+   **Do not run that cleanup with `-Delete` while this is the serving tree.**
+
+4. **One long-standing item is retired by the command line.** It reads
+   `--host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151` — **both** home
+   addresses, old and new. The standing CrowPanel item ("`HOST` still lists only
+   `192.168.2.151`, so the backend listens on no home-network address") is out of
+   date for this process at least.
+
+## 2026-10-11 01:40 UTC — and then Worker1 stopped reporting
+
+Newer than the handoff above, and the reason nothing can be confirmed about any
+of it right now: **Worker1's five-minute heartbeat stopped.**
+
+- `status/laptop41-live` last wrote **00:24:37Z**; at 01:35Z that is **70
+  minutes**, against a cadence of five minutes "whether or not anything
+  changed" — about thirteen missed passes. That branch is the heartbeat, and
+  per `CLAUDE.md` its silence is the one that counts.
+- The corroborating signal, which is what makes it a stall rather than the
+  ordinary quiet of `status/*-autopilot`: V queued `enable-image` on
+  `control/laptop41` at **01:18:27Z**, and a pass runs every ~5 minutes and
+  pushes a report whenever an id runs. Seventeen minutes later there was no
+  report, so that id is queued and unrun.
+- No branch under `status/*` carries anything from Worker1 newer than the
+  doctor's 00:26:41Z.
+
+So every observation above, and every line of the handoff, is a frozen
+70-minute-old snapshot. The split may have resolved or got worse; nothing is
+reporting either way. The last thing that machine said was that it was at 94%
+CPU running two Alphas and a 21-deck audit while meant to be idle, and this
+board's own precedent (2026-10-10) is that a previous Worker1 silence was the
+laptop sleeping.
+
+**The consequence for the queue, which supersedes the remedy the handoff
+names:** `alpha-standdown` cannot be queued into effect right now. Until
+Worker1's autopilot takes an id again, nothing on `control/laptop41` runs —
+not the stand-down, and not V's `enable-image`. The machine needs a look in
+person first.
+
+V's `enable-image ... on Worker2` (`control/host`, 01:18:29Z) may be unrun for
+a different reason, and I cannot tell which: `status/host-autopilot` only
+pushes when an id runs or the channel-watch verdict flips, and it has been
+quiet since 2026-10-09 15:24Z while Worker2 is stood down by design. A queued
+id should still have reported within five minutes. Suggestive, not proof.

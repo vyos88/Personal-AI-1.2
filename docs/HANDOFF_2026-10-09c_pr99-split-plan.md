@@ -113,3 +113,75 @@ is this paragraph rather than a force-push over work other sessions have read.
 The lesson for the rest of the split: **resolve a conflict in its own commit,
 and put the fix in the next one.** Mixing the two is what made this one
 unreachable by every tool that would look for it.
+
+## Executed, 2026-10-11: nine PRs, and three things this plan got wrong
+
+The owner said go. The split is done and is on **ten** PRs off `main`
+(#253-#262). #256, the music item, was merged by the owner the same day. Every one was verified with **`npm test` under PowerShell 7.4.6
+on PATH**, so all fifteen `.ps1` suites ran rather than skipped; the baseline
+on clean `main` is **923 tests, 921 pass, 0 fail, 2 skipped** (the 2 want
+`ffmpeg`), and no branch was pushed with a failure.
+
+| PR | Concern | Resolution needed |
+|---|---|---|
+| #253 | 1, login lockout | none, clean |
+| #254 | 2, self-update names the cost | none, clean |
+| #255 | 3, channel-watch | none, clean (pair squashed) |
+| #256 | 6, music `stats.engine` | 1 hunk, as predicted -- **merged** |
+| #257 | 7, apply-update blame | 2 hunks, as predicted |
+| #258 | 5 + the pwsh discovery + 2 autopilot fixes | file content |
+| #259 | the doctor group + `alpha-standdown` | file content |
+| #260 | 8, live-sync | file content, **stacked on #257** |
+| #261 | 4, setup-host on Ubuntu | none, clean |
+| #262 | the running board, docs only | -- |
+
+**Three corrections to this plan, for whoever reads it next.**
+
+1. **"15 non-merge commits" was wrong: it is 40.** `git rev-list --no-merges
+   --count origin/main..<branch>` gives 40, and a patch-id-aware
+   `--cherry-pick --right-only` gives the same 40, so none of them is already
+   upstream. The 29 in the table above and the 15 in the first correction were
+   both undercounts.
+
+2. **Concern 5 and the pwsh commit cannot be separate PRs.** `b82d045` fixes
+   the no-Alpha heartbeat test, and that test is **not on `main` at all** --
+   `bd52df6` (concern 5) introduces it. The plan listed them as independent
+   concerns; they are one. They went out together as #258.
+
+3. **Concern 8 is not independent either.** `db5cabd` and `5b3e324` extend the
+   same `scripts/apply-alpha-update.mjs` exports that concern 7 adds
+   `sameAsBranch` beside, so #260 bases on #257 rather than on `main`. Merge
+   #257 first and #260 retargets cleanly.
+
+**And one thing the plan got right, which is worth saying because it cost the
+most to learn.** Three of the nine had to be taken as the branch's *reconciled
+file content* rather than replayed commit by commit, because `main` has since
+moved in the same regions (`autopilot.ps1`'s `$standby` rows,
+`alpha-standdown`'s stand-up line, `live-sync.mjs`) and replaying the
+originals re-introduces the very structure those commits fixed -- the
+`if ($hbAlpha)` wrapping being the clearest case. `Read-CoverStale` and the
+image-bridge fix are the pair this plan already flagged as unreachable by
+`git log -S`; both are in #259, taken as file content exactly as the paragraph
+above instructs, and verified to lose nothing against `main`.
+
+The `docs/ASKS.md` entries each code commit carried were stripped from those
+commits and land here instead, so the running board lands once rather than
+conflicting across nine branches.
+
+One gap the per-concern review did not catch, and the check that did.
+Merging all ten branches and diffing the union against the source branch left
+two files over: `docs/LIVE_SYNC.md`, and `scripts/snapshot-alpha-live.mjs` --
+whose own `git()` helper was the third of the three the timeout fix was
+written for. Shipping two of three would have left a hang in the fleet in
+exactly the place the fix exists for. Both are in #260, and the union diff is
+now clean but for this section. **Run that check on any split**: anything the
+branches do not cover shows up as a leftover, and nothing else would have
+found it.
+
+With #256 merged, the music item is unblocked: run
+`live-test --only music --count 2` on the fleet. If worker1 reports `on cpu`
+and the Host `on cuda`, the answer is not a longer timeout -- worker1 should
+stop offering `alpha.music`. That cannot be run from a cloud container: no
+tailnet, no key.
+
+PR #99 can be closed once these are merged. It holds nothing they do not.
