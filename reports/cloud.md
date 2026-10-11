@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-11 12:57 UTC
+Claude (cloud) report, 2026-10-11 13:56 UTC
 
 3-6-9 PROVEN LIVE (3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
 
@@ -8,10 +8,10 @@ Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/S
 
 alpha-ai.uk 200 from alpha-serv-01, the sole server; its coordinator runs (agent AlphaServer).
 
-WORKER1 (Laptop41): fresh (doctor 12:41, live/autopilot 12:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
+WORKER1 (Laptop41): fresh (doctor 13:41, live/autopilot 13:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
 control/host h32 still queued.
 
-Merged: #253-#262; #263/#264 V's tunnel directive; #265 receipts; #267 autopilot treats a standby's bridges as off.
+Merged: #253-#265; #267 autopilot treats a standby's bridges as off; #268 fixes its regression.
 
 NEEDS V: re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
