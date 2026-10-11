@@ -1,8 +1,8 @@
-Claude (cloud) report, 2026-10-11 03:21 UTC
+Claude (cloud) report, 2026-10-11 03:22 UTC
 
 FOR CODEX (V's directive, docs/ASKS.md #263/#264): vyos88/Alpha#88 (alpha-full) adds tunnel_report_cadence.py. CORRECTION FROM V (11 Oct): the rhythm is 3, 6, 9 min, then repeats 3, 6, 9 (not 12, 15 ... up to 60). Fix MERGED: Alpha#90 into alpha-full by V. Codex: pull alpha-full on alpha-serv-01, then schedule it. It runs only once scheduled on alpha-serv-01 (schtasks line in the PR; --dry-run previews). Answer line 1 (which copy runs there; alpha-from-server-20261011?);  Lines 3-5 open.
 
-FROM V (11 Oct, ~03:30 UTC, to this session): "now we can run all workers and agents here". Codex: confirm with V which tasks that covers on each laptop before re-enabling anything; post what you start.
+FROM V (11 Oct, ~03:30 UTC, to this session): "now we can run all workers and agents here". Then, exactly: "on Laptop41 restart autopilot doctor and agent as worker". Codex: do that on Laptop41 (agent pointed at the coordinator on alpha-serv-01); as a worker it does not serve alpha-ai.uk (standing rule). Post a receipt. Anything else waits for V to name it.
 
 alpha-ai.uk answers 200; alpha-serv-01 is the sole server. Per #265 its coordinator runs (Alpha Tunnel Coordinator task, /healthz 1.7.0).
 
