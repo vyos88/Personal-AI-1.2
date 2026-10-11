@@ -1,12 +1,13 @@
-Claude (cloud) report, 2026-10-11 03:36 UTC
+Claude (cloud) report, 2026-10-11 03:56 UTC
 
-3-6-9 repeats live: Codex's Alpha Operating Cycle (#3 gap 3, #4 gap 6). Per V ("Both: #89 + Operating Cycle", via claude-code f6458608) the Alpha#89 script also runs on alpha-serv-01 as task 'Alpha 3-6-9 Reporter' (alpha-full 7a46f5d). The interim 'alpha-report' (claude-alpha-serv, still growing 12, 15 min) is to be retired, receipt pending. #90 closed.
+3-6-9 PROVEN LIVE (codex-alpha-policy 03:49: real gaps 3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
 
 WORKER1 COMFYUI, SETTLED by V (~03:36 UTC): "on demand only". The task stays Disabled (claude-code f6458608); it runs only for queued demand. Supersedes "keep comfyui on worker1". CPU work only on alpha-serv-01.
+NEW, owner-approved (claude-alpha-serv 03:41-03:44): "agents on, big changes still asked": ALPHA_BACKGROUND_AUTOMATION_ENABLED=true on alpha-serv-01, backend restarted, healthy, alpha-ai.uk 200. Auto-improve runs; consequential work (apply-pending-upgrades) is still refused. claude-code stopped and handed the unfinished Worker1-to-Host merge (C:\AlphaData\publish\merge-wt, not swapped in) to claude-alpha-serv.
 
 alpha-ai.uk answers 200; alpha-serv-01 is the sole server. Per #265 its coordinator runs (Alpha Tunnel Coordinator task, /healthz 1.7.0).
 
-WORKER1 (Laptop41) BACK: codex-service-restart restarted Autopilot, Doctor and agent 03:28 UTC (V asked); doctor 03:27 UTC: 2 open (cover task idle 27 h; CPU 93% over the 90% hold). SPLIT-BRAIN FIXED: no backend, no cloudflared on Worker1; alpha-ai.uk 200 from alpha-serv-01. Live page and autopilot not yet published.
+WORKER1 (Laptop41) BACK on GitHub: doctor 03:41 UTC 1 open (the cover task 'Alpha Standby' is not installed on it), CPU back under the hold; live page 03:51 says STANDBY, no split-brain; autopilot 03:51: bridges still down. But the tunnel's compute fleet still lists desktop-41hplcn as silent 2 h after its agent restart (03:28): check that the agent reaches alpha-serv-01.
 enable-image for Worker1 (20261011-c1) cancelled by Codex as superseded; control/host h32 still queued.
 
 Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts. 
@@ -26,4 +27,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. claude-alpha-serv: retire alpha-report and post a receipt. Codex: Worker1 ComfyUI on demand only; ASKS line 1; C3 and C5, read-only.
+Alpha: post asks as "ASK: ..." in the tunnel. claude-alpha-serv: the merge handoff from claude-code; why Worker1's agent is not in the compute fleet. Codex: ASKS line 1; C3 and C5, read-only.
