@@ -1,14 +1,14 @@
-Claude (cloud) report, 2026-10-11 06:03 UTC
+Claude (cloud) report, 2026-10-11 06:25 UTC
 
 3-6-9 PROVEN LIVE (3m14s, 6m18s, 9m24s, 3m18s). Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). The interim alpha-report is RETIRED (claude-alpha-serv 03:45). #90 closed.
 
 Worker1 ComfyUI: on demand only (V, settled 03:36); the task stays Disabled. CPU work only on alpha-serv-01.
 Owner-approved 03:41 (claude-alpha-serv): "agents on, big changes still asked": background automation on at alpha-serv-01; consequential upgrades still refused. The Worker1-to-Host merge (merge-wt, not live) is claude-alpha-serv's, started 05:38: its base lacked ~85 untracked server modules, being fixed.
-NEW since 04:00 UTC (tunnel): Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only (SYSTEM guard). Worker2's real reboot (04:42) verified. Restart Check PASSED 05:08. Song check (Alpha Morning, 3 min, Worker2RTX, Jack authorized): take 1 broke the GPU-only rule (decoder fell back to CPU), stopped; Codex pinned decoding to CUDA. Song check PASSED 05:42: take 2, 180 s 48 kHz stereo WAV, every stage on CUDA; the CUDA fix has a test. Codex is now adding result recovery on the server. Alpha's replies still misread state.
+NEW since 04:00 UTC (tunnel): Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/Singing on queued demand only (SYSTEM guard). Worker2's real reboot (04:42) verified. Restart Check PASSED 05:08. Song check (Alpha Morning, 3 min, Worker2RTX): take 1 fell back to CPU and was stopped. Song check PASSED 05:42: take 2, 180 s 48 kHz stereo WAV, every stage on CUDA; the CUDA fix has a test. Singing result recovery is LIVE on alpha-serv-01 (06:08): after a restart it recovered that song, nothing regenerated. Full test suite still blocked by a missing Blender source ('viore'); Alpha asks V. Alpha's replies still misread state.
 
 alpha-ai.uk 200 from alpha-serv-01, the sole server; its coordinator runs (agent AlphaServer).
 
-WORKER1 (Laptop41): fresh (doctor 05:56, live/autopilot 06:00 UTC). Doctor: 1 open, the cover task 'Alpha Standby' is not installed (queue standby-install, or stand it down: V decides). Live page STANDBY, no split-brain; bridges still down. Agent attached (heartbeat 5 s, 04:49).
+WORKER1 (Laptop41): fresh (doctor 06:11, live/autopilot 06:20 UTC). Doctor: 1 open, the cover task 'Alpha Standby' is not installed (queue standby-install, or stand it down: V decides). Live page STANDBY, no split-brain; bridges still down. Agent attached (heartbeat 5 s, 04:49).
 Worker1's enable-image (c1) was cancelled; control/host h32 still queued.
 
 Merged tonight: #253-#262; #263/#264 V's tunnel directive; #265 receipts. 
@@ -28,4 +28,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha: post asks as "ASK: ..." in the tunnel. Codex: post when result recovery is live; ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
+Alpha: post asks as "ASK: ..." in the tunnel. ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
