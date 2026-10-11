@@ -143,7 +143,7 @@ function Read-CpuPressure([string]$Percent, [int]$HoldPercent = 90, [bool]$Stand
 function Read-CpuBusiest($Before, $After, [double]$Seconds, [int]$Cores = 1, [int]$Top = 6) {
   $was = @{}
   foreach ($p in @($Before)) { if ($null -ne $p.cpu) { $was["$($p.pid)"] = [double]$p.cpu } }
-  $rows = @(); $unknown = @()
+  $rows = @(); $unknown = @(); $measured = 0.0
   foreach ($p in @($After)) {
     $key = "$($p.pid)"
     $name = [string]$p.name
@@ -157,10 +157,28 @@ function Read-CpuBusiest($Before, $After, [double]$Seconds, [int]$Cores = 1, [in
     # process now. Scoring it 0 would call a reused pid idle.
     if ($delta -lt 0) { $unknown += "$name ($key) pid reused during the sample"; continue }
     $share = if ($Seconds -gt 0 -and $Cores -gt 0) { 100 * $delta / ($Seconds * $Cores) } else { 0 }
+    $measured += $share
     $rows += [ordered]@{ name = $name; pid = [int]$p.pid; percent = [math]::Round($share, 1); seconds = [math]::Round($delta, 2) }
   }
   $rows = @($rows | Sort-Object { -$_.percent } | Select-Object -First $Top)
-  return [ordered]@{ seconds = $Seconds; cores = $Cores; rows = $rows; unknown = @($unknown) }
+  # $measured is summed over every measured process, before the rows are cut to
+  # $Top, and $hidden counts what could not be read at all. Worker1's 22:28Z
+  # pass on 2026-10-11 is why: `CPU 100%` over a list whose six rows came to
+  # 18.9% of the machine, with the other four-fifths inside a `not measured:`
+  # line of about 160 names -- `svchost` more than a hundred times. Nothing
+  # added the rows up, and nothing said the one thing a reader needed, which is
+  # that this doctor runs unelevated and cannot see most of this machine. The
+  # per-process honesty was already here; the total was not.
+  #
+  # $names is that line grouped and capped the way $rows is, so the signal is
+  # not buried in its own noise. The full list stays in `unknown` for anything
+  # that wants it.
+  $names = @(@($unknown) | ForEach-Object { (($_ -split ' \(')[0]).Trim() } | Where-Object { $_ } |
+             Group-Object | Sort-Object -Property Count -Descending | Select-Object -First $Top |
+             ForEach-Object { if ($_.Count -gt 1) { "$($_.Name) x$($_.Count)" } else { [string]$_.Name } })
+  return [ordered]@{ seconds = $Seconds; cores = $Cores; rows = $rows
+    measured = [math]::Round($measured, 1); hidden = @($unknown).Count; names = $names
+    unknown = @($unknown) }
 }
 
 # Does the build predate anything it would actually have shipped?
@@ -675,10 +693,10 @@ function Check-Resources {
     Start-Sleep -Seconds 2
     $after = & $snap
     $busy = Read-CpuBusiest $before $after ((Get-Date) - $t0).TotalSeconds $cores
-    Note "--- using the CPU, over $([math]::Round($busy.seconds,1))s across $($busy.cores) logical core(s)"
+    Note "--- using the CPU, over $([math]::Round($busy.seconds,1))s across $($busy.cores) logical core(s): the processes it could measure account for $($busy.measured)% of the machine"
     foreach ($r in @($busy.rows)) { Note ("{0,-28} {1,5:n1}% CPU  {2,5:n2}s  pid {3}" -f $r.name, $r.percent, $r.seconds, $r.pid) }
     if (-not @($busy.rows).Count) { Note 'no process CPU time could be read (run the doctor as Administrator to see other accounts)' }
-    if (@($busy.unknown).Count) { Note "not measured: $(@($busy.unknown) -join '; ')" }
+    elseif ($busy.hidden) { Note "$($busy.hidden) process(es) could not be measured, so the rows above are a floor and not the whole machine: $(@($busy.names) -join ', ') (run the doctor as Administrator to see other accounts' process times)" }
   }
 }
 

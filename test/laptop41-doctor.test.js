@@ -561,6 +561,58 @@ const readBusiest = (facts) => {
   return JSON.parse(r.stdout);
 };
 
+// 2026-10-11, Worker1's 22:28Z pass: `CPU 100%` over a list whose six rows came
+// to 18.9% of the machine, with the rest inside a `not measured:` line of about
+// 160 names -- `svchost` more than a hundred times. Nothing added the rows up,
+// and nothing said the one thing a reader needed: this doctor runs unelevated,
+// so Windows hides other accounts' process times and it cannot see most of the
+// machine. The per-process honesty was already here; the total was not.
+test('the CPU list says how much of the machine it could measure, and how much it could not', { skip }, () => {
+  const before = [{ name: 'ChatGPT', pid: 19404, cpu: 100 }, { name: 'chrome', pid: 4144, cpu: 50 }];
+  const after = [{ name: 'ChatGPT', pid: 19404, cpu: 103.56 }, { name: 'chrome', pid: 4144, cpu: 50.47 }];
+  // The shape of that pass: a handful measurable, a crowd of hidden services.
+  for (let i = 0; i < 120; i += 1) {
+    before.push({ name: 'svchost', pid: 1000 + i, cpu: null });
+    after.push({ name: 'svchost', pid: 1000 + i, cpu: null });
+  }
+  for (const [i, name] of ['System', 'Idle', 'MsMpEng', 'tailscaled', 'nssm'].entries()) {
+    before.push({ name, pid: 9000 + i, cpu: null });
+    after.push({ name, pid: 9000 + i, cpu: null });
+  }
+  const out = readBusiest({ seconds: 7.1, cores: 8, before, after });
+  // 3.56s and 0.47s of 56.8 core-seconds. The real pass printed ChatGPT at
+  // 6.3%, which is what makes this the same measurement.
+  assert.deepEqual(out.rows.map((r) => [r.name, r.percent]), [['ChatGPT', 6.3], ['chrome', 0.8]]);
+  assert.equal(out.measured, 7.1, 'the sum over every measured process, not just the rows shown');
+  assert.equal(out.hidden, 125, 'and how many it could not read at all');
+  // Grouped and capped like the rows, or the signal is buried in its own noise:
+  // 125 names on one line is what the pass actually printed.
+  assert.equal(out.names[0], 'svchost x120', 'the crowd is counted, not listed');
+  assert.ok(out.names.length <= 6, `capped like rows, got ${out.names.length}`);
+  assert.ok(!out.names.some((n) => n.includes('(')), 'names only, the pids are in `unknown`');
+  // The full list is still there for anything that wants it.
+  assert.equal(out.unknown.length, 125);
+
+  // Nothing hidden: no count to report, and the total is the whole machine.
+  const clean = readBusiest({
+    seconds: 2,
+    cores: 4,
+    before: [{ name: 'a', pid: 1, cpu: 0 }, { name: 'b', pid: 2, cpu: 0 }],
+    after: [{ name: 'a', pid: 1, cpu: 4 }, { name: 'b', pid: 2, cpu: 2 }],
+  });
+  assert.equal(clean.hidden, 0);
+  assert.deepEqual(clean.names, []);
+  assert.equal(clean.measured, 75, '4s + 2s of 8 core-seconds');
+
+  // The report prints the measured share beside the window, and names the
+  // remedy whenever anything is hidden -- not only when nothing was readable.
+  const doctor = readFileSync(DOCTOR, 'utf8');
+  assert.match(doctor, /it could measure account for \$\(\$busy\.measured\)% of the machine/);
+  assert.match(doctor, /elseif \(\$busy\.hidden\) \{ Note "\$\(\$busy\.hidden\) process\(es\) could not be measured/);
+  assert.match(doctor, /rows above are a floor and not the whole machine/);
+  assert.match(doctor, /run the doctor as Administrator to see other accounts' process times/);
+});
+
 test('while the hold is on, the processes are ranked by CPU and the unmeasurable are named', { skip }, () => {
   const out = readBusiest({
     seconds: 2, cores: 8,
