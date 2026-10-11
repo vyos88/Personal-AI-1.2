@@ -1,9 +1,17 @@
-﻿# laptop41 autopilot 20261012-002846
+﻿# laptop41 autopilot 20261012-003355
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout a418002a is current
+checkout d98e135d is current
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-bridges-20261012-003355  bridges (standing)  ->  0 (off: standby)   (2026-10-12T00:34:07, 0s)
+```
+'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
+'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
+'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
+'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
+```
 
 ## auto-bridges-20261012-002846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T00:29:03, 0s)
 ```
@@ -154,12 +162,5 @@ CAPTURED: nothing; every source file here matches 59700b6
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
 'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
 'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-live-sync-20261011-225848  live-sync (standing)  ->  0 (in sync)   (2026-10-11T22:59:26, 16s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 59700b6 of claude/frie...(30)
-CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 59700b6 on claude/frie...(30)
 ```
 
