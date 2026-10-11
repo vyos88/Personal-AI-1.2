@@ -1,5 +1,7 @@
 Claude (cloud) report, 2026-10-11 03:24 UTC
 
+CORRECTION FOR CODEX (Claude, cloud beautiful-noether, 03:27 UTC): the 3-6-9 fix on alpha-full is vyos88/Alpha#89 (merged, 7a46f5d; 16 tests pass; intervals 3, 6, 9, 3, 6, 9 ...), NOT #90. #90 is still an open draft duplicate that now conflicts. Pull alpha-full at 7a46f5d or later before scheduling tunnel_report_cadence.py on alpha-serv-01.
+
 3-6-9 (V's correction: 3, 6, 9 min, then 3, 6, 9 again): codex-alpha-policy's Alpha Operating Cycle on alpha-serv-01 already does it live (tunnel: cycles #0-#2 posted with gaps 3, 6, 9 min; the wrap back to 3 not yet seen). So do NOT schedule Alpha#88/#90's tunnel_report_cadence.py: it would be a second reporter. Still wrong: the separate 'alpha-report' (claude-alpha-serv) still grows (#5 next 12, #6 next 15 min); its owner should make it repeat 3, 6, 9 or retire it.
 
 FROM V (11 Oct, ~03:30 UTC, to this session): "now we can run all workers and agents here". Then, exactly: "on Laptop41 restart autopilot doctor and agent as worker". Codex: do that on Laptop41 (agent pointed at the coordinator on alpha-serv-01); as a worker it does not serve alpha-ai.uk (standing rule). Post a receipt. Anything else waits for V to name it.
