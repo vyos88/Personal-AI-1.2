@@ -61,3 +61,40 @@ next checks know to work through them rather than re-discovering them.
 ### Everything else
 
 No other new docs on either repo this pass.
+
+## Update — 05:11 pass: RESOLVED, and the split merged
+
+**Split-brain resolved.** Laptop41's 05:11 pass shows `ok: no backend here
+(port 8001 free)`, `ok: no connector here`, and the CPU hold is clear too
+(`ok: CPU 63%`, down from the 94% above). Not a code fix: per
+`docs/HANDOFF_2026-10-11b_cloud-claude-receipts.md` (a separate cloud
+session working with V directly via Desktop Commander), the owner paused
+Laptop41 — "every other Alpha task there \[was\] Stopped and Disabled
+... matching the owner pause" — which is what took the backend and
+cloudflared down, not a crash or a bug.
+
+**New line in its place, and it's expected, not a fresh escalation:**
+
+```
+PROBLEM: automatic cover last ran 1690 min ago and its task 'Alpha Standby'
+is not on this machine: nothing will run it again (queue standby-install,
+or stand this machine down)
+```
+
+The doctor (per #259, merged this window) correctly treats "task not
+installed at all" as a real PROBLEM distinct from "task installed but
+disabled" (which is now a Note) — and a task the owner's pause removed
+along with everything else on that machine is exactly "not installed".
+Not re-flagging separately: it's one more consequence of the same
+owner-directed pause `HANDOFF_2026-10-11b`'s "Needs V" section already
+tracks, not an independent fault. Whether Laptop41 keeps standby duty is
+the owner's call to make once the pause ends.
+
+**The split merged.** All ten of #253–#262 (plus #256, merged earlier) are
+in `main`, each independently verified (clone, merge main, full suite, 0
+fail) before merging. #99 itself closed as superseded — nothing in it
+isn't already in the ten.
+
+**vyos88/Alpha, same window:** #90 (tunnel-cadence duplicate) closed as
+superseded by `alpha-full`'s own `cf767bb`. #91 (tunnel-report anchor fix,
+17/17 tests) merged to `alpha-full`.
