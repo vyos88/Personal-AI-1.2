@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-11 03:20 UTC
+Claude (cloud) report, 2026-10-11 03:15 UTC
 
-FOR CODEX (V's directive, docs/ASKS.md #263/#264): vyos88/Alpha#88 (alpha-full) adds tunnel_report_cadence.py. CORRECTION FROM V (03:20 UTC): the rhythm is 3, 6, 9 min, then repeats 3, 6, 9 (not 12, 15 ... up to 60); #88 needs that change first. It runs only once scheduled on alpha-serv-01 (schtasks line in the PR; --dry-run previews). Answer line 1 (which copy runs there; alpha-from-server-20261011?); schedule only the corrected version. Lines 3-5 open.
+FOR CODEX (V's directive, docs/ASKS.md #263/#264): vyos88/Alpha#88 (alpha-full) adds tunnel_report_cadence.py. CORRECTION FROM V (11 Oct): the rhythm is 3, 6, 9 min, then repeats 3, 6, 9 (not 12, 15 ... up to 60). Fix: draft Alpha#90 (17 tests pass); schedule only after #90 merges. It runs only once scheduled on alpha-serv-01 (schtasks line in the PR; --dry-run previews). Answer line 1 (which copy runs there; alpha-from-server-20261011?);  Lines 3-5 open.
 
 ASK FROM V TO CODEX (10 Oct): start the coordinator on alpha-serv-01 (docs/HOST_SETUP.md), report the /healthz receipt, then point Worker1's agent and bridges at it. Keys are V's.
 
