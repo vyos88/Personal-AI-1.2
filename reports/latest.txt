@@ -1,4 +1,4 @@
-laptop41-doctor 20261012-031104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ d98e135d 2026-10-12)
+laptop41-doctor 20261012-032606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ d98e135d 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,24 +6,33 @@ laptop41-doctor 20261012-031104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 3010 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 3025 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4 of 15.8 GB RAM free
+  ok: 3.8 of 15.8 GB RAM free
   ok: C: 136.4 GB free
-  ok: CPU 44% (Alpha holds GPU admission at 90%)
-  Memory Compression              633 MB  pid 3840
+  PROBLEM: CPU 94% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  Memory Compression              635 MB  pid 3840
   claude                          630 MB  pid 2164
-  ChatGPT                         514 MB  pid 22856
-  ChatGPT                         398 MB  pid 2184
-  ChatGPT                         396 MB  pid 19812
-  explorer                        393 MB  pid 10108
-  MsMpEng                         386 MB  pid 6040
-  ChatGPT                         332 MB  pid 17956
+  ChatGPT                         511 MB  pid 22856
+  ChatGPT                         441 MB  pid 19812
+  ChatGPT                         416 MB  pid 2184
+  MsMpEng                         401 MB  pid 6040
+  explorer                        392 MB  pid 10108
+  ChatGPT                         329 MB  pid 17956
+  --- using the CPU, over 2.6s across 8 logical core(s): the processes it could measure account for 27% of the machine
+  ChatGPT                       12.9% CPU   2.64s  pid 19404
+  ChatGPT                        6.7% CPU   1.38s  pid 2184
+  ChatGPT                        1.5% CPU   0.31s  pid 19812
+  claude                         1.2% CPU   0.25s  pid 11352
+  OneDrive.Sync.Service          1.1% CPU   0.22s  pid 7456
+  ChatGPT                        0.8% CPU   0.17s  pid 22856
+  161 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x87, conhost x4, WUDFHost x3, powershell x2, fontdrvhost x2, csrss x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 15s
-  - NEEDS A PERSON - automatic cover last ran 3010 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 91 run(s), since 2026-10-11T04:41:17)
+  this pass took 24s
+  - NEEDS A PERSON - automatic cover last ran 3025 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 92 run(s), since 2026-10-11T04:41:17)
+  - CPU 94% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-12T03:26:27)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
