@@ -27,14 +27,21 @@
  *   ALPHA_MUSIC_BRIDGE_CACHE       where fetched tracks are kept (default: the OS temp dir)
  *   ALPHA_MUSIC_BRIDGE_CACHE_TRACKS  how many tracks it keeps (default 50; older ones are re-fetched)
  *
- * Subscriptions (all of these, or none: with none, every click generates):
- *   STRIPE_SECRET_KEY              sk_live_... / sk_test_... (Stripe Dashboard -> Developers -> API keys)
- *   STRIPE_PRICE_ID                price_... of the monthly Music Creator plan
- *   STRIPE_WEBHOOK_SECRET          whsec_... of the endpoint <ALPHA_PUBLIC_URL>/music/billing/webhook
+ * Plans (any of these turns them on; with none, every click generates).
+ * Alpha decides the plan: see docs/MUSIC_SUBSCRIPTIONS.md.
+ *   ALPHA_API_URL                  Alpha's backend, asked GET /monetization/entitlements/music with the
+ *                                  listener's own Authorization header (default http://127.0.0.1:8001)
  *   ALPHA_PUBLIC_URL               where people open Alpha, e.g. https://alpha-ai.uk
- *   ALPHA_MUSIC_COOKIE_SECRET      32+ random characters; changing it signs everyone out of their plan
+ *   ALPHA_MUSIC_UPGRADE_URL        where Upgrade/Manage go (default <ALPHA_PUBLIC_URL>/#/hub/admin/subscriptions)
+ *   ALPHA_MUSIC_PLAN_TIMEOUT_MS    how long to wait for Alpha before treating the listener as free (default 3000)
+ *   ALPHA_MUSIC_PLAN_CACHE_MS      how long Alpha's answer is reused per session (default 30000)
+ *   ALPHA_MUSIC_COOKIE_SECRET      32+ random characters; signs the browser account the free allowance is counted on
  *   ALPHA_MUSIC_BILLING_STORE      accounts file (default: billing/music-accounts.json beside the checkout)
  *   ALPHA_MUSIC_FREE_TRACKS        free tracks per account per month (default 3)
+ *
+ * Legacy, optional, and granting nothing: if STRIPE_SECRET_KEY, STRIPE_PRICE_ID
+ * and STRIPE_WEBHOOK_SECRET are still set, the webhook keeps recording the
+ * bridge's old Stripe subscriptions so they can be moved to Alpha plans.
  */
 
 import { join } from 'node:path';
@@ -64,15 +71,23 @@ if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 3_600_000) {
   process.exit(1);
 }
 
-const BILLING_VARS = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'STRIPE_WEBHOOK_SECRET', 'ALPHA_PUBLIC_URL', 'ALPHA_MUSIC_COOKIE_SECRET'];
+const BILLING_VARS = [
+  'ALPHA_API_URL', 'ALPHA_PUBLIC_URL', 'ALPHA_MUSIC_COOKIE_SECRET',
+  'STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'STRIPE_WEBHOOK_SECRET',
+];
 const billingWanted = BILLING_VARS.some((name) => env(name, null) !== null);
 const freeTracks = Number(env('ALPHA_MUSIC_FREE_TRACKS', 3));
+const alphaApiUrl = env('ALPHA_API_URL', 'http://127.0.0.1:8001');
 
 let bridge;
 let billing = null;
 try {
   if (billingWanted) {
     billing = createBilling({
+      alphaApiUrl,
+      upgradeUrl: env('ALPHA_MUSIC_UPGRADE_URL', null),
+      alphaTimeoutMs: Number(env('ALPHA_MUSIC_PLAN_TIMEOUT_MS', 3000)),
+      alphaCacheMs: Number(env('ALPHA_MUSIC_PLAN_CACHE_MS', 30000)),
       secretKey: env('STRIPE_SECRET_KEY', null),
       priceId: env('STRIPE_PRICE_ID', null),
       webhookSecret: env('STRIPE_WEBHOOK_SECRET', null),
@@ -102,7 +117,7 @@ bridge.server.on('error', (error) => {
 });
 bridge.server.listen(port, bind, () => {
   console.log(`music bridge on http://${bind}:${port}/music/ -> ${env('ALPHA_HOST_URL', 'http://127.0.0.1:8787')}`);
-  console.log(billing ? `subscriptions on: ${freeTracks} free tracks a month, then the Stripe plan` : 'subscriptions off: every click generates');
+  console.log(billing ? `plans on: from Alpha at ${alphaApiUrl}; ${freeTracks} free tracks a month on the free plan` : 'plans off: every click generates');
 });
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
