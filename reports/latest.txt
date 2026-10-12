@@ -1,4 +1,4 @@
-laptop41-doctor 20261012-175603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261012-181106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,25 @@ laptop41-doctor 20261012-175603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 3895 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 3910 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
   ok: 2.8 of 15.8 GB RAM free
   ok: C: 136 GB free
-  PROBLEM: CPU 90% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  ChatGPT                         978 MB  pid 2184
-  Memory Compression              863 MB  pid 3840
+  ok: CPU 82% (Alpha holds GPU admission at 90%)
+  ChatGPT                         980 MB  pid 2184
+  Memory Compression              866 MB  pid 3840
   claude                          645 MB  pid 2164
-  ChatGPT                         522 MB  pid 22856
-  MsMpEng                         396 MB  pid 6040
+  ChatGPT                         520 MB  pid 22856
+  MsMpEng                         425 MB  pid 6040
   ChatGPT                         390 MB  pid 19812
-  ChatGPT                         330 MB  pid 17956
+  ChatGPT                         333 MB  pid 17956
   explorer                        320 MB  pid 10108
-  --- using the CPU, over 2.5s across 8 logical core(s): the processes it could measure account for 34.3% of the machine
-  ChatGPT                       15.7% CPU   3.17s  pid 2184
-  ChatGPT                       13.3% CPU   2.69s  pid 19404
-  chrome                         1.2% CPU   0.23s  pid 2128
-  ChatGPT                        0.8% CPU   0.16s  pid 22856
-  powershell                     0.8% CPU   0.17s  pid 20988
-  OneDrive.Sync.Service          0.5% CPU   0.09s  pid 22284
-  157 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x87, WUDFHost x3, tailscaled x2, conhost x2, csrss x2, node x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 21s
-  - NEEDS A PERSON - automatic cover last ran 3895 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 150 run(s), since 2026-10-11T04:41:17)
-  - CPU 90% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-12T17:56:21)
+  this pass took 28s
+  - NEEDS A PERSON - automatic cover last ran 3910 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 151 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: CPU 90% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
