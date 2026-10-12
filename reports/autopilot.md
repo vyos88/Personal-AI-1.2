@@ -1,9 +1,17 @@
-﻿# laptop41 autopilot 20261012-125846
+﻿# laptop41 autopilot 20261012-130348
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout f5141be0 is current
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-bridges-20261012-130348  bridges (standing)  ->  0 (off: standby)   (2026-10-12T13:04:05, 0s)
+```
+'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
+'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
+'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
+'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
+```
 
 ## auto-bridges-20261012-125846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:58:59, 0s)
 ```
@@ -150,14 +158,6 @@ queue: 109 action(s) on control/laptop41, all of them already run
 ```
 
 ## auto-bridges-20261012-112847  bridges (standing)  ->  0 (off: standby)   (2026-10-12T11:29:04, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-112346  bridges (standing)  ->  0 (off: standby)   (2026-10-12T11:23:58, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
