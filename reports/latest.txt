@@ -1,4 +1,4 @@
-laptop41-doctor 20261012-235602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261013-001102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,25 +6,25 @@ laptop41-doctor 20261012-235602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 4255 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 4270 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.1 of 15.8 GB RAM free
+  ok: 3.5 of 15.8 GB RAM free
   ok: C: 135.6 GB free
-  ok: CPU 9% (Alpha holds GPU admission at 90%)
-  Memory Compression              975 MB  pid 3840
-  claude                          633 MB  pid 2164
-  ChatGPT                         581 MB  pid 22856
-  WindowsTerminal                 531 MB  pid 25112
-  MsMpEng                         418 MB  pid 6040
-  ChatGPT                         408 MB  pid 19812
-  explorer                        390 MB  pid 10108
-  ChatGPT                         347 MB  pid 17956
+  ok: CPU 19% (Alpha holds GPU admission at 90%)
+  Memory Compression            1,069 MB  pid 3840
+  claude                          639 MB  pid 2164
+  ChatGPT                         598 MB  pid 22856
+  WindowsTerminal                 454 MB  pid 25112
+  MsMpEng                         437 MB  pid 6040
+  ChatGPT                         423 MB  pid 19812
+  explorer                        387 MB  pid 10108
+  ChatGPT                         341 MB  pid 17956
 
 === SUMMARY ===
   this pass took 10s
-  - NEEDS A PERSON - automatic cover last ran 4255 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 174 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 21 run(s), since 2026-10-12T18:56:49)
+  - NEEDS A PERSON - automatic cover last ran 4270 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 175 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 22 run(s), since 2026-10-12T18:56:49)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
