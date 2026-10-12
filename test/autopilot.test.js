@@ -1289,10 +1289,19 @@ test('the live report is written every pass, and a stopped self-heal is started 
   const codes = join(dir, 'codes.json');
   writeFileSync(codes, JSON.stringify({}));
   const answer = (map) => writeFileSync(codes, JSON.stringify(map));
+  // Which local ports are listening, so a held port can be told from a free
+  // one. Holding a port is not the same as being Alpha, so the standby row
+  // reads both this and the /health code above.
+  const ports = join(dir, 'ports.json');
+  writeFileSync(ports, JSON.stringify([]));
+  const listening = (list) => writeFileSync(ports, JSON.stringify(list));
   const fakes = `function Start-ScheduledTask { param($TaskName) Add-Content -LiteralPath '${kicks}' -Value $TaskName }; `
     + `function Invoke-WebRequest { param($Uri) $m = Get-Content -LiteralPath '${codes}' -Raw | ConvertFrom-Json; $c = 200; `
     + `foreach ($p in $m.PSObject.Properties) { if ("$Uri" -like "*$($p.Name)*") { $c = [int]$p.Value } }; `
-    + `if ($c -eq 0) { throw 'nothing listening' }; [pscustomobject]@{ StatusCode = $c } }; `;
+    + `if ($c -eq 0) { throw 'nothing listening' }; [pscustomobject]@{ StatusCode = $c } }; `
+    + `function Get-NetTCPConnection { param($LocalPort, $State) `
+    + `$p = @(Get-Content -LiteralPath '${ports}' -Raw | ConvertFrom-Json); `
+    + `if ($p -contains [int]$LocalPort) { [pscustomobject]@{ LocalPort = [int]$LocalPort; OwningProcess = 4242 } } else { throw 'nothing listening' } }; `;
   const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
     `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
   { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
@@ -1395,6 +1404,38 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(md, /\| Repair agent \(self-heal\) \| OFF \(standby\) \| off on purpose: another machine serves Alpha/);
   assert.equal(readFileSync(kicks, 'utf8').trim(), '', 'a standby\'s self-heal is off on purpose');
   assert.match(md, /\| Role \| STANDBY \| laptop-gj8dfmlk serves Alpha; automatic cover is NOT INSTALLED: queue standby-install \|/);
+
+  // 2026-10-12, 18:56Z: AlphaPanelFeed's helper came up on 8001 on a standby
+  // Laptop41, and this row read STANDBY BUT SERVING / "two Alphas" off the
+  // port alone -- while the deck-liveness check in the same pass set said
+  // backend (/health) -> the backend does not answer. The two remedies that
+  // verdict names are both wrong for a squatted port: alpha-standdown stops
+  // services that are already stopped, alpha-standup cannot bind.
+  listening([8001]);
+  answer({ '127.0.0.1:8001/health': 0 });
+  r = run();
+  md = live();
+  assert.match(r.stdout, /live report: Alpha STANDBY, PORT HELD/);
+  assert.match(md, /\| STANDBY, PORT HELD \| Alpha serves from laptop-gj8dfmlk: alpha-ai\.uk 200; nothing of Alpha runs here, but the backend port 8001 \(it answered no answer\) is held by something that is not Alpha: Alpha could not start here until it lets the port go, and neither alpha-standdown nor alpha-standup is the remedy -- stop that process on the machine \(checked by this pass\) \|/);
+  assert.doesNotMatch(md, /two Alphas/);
+
+  // The same port, answering /health: a real second Alpha, said loudly.
+  answer({});
+  r = run();
+  md = live();
+  assert.match(r.stdout, /live report: Alpha STANDBY BUT SERVING/);
+  assert.match(md, /\| STANDBY BUT SERVING \| .*running HERE too: backend \(two Alphas: queue alpha-standdown again, or alpha-standup to serve here\)/);
+
+  // The site is read from the port alone on purpose: Vite preview may serve
+  // HTTPS with its own certificate here and Invoke-WebRequest has no -k, so
+  // probing it would make a self-signed site a false squatter.
+  listening([4173]);
+  answer({ '127.0.0.1:8001/health': 0 });
+  md = (run(), live());
+  assert.match(md, /\| STANDBY BUT SERVING \| .*running HERE too: site \(two Alphas/);
+
+  listening([]);
+  answer({});
 
   // Phase 3: the automatic cover's last pass is shown, and a stale one called out.
   mkdirSync(join(ops, 'standby'), { recursive: true });

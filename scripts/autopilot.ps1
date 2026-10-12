@@ -1414,6 +1414,14 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     if ($sh.last -and $sh.last.unfinished) { $heal.unfinished = "the last pass did not finish ($($sh.last.unfinished.why), at $($sh.last.unfinished.stage))" }
     if ($heal.state -eq 'STOPPED') { $heal.why = SelfHeal-WhyQuiet }
   }
+  # Defined for both branches below: the standby one probes 8001 too now, and
+  # a copy of these in each would be a second place for the timeout to drift.
+  $probe = {
+    param([string]$uri, [int]$sec)
+    try { return [int](Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $sec -EA Stop).StatusCode }
+    catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { return [int]$r.StatusCode }; return 0 }
+  }
+  $said = { param($c) if ($c) { "$c" } else { 'no answer' } }
   if ($heal.state -eq 'RUNNING' -and $sh.last -and $sh.last.probes) {
     $parts = [ordered]@{ backend = $sh.last.probes.backend; site = $sh.last.probes.frontend; 'alpha-ai.uk' = $sh.last.probes.public }
     $down = @($parts.Keys | Where-Object { -not ($parts[$_] -and $parts[$_].ok -eq $true) })
@@ -1433,12 +1441,6 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     # connector with no origin behind it against nothing listening at all,
     # which send an operator to different places. Same shape as the standby
     # branch below, which has always read the public URL this way.
-    $probe = {
-      param([string]$uri, [int]$sec)
-      try { return [int](Invoke-WebRequest -Uri $uri -UseBasicParsing -TimeoutSec $sec -EA Stop).StatusCode }
-      catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { return [int]$r.StatusCode }; return 0 }
-    }
-    $said = { param($c) if ($c) { "$c" } else { 'no answer' } }
     $code = & $probe 'http://127.0.0.1:8001/health' 8
     # 4173 as the standby branch below hardcodes it: the site port is Vite
     # preview's and is not a parameter of this script.
@@ -1451,15 +1453,36 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   # A standby serves nothing here, on purpose: say who does, and say loudly if
   # anything here is serving too, since two Alphas write two histories.
   if ($hbAlpha -and $standby) {
+    # Holding the port is not being Alpha. On 2026-10-12 at 18:56Z Laptop41's
+    # AlphaPanelFeed helper came up on 8001 and this row read STANDBY BUT
+    # SERVING / "two Alphas", while the deck-liveness check in the same pass
+    # set said backend (/health) -> the backend does not answer. The port
+    # alone cannot tell a second Alpha from a squatter, and the two want
+    # opposite remedies: alpha-standdown stops services that are already
+    # stopped, and alpha-standup would fail to bind a port something else
+    # holds. Only 8001 is probed -- it has /health, read the same way as the
+    # branch above -- while the site stays port-only, because Vite preview may
+    # serve HTTPS with its own certificate here (the Decks row reads it as
+    # https://127.0.0.1:4173) and Invoke-WebRequest has no -k, so probing it
+    # would turn a self-signed site into a false squatter.
     $here = @()
-    try { if (Get-NetTCPConnection -LocalPort 8001 -State Listen -EA Stop) { $here += 'backend' } } catch { }
+    $squat = @()
+    try {
+      if (Get-NetTCPConnection -LocalPort 8001 -State Listen -EA Stop) {
+        $hc = & $probe 'http://127.0.0.1:8001/health' 8
+        if ($hc -ge 200 -and $hc -lt 400) { $here += 'backend' }
+        else { $squat += "the backend port 8001 (it answered $(& $said $hc))" }
+      }
+    } catch { }
     try { if (Get-NetTCPConnection -LocalPort 4173 -State Listen -EA Stop) { $here += 'site' } } catch { }
     if (Get-Process -Name cloudflared -EA SilentlyContinue) { $here += 'connector' }
     $pub = 0
     try { $pub = [int](Invoke-WebRequest -Uri 'https://alpha-ai.uk/' -UseBasicParsing -TimeoutSec 10 -EA Stop).StatusCode } catch { $r = $_.Exception.Response; if ($r -and $r.StatusCode) { $pub = [int]$r.StatusCode } }
-    $alpha.verdict = if ($here.Count) { 'STANDBY BUT SERVING' } else { 'STANDBY' }
+    $alpha.verdict = if ($here.Count) { 'STANDBY BUT SERVING' } elseif ($squat.Count) { 'STANDBY, PORT HELD' } else { 'STANDBY' }
     $alpha.detail = "Alpha serves from $($role.primary): alpha-ai.uk $(if ($pub) { $pub } else { 'no answer' }); " +
-      $(if ($here.Count) { "running HERE too: $($here -join ', ') (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)" } else { 'nothing of Alpha runs here' })
+      $(if ($here.Count) { "running HERE too: $($here -join ', ') (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)" }
+        elseif ($squat.Count) { "nothing of Alpha runs here, but $($squat -join ', ') is held by something that is not Alpha: Alpha could not start here until it lets the port go, and neither alpha-standdown nor alpha-standup is the remedy -- stop that process on the machine" }
+        else { 'nothing of Alpha runs here' })
     $alpha.checked_by = 'this pass'
     $heal.state = 'OFF (standby)'; $heal.why = ''; $heal.unfinished = ''
   }
