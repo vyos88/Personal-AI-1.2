@@ -820,6 +820,20 @@ $bridgeLines = New-Object System.Collections.ArrayList
 $bridgeDown = $false
 $bridgeHeld = $false
 $bridgeOff = $false
+# Reported when it changes, like every other standing check in this file. A
+# bridge that stays down -- or a standby whose bridges stay off on purpose --
+# is one state, not one event every five minutes. Without this the check added
+# its entry to $ran on every pass, and $ran is the push gate below
+# (`if (-not $ran.Count -and -not (...))  { 'nothing new to run' }`), so
+# status/laptop41-autopilot took 380 commits in the 35 hours after Worker1
+# stood down and 272 of them said 'off: standby' twice over. That branch being
+# quiet unless something ran is what tells a stalled autopilot from an idle
+# one, so the noise cost the branch its only signal.
+# The key is the task states and what was done about them, never the lines:
+# a last-run time moves on its own, and channel-watch's rule is that a verdict
+# line carries no age.
+$bridgeStates = New-Object System.Collections.ArrayList
+$bridgeKey = if ($state -and $state.bridgeKey) { [string]$state.bridgeKey } else { '' }
 if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-NetTCPConnection -EA SilentlyContinue)) {
   foreach ($b in @(@{ task = 'alpha-music bridge'; port = 8790; log = 'alpha-music-bridge.log' }, @{ task = 'alpha-image bridge'; port = 7861; log = 'alpha-image-bridge.log' })) {
     $registered = Get-ScheduledTask -TaskName $b.task -EA SilentlyContinue
@@ -840,6 +854,7 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     $bridgePlan = Get-BridgePlan ([string]$registered.State) $standby
     if (-not $bridgePlan.restart) {
       if ($bridgePlan.fault) { $bridgeHeld = $true } else { $bridgeOff = $true }
+      [void]$bridgeStates.Add("$($b.task)=$($registered.State):$(if ($bridgePlan.fault) { 'held' } else { 'off' })")
       [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): $($bridgePlan.note)")
       continue
     }
@@ -858,6 +873,7 @@ if ((Get-Command Get-ScheduledTask -EA SilentlyContinue) -and (Get-Command Get-N
     while ((Get-Date) -lt $deadline -and -not (Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)) { Start-Sleep -Seconds 3 }
     $up = [bool](Get-NetTCPConnection -LocalPort $b.port -State Listen -EA SilentlyContinue)
     if (-not $up) { $bridgeDown = $true }
+    [void]$bridgeStates.Add("$($b.task)=$($registered.State):$(if ($up) { 'up' } else { 'down' })")
     [void]$bridgeLines.Add("'$($b.task)' was not listening on $($b.port): restarted, " + $(if ($up) { 'it answers now' } else { "still nothing on $($b.port) after 45s (its log is in %TEMP%)" }))
   }
 }
@@ -866,8 +882,16 @@ if ($bridgeLines.Count) {
   # people to do different things, and matching the lines back would have to be
   # revisited every time one of them is reworded.
   $bridgeWhy = @(); if ($bridgeDown) { $bridgeWhy += 'still down' }; if ($bridgeHeld) { $bridgeWhy += 'disabled' }
-  [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if ($bridgeWhy.Count) { "1 ($($bridgeWhy -join ', '))" } elseif ($bridgeOff) { '0 (off: standby)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
+  $key = ($bridgeStates -join '|')
+  if ($key -ne $bridgeKey) {
+    [void]$ran.Add([ordered]@{ id = "auto-bridges-$stamp"; do = 'bridges (standing)'; result = $(if ($bridgeWhy.Count) { "1 ($($bridgeWhy -join ', '))" } elseif ($bridgeOff) { '0 (off: standby)' } else { '0 (restarted)' }); at = (Get-Date).ToString('s'); seconds = 0; tail = ($bridgeLines -join "`n") })
+  }
+  $bridgeKey = $key
   $bridgeLines | ForEach-Object { Write-Host $_ }
+} else {
+  # Every bridge answering clears the key, so the next one to go down is
+  # reported rather than matched against a state from hours ago.
+  $bridgeKey = ''
 }
 
 # 3. Run what has not run.
@@ -976,7 +1000,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); dataSyncKey = $(if ($state) { [string]$state.dataSyncKey } else { '' }); dataSyncAt = $(if ($state) { [string]$state.dataSyncAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); bridgeKey = $bridgeKey; brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); dataSyncKey = $(if ($state) { [string]$state.dataSyncKey } else { '' }); dataSyncAt = $(if ($state) { [string]$state.dataSyncAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -1282,7 +1306,7 @@ $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
 # which is still better than losing all of them to the first failed push. And
 # if the push lands but the clearing write does not, the next pass reports the
 # same entries twice, which is the harmless direction.
-$stateOut = [ordered]@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @(@($ran) | Select-Object -First 20) }
+$stateOut = [ordered]@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; bridgeKey = $bridgeKey; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @(@($ran) | Select-Object -First 20) }
 $stateOut | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
