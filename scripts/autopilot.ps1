@@ -804,6 +804,16 @@ if ($updateExit -eq 10) {
 # this repository then stops reaching the machine. Say why, in every report.
 $head = (git -C $repo rev-parse --short HEAD 2>$null | Out-String).Trim()
 $checkoutNote = "checkout $head is current"
+# Since when, so the live page can say how long. A machine that stopped taking
+# updates is still running the code it had, and 'did NOT update' tells a reader
+# nothing about whether that happened a minute or a day ago.
+# Iso-Text, not [string]: this value round-trips through state.json, and
+# PowerShell 7 reads its ISO text back out of JSON as a date, so [string] would
+# rewrite it in this machine's culture format on the next pass -- the decks
+# receipt's bug, with a file behind it this time.
+$checkoutStuckAt = if ($state -and $state.checkoutStuckAt) { Iso-Text $state.checkoutStuckAt } else { '' }
+if ($updateExit -eq 0) { $checkoutStuckAt = '' }
+elseif (-not $checkoutStuckAt) { $checkoutStuckAt = (Get-Date).ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'") }
 if ($updateExit -ne 0) {
   $why = ($update -split "`r?`n" | Where-Object { $_ -match 'reason|refus|uncommitted|diverg|fail|error' } | Select-Object -First 3) -join ' / '
   $paths = @(git -C $repo status --porcelain 2>$null | Select-Object -First 15)
@@ -1019,7 +1029,7 @@ foreach ($a in $queued) {
   Write-Host ("{0} {1}: {2}" -f $p.id, $p.do, $code)
   # Saved now, not at the end: a pass stopped by the task's time limit would
   # otherwise run every action of it again on the next pass.
-  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); bridgeKey = $bridgeKey; brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); dataSyncKey = $(if ($state) { [string]$state.dataSyncKey } else { '' }); dataSyncAt = $(if ($state) { [string]$state.dataSyncAt } else { '' }); pending = @(@($ran) + $pending) }
+  $mid = [ordered]@{ done = $done; history = @($state.history | Where-Object { $_ }); lastRun = (Get-Date).ToString('s'); checkoutNote = $(if ($state) { [string]$state.checkoutNote } else { '' }); checkoutStuckAt = $checkoutStuckAt; bridgeKey = $bridgeKey; brainKey = $(if ($state) { [string]$state.brainKey } else { '' }); syncKey = $(if ($state) { [string]$state.syncKey } else { '' }); deckKey = $(if ($state) { [string]$state.deckKey } else { '' }); deckAt = $(if ($state) { [string]$state.deckAt } else { '' }); auditAt = $(if ($state) { [string]$state.auditAt } else { '' }); watchKey = $(if ($state) { [string]$state.watchKey } else { '' }); homeWifiKey = $(if ($state) { [string]$state.homeWifiKey } else { '' }); homeWifiJoinAt = $(if ($state) { [string]$state.homeWifiJoinAt } else { '' }); homeWifiRestartAt = $(if ($state) { [string]$state.homeWifiRestartAt } else { '' }); dataSyncKey = $(if ($state) { [string]$state.dataSyncKey } else { '' }); dataSyncAt = $(if ($state) { [string]$state.dataSyncAt } else { '' }); pending = @(@($ran) + $pending) }
   $mid | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 }
 
@@ -1325,7 +1335,7 @@ $noteChanged = -not $state -or [string]$state.checkoutNote -ne $checkoutNote
 # which is still better than losing all of them to the first failed push. And
 # if the push lands but the clearing write does not, the next pass reports the
 # same entries twice, which is the harmless direction.
-$stateOut = [ordered]@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; bridgeKey = $bridgeKey; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @(@($ran) | Select-Object -First 20) }
+$stateOut = [ordered]@{ done = $done; history = $history; lastRun = (Get-Date).ToString('s'); checkoutNote = $checkoutNote; checkoutStuckAt = $checkoutStuckAt; bridgeKey = $bridgeKey; brainKey = $brainKey; syncKey = $syncKey; deckKey = $deckKey; deckAt = $deckAt; auditAt = $auditAt; watchKey = $watchKey; homeWifiKey = $wifiKey; homeWifiJoinAt = $wifiJoinAt; homeWifiRestartAt = $wifiRestartAt; dataSyncKey = $dsKey; dataSyncAt = $dsAt; pending = @(@($ran) | Select-Object -First 20) }
 $stateOut | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $statePath -Encoding UTF8
 # 3c. The live report (autofix.heartbeat): every pass, whatever else did or
 # did not happen, one short page on status/<channel>-live says whether Alpha is
@@ -1570,6 +1580,8 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       $decks.checked_at = Iso-Text $r.checked_at
     } catch { $decks.summary = 'receipt unreadable' }
   }
+  # One shape for both pages: this one and the coordinator machine's below.
+  $checkout = [ordered]@{ stale = ($updateExit -ne 0); note = (Redact $checkoutNote); since = $checkoutStuckAt }
   $syncState = (($syncKey -replace '^\d+ ', '') -split ' \| ' | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|STOP)' } | Select-Object -First 1)
   if (-not $syncState) { $syncState = $(if ($sync) { 'no state yet' } else { 'off' }) }
   $syncState = Redact $syncState
@@ -1583,9 +1595,17 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     "| Data copy | $($data.state) | $(Redact $data.detail) |",
     "| Repair agent (self-heal) | $($heal.state) | $(if ($standby) { 'off on purpose: another machine serves Alpha' } elseif ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
     "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at)$(Get-AgeNote $decks.checked_at $now))" }) |",
+    # The coordinator machine's page below has carried this row from the start;
+    # this one did not, and a checkout that stopped updating said so only in
+    # the autopilot report -- a branch that is published when something ran,
+    # and the note's own publish fires once when it changes. So on 2026-10-12
+    # Worker1 sat on c1aa4356 over four untracked scripts\worker1-* paths while
+    # the page it is read from first looked ordinary, showing a verdict from
+    # code that had been fixed an hour earlier. The age is the actionable part.
+    "| Checkout | $(if ($checkout.stale) { 'STALE' } else { 'CURRENT' }) | $($checkout.note)$(if ($checkout.stale) { " (stale$(Get-AgeNote $checkout.since $now))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
-  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; data = $data; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
+  $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; data = $data; selfheal = $heal; decks = $decks; checkout = $checkout; sync = $syncState } | ConvertTo-Json -Depth 5
   # The Host runs the coordinator and an agent, not Alpha, so the page above
   # is about a machine that is not here: with no self-heal log the Alpha row
   # falls through to probing 127.0.0.1:8001 and calls a no-answer DOWN. It is
@@ -1615,8 +1635,8 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       # operator somewhere different from nothing listening at all.
       $coord.detail = 'answered but not ok: ' + $hz.Substring(0, [math]::Min(160, $hz.Length))
     }
-    $stale = $updateExit -ne 0
-    $note = Redact $checkoutNote
+    $stale = $checkout.stale
+    $note = $checkout.note
     $headline = "coordinator $($coord.verdict); checkout $(if ($stale) { 'STALE' } else { 'current' })"
     $md = @(
       "# Coordinator is $($coord.verdict) - $env:COMPUTERNAME, $($now.ToString('yyyy-MM-dd HH:mm zzz'))", '',
@@ -1624,10 +1644,10 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       'This machine does not run Alpha, so its rows are the coordinator and this checkout.', '',
       '| Check | State | Detail |', '|---|---|---|',
       "| Coordinator (/healthz on $port) | $($coord.verdict) | $($coord.detail) |",
-      "| Checkout | $(if ($stale) { 'STALE' } else { 'CURRENT' }) | $note |",
+      "| Checkout | $(if ($stale) { 'STALE' } else { 'CURRENT' }) | $note$(if ($stale) { " (stale$(Get-AgeNote $checkout.since $now))" }) |",
       "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
     ) -join "`n"
-    $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; role = 'coordinator'; coordinator = $coord; checkout = [ordered]@{ stale = $stale; note = $note }; sync = $syncState } | ConvertTo-Json -Depth 5
+    $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; role = 'coordinator'; coordinator = $coord; checkout = $checkout; sync = $syncState } | ConvertTo-Json -Depth 5
   }
   Publish-Live $md $json $headline
 }

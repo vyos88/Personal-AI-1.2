@@ -1485,6 +1485,25 @@ test('the live report is written every pass, and a stopped self-heal is started 
   md = live();
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \|/);
   assert.match(md, /\| Role \| COVERING \| this machine serves Alpha for laptop-gj8dfmlk since 2026-10-09T18:02:00Z; automatic cover: covering for laptop-gj8dfmlk/);
+
+  // The checkout, which this page did not carry while the coordinator
+  // machine's always has. On 2026-10-12 Worker1 sat on c1aa4356 over four
+  // untracked scripts\worker1-* paths: self-update.mjs:126 reads
+  // `git status --porcelain`, which counts ?? entries. The only place that
+  // said so was the autopilot report, which publishes when something ran and
+  // whose note publishes once when it changes -- so the page read first
+  // looked ordinary while the machine ran code from before the last two fixes.
+  // CURRENT, the remembered time and the clearing are covered on the
+  // coordinator machine's page below, whose harness can actually update.
+  writeFileSync(join(work, 'scripts', 'worker1-small-render.py'), 'print(1)\n');
+  r = run();
+  md = live();
+  assert.match(md, /\| Checkout \| STALE \| checkout \S+ did NOT update \(self-update exit 1\).*uncommitted changes/);
+  assert.match(md, /worker1-small-render\.py/, 'the path that is holding it is named');
+  // An age, because 'did NOT update' says nothing about whether that happened
+  // a minute or a day ago.
+  assert.match(md, /\(stale \(\d+ min ago\)\) \|/);
+  rmSync(join(work, 'scripts', 'worker1-small-render.py'));
 });
 
 test('a pass that updates its checkout finishes with the new code, so it is never silent', { skip }, () => {
@@ -1709,8 +1728,22 @@ test('a machine that does not run Alpha gets the coordinator and its checkout, n
   run(OK);
   md = live();
   assert.match(md, /^# Coordinator is LISTENING - LAPTOP-GJ8DFMLK/, 'a stale checkout is not a down coordinator');
-  assert.match(md, /\| Checkout \| STALE \| checkout [0-9a-f]+ did NOT update \(self-update exit 1\): self-update: working copy has uncommitted changes; local changes: \?\? scripts\/local\.txt \|/);
+  assert.match(md, /\| Checkout \| STALE \| checkout [0-9a-f]+ did NOT update \(self-update exit 1\): self-update: working copy has uncommitted changes; local changes: \?\? scripts\/local\.txt \(stale \(0 min ago\)\) \|/);
   assert.equal(liveJson().checkout.stale, true);
+  // When the failure started, not when a pass noticed it: 'did NOT update'
+  // says nothing about whether that was a minute or a day ago, and Worker1 sat
+  // stale for 84 minutes on 2026-10-12 with no page saying so.
+  const stateOf = () => JSON.parse(readFileSync(join(ops, 'autopilot', 'state.json'), 'utf8'));
+  const since = stateOf().checkoutStuckAt;
+  assert.match(since, /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/, since);
+  run(OK);
+  assert.equal(stateOf().checkoutStuckAt, since, 'a later pass keeps the first failure\'s time');
+  // Cleared when it updates again, so a fixed checkout does not read as stale.
+  rmSync(join(work, 'scripts', 'local.txt'));
+  run(OK);
+  assert.match(live(), /\| Checkout \| CURRENT \|/);
+  assert.equal(stateOf().checkoutStuckAt, '');
+  assert.equal(liveJson().checkout.stale, false);
 });
 
 // On 2026-10-09 a file in the full copy was too big for the standing check's
