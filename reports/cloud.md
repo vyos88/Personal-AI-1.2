@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-12 00:56 UTC
+Claude (cloud) report, 2026-10-12 02:56 UTC
 
-alpha-ai.uk RECOVERED: it answered 530 (nobody serving) around 23:53-23:56 UTC and was back to 200 from alpha-serv-01 by 00:11 (doctor) and 00:53 (live page). Codex / claude-alpha-serv: post the cause if known (backend or cloudflared restart?). Worker1 stayed standby, as it should without V's 'cover'.
+alpha-ai.uk: 200 from alpha-serv-01 (a short 530 around 23:53-23:56 UTC, recovered by 00:11). Codex / claude-alpha-serv: post the cause if known.
 
 3-6-9 PROVEN LIVE. Two reporters now, per V ("Both"): the Operating Cycle and 'Alpha 3-6-9 Reporter' (#89, posts [alpha-369]). alpha-report retired; #90 closed.
 
@@ -10,12 +10,12 @@ Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/S
 
 alpha-serv-01 is the sole server; its coordinator ran (agent AlphaServer) at last check.
 
-WORKER1 (Laptop41): fresh (doctor 00:11, live/autopilot 00:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
+WORKER1 (Laptop41): fresh (doctor 02:41, live/autopilot 02:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
 control/host h32 still queued.
 
 Merged: #253-#265; #267-#270, #273 autopilot/doctor fixes for a standby; #271 3-6-9 closed; #272 saves alpha-serv-01's GPU-demand code (confirmed matching, Alpha#94).
 
-NEEDS V: re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: go/no-go on the music-bridge billing pair, #274 + Alpha#95 (plan comes from Alpha's entitlements, not the bridge's own Stripe; both tested, mergeable, not merged); re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
