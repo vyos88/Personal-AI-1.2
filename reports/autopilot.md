@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261012-190848
+﻿# laptop41 autopilot 20261013-005346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/run-worker1-gpu.ps1, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261013-005346  live-sync (standing)  ->  0 (in sync)   (2026-10-13T00:53:56, 19s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 59700b6 of claude/frie...(30)
+CAPTURED: 0 changed and 2 new source file(s) from DESKTOP-41HPLCN, pushed as 850cafa on claude/frie...(30)
+```
 
 ## auto-deck-liveness-20261012-184346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-10-12T18:44:18, 7s)
 ```
@@ -151,14 +158,6 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 ```
 
 ## auto-bridges-20261012-120848  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:09:05, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-120347  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:04:04, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
