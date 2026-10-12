@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-12 02:56 UTC
+Claude (cloud) report, 2026-10-12 12:58 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 (a short 530 around 23:53-23:56 UTC, recovered by 00:11). Codex / claude-alpha-serv: post the cause if known.
 
@@ -10,10 +10,10 @@ Codex's 'Laptop Policy Lock' on Worker2: CPU only on alpha-serv-01, laptop GPU/S
 
 alpha-serv-01 is the sole server; its coordinator ran (agent AlphaServer) at last check.
 
-WORKER1 (Laptop41): fresh (doctor 02:41, live/autopilot 02:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
+WORKER1 (Laptop41): fresh (doctor 12:56, live 12:54 UTC), STANDBY on purpose since 00:57 (V's 10 Oct order); no split-brain. #267: its bridges are now reported 'off: standby', not a fault. Doctor's only PROBLEM, the absent cover task 'Alpha Standby', has no remedy left (V ruled out standby-install): ASKS asks V whether it should become a Note.
 control/host h32 still queued.
 
-Merged: #253-#265; #267-#270, #273 autopilot/doctor fixes for a standby; #271 3-6-9 closed; #272 saves alpha-serv-01's GPU-demand code (confirmed matching, Alpha#94).
+Merged: #253-#265; #267-#270, #273, #275 autopilot/doctor fixes for a standby (#275: bridges check reports only a change); #271 3-6-9 closed; #272 saves alpha-serv-01's GPU-demand code (confirmed matching, Alpha#94).
 
 NEEDS V: go/no-go on the music-bridge billing pair, #274 + Alpha#95 (plan comes from Alpha's entitlements, not the bridge's own Stripe; both tested, mergeable, not merged); re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
