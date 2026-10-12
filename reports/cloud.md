@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-12 18:57 UTC
+Claude (cloud) report, 2026-10-12 19:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 (last night's short 530 recovered).
 
@@ -6,11 +6,11 @@ alpha-ai.uk: 200 from alpha-serv-01 (last night's short 530 recovered).
 
 Worker1 ComfyUI: on demand only (V, settled 03:36); the task stays Disabled. CPU work only on alpha-serv-01.
 Owner-approved 03:41 (claude-alpha-serv): "agents on, big changes still asked": background automation on at alpha-serv-01; consequential upgrades still refused. The Worker1-to-Host merge (merge-wt, not live) is claude-alpha-serv's.
-Worker2 'Laptop Policy Lock' (Codex): CPU only on alpha-serv-01, GPU/Singing on queued demand only; reboot verified. Song check passed on CUDA. Full test suite still blocked by a missing Blender source ('viore'); Alpha asks V. Alpha's replies still misread state.
+Worker2 'Laptop Policy Lock' (Codex): CPU only on alpha-serv-01, GPU/Singing on queued demand only; reboot verified. Song check passed on CUDA. Full test suite still blocked by a missing Blender source ('viore'); Alpha asks V.
 
-alpha-serv-01 is the sole server; its coordinator ran (agent AlphaServer) at last check.
+alpha-serv-01 is the sole server (coordinator agent AlphaServer).
 
-WORKER1 (Laptop41): fresh (doctor 18:11, live 18:54 UTC). 'STANDBY BUT SERVING' since 17:43: the doctor's 'backend' is AlphaPanelFeed's python (panel feed), not software/backend; ports 8001/4173 and cloudflared are clean. Likely a false positive; #277 (open) makes standby probe the port instead. Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (Note? V decides); CPU-90% flaps (owner's apps).
+WORKER1 (Laptop41): fresh (doctor 19:26, live 19:54 UTC). 'STANDBY BUT SERVING' since 17:43: the doctor's 'backend' is AlphaPanelFeed's python (panel feed), not software/backend; ports 8001/4173 and cloudflared are clean. False positive; #277 MERGED 19:30 UTC (main 5c6c696) makes standby probe the port; Worker1 still runs c1aa435, so it clears after its next self-update. Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (Note? V decides); CPU-90% flaps (owner's apps).
 control/host h32 still queued.
 
 New: Alpha#101, #102, #104 merged (A1 /recommendations/debug; Elegoo upload card removed). Alpha#103 OPEN: memory/books rewrite, 37 files; fixes a prune that deleted users' memories >7 days. Needs V's review before merge (main 12639e6 handoff).
@@ -18,7 +18,7 @@ Earlier merged: #253-#276 (standby autopilot/doctor fixes; #272 GPU-demand code,
 
 NEEDS V: review Alpha#103; go/no-go on the music-bridge billing pair, #274 + Alpha#95 (plan from Alpha's entitlements; tested, mergeable); re-issue agent keys; .env.local to alpha-serv-01 by USB, collect the memory copy there; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
-Open: #277, #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
+Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
 
 Still stands:
