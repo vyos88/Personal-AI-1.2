@@ -1,4 +1,4 @@
-laptop41-doctor 20261012-094104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ f5141be0 2026-10-12)
+laptop41-doctor 20261012-104105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ f5141be0 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,24 +6,24 @@ laptop41-doctor 20261012-094104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 3400 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 3460 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
   ok: 3.3 of 15.8 GB RAM free
-  ok: C: 137.2 GB free
-  ok: CPU 66% (Alpha holds GPU admission at 90%)
-  ChatGPT                       1,219 MB  pid 2184
-  Memory Compression              818 MB  pid 3840
-  claude                          621 MB  pid 2164
-  ChatGPT                         515 MB  pid 22856
-  MsMpEng                         399 MB  pid 6040
-  ChatGPT                         393 MB  pid 19812
-  ChatGPT                         334 MB  pid 17956
-  explorer                        324 MB  pid 10108
+  ok: C: 137 GB free
+  ok: CPU 76% (Alpha holds GPU admission at 90%)
+  ChatGPT                       1,328 MB  pid 2184
+  Memory Compression              821 MB  pid 3840
+  claude                          623 MB  pid 2164
+  ChatGPT                         526 MB  pid 22856
+  ChatGPT                         398 MB  pid 19812
+  MsMpEng                         334 MB  pid 6040
+  ChatGPT                         329 MB  pid 17956
+  explorer                        325 MB  pid 10108
 
 === SUMMARY ===
-  this pass took 14s
-  - NEEDS A PERSON - automatic cover last ran 3400 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 117 run(s), since 2026-10-11T04:41:17)
+  this pass took 16s
+  - NEEDS A PERSON - automatic cover last ran 3460 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 121 run(s), since 2026-10-11T04:41:17)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
