@@ -1308,7 +1308,9 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(md, /\| Alpha \(backend, site, alpha-ai\.uk\) \| LIVE \| backend 200, site 200, alpha-ai\.uk 200 \(checked by self-heal, 0 min ago\)/);
   assert.match(md, /\| Role \| PRIMARY \| this machine serves Alpha; automatic cover is not installed here \|/);
   assert.match(md, /\| Data copy \| OFF \| no data copy here \(autofix\.dataSync\) \|/);
-  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked/);
+  // The receipt's own time, and its age: this one is UTC beside a local
+  // header, which is the pairing that got a fresh receipt called stale.
+  assert.match(md, /\| Decks \| 2 live, 1 setting \| not live: CrowPanel: feed \(\/panel\/crowpanel\/state\), display \(LAN reads\) \(checked 2026-10-07T02:30:00(Z|\+00:00) \(\d+ min ago\)\) \|/);
   const json = JSON.parse(git(remote, 'show', 'status/laptop41-live:reports/live.json').replace(/^﻿/, ''));
   assert.equal(json.alpha.verdict, 'LIVE');
 
@@ -1406,14 +1408,33 @@ test('the live report is written every pass, and a stopped self-heal is started 
   assert.match(live(), /automatic cover is NOT RUNNING \(last pass 12 min ago\)/);
 
   // Phase 3's data: what was sent and applied, and what waits for data-apply.
+  // Every time carries its age in minutes. The header is this machine's local
+  // time and these are UTC, so a reader subtracting by eye is an hour out --
+  // the mistake that had a five-minute-old deck receipt reported as stale.
   mkdirSync(join(ops, 'data-sync'), { recursive: true });
+  const minsAgo = (n) => new Date(Date.now() - n * 60 * 1000).toISOString().replace(/\.\d+Z$/, 'Z');
   writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T18:10:00Z', to: 'laptop-gj8dfmlk', files: 12 }, lastApply: { at: '2026-10-09T18:00:00Z', from: 'LAPTOP-GJ8DFMLK', files: 3, keptNewerHere: 1 }, held: 1 }));
   run();
-  assert.match(live(), /\| Data copy \| HELD \| sent 12 file\(s\) to laptop-gj8dfmlk at 2026-10-09T18:10:00Z; applied 3 from LAPTOP-GJ8DFMLK at 2026-10-09T18:00:00Z \(1 newer here kept\); 1 package\(s\) HELD: queue data-apply \|/);
-  // a full copy streaming in parts, with files that could not be packed yet
+  assert.match(live(), /\| Data copy \| HELD \| sent 12 file\(s\) to laptop-gj8dfmlk at 2026-10-09T18:10:00Z \(\d+ min ago\); applied 3 from LAPTOP-GJ8DFMLK at 2026-10-09T18:00:00Z \(\d+ min ago\) \(1 newer here kept\); 1 package\(s\) HELD: queue data-apply \|/);
+  // The age is read as UTC whatever this machine's zone is: an hour out either
+  // way is exactly the failure it exists to stop, so the number is checked.
+  writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: minsAgo(90), to: 'alpha-serv-01', files: 7 } }));
+  run();
+  assert.match(live(), /\| Data copy \| ON \| sent 7 file\(s\) to alpha-serv-01 at \S+ \(9[01] min ago\) \|/, live());
+
+  // OWED, not ON, while leftBytes or notPacked say something did not go.
+  // Worker1's last send on 2026-10-11 left 89 MB behind 37 minutes before it
+  // stood down, and a standby sends nothing, so the backlog cannot move until
+  // Alpha serves there again -- and the row read `ON` over it for 36 hours.
+  // A serving machine working through a backlog is owed too; the age beside
+  // the send is what says whether it is moving.
   writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T19:27:00Z', to: 'alpha-serv-01', files: 41, leftBytes: 4513918156, notPacked: 3 } }));
   run();
-  assert.match(live(), /\| Data copy \| ON \| sent 41 file\(s\) to alpha-serv-01 at 2026-10-09T19:27:00Z \(4305 MB still to send\) \(3 file\(s\) not packed yet, tried again each pass\) \|/);
+  assert.match(live(), /\| Data copy \| OWED \| sent 41 file\(s\) to alpha-serv-01 at 2026-10-09T19:27:00Z \(\d+ min ago\) \(4305 MB still to send\) \(3 file\(s\) not packed yet, tried again each pass\) \|/);
+  // Nothing owed is still ON, and HELD still wins over both.
+  writeFileSync(join(ops, 'data-sync', 'state.json'), JSON.stringify({ lastSend: { at: '2026-10-09T19:27:00Z', to: 'alpha-serv-01', files: 41 }, held: 2 }));
+  run();
+  assert.match(live(), /\| Data copy \| HELD \|/);
 
   // Covering: this machine serves for the primary, and the page says so.
   writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }));

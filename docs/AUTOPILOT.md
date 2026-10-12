@@ -273,7 +273,14 @@ has stopped, or cannot see the primary.
     written keeps its package for the next pass (`FAILED`).
 
   The live page's **Data copy** row shows the last send, the last apply and
-  anything held.
+  anything held, each time with its age in minutes -- the page's header is the
+  machine's local time and these times are UTC, so the age is the part to read.
+  The row is **OWED** rather than ON while `leftBytes` or `notPacked` say
+  something did not go, and **HELD** when a package waits for `data-apply`.
+  OWED on a serving machine working through a backlog is ordinary; OWED with
+  the send hours old means nothing is carrying it, which on a standby is what
+  it means by design (a standby sends nothing, so a backlog it stood down with
+  waits until Alpha serves there again).
 
 ## Trust
 

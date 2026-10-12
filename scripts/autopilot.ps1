@@ -442,6 +442,25 @@ function Iso-Text($v) {
   return [string]$v
 }
 
+# How old that time is, in minutes, beside the time itself. The live page's
+# header is this machine's local time and every time inside it is UTC, so a
+# reader subtracting by eye is an hour out -- which is how a five-minute-old
+# deck receipt came to be reported as stale and then withdrawn. The age is the
+# part a reader acts on, so it goes next to the number rather than being left
+# as arithmetic. AssumeUniversal, because a Z-less time in one of these
+# receipts is still UTC; a time ahead of this clock is said to be, never shown
+# as a negative age.
+function Get-AgeNote($Iso, $Now) {
+  $text = Iso-Text $Iso
+  if (-not $text) { return '' }
+  $t = [datetime]::MinValue
+  if (-not [datetime]::TryParse($text, [Globalization.CultureInfo]::InvariantCulture,
+      [Globalization.DateTimeStyles]::AdjustToUniversal -bor [Globalization.DateTimeStyles]::AssumeUniversal, [ref]$t)) { return '' }
+  $min = [int][math]::Floor(($Now.ToUniversalTime() - $t).TotalMinutes)
+  if ($min -lt 0) { return ' (ahead of this clock)' }
+  return " ($min min ago)"
+}
+
 # Cut anything that looks like a credential before a line leaves the machine.
 function Redact([string]$t) {
   # Progress bars (ollama, npm) redraw with escape codes and carriage returns:
@@ -1482,10 +1501,20 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
   if (Test-Path -LiteralPath $dsFile) { try { $dsState = Get-Content -LiteralPath $dsFile -Raw | ConvertFrom-Json } catch { } }
   if ($dsState) {
     $parts = @()
-    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)$(if ([int64]$dsState.lastSend.leftBytes) { " ($([math]::Round([int64]$dsState.lastSend.leftBytes / 1MB)) MB still to send)" })$(if ([int]$dsState.lastSend.notPacked) { " ($($dsState.lastSend.notPacked) file(s) not packed yet, tried again each pass)" })" }
-    if ($dsState.lastApply) { $parts += "applied $($dsState.lastApply.files) from $($dsState.lastApply.from) at $(Iso-Text $dsState.lastApply.at)$(if ([int]$dsState.lastApply.keptNewerHere) { " ($($dsState.lastApply.keptNewerHere) newer here kept)" })" }
+    if ($dsState.lastSend) { $parts += "sent $($dsState.lastSend.files) file(s) to $($dsState.lastSend.to) at $(Iso-Text $dsState.lastSend.at)$(Get-AgeNote $dsState.lastSend.at $now)$(if ([int64]$dsState.lastSend.leftBytes) { " ($([math]::Round([int64]$dsState.lastSend.leftBytes / 1MB)) MB still to send)" })$(if ([int]$dsState.lastSend.notPacked) { " ($($dsState.lastSend.notPacked) file(s) not packed yet, tried again each pass)" })" }
+    if ($dsState.lastApply) { $parts += "applied $($dsState.lastApply.files) from $($dsState.lastApply.from) at $(Iso-Text $dsState.lastApply.at)$(Get-AgeNote $dsState.lastApply.at $now)$(if ([int]$dsState.lastApply.keptNewerHere) { " ($($dsState.lastApply.keptNewerHere) newer here kept)" })" }
     if ([int]$dsState.held) { $parts += "$($dsState.held) package(s) HELD: queue data-apply" }
-    $data.state = if ([int]$dsState.held) { 'HELD' } else { 'ON' }
+    # OWED, not ON, while leftBytes or notPacked say something did not go.
+    # On 2026-10-11 Worker1's last send left 89 MB behind 37 minutes before it
+    # stood down, and a standby sends nothing (alpha-data-sync.ps1: only a
+    # machine whose backend answers here sends, once more after it stops), so
+    # that backlog cannot move until Alpha serves here again. The row read
+    # `ON` for 36 hours over it. This is not a staleness judgement with a
+    # threshold to pick: leftBytes is the script's own count of what it did
+    # not send, and a serving machine working through a backlog is owed too --
+    # the age beside the send is what says whether it is moving.
+    $owed = $dsState.lastSend -and ([int64]$dsState.lastSend.leftBytes -gt 0 -or [int]$dsState.lastSend.notPacked -gt 0)
+    $data.state = if ([int]$dsState.held) { 'HELD' } elseif ($owed) { 'OWED' } else { 'ON' }
     $data.detail = if ($parts.Count) { $parts -join '; ' } else { 'baseline set; nothing sent or applied yet' }
   } elseif ($ds) { $data.state = 'ON'; $data.detail = "copying with $($ds.peer); no pass yet" }
   $decks = [ordered]@{ summary = 'not checked yet'; not_live = @(); checked_at = $null }
@@ -1510,7 +1539,12 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
       $counts = @($verdicts | Group-Object | ForEach-Object { "$($_.Count) $($_.Name.ToLower())" })
       $decks.summary = $counts -join ', '
       $decks.not_live = $(if ($r.sources) { $notLive } else { @($r.not_live) })
-      $decks.checked_at = [string]$r.checked_at
+      # Iso-Text, not [string]: PowerShell 7 reads the receipt's ISO time out
+      # of JSON as a date, and [string] on a date gives this machine's culture
+      # format -- `10/07/2026 02:30:00`, with no zone on it at all, into the
+      # page and into live.json. 5.1 leaves it text, so the two hosts printed
+      # the row differently and only the 5.1 one was ever looked at.
+      $decks.checked_at = Iso-Text $r.checked_at
     } catch { $decks.summary = 'receipt unreadable' }
   }
   $syncState = (($syncKey -replace '^\d+ ', '') -split ' \| ' | Where-Object { $_ -match '^(IN SYNC|DELIVERED|REFUSED|FAILED|WAITING|STOP)' } | Select-Object -First 1)
@@ -1525,7 +1559,7 @@ if ($control -and $control.autofix -and $control.autofix.heartbeat) {
     "| Role | $($cover.role) | $(Redact $cover.detail) |",
     "| Data copy | $($data.state) | $(Redact $data.detail) |",
     "| Repair agent (self-heal) | $($heal.state) | $(if ($standby) { 'off on purpose: another machine serves Alpha' } elseif ($null -ne $heal.age_min) { "last pass $($heal.age_min) min ago, $($heal.repairs) repair(s) in it" } else { 'no log: run scripts\repair-alpha-host.ps1' })$(if ($heal.unfinished) { "; $($heal.unfinished)" })$(if ($heal.why) { "; $($heal.why)" })$(if ($heal.snapshot) { "; $($heal.snapshot)" })$(if ($heal.restarted) { "; $($heal.restarted)" }) |",
-    "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at))" }) |",
+    "| Decks | $($decks.summary) | $(if ($decks.not_live.Count) { 'not live: ' + ($decks.not_live -join '; ') } else { 'all data decks live' })$(if ($decks.checked_at) { " (checked $($decks.checked_at)$(Get-AgeNote $decks.checked_at $now))" }) |",
     "| Live sync | $(($syncState -split ':')[0]) | $syncState |", ''
   ) -join "`n"
   $json = [ordered]@{ at = $now.ToString('o'); machine = $env:COMPUTERNAME; alpha = $alpha; role = $cover; data = $data; selfheal = $heal; decks = $decks; sync = $syncState } | ConvertTo-Json -Depth 5
