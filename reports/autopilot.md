@@ -1,9 +1,24 @@
-﻿# laptop41 autopilot 20261012-043346
+﻿# laptop41 autopilot 20261012-043846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout f5141be0 is current
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-bridges-20261012-043846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T04:38:58, 0s)
+```
+'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
+'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
+'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
+'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
+```
+
+## auto-home-wifi-20261012-043846  home-wifi (standing)  ->  0 (none)   (2026-10-12T04:39:33, 23s)
+```
+on 'STARLINK' while 'Starlink V' is visible: rejoining it with its saved profile
+rejoin: Success (-16 dBm)
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## auto-bridges-20261012-043346  bridges (standing)  ->  0 (off: standby)   (2026-10-12T04:33:57, 0s)
 ```
@@ -142,22 +157,6 @@ queue: 109 action(s) on control/laptop41, all of them already run
 ```
 
 ## auto-bridges-20261012-030846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T03:08:59, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-030347  bridges (standing)  ->  0 (off: standby)   (2026-10-12T03:04:00, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-025847  bridges (standing)  ->  0 (off: standby)   (2026-10-12T02:59:01, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
