@@ -1,4 +1,4 @@
-laptop41-doctor 20261012-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261012-221102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,25 +6,25 @@ laptop41-doctor 20261012-214103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 4120 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 4150 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.1 of 15.8 GB RAM free
+  ok: 3.2 of 15.8 GB RAM free
   ok: C: 135.6 GB free
-  ok: CPU 15% (Alpha holds GPU admission at 90%)
-  Memory Compression              939 MB  pid 3840
+  ok: CPU 11% (Alpha holds GPU admission at 90%)
+  Memory Compression              937 MB  pid 3840
   claude                          648 MB  pid 2164
-  ChatGPT                         572 MB  pid 22856
-  ChatGPT                         475 MB  pid 19812
-  MsMpEng                         407 MB  pid 6040
+  ChatGPT                         575 MB  pid 22856
+  MsMpEng                         406 MB  pid 6040
+  ChatGPT                         401 MB  pid 19812
+  WindowsTerminal                 396 MB  pid 25112
   explorer                        396 MB  pid 10108
-  ChatGPT                         387 MB  pid 2184
-  WindowsTerminal                 356 MB  pid 25112
+  ChatGPT                         388 MB  pid 2184
 
 === SUMMARY ===
   this pass took 10s
-  - NEEDS A PERSON - automatic cover last ran 4120 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 165 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 12 run(s), since 2026-10-12T18:56:49)
+  - NEEDS A PERSON - automatic cover last ran 4150 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 167 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 7828 python.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\python.exe" C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted> --policy C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json --receipt C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 14 run(s), since 2026-10-12T18:56:49)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
