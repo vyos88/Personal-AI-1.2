@@ -820,15 +820,33 @@ test('a standby is checked as a standby: who serves, and nothing of Alpha here',
   assert.doesNotMatch(out, /PROBLEM: (standby|https)/);
 });
 
-test('a standby with Alpha still serving here is two Alphas, and says so', { skip, timeout: 300_000 }, async () => {
-  const stubs = `${publicAnswers}
-function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }
+// The port is held by a process the doctor can name; whether that process is
+// Alpha is a second question, and the two answers want opposite remedies.
+const heldPort = (command) => `function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }
 function Get-CimInstance { param($ClassName, $Filter)
-  if ("$Filter" -like 'ProcessId=*') { [pscustomobject]@{ ProcessId = 4242; Name = 'python.exe'; CommandLine = 'python run_server.py' } }
+  if ("$Filter" -like 'ProcessId=*') { [pscustomobject]@{ ProcessId = 4242; Name = 'python.exe'; CommandLine = '${command}' } }
   elseif ("$Filter" -like "Name='cloudflared.exe'") { [pscustomobject]@{ ProcessId = 99; Name = 'cloudflared.exe' } } }`;
-  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs });
+
+test('a standby with Alpha still serving here is two Alphas, and says so', { skip, timeout: 300_000 }, async () => {
+  // This backend answers /health, so it really is a second Alpha.
+  const answers = "function curl.exe { if ($args[-1] -like 'https://alpha-ai.uk*' -or $args[-1] -like '*/health') { '200' } }";
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: `${answers}\n${heldPort('python run_server.py')}` });
   assert.match(out, /PROBLEM: standby, but the backend runs here \(pid 4242 python\.exe: python run_server\.py\): two Alphas/);
   assert.match(out, /PROBLEM: standby, but 1 cloudflared process\(es\) run here: alpha-ai\.uk's traffic is split between two machines/);
+});
+
+// 2026-10-12, 18:56:49Z: the held port was AlphaPanelFeed's helper, and the
+// deck-liveness check in the same pass set said backend (/health) -> no answer.
+// Reported as "two Alphas" it sends somebody to alpha-standdown (which stops
+// services that are already stopped) or alpha-standup (which cannot bind).
+test('a standby whose backend port is held by something else says so, not "two Alphas"', { skip, timeout: 300_000 }, async () => {
+  const feed = 'C:/Python312/python.exe C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_feed.py --policy policy.json --receipt latest.json';
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: `${publicAnswers}\n${heldPort(feed)}` });
+  assert.match(out, /PROBLEM: standby, and the backend port \d+ is held by something that is not Alpha \(pid 4242 python\.exe: .*AlphaPanelFeed/);
+  assert.match(out, /it answered 000, so nothing of Alpha serves here/);
+  assert.match(out, /stop that process on the machine/);
+  const line = out.split('\n').find((l) => /the backend port \d+ is held/.test(l));
+  assert.doesNotMatch(line, /two Alphas/, 'the remedy that would not free the port is not offered');
 });
 
 // Phase 3: a standby's automatic cover is checked too. Not installed, stopped,
@@ -860,4 +878,78 @@ test('a machine covering for the primary is checked as the serving Alpha, and sa
   assert.match(out, /=== 0\. Covering for laptop-gj8dfmlk ===/);
   assert.match(out, /role\.json says covering since 2026-10-09T18:02:00Z: laptop-gj8dfmlk's Alpha did not answer, so this machine serves Alpha/);
   assert.match(out, /=== 1\. Backend/, 'the serving checks still run');
+});
+
+// 2026-10-12, 18:56:49Z on Laptop41: a standby since 00:57Z, Alpha served from
+// alpha-serv-01, and a new PROBLEM reading
+//
+//   standby, but the backend runs here (pid 7828 python.exe: ...
+//   AlphaPanelFeed/alpha_*.py --policy ... --receipt ...): two Alphas.
+//   Queue alpha-standdown again, or alpha-standup to serve here
+//
+// That process is the AlphaPanelFeed helper out of %LOCALAPPDATA%, not
+// software\backend, and the deck-liveness check in the same pass set said
+// `backend (/health) -> the backend does not answer`. So the port was held by
+// something that is not Alpha, and both remedies the line names are wrong:
+// alpha-standdown stops services that are already stopped, alpha-standup would
+// fail to bind. The check read the port and nothing else. Get-StandbyPortVerdict
+// is the seam.
+const portVerdict = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-standby-port-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-StandbyPortVerdict', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('on a standby, a held port is only a second Alpha if it answers as one', { skip }, () => {
+  const owner = 'pid 7828 python.exe: ...AlphaPanelFeed/alpha_feed.py --policy ... --receipt ...';
+
+  // Nothing listening: not a problem, and the wording the report already had.
+  const free = portVerdict({ what: 'backend', port: 8001, owner: '', code: '' });
+  assert.equal(free.problem, false);
+  assert.equal(free.note, 'no backend here (port 8001 free)');
+
+  // Held and answering /health: a real second Alpha, with the real remedy.
+  for (const code of ['200', '204', '301']) {
+    const two = portVerdict({ what: 'backend', port: 8001, owner, code });
+    assert.equal(two.problem, true, code);
+    assert.match(two.note, /two Alphas\. Queue alpha-standdown again, or alpha-standup to serve here/, code);
+  }
+
+  // Held and not answering: the Laptop41 case. A problem still, but a
+  // different one -- and it must not send anybody to standdown or standup,
+  // because neither would free the port.
+  for (const code of ['000', '404', '500']) {
+    const squat = portVerdict({ what: 'backend', port: 8001, owner, code });
+    assert.equal(squat.problem, true, code);
+    assert.match(squat.note, /held by something that is not Alpha/, code);
+    assert.match(squat.note, new RegExp(`it answered ${code}`), code);
+    assert.match(squat.note, /could not start here until that process lets the port go/, code);
+    assert.match(squat.note, /stop that process on the machine/, code);
+    assert.doesNotMatch(squat.note, /two Alphas/, code);
+  }
+  assert.match(portVerdict({ what: 'backend', port: 8001, owner, code: '404' }).note, /pid 7828/,
+    'the note still names the process, which is the only way to find it');
+
+  // An unprobed port keeps the old verdict: a code never obtained is not
+  // evidence, which is the rule the CPU reading follows. The site is passed
+  // this way, because Vite preview may serve HTTPS with its own certificate
+  // here and probing it would make a self-signed site a false squatter.
+  const site = portVerdict({ what: 'site', port: 4173, owner: 'pid 99 node.exe: vite preview', code: '' });
+  assert.equal(site.problem, true);
+  assert.match(site.note, /standby, but the site runs here/);
+  assert.match(site.note, /two Alphas/);
+});
+
+test('the standby check probes the backend port and leaves the site alone', { skip }, () => {
+  const text = readFileSync(DOCTOR, 'utf8');
+  // The probe is the backend's /health, the same URL the serving checks read.
+  assert.match(text, /@\('backend', \$BackendPort, "http:\/\/127\.0\.0\.1:\$BackendPort\/health"\), @\('site', \$FrontendPort, ''\)/);
+  // The verdict comes from the seam, so the test above is testing the report.
+  assert.match(text, /\$v = Get-StandbyPortVerdict \$pair\[0\]/);
+  assert.match(text, /if \(\$v\.problem\) \{ Problem \$v\.note \} else \{ OK \$v\.note \}/);
+  // And the old port-only wording is gone from the call site.
+  assert.ok(!/if \(\$o\) \{ Problem "standby, but the/.test(text), 'the port alone no longer decides');
 });

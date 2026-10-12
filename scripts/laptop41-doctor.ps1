@@ -66,6 +66,7 @@ param(
   # Test seam: a JSON file of { before, after, seconds, cores }; prints which
   # processes used the CPU across that window.
   [string]$ReadCpuBusiest,
+  [string]$StandbyPortVerdict,
   # Test seam: a JSON file of { files: [{path, at}], built }; prints whether
   # the build predates anything it would have shipped.
   [string]$ReadStaleBuild,
@@ -297,6 +298,28 @@ function Read-SelfHeal([string]$Ops, [int]$FreshMinutes = 10) {
 
 # Answered before the script opens a transcript or writes a report: a test seam
 # that touches the machine is not one.
+# Holding the port is not being Alpha, and the two want opposite remedies.
+# On 2026-10-12 at 18:56Z Laptop41's AlphaPanelFeed helper came up on 8001 --
+# %LOCALAPPDATA%\AlphaPanelFeed\alpha_*.py with --policy and --receipt,
+# nothing to do with software\backend -- and this check reported "the backend
+# runs here ... two Alphas" and asked for alpha-standdown or alpha-standup.
+# Neither would have helped: standdown stops Alpha's services, which were
+# already stopped, and standup would try to bind a port something else holds.
+# The deck-liveness check in the same pass set already said what the port
+# alone cannot -- backend (/health) -> the backend does not answer -- so one
+# probe here settles which of the two it is.
+#
+# An unprobed port keeps the old verdict rather than guessing: a code that was
+# never obtained is not evidence, which is the rule the CPU reading follows.
+function Get-StandbyPortVerdict([string]$What, [int]$Port, [string]$Owner, [string]$Code) {
+  if (-not $Owner) { return [ordered]@{ problem = $false; note = "no $What here (port $Port free)" } }
+  if (-not $Code -or $Code -like '2*' -or $Code -like '3*') {
+    return [ordered]@{ problem = $true
+      note = "standby, but the $What runs here ($Owner): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here" }
+  }
+  return [ordered]@{ problem = $true
+    note = "standby, and the $What port $Port is held by something that is not Alpha ($Owner): it answered $Code, so nothing of Alpha serves here -- and Alpha could not start here until that process lets the port go. alpha-standdown stops services that are already stopped and alpha-standup would fail to bind: stop that process on the machine" }
+}
 if ($PSBoundParameters.ContainsKey('ReadCpuPressure')) {
   Read-CpuPressure $ReadCpuPressure 90 ([bool]$ReadCpuStandby) | ConvertTo-Json -Compress
   exit 0
@@ -314,6 +337,11 @@ if ($PSBoundParameters.ContainsKey('ReadStaleBuild')) {
 if ($PSBoundParameters.ContainsKey('ReadCpuBusiest')) {
   $f = Get-Content -LiteralPath $ReadCpuBusiest -Raw | ConvertFrom-Json
   Read-CpuBusiest $f.before $f.after ([double]$f.seconds) ([int]$f.cores) | ConvertTo-Json -Depth 5 -Compress
+  exit 0
+}
+if ($PSBoundParameters.ContainsKey('StandbyPortVerdict')) {
+  $f = Get-Content -LiteralPath $StandbyPortVerdict -Raw | ConvertFrom-Json
+  Get-StandbyPortVerdict ([string]$f.what) ([int]$f.port) ([string]$f.owner) ([string]$f.code) | ConvertTo-Json -Compress
   exit 0
 }
 if ($ExplainSelfHeal) {
@@ -712,10 +740,16 @@ function Standby-Checks {
   $pub = Http "https://$PublicHost/"
   if ($pub -like '2*' -or $pub -like '3*') { OK "https://$PublicHost/ answers $pub, served from $primary" }
   else { Problem "https://$PublicHost/ answers $pub and this machine is standby: nobody serves Alpha. If $primary stays down, queue alpha-standup here" }
-  foreach ($pair in @(@('backend', $BackendPort), @('site', $FrontendPort))) {
+  # Only the backend port is probed. It has /health, which the serving checks
+  # already read the same way. The site is Vite preview and may serve HTTPS
+  # with its own certificate here (Body carries that note, and the live page's
+  # Decks row reads the site as https://127.0.0.1:4173), so a probe of it
+  # would turn a self-signed site into a false squatter. It stays port-only
+  # until that is settled, and an unprobed port keeps the old verdict.
+  foreach ($pair in @(@('backend', $BackendPort, "http://127.0.0.1:$BackendPort/health"), @('site', $FrontendPort, ''))) {
     $o = Owner $pair[1]
-    if ($o) { Problem "standby, but the $($pair[0]) runs here ($(Describe $o)): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here" }
-    else { OK "no $($pair[0]) here (port $($pair[1]) free)" }
+    $v = Get-StandbyPortVerdict $pair[0] ([int]$pair[1]) $(if ($o) { Describe $o } else { '' }) $(if ($o -and $pair[2]) { Http $pair[2] } else { '' })
+    if ($v.problem) { Problem $v.note } else { OK $v.note }
   }
   $cfp = @(Get-CimInstance Win32_Process -Filter "Name='cloudflared.exe'" -EA SilentlyContinue)
   if ($cfp.Count) { Problem "standby, but $($cfp.Count) cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines" }
