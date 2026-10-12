@@ -1,14 +1,14 @@
 {
     "cloudSeen":  "c18eee5774478321bc46bff5dbedc16b637a83ee",
-    "lastRun":  "2026-10-12T12:41:22",
+    "lastRun":  "2026-10-12T13:56:26",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  129,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 3580 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  134,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 3655 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-12T12:41:22",
+    "lastPost":  "2026-10-12T13:56:26",
     "relay":  "relayed status/cloud c18eee5"
 }
