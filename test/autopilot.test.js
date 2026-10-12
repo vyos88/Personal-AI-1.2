@@ -404,6 +404,75 @@ test('the bridge check asks role.json and the task state before claiming a resta
   assert.ok(!/-match 'still nothing'/.test(text), 'the verdict is not read back out of the report text');
 });
 
+// 2026-10-11/12: the bridge check was the one standing check in this file with
+// no change key, so a bridge that stayed down added its entry to $ran on every
+// pass -- and $ran is the push gate (autopilot.ps1 `if (-not $ran.Count ...)`).
+// After Worker1 stood down at 00:57:18Z its two bridge tasks were Disabled for
+// good, so status/laptop41-autopilot took 385 commits in the next 35 hours and
+// 380 of them carried nothing but that line, 272 of those reading
+// `0 (off: standby)` twice over. That branch being quiet unless something ran
+// is the whole way a stalled autopilot is told from an idle one, so the noise
+// cost the branch its only signal. It reports a change now, like the brain,
+// deck, watch, Wi-Fi, live-sync and data-sync checks already did.
+test('a bridge that stays down is reported once, not once a pass', { skip }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'autopilot-bridge-key-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  const ctl = join(dir, 'ctl');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  for (const f of ['autopilot.ps1', 'self-update.mjs']) copyFileSync(join(import.meta.dirname, '..', 'scripts', f), join(work, 'scripts', f));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(dir, 'clone', '-q', remote, ctl);
+  git(ctl, 'checkout', '-q', '--orphan', 'control/laptop41');
+  writeFileSync(join(ctl, 'actions.json'), JSON.stringify({ actions: [] }));
+  git(ctl, 'add', 'actions.json');
+  git(ctl, 'commit', '-qm', 'control');
+  git(ctl, 'push', '-q', 'origin', 'control/laptop41');
+
+  const ops = join(dir, 'ops');
+  const alpha = join(dir, 'alpha');
+  mkdirSync(join(alpha, 'software'), { recursive: true });
+  mkdirSync(ops, { recursive: true });
+  // Worker1 since 00:57:18Z: a standby, so the plan is 'off' rather than a
+  // restart, and the two bridge tasks stay Disabled for as long as that lasts.
+  writeFileSync(join(ops, 'role.json'), JSON.stringify({ role: 'standby', primary: 'alpha-serv-01' }));
+  const fakes = "function Get-ScheduledTask { param($TaskName) if ($TaskName -like '*bridge') { [pscustomobject]@{ TaskName = $TaskName; State = 'Disabled' } } }; "
+    + 'function Get-ScheduledTaskInfo { param($TaskName) [pscustomobject]@{ LastRunTime = [datetime]\'2026-10-11T01:18:54\'; LastTaskResult = [int64]266502 } }; '
+    + 'function Get-NetTCPConnection { }; ';
+  const run = () => spawnSync(PWSH, ['-NoProfile', '-Command',
+    `${fakes}& '${join(work, 'scripts', 'autopilot.ps1')}' -OpsDir '${ops}' -AlphaRoot '${join(alpha, 'software')}'; exit $LASTEXITCODE`],
+  { encoding: 'utf8', env: { ...process.env, COMPUTERNAME: 'DESKTOP-41HPLCN' } });
+  const commits = () => git(remote, 'log', '--format=%s', 'status/laptop41-autopilot').trim().split('\n').length;
+
+  let r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  // The lines still print every pass: the console is the machine's transcript.
+  assert.match(r.stdout, /'alpha-music bridge' was not listening on 8790: standby/);
+  const report = git(remote, 'show', 'status/laptop41-autopilot:reports/autopilot.md');
+  assert.match(report, /auto-bridges-\S+\s+bridges \(standing\)\s+->\s+0 \(off: standby\)/);
+  const first = commits();
+
+  // Same two tasks, same state, same verdict: not news, so nothing is pushed.
+  r = run();
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.match(r.stdout, /'alpha-image bridge' was not listening on 7861: standby/);
+  assert.match(r.stdout, /nothing new to run/);
+  assert.equal(commits(), first, 'the second pass pushed no report for the same bridge state');
+
+  // What is kept is the state and what was done about it, never the lines --
+  // LastRunTime moves on its own, and a key carrying it would report forever.
+  // 'off' and not 'held', because on a standby the bridges being down is the
+  // point: a machine back off standby with its tasks still Disabled is a
+  // different key, and gets reported.
+  const state = JSON.parse(readFileSync(join(ops, 'autopilot', 'state.json'), 'utf8'));
+  assert.equal(state.bridgeKey, 'alpha-music bridge=Disabled:off|alpha-image bridge=Disabled:off');
+});
+
 // 2026-10-11: V queued 20261011-c1-enable-image on control/laptop41 at
 // 01:18:27Z and it had not run eleven hours and ~130 published reports later.
 // Nothing in a report could say which of three things it was -- the id already
