@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-13 02:57 UTC
+Claude (cloud) report, 2026-10-13 03:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 (last night's short 530 recovered).
 
@@ -10,13 +10,13 @@ Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand o
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 02:11, live 02:54 UTC). 'STANDBY BUT SERVING' since 17:43: the doctor's 'backend' is AlphaPanelFeed's python (panel feed), not software/backend; ports 8001/4173 and cloudflared are clean. False positive; #277 MERGED 19:30 UTC makes standby probe the port; Worker1 still runs c1aa435 at 02:11 (7h after #277: self-update running?); clears once it updates. #278 merged (live page shows checkout updating). Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (Note? V decides); CPU-90% flaps (owner's apps).
+WORKER1 (Laptop41): fresh (doctor 03:11, live 03:43 UTC). 'STANDBY BUT SERVING' is a false positive (AlphaPanelFeed's python, not the backend; ports clean); #277 fixes it; Worker1 still runs c1aa435 at 03:11 (8h after #277: self-update running?); clears once it updates. Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (Note? V decides); CPU-90% flaps (owner's apps).
 control/host h32 still queued.
 
-Merged: Alpha#101, #102, #104, #111; NEW Alpha#116: Music Creator live panel: fleet line, 'Made on the fleet', Remove vocals (billing untouched). Alpha#103 OPEN: memory/books rewrite; fixes a prune that deleted users' memories. Needs V's review. OPEN, need V (credentials): Alpha#109 Spotify token stored encrypted at rest; Alpha#110 new Ring integration (unofficial API, takes the Ring password). Neither tested on a real account. NEW: Alpha#113 OPEN, Execute tab as a real owner shell in the web UI; needs V's security review.
+Merged: Alpha#101-#102, #104, #111, #116 (Music Creator: fleet line, 'Made on the fleet', Remove vocals; billing untouched). Alpha#103 OPEN: memory/books rewrite; fixes a prune that deleted users' memories. OPEN (credentials): Alpha#109 Spotify token stored encrypted at rest; Alpha#110 new Ring integration (unofficial API, takes the Ring password). Neither tested on a real account. Alpha#113 OPEN: owner shell in the web UI.
 Earlier merged: #253-#278.
 
-NEEDS V: review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: Alpha#117 ALPHA 2.0 RELEASE (594 files; APK/installers never built; GitHub Actions never started a job: check Billing and Actions settings; Android signing secrets) is a ship decision; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
@@ -31,4 +31,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: no standdown on Worker1 for the panel feed; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
+Alpha/Codex: no standdown on Worker1 for the panel feed; leave Alpha#103/#109/#110/#113/#117 for V. Alpha: ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
