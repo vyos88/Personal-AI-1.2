@@ -1,6 +1,16 @@
 # Handoff: Laptop41's doctor watch loop appears to have stalled
 
-Found during the 2026-10-13 08:27 UTC hourly check.
+**Update (14:27 UTC):** the gap has grown to over **3 hours** since the last
+post. A pass did land at **11:11:39Z** (ending the first ~2-hour gap flagged
+below — that looked like "busy, not dead"), but there has been **no pass
+since**, so as of 14:27Z it has again been **3h16m** with nothing new — the
+longest stretch without a post this session, longer than the first gap. CPU
+is still pinned at 100% ("open 6 run(s), since 2026-10-13T05:02:10" — that
+counter has not moved since 11:11, meaning no pass has run to even re-check
+it), and the last known reading showed free RAM down to **1.7 GB of 15.8 GB**,
+with `OneDrive.Sync.Service` alone holding 1.8 GB.
+
+Original finding, unchanged below.
 
 ## What changed
 
@@ -34,15 +44,18 @@ A scheduled watcher that stops posting is indistinguishable, from here, from
 actually died." Both the laptop41-doctor task and whatever is pegging the CPU
 at 100% are things only someone with hands on Laptop41 (or able to reach its
 tailnet) can check — this is explicitly the kind of live-host state a cloud
-session cannot act on.
+session cannot act on. The one recovery seen so far (a pass did eventually
+land at 11:11:39Z) argues for "busy," but a second, longer silence afterward
+argues the first recovery may not have fixed whatever is slowing or wedging
+the loop.
 
 **Recommendation:** check Laptop41 directly — is the machine responsive, is
 the `-Watch` scheduled task still running, and what is actually driving CPU
-to 100% for 2+ hours (the busiest-process list in the last report could only
-account for 23.2% of usage; 154 processes couldn't be measured without
-Administrator). If the machine is fine and just busy, no action is needed
-beyond waiting it out. If the watch loop itself has died, it needs restarting
-on the machine.
+to 100% for 3+ hours now and RAM down to 1.7GB free (the busiest-process list
+in the last report could only account for 36.4% of usage; 154 processes
+couldn't be measured without Administrator). If the machine is fine and just
+busy, no action is needed beyond waiting it out. If the watch loop itself has
+died or wedged, it needs restarting on the machine.
 
 ## Not escalating again
 
