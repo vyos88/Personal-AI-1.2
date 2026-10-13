@@ -1,9 +1,26 @@
-﻿# laptop41 autopilot 20261013-015845
+﻿# laptop41 autopilot 20261013-050941
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/run-worker1-gpu.ps1, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261013-050941  live-sync (standing)  ->  0 (in sync)   (2026-10-13T05:13:13, 4513s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 850cafa of claude/frie...(30)
+CAPTURED: nothing; every source file here matches 850cafa
+```
+
+## auto-live-sync-20261013-045046  live-sync (standing)  ->  1 (could not run)   (2026-10-13T04:56:27, 141s)
+```
+STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
+```
+
+## auto-live-sync-20261013-045046  live-sync (standing)  ->  1 (could not run)   (2026-10-13T04:56:27, 141s)
+```
+STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
+```
 
 ## auto-live-sync-20261013-015845  live-sync (standing)  ->  0 (in sync)   (2026-10-13T01:58:55, 39s)
 ```
@@ -132,30 +149,6 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 ```
 
 ## auto-bridges-20261012-123347  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:34:09, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-122847  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:29:03, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-122346  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:23:59, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-121847  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:19:05, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
