@@ -1,9 +1,14 @@
-﻿# laptop41 autopilot 20261013-120411
+﻿# laptop41 autopilot 20261013-154912
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/run-worker1-gpu.ps1, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-home-wifi-20261013-154912  home-wifi (standing)  ->  0 (none)   (2026-10-13T16:07:26, 64s)
+```
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## auto-home-wifi-20261013-120411  home-wifi (standing)  ->  1 (could not check)   (2026-10-13T15:42:32, 43s)
 ```
@@ -138,14 +143,6 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 ```
 
 ## auto-bridges-20261012-124346  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:44:00, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-123846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T12:38:59, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
