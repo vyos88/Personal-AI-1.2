@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-14T05:55:09.8517325+01:00",
+    "at":  "2026-10-14T05:59:25.6249929+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 6054 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 6058 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (4594 min ago) (89 MB still to send)"
+                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (4598 min ago) (89 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  6054,
+                     "age_min":  6058,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "1 down, 1 static, 1 no feed",
                   "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-10-14T04:44:21.300245+00:00"
+                  "checked_at":  "2026-10-14T04:59:18.532003+00:00"
               },
-    "sync":  "IN SYNC: this machine runs 571512d of claude/frie...(30)"
+    "sync":  "IN SYNC: this machine runs 01f2f26 of claude/frie...(30)"
 }
