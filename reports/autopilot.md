@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261014-225347
+﻿# laptop41 autopilot 20261014-235348
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261014-235348  live-sync (standing)  ->  0 (in sync)   (2026-10-14T23:54:04, 34s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 6b7e301 of claude/frie...(30)
+CAPTURED: 1 changed and 1 new source file(s) from DESKTOP-41HPLCN, pushed as a60822b on claude/frie...(30)
+```
 
 ## auto-live-sync-20261014-225347  live-sync (standing)  ->  0 (in sync)   (2026-10-14T22:54:07, 5s)
 ```
@@ -132,10 +139,5 @@ on 'Starlink V'; standby: Alpha serves from the primary, so the backend here sta
 ## auto-home-wifi-20261013-154912  home-wifi (standing)  ->  0 (none)   (2026-10-13T16:07:26, 64s)
 ```
 on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
-```
-
-## auto-home-wifi-20261013-120411  home-wifi (standing)  ->  1 (could not check)   (2026-10-13T15:42:32, 43s)
-```
-could not check: no Wi-Fi adapter answered
 ```
 
