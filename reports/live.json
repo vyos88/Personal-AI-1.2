@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-10-14T23:54:44.1864650+01:00",
+    "at":  "2026-10-14T23:59:04.3377742+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 7133 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 7138 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (5673 min ago) (89 MB still to send)"
+                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (5678 min ago) (89 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  7134,
+                     "age_min":  7138,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -28,5 +28,5 @@
                   "not_live":  "all decks: backend (/health)",
                   "checked_at":  "2026-10-14T22:44:14.447061+00:00"
               },
-    "sync":  "IN SYNC: this machine runs 6b7e301 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: fatal: unable to access \u0027https://github.com/vyos88/Alpha/\u0027: Empty reply from server"
 }
