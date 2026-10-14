@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261014-034346
+﻿# laptop41 autopilot 20261014-034845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/run-worker1-gpu.ps1, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261014-034845  live-sync (standing)  ->  0 (in sync)   (2026-10-14T03:49:02, 6s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 80fb262 of claude/frie...(30)
+CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 80fb262 on claude/frie...(30)
+```
 
 ## auto-live-sync-20261014-034346  live-sync (standing)  ->  0 (in sync)   (2026-10-14T03:44:08, 59s)
 ```
@@ -127,14 +134,6 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 ```
 
 ## auto-bridges-20261012-131846  bridges (standing)  ->  0 (off: standby)   (2026-10-12T13:19:01, 0s)
-```
-'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
-'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
-'alpha-image bridge' task was Disabled; last run 10/11/2026 01:19:00, last result 0x41306
-'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
-```
-
-## auto-bridges-20261012-131346  bridges (standing)  ->  0 (off: standby)   (2026-10-12T13:13:57, 0s)
 ```
 'alpha-music bridge' task was Disabled; last run 10/11/2026 01:18:54, last result 0x41306
 'alpha-music bridge' was not listening on 8790: standby: Alpha serves from the primary, so its bridges stay off here
