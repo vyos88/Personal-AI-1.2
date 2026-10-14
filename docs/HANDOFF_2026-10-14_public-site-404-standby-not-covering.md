@@ -1,5 +1,15 @@
 ## Hourly alpha-tunnel handoff check — 2026-10-14, 22:26 pass
 
+### RESOLVED (22:41 pass): site is back to 200
+
+The very next doctor pass (`20261014-224111`, 15 min later) reports
+`ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01` and
+lists it explicitly: `+ fixed since last run: https://alpha-ai.uk/ answers
+404 and this machine is standby: nobody serves Alpha...`. So this was a
+single-pass blip rather than a lasting outage — no fix was pushed from
+this session, and nothing further is needed here. Leaving the original
+write-up below as an accurate record of what was seen at the time.
+
 ### Public site down: `https://alpha-ai.uk/` answers 404
 
 Laptop41's doctor (pass `20261014-222612`) reports:
