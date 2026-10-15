@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261015-213339
+﻿# laptop41 autopilot 20261015-214358
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261015-214358  live-sync (standing)  ->  0 (in sync)   (2026-10-15T21:45:24, 31s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 114ffeb of claude/frie...(30)
+CAPTURED: 6 changed and 2 new source file(s) from DESKTOP-41HPLCN, pushed as 114ffeb on claude/frie...(30)
+```
 
 ## auto-live-sync-20261015-213339  live-sync (standing)  ->  0 (in sync)   (2026-10-15T21:35:55, 167s)
 ```
@@ -136,12 +143,5 @@ DECK DOWN: backend (/health) -> the backend does not answer (no answer)  [decks:
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-live-sync-20261014-161351  live-sync (standing)  ->  0 (in sync)   (2026-10-14T16:14:16, 9s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs e844ef0 of claude/frie...(30)
-CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as e844ef0 on claude/frie...(30)
 ```
 
