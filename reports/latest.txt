@@ -1,4 +1,4 @@
-laptop41-doctor 20261015-184216 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261015-213344 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,34 +6,34 @@ laptop41-doctor 20261015-184216 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 8262 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 8433 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
   ok: 3.7 of 15.8 GB RAM free
   ok: C: 111.5 GB free
   PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               1,323 MB  pid 12240
-  ChatGPT                         840 MB  pid 7372
-  Memory Compression              717 MB  pid 3828
-  Taskmgr                         545 MB  pid 15396
-  MsMpEng                         466 MB  pid 4320
-  ChatGPT                         437 MB  pid 3532
-  ChatGPT                         386 MB  pid 8844
-  ChatGPT                         363 MB  pid 17880
-  --- using the CPU, over 3.2s across 8 logical core(s): the processes it could measure account for 39.1% of the machine
-  ChatGPT                       14.5% CPU   3.75s  pid 17880
-  powershell                     4.1% CPU   1.06s  pid 9144
-  Taskmgr                        3.7% CPU   0.95s  pid 15396
-  ChatGPT                        3.6% CPU   0.94s  pid 7372
-  ChatGPT                        3.0% CPU   0.77s  pid 7464
-  ChatGPT                        2.8% CPU   0.73s  pid 3532
-  150 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x83, WUDFHost x3, fontdrvhost x2, conhost x2, tailscaled x2, csrss x2 (run the doctor as Administrator to see other accounts' process times)
+  Memory Compression            1,068 MB  pid 3828
+  ChatGPT                         925 MB  pid 7372
+  WindowsTerminal                 584 MB  pid 12240
+  Taskmgr                         491 MB  pid 15396
+  ChatGPT                         482 MB  pid 8844
+  ChatGPT                         469 MB  pid 17880
+  ChatGPT                         446 MB  pid 3532
+  MsMpEng                         397 MB  pid 4320
+  --- using the CPU, over 3.1s across 8 logical core(s): the processes it could measure account for 44.9% of the machine
+  ChatGPT                       15.2% CPU   3.70s  pid 17880
+  git                            9.5% CPU   2.31s  pid 5208
+  chrome                         7.7% CPU   1.89s  pid 24544
+  ChatGPT                        2.5% CPU   0.61s  pid 7372
+  ChatGPT                        2.1% CPU   0.52s  pid 19904
+  Taskmgr                        2.0% CPU   0.50s  pid 15396
+  148 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x83, WUDFHost x3, fontdrvhost x2, tailscaled x2, csrss x2, node x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 69s
-  - NEEDS A PERSON - automatic cover last ran 8262 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 332 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 97 run(s), since 2026-10-14T16:26:24)
-  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-15T18:43:17)
+  this pass took 48s
+  - NEEDS A PERSON - automatic cover last ran 8433 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 337 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 102 run(s), since 2026-10-14T16:26:24)
+  - NEEDS A PERSON - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 6 run(s), since 2026-10-15T18:43:17)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
