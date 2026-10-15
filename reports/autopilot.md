@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261015-000349
+﻿# laptop41 autopilot 20261015-005848
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261015-005848  live-sync (standing)  ->  0 (in sync)   (2026-10-15T00:59:00, 34s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs a60822b of claude/frie...(30)
+CAPTURED: nothing; every source file here matches a60822b
+```
 
 ## auto-live-sync-20261015-000349  live-sync (standing)  ->  0 (in sync)   (2026-10-15T00:04:11, 9s)
 ```
@@ -134,10 +141,5 @@ DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 850cafa of claude/frie...(30)
 CAPTURED: nothing; every source file here matches 850cafa
-```
-
-## auto-live-sync-20261013-215447  live-sync (standing)  ->  1 (could not run)   (2026-10-13T22:13:06, 396s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
 ```
 
