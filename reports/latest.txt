@@ -1,4 +1,4 @@
-laptop41-doctor 20261015-231104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261016-001107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,25 +6,25 @@ laptop41-doctor 20261015-231104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 8530 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 8590 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 5 of 15.8 GB RAM free
+  ok: 4.6 of 15.8 GB RAM free
   ok: C: 110.9 GB free
-  ok: CPU 22% (Alpha holds GPU admission at 90%)
-  Memory Compression              742 MB  pid 3828
-  WindowsTerminal                 725 MB  pid 12240
-  Taskmgr                         517 MB  pid 15396
-  ChatGPT                         490 MB  pid 22680
-  ChatGPT                         473 MB  pid 18644
-  ChatGPT                         425 MB  pid 23304
-  MsMpEng                         409 MB  pid 4320
+  ok: CPU 14% (Alpha holds GPU admission at 90%)
+  WindowsTerminal                 797 MB  pid 12240
+  Memory Compression              705 MB  pid 3828
+  ChatGPT                         594 MB  pid 22680
+  Taskmgr                         533 MB  pid 15396
+  ChatGPT                         465 MB  pid 18644
+  ChatGPT                         447 MB  pid 23304
+  MsMpEng                         423 MB  pid 4320
   explorer                        367 MB  pid 10600
 
 === SUMMARY ===
-  this pass took 13s
-  - NEEDS A PERSON - automatic cover last ran 8530 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 344 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 109 run(s), since 2026-10-14T16:26:24)
+  this pass took 15s
+  - NEEDS A PERSON - automatic cover last ran 8590 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 348 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 113 run(s), since 2026-10-14T16:26:24)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
