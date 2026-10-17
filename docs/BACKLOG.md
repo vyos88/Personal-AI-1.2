@@ -125,15 +125,16 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 
 | ID | Item | Done when |
 |---|---|---|
-| A1 | Two frontend buttons call routes that do not exist: `/recommendations/debug` (Hubs) and `/arduino/elegoo/install-alpha-firmware` (Devices). Add the route if a backend function already does the job, else remove the button. | both are gone from `KNOWN_MISSING` in `tests/test_frontend_api_contract.py` |
-| A2 | Delete the dead copies of shadowed routes, one `api/*.py` module per PR (`tests/route_shadow_baseline.json`, 189 entries; start with `api.missions`, 13). First check that each is identical to the `main.py` copy that serves; one that differs is a bug to raise, not delete. | its lines are gone from the baseline and the suite passes |
+| A2 | **In review: vyos88/Alpha#136.** The last 122 dead route copies are deleted there (8 modules went in Alpha#125), two fixes they held are ported, and `tests/route_shadow_baseline.json` is empty. Merge it, then delete this row. | Alpha#136 is merged |
 | A3 | Split `main.py` (39k lines) one hub at a time into `api/<hub>.py` routers. The shadow ratchet makes each move safe. | one hub per PR, no new shadowing |
-| A4 | Replace inline `current_user.get('role') != 'owner'` checks with the `require_owner` dependency. | `grep -c "role') != 'owner'" main.py` reaches 0 |
+| A5 | The Brain deck's 3D view draws Alpha's software surfaces (decks, hubs, memory), not the anatomy regions the Neurons view draws, so switching views loses your place. **Owner decision:** draw the regions in 3D with the Neurons colours and selection, or keep 3D as a separate surface map and say so on the tab. | the 3D tab matches the decision |
+| A6 | The code/Codex upgrade skills have no executors; since Alpha#136 they say `not-run` instead of claiming "completed". Wire real checks (lint, tests, `pip list --outdated`), or stop the loop. | a skill that reports completed ran the check it names |
+| A7 | `api/arduino.py` (542 lines) is never registered (`api/__init__.py` says so); delete it after checking nothing imports it. | the file is gone and the suite passes |
 | V1 | Type floor 8px → 11px, one sheet at a time, with a visual-audit run before and after each. | no text under 11px in `visual-audit.mjs` tiny counts |
 | V2 | Move the global sheets to `@layer`. Inside a layer `!important` reverses, so audit every deck before and after. | the nine sheets are layered and the audit is unchanged |
 | V3 | Light theme for content panels (atlas-day reaches only the frame today), then `prefers-color-scheme`. | content is readable in atlas-day on every route |
 | V4 | Core hub component map: on a phone its labels overlap ("Assistant Loop", "Awakening", "Awareness"). | readable at 412px |
-| V5 | Brain deck renders an empty violet panel where the graph should be when WebGL is slow (seen headless). Show the graph's own empty or loading state instead. | the panel says what it is waiting for |
+| V5 | Brain deck **3D** view renders an empty violet panel where the graph should be when WebGL is slow (seen headless). The Neurons, Pathways and Memory views (Alpha#125) already show a waiting state; the 3D view still needs one. | the 3D panel says what it is waiting for |
 | V6 | Deck heroes: with the full-size gradient slab removed (2026-10-04), several decks (Hardware, Knowledge, Network, Admin, Automation, Terminal) show a large dark hero with only a headline. Give it the deck's real content, or size it to the text. | no hero more than half empty at 1440x900 |
 | V7 | The collapsed capability rail floats bottom-left on phones and covers content as you scroll. Its position is deliberate (see the comment in `styles-astral-unification.css`); consider hiding it while scrolling, or docking it in the taskbar. | it never covers text a reader is reading |
 
@@ -160,9 +161,9 @@ The fleet that "Alpha Governed Agents" starts on Worker1. Scripts are in `vyos88
 |---|---|---|---|
 | ST1 | person / code | Merge the Alpha#58 steward changes into Worker1's own `scripts\` copies (11 refuse; see H2). `--skip-scripts` alone does not get H1 through, because 25 `software\` files refuse too | `apply-alpha-update.mjs` reports `already` for every `scripts/` file |
 | ST2 | code | `-NoExit` (`start_visible_alpha_codex_agents.ps1`, `Open-AgentWindow`) keeps a crashed hidden worker's window alive, so the manager never sees it exit and never restarts it. First confirm that every worker's command loops forever (voice, interface style, evolution, the tunnel `Watch`), then drop `-NoExit` for hidden windows | a worker that throws shows `exited` in the manager and is restarted by auto-heal |
-| ST3 | code | `Get-AlphaOwnerTokenViaPython` (manager, deck, API, workspace monitor) runs Python with no timeout; a hung venv hangs the manager's 3s loop | the call returns within 20s whatever Python does, with a test |
+| ST3 | code | **In review: vyos88/Alpha#136** (one bounded copy in `alpha_steward_python_token.ps1`, tested under PowerShell 7). Merge it, then delete this row. | Alpha#136 is merged |
 | ST4 | code | The package and voice stewards have no DPAPI fallback, so they stop when the credential cannot be decrypted in their context | both pass `-TokenFallback` like the deck steward |
-| ST5 | code | PID reuse is accepted on the process name alone (any `powershell` with that PID counts as the worker), and `-ForceNew` starts a second fleet beside the first | the registry records each worker's start time and the manager checks it; `-ForceNew` stops the old fleet first |
+| ST5 | code | **In review: vyos88/Alpha#136** (`process_started_at` in `workers.json`, checked by the launcher and the manager; `-ForceNew` stops the old fleet). Merge it, then delete this row. | Alpha#136 is merged |
 | ST6 | code | The manager gives a campaign agent's `/run` 30s (`Invoke-CampaignAgentCycleIfDue`); a real cycle takes longer and is recorded as an error | the timeout matches the agent's cycle budget, or the call is fire-and-forget with the receipt read later |
 
 ## Reports — for Codex (read-only)
