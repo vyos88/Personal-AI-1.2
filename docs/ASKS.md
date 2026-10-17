@@ -603,6 +603,36 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   Note too, or do you want it loud until cover is reinstalled?** No code change
   until V answers; the one-line fix is the same shape as the branch above it.
 
+  **Evidence for that decision, 2026-10-17 Claude (cloud): while cover has been
+  off, alpha-ai.uk met the "served by nobody" condition on 8 of 300 passes,
+  twice two passes running.** Measured off the published record rather than one
+  sample: 300 consecutive `status/laptop41-live` passes,
+  `2026-10-16T20:59:19+01:00` to `2026-10-17T22:36:02+01:00` (25 h 37 min),
+  reading `alpha.detail`'s `alpha-ai.uk <code>` out of each pass's
+  `reports/live.json`. 285 × `200`; the 15 non-200 are 7 × `404`, 3 × `502`,
+  4 × `530`, 1 × `no answer`.
+  Which of those count is `scripts/alpha-standby.mjs:89`:
+  `served = status > 0 && status < 500 && not a 1033 body`. So the `530`s, the
+  `502`s and the `no answer` are nobody serving — 8 passes, 2.7 % — and a `404`
+  is somebody answering, which keeps cover put. Chronologically the not-served
+  ones are `10-16T21:19:15` `502`; `02:24:18` + `02:30:17` `530`;
+  `03:44:53` + `03:49:17` `530`; `16:14:44` `502`; `18:24:43` no answer;
+  `21:35:20` `502`. Two of those are consecutive-pass pairs, and the
+  `02:19:37` `404` immediately before the first pair makes three bad passes in a
+  row overnight.
+  **It does not say cover would have fired, and the reason is worth having in
+  front of the decision.** `decide()` (`alpha-standby.mjs:141-148`) needs
+  `failures` (3) consecutive passes in which the *primary's Alpha does not
+  answer over the tailnet*, and then reads the public URL as a single
+  point check at that pass. This record holds only the public side; the tailnet
+  and control probes are not in it. What it does establish is that the signal
+  cover watches was genuinely present, repeatedly, over a day in which
+  `role.detail` reports cover's last pass 11,375 min (7.9 d) ago.
+  This corrects my own earlier cycles, which said today's bad reads were never
+  two consecutive and so not an outage by the fleet's standard. That came from a
+  six-sample window per hour; over the full record it is wrong. No code change
+  here — the question above is still V's.
+
 - [!] needs V — 2026-10-17 Claude (cloud) -> V: **Worker1 has not taken an
   update since 2026-10-12 and is 32 commits behind, because thirteen untracked
   files look to `self-update` like somebody working. Only V can say which way
