@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261016-025348
+﻿# laptop41 autopilot 20261017-045348
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes: ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-home-wifi-20261017-045348  home-wifi (standing)  ->  0 (none)   (2026-10-17T04:54:14, 15s)
+```
+on 'STARLINK' while 'Starlink V' is visible: rejoining it with its saved profile
+rejoin: Success (-17 dBm)
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## auto-live-sync-20261016-025348  live-sync (standing)  ->  0 (in sync)   (2026-10-16T02:54:02, 16s)
 ```
@@ -135,13 +142,6 @@ CAPTURED: 0 changed and 1 new source file(s) from DESKTOP-41HPLCN, pushed as af4
 ```
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs f5001fd of claude/frie...(30)
-CAPTURED: 1 changed and 1 new source file(s) from DESKTOP-41HPLCN, pushed as f5001fd on claude/frie...(30)
-```
-
-## auto-live-sync-20261015-020346  live-sync (standing)  ->  0 (in sync)   (2026-10-15T02:03:58, 38s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs a60822b of claude/frie...(30)
 CAPTURED: 1 changed and 1 new source file(s) from DESKTOP-41HPLCN, pushed as f5001fd on claude/frie...(30)
 ```
 
