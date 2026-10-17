@@ -5,13 +5,20 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { createHost } from '../src/host/server.js';
-import { AuthService, UserStatus } from '../src/host/auth/service.js';
+import { AuthService, UserStatus, loginFailureReason } from '../src/host/auth/service.js';
 import { AuthStore } from '../src/host/auth/store.js';
 import { TunnelAgent } from '../src/agent/agent.js';
 import { normalizeScopes, hasScope, SCOPES } from '../src/host/auth/scopes.js';
 import { hashPassword, verifyPassword } from '../src/host/auth/passwords.js';
 import { generateToken, parseToken, secretMatches } from '../src/host/auth/tokens.js';
 import { fetchJson, HttpError } from '../src/common/http.js';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 
 const BOOTSTRAP = 'bootstrap-token-long-enough-for-tests';
 const PASSWORD = 'a-perfectly-fine-password';
@@ -124,7 +131,7 @@ test('an invite can be created, previewed, and redeemed exactly once', async (t)
     body: { token: created.token },
   });
   assert.equal(preview.email, 'newcomer@example.com');
-  assert.deepEqual(preview.scopes, ['agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
+  assert.deepEqual(preview.scopes, ['agents:control', 'agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
 
   const { body: redeemed } = await call(host.url, '/invites/redeem', {
     method: 'POST',
@@ -406,6 +413,106 @@ test('login issues a session and rejects a wrong password', async (t) => {
   );
 });
 
+/**
+ * Captures what the host writes to stderr, which is where warn-level lines go.
+ *
+ * Asserting on the real stream rather than a stubbed logger is the point: the
+ * thing being tested is that an operator reading the log can answer "who was
+ * that", and a stub would pass even if nothing ever reached the log.
+ */
+function captureStderr(t) {
+  const lines = [];
+  const original = process.stderr.write.bind(process.stderr);
+  process.stderr.write = (chunk, ...rest) => {
+    lines.push(String(chunk));
+    return original(chunk, ...rest);
+  };
+  t.after(() => {
+    process.stderr.write = original;
+  });
+  return lines;
+}
+
+test('a failed login says who it was, and never says what they typed', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+  await inviteAndRedeem(host.url, { email: 'watched@example.com', scopes: 'operator' });
+
+  const logged = captureStderr(t);
+  const secret = 'a-password-that-must-not-be-logged';
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'watched@example.com', password: secret },
+    }),
+    rejectsWith(401),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1, 'expected exactly one failure line');
+  assert.match(failures[0], /wrong_password/);
+  assert.match(failures[0], /watched@example\.com/);
+  assert.match(failures[0], /failures=1|"failures":1/);
+
+  // The one thing a security log must never collect. A mistyped password is
+  // usually a real password, often the right one for somewhere else.
+  for (const line of logged) assert.ok(!line.includes(secret), 'the password reached the log');
+});
+
+test('a login for something that is not an email is logged rather than vanishing', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const logged = captureStderr(t);
+  // The shape of a scan. It is refused by validation before any credential is
+  // looked at, so before this it left no trace at all.
+  await assert.rejects(
+    () => call(host.url, '/auth/login', { method: 'POST', body: { email: 'admin', password: 'x' } }),
+    rejectsWith(400),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /malformed_email/);
+  assert.match(failures[0], /admin/);
+});
+
+test('a forged newline cannot buy an attacker a second log line', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const logged = captureStderr(t);
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'nope\n2026-01-01 WARN [host:auth] login succeeded userId=admin', password: 'x' },
+    }),
+    rejectsWith(400),
+  );
+
+  const failures = logged.filter((line) => line.includes('login failed'));
+  assert.equal(failures.length, 1, 'the newline bought a second record');
+  assert.ok(!failures[0].slice(0, -1).includes('\n'), 'a newline survived into the log');
+  // The forged text is still echoed — that is the point of logging what was
+  // attempted — but only ever inside the failure record, as a quoted value,
+  // never as a record of its own.
+  const forged = logged.filter((l) => l.includes('login succeeded'));
+  assert.ok(
+    forged.every((l) => l.includes('login failed')),
+    'the forged text became a record of its own',
+  );
+  assert.match(failures[0], /email="nope /);
+});
+
+test('the log tells apart what the response deliberately does not', () => {
+  // The 401 is identical for all three so a stranger cannot enumerate accounts.
+  // The operator is not a stranger.
+  assert.equal(loginFailureReason(null, false), 'no_such_user');
+  assert.equal(loginFailureReason({ status: UserStatus.ACTIVE }, false), 'wrong_password');
+  assert.equal(loginFailureReason({ status: UserStatus.DISABLED }, true), 'user_disabled');
+  assert.equal(loginFailureReason({ status: UserStatus.ACTIVE }, true), null);
+});
+
 test('login does not reveal whether an account exists', async (t) => {
   const host = await startHost();
   t.after(() => host.close());
@@ -468,6 +575,71 @@ test('changing a password requires the current one', async (t) => {
   );
 });
 
+test('an admin can reset a user\'s password without knowing the old one', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user } = await inviteAndRedeem(host.url, { email: 'locked-out@example.com', scopes: 'operator' });
+  const { body: session } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'locked-out@example.com', password: PASSWORD },
+  });
+
+  const { body: result } = await call(host.url, `/users/${user.id}/password/reset`, {
+    method: 'POST',
+    token: BOOTSTRAP,
+  });
+  assert.equal(typeof result.temporaryPassword, 'string');
+  assert.ok(result.temporaryPassword.length >= 12);
+
+  // The old password is dead...
+  await assert.rejects(
+    () => call(host.url, '/auth/login', {
+      method: 'POST',
+      body: { email: 'locked-out@example.com', password: PASSWORD },
+    }),
+    rejectsWith(401),
+  );
+  // ...the pre-reset session is dead too...
+  await assert.rejects(() => call(host.url, '/me', { token: session.token }), rejectsWith(401));
+  // ...and the generated one works.
+  const { body: newSession } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'locked-out@example.com', password: result.temporaryPassword },
+  });
+  assert.equal(newSession.user.email, 'locked-out@example.com');
+});
+
+test('resetting a password with a caller-supplied value does not echo it back', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user } = await inviteAndRedeem(host.url, { email: 'chosen-reset@example.com', scopes: 'operator' });
+  const { body: result } = await call(host.url, `/users/${user.id}/password/reset`, {
+    method: 'POST',
+    token: BOOTSTRAP,
+    body: { newPassword: 'a-caller-chosen-password' },
+  });
+  assert.equal(result.temporaryPassword, undefined);
+
+  const { body: session } = await call(host.url, '/auth/login', {
+    method: 'POST',
+    body: { email: 'chosen-reset@example.com', password: 'a-caller-chosen-password' },
+  });
+  assert.equal(session.user.email, 'chosen-reset@example.com');
+});
+
+test('resetting a password requires the users:write scope', async (t) => {
+  const host = await startHost();
+  t.after(() => host.close());
+
+  const { user, key } = await inviteAndRedeem(host.url, { email: 'no-reset-rights@example.com', scopes: 'operator' });
+  await assert.rejects(
+    () => call(host.url, `/users/${user.id}/password/reset`, { method: 'POST', token: key }),
+    rejectsWith(403),
+  );
+});
+
 // ------------------------------------------------------------- agent plane
 
 test('an agent authenticates with a scoped key and runs work', async (t) => {
@@ -484,6 +656,7 @@ test('an agent authenticates with a scoped key and runs work', async (t) => {
   });
 
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: agentKey.token,
     name: 'scoped-laptop',
@@ -671,7 +844,7 @@ test('a narrow key issued under an admin user is still narrow', async (t) => {
 
   const { body: me } = await call(host.url, '/me', { token: laptop.token });
   assert.ok(!me.scopes.includes('admin'), 'laptop key must not carry admin');
-  assert.deepEqual(me.scopes, ['agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
+  assert.deepEqual(me.scopes, ['agents:control', 'agents:read', 'keys:write', 'tasks:cancel', 'tasks:read', 'tasks:write']);
 
   // It can do the operator things.
   const { status: queued } = await call(host.url, '/tasks', {

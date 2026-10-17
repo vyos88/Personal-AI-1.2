@@ -413,13 +413,7 @@ export async function run(payload, context = {}) {
     segments: edges.length,
     bounds: boundsOf(nodes),
   };
-  // The agent passes `log.child(type)` from src/common/log.js — an object with
-  // info/warn/error, never a callable. Calling it as `log(...)` threw on every
-  // real task while the suite stayed green, because tests pass no logger.
-  log?.info?.(`grew ${recipe.kind} "${recipe.name}"`, {
-    seed: recipe.seed,
-    segments: stats.segments,
-  });
+  log?.info(`grew ${recipe.kind} "${recipe.name}" seed ${recipe.seed}: ${stats.segments} segments`);
 
   if (recipe.format === 'stats') return { recipe, stats };
   if (recipe.format === 'obj') return { recipe, stats, obj: toObj(recipe, nodes, edges) };

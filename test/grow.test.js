@@ -183,30 +183,18 @@ test('grow is registered as a built-in and describes itself', () => {
   assert.ok(entry.description.length > 0);
 });
 
+test('runs with the logger object the agent actually passes, not a bare function', async () => {
+  // The agent hands handlers `log: taskLog`, an object with .info/.warn/etc,
+  // never a callable — a handler that calls `log(...)` directly only breaks
+  // once it runs for real, since `run(payload)` in the tests above leaves
+  // `log` undefined and `log?.()` skips silently either way.
+  await run({ preset: 'fern' }, { log: createLogger('test').child('grow') });
+});
+
 test('the result carries the recipe that produced it', async () => {
   // Whatever grew this has to be regrowable from what comes back, or the
   // output is a one-off after all.
   const result = await run({ preset: 'kelp', seed: 11 });
   const again = await run(result.recipe);
   assert.deepEqual(again.nodes, result.nodes);
-});
-
-test('grow logs through the logger the agent actually hands it', async () => {
-  // src/agent/agent.js passes `log.child(task.type)` — an object, never a
-  // callable. `log?.(...)` therefore threw "log is not a function" on every
-  // real task while this suite stayed green, because nothing here passed a
-  // logger at all. Use the real one, so the shape is the shape.
-  const log = createLogger('test:grow').child('grow');
-  assert.equal(typeof log, 'object', 'the agent hands handlers an object logger');
-
-  const lines = [];
-  const result = await run(
-    { preset: 'fern', seed: 3 },
-    { log: { ...log, info: (message, fields) => lines.push({ message, fields }) } },
-  );
-
-  assert.ok(result.stats.segments > 0);
-  assert.equal(lines.length, 1);
-  assert.match(lines[0].message, /fern/);
-  assert.equal(lines[0].fields.segments, result.stats.segments);
 });

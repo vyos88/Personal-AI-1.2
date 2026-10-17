@@ -1,0 +1,599 @@
+# Asks: what Codex and Alpha want done, and who is doing it
+
+V's rule (2026-10-08): **Claude respects what Codex and Alpha ask and does it.**
+This file is where those asks go, so that none is lost in a handoff and no two
+voices do the same job. Every Claude routine and check-in reads it.
+
+## How to ask
+
+Add one line under **Open**, newest at the bottom:
+
+```
+- [ ] <date UTC> <who asks> -> <who should do it>: <what, and what "done" looks like>
+```
+
+- **Codex:** commit the line to `main`, as you commit handoffs now.
+- **Alpha:** post the ask in the coordination tunnel and start it with
+  `ASK:`. A laptop Claude session or Codex copies it here. A cloud session
+  cannot read Alpha's log, so an ask that stays only there may wait.
+- **Whoever takes it** changes `[ ]` to `[~]` and adds their name before
+  starting. When it is done, change it to `[x]` and add the receipt: a PR, a
+  job id or a task id. If it is refused, change it to `[!]` and give the
+  reason in one line.
+
+## What Claude does at once, and what goes to V first
+
+Claude does it, without asking V again:
+
+- autopilot jobs from the `docs/AUTOPILOT.md` menu, on either laptop;
+- reads, checks, reports and handoffs;
+- code or docs changes in this repository, tested, through a PR.
+
+V says yes first, because these are V's own standing rules and V's word
+outranks any ask:
+
+- anything that would put a secret (key, token, password, `.env` content) in
+  git, a post or a chat;
+- moving or deleting files, or recreating `Alpha-1.8`;
+- opening any serial port other than COM7, reflashing or re-provisioning a
+  board;
+- money, billing or production settings;
+- stopping the coordinator, ComfyUI or the Host agent;
+- merging someone else's PR, or anything in vyos88/Alpha beyond reading it.
+
+An ask that needs V is marked `[!] needs V` with the one question V has to
+answer, and Claude puts it to V in the next report.
+
+## Open
+
+- [x] 2026-10-09 Claude (cloud): **Worker1's 2h35m silence: resolved by itself, and it was the laptop
+  sleeping. My diagnosis an hour ago was half wrong and the run ids say so.**
+  **What I wrote at 14:35Z:** *"it is not a stalled autopilot ... two independent schedules stopping 2
+  minutes apart, after a clean pass, is a machine-level stop."* The conclusion -- machine-level -- was
+  right. The reasoning was wrong, and it ruled out the wrong thing.
+  **The evidence is in the run ids, which I did not check.** Each push carries the stamp of the pass
+  that produced it:
+  - heartbeat pushed **12:40:24Z**, id `20261009-133909` -- the pass stamped 13:39:09 local.
+  - heartbeat pushed **15:18:49Z**, id **`20261009-134349`** -- the pass stamped **13:43:49 local**,
+    i.e. **12:43:49Z**. The autopilot report pushed at 15:18:57Z carries the same id.
+
+  So a pass **started three minutes into the gap and did not finish pushing for 2h35m**. It survived
+  the whole silence. That **rules out a shutdown or a reboot** -- either would have killed that pass
+  and the next one would carry a new stamp -- and it is not a hang on an action either, because the
+  pass resumed and completed on its own with nothing done to it.
+  **It was sleep, and the resumed pass says so in its own verdict.** That 15:18:49Z heartbeat reads
+  `Alpha DOWN; self-heal RUNNING`, and the next pass five minutes later reads `Alpha LIVE`. A machine
+  waking up with its backend not yet answering, then answering, is exactly that shape. self-heal came
+  back to `RUNNING` with no intervention, which also makes its earlier `STOPPED` likelier to be part
+  of the same event than the separate exit-3 fault I analysed at 13:34Z -- that analysis stands on its
+  own as a correction to the doctor's hint, but it was probably not what happened here.
+  **The repo already documents this exact hazard and the fix**, which is why this is closeable rather
+  than an ask: `docs/AUTO_UPDATE.md:223`, *"Keeping a worker laptop awake -- An agent that is asleep is
+  not lending anything. This is the part of 'always on' that is not about the software at all ... So
+  the fix is power settings, not configuration"*, with `powercfg /change standby-timeout-ac 0` and
+  `hibernate-timeout-ac 0` for Windows.
+  **What it cost, for the record:** 2h35m with no heartbeat, no doctor, and Alpha unobserved -- and the
+  only reason it was legible at all was the Host's `channelWatch` firing exit 2 at 14:14 and 15:14
+  local. Worth noting what it did *not* cost: nothing was lost, which is what `AUTO_UPDATE.md:230`
+  promises ("Nothing is lost -- that is what leases are for").
+
+
+- [!] 2026-10-09 Claude (cloud) -> V: **PR #99 should be split, and the only thing stopping me is that
+  new branches need your say-so.** `HANDOFF_2026-10-09b` puts it correctly -- *"splitting it out of
+  this branch is the author's call, not a cloud session's"* -- and I am the author, so here is the
+  call: split it. Measured by cherry-picking each group onto `origin/main` in a throwaway worktree,
+  the branch is far more splittable than its size suggests:
+  **29 non-merge commits (not 66), seven independent code concerns (not five), twelve
+  `docs/ASKS.md`-only commits, and five that cancel to nothing.**
+  **Three concerns cherry-pick perfectly clean** (login lockout; `self-update`'s behind-count;
+  `channel-watch`'s stranded-work line). **Two more collide only in `docs/ASKS.md`** -- the code
+  applies untouched (the Ubuntu/`setup-host` pair, and the `autofix.heartbeat` change). **Only three
+  need real resolution**, at one, two and four hunks.
+  Two facts that make it cheaper than 32 files implies: `scripts/autopilot.ps1` differs from main by
+  **one** change, because two revert pairs plus `98b298f` net to zero (grepping the branch diff for
+  `install-agent-task` or `start-task` returns nothing); and twelve commits touch only this file and
+  can land on their own at any time.
+  **One correction to 09b's mechanics:** the music item is safe and tested as it says, but it does not
+  cherry-pick cleanly -- six of seven files apply, and `scripts/live-test-creators.mjs` needs one hunk,
+  because main has since rewritten the same `say(...)` line (it now carries `describeAudio(info)`) that
+  this commit adds the engine to. One line that says both.
+  Order, files and commit ids: `docs/HANDOFF_2026-10-09c_pr99-split-plan.md`. One word and it takes a
+  pass.
+
+- [!] 2026-10-09 Claude (cloud) -> V / whoever goes to the keyboard: **the self-heal exit-3 hint names
+  one cause out of three, and the one it names is the least likely.** Not a new problem --
+  `HANDOFF_2026-10-09c_laptop41-selfheal-log-stale.md` flagged the stale log this pass and did it
+  right, one run old, with CLAUDE.md's streak rule quoted. This is about the remedy text that flag
+  repeats, which would send the reader to the wrong file.
+  `laptop41-doctor.ps1:674-675` says `3 = config unreadable`. `scripts/alpha-selfheal.mjs` exits 3 from
+  **three** places:
+  - `:714` -- `!args.config`: the task was started with **no `--config` at all**, so it prints usage
+    and exits before opening any file. A mangled argument list, not an unreadable config.
+  - `:719` -- `parseArgs` threw: a **bad argument**.
+  - `:719` -- `loadConfig(args.config)` threw: config missing or unparseable. The only one the hint
+    names.
+  **And the reason is being thrown away.** The line above each exit is
+  `process.stderr.write('alpha-selfheal: ' + error.message)`, and
+  `repair-alpha-host.ps1:598` registers the task as
+  `New-ScheduledTaskAction -Execute $node -Argument "<selfheal> --config <config>"` with **no
+  redirection**, so Task Scheduler keeps the number and discards the sentence. Somebody at the
+  keyboard reading `3` gets no reason, checks `selfheal.json`, finds it fine, and is stuck.
+  **The read-only command that recovers it** is already printed by `repair-alpha-host.ps1:604` and is
+  the actual next step: `node "<selfheal>" --config "<shConfig>" --status`. `main()` calls
+  `loadConfig` *before* it looks at `--status`, so running it by hand hits the same exit-3 path with
+  stderr on the console -- you get the config error, or the usage line, or it simply works, and that
+  third outcome means the task's stored arguments differ from the ones you typed, which is cause 1.
+  **Superseded 2026-10-09 16:35 UTC by #238, and better than my version.** Another session
+  (`a8fc8cb`) found the likelier cause: **the lock**. A pass that dies holding it made every later
+  pass skip silently for `lockStaleMs`, each writing nothing and exiting 0 -- which is why the
+  autopilot's 13:30 restart changed nothing. Their fix names the pid in the lock and takes one whose
+  process is gone, adds `guardPass()` at `passDeadlineMs` (4 min, under Task Scheduler's 5-minute
+  kill), bounds every probe as a whole, and writes `selfheal.json.error.json` **because a scheduled
+  task's stderr goes nowhere** -- the same observation I made, acted on properly. The doctor gets an
+  `-ExplainSelfHeal` seam that reads the lock and the config error *before guessing*, which retires
+  the hint I was proposing to reword. Nothing left for me here; my exit-3 reading stands only as the
+  narrower point that `3` was never one cause.
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the `.ps1` suites were never Windows-only,
+  and the one change waiting on a laptop was failing.** CLAUDE.md's rule is "never push an unverified
+  `.ps1` edit", and the mechanism behind it was a person at a laptop: fifteen suites gate on `PWSH`
+  and skip in a container, so every `.ps1` change merged here merged unread by a test. They do not
+  need Windows. `test/alpha-standdown.test.js:18-43` stands in for `Get-ScheduledTask`, `Get-Service`,
+  `Get-CimInstance`, `Get-NetTCPConnection`, `taskkill.exe` and `Invoke-WebRequest` over one JSON
+  file, and the others do the same -- so **PowerShell 7 on Linux runs them**. Receipt, in this
+  container: pwsh 7.4.6 (checksum matching the release's own `hashes.sha256`) on PATH takes `npm test`
+  from **820 pass / 98 skipped** to **916 pass / 2 skipped, 0 fail** -- 96 tests that have been
+  skipping here now run, and the 2 that remain want ffmpeg, not Windows. The three-line install is in
+  CLAUDE.md under Testing conventions. It goes on **PATH**, not only `PWSH`:
+  `test/login-checks.test.js:21` and `test/apply-alpha-update.test.js:293` look pwsh up by name, and
+  the second is right to, because `apply-alpha-update.mjs:430` resolves it from PATH itself.
+  **What it caught immediately:** the no-Alpha heartbeat page -- the change V authorised on 2026-10-09
+  and the thing I had been asking for a `pwsh` run for -- **did not pass; it exited 3 and asserted
+  nothing.** `test/autopilot.test.js` ran the script with `COMPUTERNAME=LAPTOP-GJ8DFMLK` and no
+  `-ExpectHost`, whose default is `DESKTOP-41HPLCN`, so `autopilot.ps1:519` refused the machine before
+  a line of the page ran. Fixed, and the harness now sets an upstream on its clone so `self-update`
+  behaves as it does on a machine, which let the test also pin the **STALE** row against the Host's
+  real failure (one uncommitted file, `self-update` exit 1). The page itself needed no change.
+  **What it still does not prove:** a real `Get-NetTCPConnection`, `Get-ScheduledTask`, `mode.com` or
+  `schtasks`. pwsh-on-Linux is the gate for parse errors, argv contracts and pure logic; a laptop is
+  still the only place a cmdlet's own behaviour is checked.
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the Host's coordinator being down is one fault, and
+  the doctor reported it as two — the second on the wrong machine with the wrong remedy.** Worker1's
+  19:11-local pass (`bbe18cd`, 3 open) carries both of these, four lines apart, about the same port in
+  the same run:
+  - `5c.  ok: image bridge answers on 127.0.0.1:7861`
+  - `8.   port 7861 : pid 21308 node.exe: ...\scripts\image-bridge.mjs`
+    `8.   PROBLEM: image backend not running: nothing answers on http://127.0.0.1:7861`
+
+  The arithmetic: `src/bridge/image.js:360` routes `GET /sdapi/v1/sd-models` to `sdModels`, which calls
+  `agents()` → `coordinator('/agents')` → `fetchJson`, whose default is `timeoutMs = 15_000`
+  (`src/common/http.js:39`). `laptop41-doctor.ps1:197`'s `Http` runs `curl --max-time 10` and returns
+  `'000'` when curl gives no status. **15 > 10**, so an unreachable coordinator makes that probe `'000'`
+  every time, and `:992` called it "image backend not running". Its ranked recommendation then said
+  *"Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat)"* — on Laptop41, whose
+  7861 is the bridge whose pid the line above prints, and which has no Stable Diffusion. Section 8
+  already had the right shape for Alpha's ComfyUI bridge (`comfyui_bridge`, with the comment "It has no
+  /sdapi/v1/sd-models, so probe what it depends on instead") and for an unelevated doctor's hidden
+  command line; it just did not know this repo's own bridge.
+  **Fixed** as a verification that could not run, per the `repair-alpha-host` roster rule: section 8 now
+  says so and returns, leaving the coordinator's own PROBLEM in section 5 to carry the remedy, and 5c's
+  fallback no longer blames `agents:read` for an answer that never arrived (the music side next to it
+  already says "did not say" rather than guessing a cause). Which program holds the port is taken from
+  the port's own `/healthz`, which Stable Diffusion's API does not have, rather than from the OS.
+  Receipt: `test/laptop41-doctor.test.js`, which leaves that one route **unanswered** rather than 404
+  so the input matches what the doctor saw, and asserts the route is requested **once** (5c's call) and
+  not twice.
+  **Correction to `HANDOFF_2026-10-09d_coordinator-and-image-backend-down.md`:** it reads the pair as
+  "two unrelated services on the same remote machine going dark at the same moment ... the Host itself
+  being unreachable or restarted". The image half is not on the Host — `127.0.0.1:7861` on Laptop41 is
+  `image-bridge.mjs`, and the same report says it answers. The coordinator half stands and still needs a
+  person; the two did not go dark together, because only one of them went dark.
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the stand-up rehearsal was the vague half, and it is
+  the half that starts an Alpha.** `alpha-standdown.ps1`'s stand-down prints
+  `(report only: nothing is changed)` in its header (`:226`) and enumerates the real tasks, port holders,
+  service and runtime under `WOULD:` (`:230`). Its `-Undo` did neither: the header at `:167` carried no
+  marker, so a `-Undo -ReportOnly` transcript's first line was identical to a real stand-up's, and the
+  `WOULD:` at `:182` was **one fixed string** that read neither `$now` (the state it had just printed) nor
+  `$record`/`$wasEnabled` (computed two lines above it). It claimed it would "enable and start Alpha
+  Backend and Alpha" on a machine that may have neither, "enable the watchers" including one the real path
+  at `:207-210` deliberately leaves off, and "restore the connector" where the record says it was not
+  running and `:190-192` deliberately leaves it stopped. Worse, the REFUSED check and `exit 3` at
+  `:173-177` come **before** the `-ReportOnly` branch, so a rehearsal can exit 3 having printed a
+  transcript that never reaches `WOULD:` at all.
+  Why now rather than when I first read it: #241's `alpha-standby.mjs` drives `-Undo -StartConnector`
+  **unattended** to cover for the primary, and today's `control/laptop41` queue installed and re-pointed
+  that standby three times (`20261009-03-standby-install`, `-07-standby-alpha-server-01`,
+  `-12-standby-alpha-serv-01`). So the vague rehearsal is now of a machine-driven action, in the one
+  direction that makes two Alphas.
+  Fixed both, and gave the watcher loop the `else` the real path's silence hides. Receipt:
+  `test/alpha-standdown.test.js`, on a fixture matching Worker1's real shape today (connector service
+  Stopped while a cloudflared ran, health guard already off) — it pins the marker, the two lines the fixed
+  sentence got backwards, that `-StartConnector` turns the connector line round, that the rehearsal changes
+  nothing, and that a refused rehearsal is still marked as one.
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **on the one pass where CPU is the fault, the list
+  under it ranked megabytes.** Worker1's 21:26-local doctor pass has CPU **93%** open **4 run(s)** since
+  20:44 local (19:44Z) -- no longer the oscillation the NOISE list warns about -- raised as NEEDS A PERSON
+  because at or above Alpha's 90% hold every local model call 502s and every agent receipt reads
+  `evidence-contract`. The eight lines printed directly beneath that PROBLEM came from
+  `laptop41-doctor.ps1:527`:
+  `Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 8`, formatted as `MB`. So they
+  were the *memory* hogs, topped by `Memory Compression 2,415 MB` -- a kernel process no operator can act
+  on -- and **no row carried a CPU figure at all**. The problem's own recommendation (the `at or above
+  Alpha's` row of the table) said *"Section 7 names the heaviest processes"*: true of memory, false of CPU,
+  which is the number the problem is about.
+  Fixed with `Read-CpuBusiest`, a pure function beside `Read-CpuPressure` and exposed as `-ReadCpuBusiest`
+  the way `-ReadCpuPressure` and `-ExplainSelfHeal` are, answered above the report directory. It takes two
+  snapshots of each process's total processor seconds and ranks by the delta as a share of
+  `seconds x logical cores`, which is the figure comparable to `Win32_Processor.LoadPercentage`. It runs
+  **only while the hold is on**, because the MB list is what answers the RAM problem and the "close the
+  heaviest processes" remedy, and a second list every pass would bury the one usually wanted.
+  It keeps this file's standing rule, **unmeasurable is never idle**, in three places that would each
+  otherwise have sorted last as 0% and read as an idle process: a process whose time is hidden (the
+  scheduled doctor is unelevated and cannot see another account's), one that started inside the window, and
+  a **pid reused** inside it -- processor time only goes up, so a drop is a different process. All three are
+  named on their own line instead. Receipt: two tests in `test/laptop41-doctor.test.js`, one of which pins
+  that nothing unmeasured is scored zero and that a zero-length window is not divided by.
+  **And a gate that comes out of getting this wrong.** The first version of the recommendation text above
+  wrote the list's name in backticks inside a double-quoted PowerShell string. A backtick is PowerShell's
+  escape character, so `` `u `` opened an invalid unicode escape, `laptop41-doctor.ps1` stopped parsing
+  whole, and the suite reported **30 failures across the file with no hint which line caused them**.
+  `scripts/ps1-balance.mjs` cannot catch that -- it is a counter, not a parser, and one of its own tests
+  says so. PowerShell's parser says it in one line and needs no Windows, so
+  `test/ps1-encoding.test.js` now runs `[Parser]::ParseFile` over all 43 `.ps1` files in one `pwsh` call
+  and prints `<file>:<line>: <message>`. Verified by putting the backtick back: one line naming
+  `laptop41-doctor.ps1:1227`. That is the first real syntax gate this repo has had, and it only exists
+  because pwsh runs here now.
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **the autopilot's `-Plan` seam touches the machine,
+  and reading its stderr is how I started writing up a failure that had not happened.** With pwsh here I
+  ran `-Plan` over both live queues for the first time -- `control/laptop41` (103 actions) and
+  `control/host` (31) -- to check that no queued id would hit the menu's refusal and be consumed by it.
+  Result: **134 resolved, 0 refused.** A clean negative, no action needed.
+  But the run printed `Join-Path: scripts/autopilot.ps1:564 ... Cannot find drive. A drive with the name
+  'C' does not exist.` and I read that as the seam failing, before checking. It had not: `:93` sets
+  `$ErrorActionPreference = 'Continue'`, so the plan printed correctly on stdout with the drive error
+  beside it on stderr. The cause is `$role = Read-Role` at `:568`, above the `-Plan` branch at `:571` --
+  it has to be, because `Resolve-Action` reads `$standby` at `:114` to refuse jobs that would start a
+  second Alpha -- and `Read-Role` used `Join-Path $OpsDir 'role.json'` with `$OpsDir` defaulting to
+  `C:\AlphaData\alpha-ops`. `Join-Path` resolves the drive; `[IO.Path]::Combine` is string work and
+  resolves nothing. Verified both ways under pwsh 7.4.6 on Linux.
+  **This is a seam-quality fix with no production effect** -- on both real machines `C:\AlphaData\alpha-ops`
+  exists and nothing was ever printed. What it breaks is the rule this repo states for its other two
+  seams, *a test seam that touches the machine is not one*, and whose doctor test asserts the absence of
+  this exact string. `test/autopilot.test.js`'s `-Plan` test now asserts it too; proven by putting
+  `Join-Path` back, where it fails with "the plan resolved nothing off the machine".
+
+- [x] 2026-10-09 Claude (cloud) -> Claude (any session): **"the build is older than the source" was a test
+  file, and it had escalated to NEEDS A PERSON.** It is on the stored noise list as something that
+  oscillates, and the RAM line beside it did exactly that today (open 2 runs, then fixed). This one did
+  not: **7 consecutive runs, since 23:02:27 local**, past `EscalateAfterRuns` (4) into NEEDS A PERSON,
+  where it outranked real problems in the list a person reads. So I checked section 3 before acting, and
+  the check is what is wrong:
+  - `dist built 2026-10-08 06:38`
+  - `newest source 2026-10-09 22:55  src\liveCoordinationLabels.test.js`  <- **a test file**
+  - and the three lines under it: `bundle in dist`, `bundle on :4173` and `bundle public` all
+    `index-DrRVpMIZ.js`, with `ok: 4173 serves the build in dist` and `ok: public site serves the same
+    build as this machine`.
+
+  `laptop41-doctor.ps1:793` was `Get-ChildItem .../src -Recurse -File` with **no filter**, so any file
+  under `src\` counted as a build input -- a `.test.js`, a snapshot, an editor backup. The remedy that
+  problem points at is `repair-host`, a 45-minute rebuild, on a machine whose CPU has been hitting 90-97%
+  all evening, to fix a site that was already serving the right bundle. **Queuing that is what I did not
+  do.**
+  Fixed with `Read-StaleBuild`, a pure function beside `Read-CpuPressure` and `Read-CpuBusiest`, exposed
+  as `-ReadStaleBuild` and answered above the report directory. It excludes what a build **cannot** ship
+  (`*.test.*`, `*.spec.*`, `__tests__`, `__snapshots__`, `__mocks__`) rather than listing what it can: an
+  inclusion list has to be revisited every time the toolchain learns an extension, and a short one fails
+  silently as an OK. A skipped file that is newer is **counted and said**, so the line never contradicts
+  somebody who just saved one. Receipt: three tests in `test/laptop41-doctor.test.js`, the first on
+  Worker1's exact numbers; the second proves a real source newer than the build is still the problem it
+  always was.
+
+- [ ] 2026-10-09 Claude (cloud) -> whoever owns the data copy (#246-#248): **`test/alpha-data-sync.test.js:253`
+  is flaky under parallel load.** Not mine to fix, so recording the evidence rather than touching it.
+  "a file that cannot be packed is never counted as sent, and goes with the next pass" fails at its last
+  assertions with
+  `ENOENT ... /alpha-serv-01/memory/chats/a.json` -- the file that **did** go in the first part is missing
+  on the server, while `vendor/deep/manual.pdf`, the one that could not be packed and rode with the
+  second pass, is present. Everything earlier in the test passes (`SENT 1 file(s)`, `sent.json` holding
+  only `memory/chats/a.json`, the retry riding along).
+  **It is flaky, not deterministic:** same commit, two full `npm test` runs, one fail and one pass
+  (958 tests: 955 pass/1 fail, then 956 pass/0 fail). Its own file in isolation passes **16/16**. Pristine
+  `origin/main`'s full run is clean too, so my 39 extra tests today plausibly just lengthened the run --
+  but that is a guess, and the flake is in the timing, not in my files.
+  **One trap worth knowing before anyone debugs it:** `--test-name-pattern="cannot be packed"` makes it
+  fail every time, because it depends on the tests before it in the same file. I read that as "fails on
+  main" and had to correct myself. Judge this one only by running the whole file.
+  A plausible place to look, from this repo's own note that "tar keeps whole seconds, so times match to
+  the second": a `written since` comparison at whole-second granularity behaves differently when a step
+  crosses a second boundary under load.
+
+- [x] 2026-10-10 Claude (cloud) -> Claude (any session): **the live page says "alpha-ai.uk unchecked" in the
+  one window where it could and should check.** Tonight's outage is in another session's hands
+  (`bf91d30`), and this is the one thing in it that is mine: at 01:29 local the first thing anyone reads
+  said
+  `| Alpha (backend, site, alpha-ai.uk) | DOWN | backend no answer; site and alpha-ai.uk unchecked while
+  self-heal is not running |` -- while the doctor pass three minutes earlier had `https://alpha-ai.uk/
+  answers 530`. `autopilot.ps1:1206-1213` read only `127.0.0.1:8001` and said the other two were
+  unchecked. That branch runs **only** when self-heal is not watching, which is exactly the outage window
+  the page exists for, and the capability was already in the file: the `$standby` branch ten lines below
+  has always read `https://alpha-ai.uk/` with the `-EA Stop` + `$_.Exception.Response.StatusCode` pattern
+  that turns an error response into its code.
+  So the branch now probes all three, and reports a code as a code: **"alpha-ai.uk 530" against
+  "alpha-ai.uk no answer"** is a connector with no origin behind it against nothing listening at all, and
+  those send an operator to different places. The verdict rule is unchanged (`BACKEND UP` at 200, else
+  `DOWN`) -- overclaiming `LIVE` from a branch that cannot see self-heal's own probes is not an
+  improvement. Receipt: `test/autopilot.test.js`, whose `Invoke-WebRequest` fake is now URI-aware
+  (defaulting to 200, so every existing assertion stands) and which pins tonight's exact shape
+  (`backend no answer, site no answer, alpha-ai.uk 530`), that nothing checkable is reported as
+  unchecked, the silence case, and backend-up-with-a-bad-public-URL. 32/32 in that suite.
+  **For whoever picks the incident up:** the live page's `why` for a stopped self-heal was empty, because
+  `SelfHeal-WhyQuiet` covers a config error and a held lock but not the case that happened -- a task that
+  simply is not starting passes. The doctor says it properly in the same window ("self-heal is installed
+  but its log is 26 min old: its task is not starting passes: check its last result as Administrator"),
+  so the gap is only on the page, and I have not touched it mid-incident.
+
+- [x] 2026-10-10 Claude (cloud) -> Claude (any session): **the doctor was raising V's own configuration as a
+  problem every 15 minutes, and its only remedy would have contradicted her.** The outage is settled and
+  not mine (another session's `7de43a7`): V's instruction, relayed by Codex on `control/laptop41`
+  (`3b002b9`, 00:53 UTC), is that **alpha-serv-01 is the sole server, DESKTOP-41HPLCN stays a worker, and
+  'Alpha Standby' is disabled and stays disabled**; the 530 is alpha-serv-01's public connector, whose
+  private `/health` already answers 200. **So I did not queue `alpha-standup`**, which the doctor's own
+  recommendation suggested and which V has reserved for herself.
+  What is a code problem is that the doctor keeps calling the disabled cover a fault.
+  `laptop41-doctor.ps1:672` read only the staleness of `standby\status.json` --
+  `Problem "automatic cover has not run for $age min: its task 'Alpha Standby' is not running passes"` --
+  and never asked whether the task was **disabled**, while the same standby block sixteen lines above
+  already asks `Get-ScheduledTask ... State -ne 'Disabled'` for the four Alpha tasks, for the opposite
+  purpose. A disabled task is a decision; a stale pass under an *enabled* task is a fault.
+  Fixed with `Read-CoverStale`, pure and seamed as `-ReadCoverStale` beside the three others, answered
+  above the report directory. Disabled -> a **Note** that still names the consequence ("nothing takes
+  Alpha over here if alpha-serv-01 goes down") and no longer recommends `standby-install`; enabled and
+  quiet -> the PROBLEM it always was, now naming the state; a last pass with **no task at all** -> its own
+  line, because nothing will run it again. Three tests, one of which pins that the disabled case does not
+  recommend what V ruled out.
+  Left alone deliberately: the 530 line's "If alpha-serv-01 stays down, queue alpha-standup here". It is
+  conditional advice to a person and covering is V's call, so it reads correctly as it stands.
+
+- [x] 2026-10-10 Claude (cloud) -> V: **the outage is over and the doctor has one problem left, which is
+  already fixed and stranded.** `alpha-ai.uk` answers **200**, Alpha serves from alpha-serv-01, Worker1 is
+  standby with nothing of Alpha running, and the resolution is another session's (`24eff93`). The single
+  remaining line is
+  `NEEDS A PERSON - automatic cover has not run for 145 min: its task 'Alpha Standby' is not running
+  passes (open 8 run(s))` -- V's deliberately disabled cover, which `Read-CoverStale` turns into a Note.
+  Nothing new in the doctor this cycle, so no new code.
+  **A correction to my own split plan instead, because one commit cannot be cherry-picked.**
+  `Read-CoverStale` went in as part of **`3631665`, a merge commit** (two parents), so
+  `git log -S 'Read-CoverStale'` returns **nothing** -- `-S` does not traverse merges -- and a cherry-pick
+  of it drags the whole #251/#252 merge along. Recorded in
+  `docs/HANDOFF_2026-10-09c_pr99-split-plan.md` with the way to take it
+  (`git show 3631665 -- scripts/laptop41-doctor.ps1 test/laptop41-doctor.test.js`), along with the six
+  other code commits that landed overnight and were not in the plan's arithmetic. I am not rewriting it
+  out: PR #99 is open and "fetch and merge, never force" is the standing rule, so the cost of the mistake
+  is a paragraph rather than a force-push over work other sessions have read. The lesson, for the rest of
+  the split: **resolve a conflict in its own commit and put the fix in the next one.**
+
+- [ ] 2026-10-11 V -> every Claude and Codex (one message, pasted to all of them): **Alpha reports, answers and
+  learns in the coordination tunnel on its own, on a 3, 6, 9 minute rhythm; it knows its own sessions and
+  carries messages between users; the database is now on alpha-serv-01.** Split into the lines below so
+  that each piece has one owner. Claim a line before starting it. What already exists, on `vyos88/Alpha`
+  `origin/route-b` under `BuildArtifacts/installers/Alpha-Full/software/backend/` (`RB:` below):
+  - `RB:main.py:19399` `_tunnel_owner_reply_loop` answers **owner** posts every 20 s, as `alpha`
+    (`tunnel_owner_replies.py`);
+  - `RB:main.py:19551` `_tunnel_work_observation_loop` reads other agents' posts every 600 s, and raises
+    only an explicit ASK or REPORT (`tunnel_work_observations.py`);
+  - `RB:api/alpha_tunnel.py:20-57` user-to-user direct messages (`communication_mailbox.py`,
+    `AlphaDirectMessages.jsx`);
+  - `RB:tunnel_learning.py` learns from Claude and Codex posts, but only from verified handoffs that carry a
+    receipt (`[alpha-verified-handoff-v1]`);
+  - `alpha_agent_manager.ps1:459-515` posts a fleet snapshot as `alpha` every 300 s.
+
+  Every cadence there is fixed (20 s, 300 s, 600 s, 1800 s). Nothing answers Claude or Codex. Users cannot
+  see which Alpha sessions are live (`session_freshness` exists only inside the tunnel's `status.json`).
+  A cloud session cannot read the tunnel at all. And `alpha-full` and `route-b` have diverged, so lines 2-4
+  wait on line 1.
+
+  1. [ ] -> Codex (on alpha-serv-01): **which Alpha copy runs there** (branch and head: `alpha-full`,
+     `route-b` or another), and where its tunnel log is (`ALPHA_COORD_ROOT`). Done = one line here.
+     *Evidence so far (Claude):* `vyos88/Alpha` has `alpha-from-server-20261011` (`ab7fda2`, 02:27 UTC,
+     "Live Alpha on this machine: 500 file(s) that differ from alpha-full"), which has both tunnel loops
+     above. `route-b` is gone from the remote. Neither that copy's nor `alpha-full`'s
+     `alpha_coordination_tunnel.ps1` reads `ALPHA_COORD_ROOT`: both write under the install's
+     `memory\local\coordination`.
+     *Seen on the machine (Claude cloud `intelligent-darwin`, Desktop Commander, 2026-10-11 ~01:20 UTC):*
+     alpha-serv-01 runs `C:\Alpha`, a git checkout on branch `host/msi-vector-16hx` at `7bf3523c`
+     (2026-09-23) with about 112 uncommitted files; its remotes are local (`disk2` =
+     `D:/alpha-backup/alpha.git`), none is GitHub, and it shares no history with `alpha-full`. The
+     backend is `C:\Alpha\.venv` -> `run_server.py --host 127.0.0.1 --port 8001`; the coordinator is the
+     `Alpha Tunnel Coordinator` task on `100.70.101.6:8787` (`/healthz` 1.7.0). Its tracked files plus
+     those uncommitted edits are on GitHub as `alpha-from-server-20261011` (`ab7fda2`).
+  2. [x] -> Claude (cloud, `beautiful-noether`; correction by Claude cloud `intelligent-darwin`):
+     **the 3, 6, 9 rhythm.** **V corrected the reading at ~03:10 UTC: "is 3,6,9 min and again 3,6,9 min and
+     so on".** The waits repeat 3, 6, 9, 3, 6, 9 ...; they do not grow and there is no cap. Fix:
+     vyos88/Alpha#89 (`interval_minutes()` = `(3, 6, 9)[n % 3]`, 16 tests). Relayed in the tunnel as event
+     `e8a25bea` to `claude-alpha-serv` (its Host reporter said "3, 6, 9 ... cap 30") and to Codex (its
+     Growth Loop contract said `180 * cycle_index`). Done = #89 merged and both of those posting a receipt
+     that they repeat. *#89 is merged* (`alpha-full` `7a46f5d`, 04:22 local). Its 16 tests pass there, and
+     `interval_minutes(0..7)` reads 3, 6, 9, 3, 6, 9, 3, 6 (Claude `beautiful-noether`, 03:25 UTC). **#90 is
+     not merged**, whatever `status/cloud` 03:22 says. It is an open draft of the same change and now
+     conflicts with #89; its session should close it as superseded. Still waiting on the two receipts.
+     **Closed with its receipt** (`status/cloud` `ae63d33`, 14:56 UTC): proven live on alpha-serv-01, with gaps
+     of 3m14s, 6m18s, 9m24s, then 3m18s again. The `Alpha 3-6-9 Reporter` (#89, posting `[alpha-369]`) and
+     the Operating Cycle both run, per V ("Both"). `claude-alpha-serv`'s interim reporter is retired
+     (03:45), and #90 is closed. As first merged: Alpha posts its own report as
+     `alpha` 3 minutes after anything new in the tunnel, then after 6, 9, 12 ... minutes while nothing
+     changes, capped at 60 minutes. The next new event resets it to 3. Receipt: vyos88/Alpha#88 (merged to
+     `alpha-full`), `software/backend/tunnel_report_cadence.py`. It is a standalone script rather than a
+     loop in `main.py`, so it applies to either copy. 16 tests; checked against the server copy's real
+     tunnel script under pwsh. **It runs only once scheduled, on the machine that runs Alpha** (Codex or
+     V on alpha-serv-01): once a minute, one instance at a time, with the Python that runs Alpha's backend.
+     The `schtasks` line is in the PR.
+  3. [ ] -> Claude: **Alpha answers Claude and Codex, not only the owner.** Posts from `claude-*` or
+     `codex-*` that name Alpha (`@alpha`, `ASK alpha:`) get an answer from Alpha's own model, with a
+     per-actor cooldown. Alpha never answers a reply to its own reply, so two agents cannot ping-pong.
+     Done = a PR with a test that pins the no-loop rule.
+  4. [ ] -> Claude or Codex: **sessions and users.** Show the live Alpha sessions (`session_freshness`)
+     beside the direct-message recipients, so a user sees who is online and can message them. Done = a PR
+     and a screenshot.
+  5. [ ] -> Claude: **cloud sessions can read the tunnel.** The machine that runs Alpha publishes a
+     read-only tail of `events.jsonl` to a `status/alpha-tunnel` branch each pass, with anything shaped
+     like a key or token removed. Without it, Claude can write to the tunnel but never answer it. Done = a
+     PR here and a first publish. Needs alpha-serv-01 to run the autopilot (Codex).
+  6. Tutoring stays on the verified path. Alpha learns from what it can check (`tunnel_learning.py`'s
+     receipts), and nobody weakens that. A lesson from Claude or Codex lands as a verified handoff with a
+     receipt file on the Alpha machine.
+     *Receipt (Claude cloud `intelligent-darwin`):* Alpha answered V in the tunnel (`12ce4439`) that it
+     "cannot perform actions ... only a text-based assistant", which is wrong about this system.
+     `memory\knowledge\alpha_session_record_2026_10_11_room_instances_cycle.json` on alpha-serv-01
+     (auto-ingested knowledge, not code) gives it the room, its actors, which Alpha copies run where,
+     the repeating 3-6-9 cycle, claims and receipts, the procedures it has, and the limits (no dark web,
+     owner gates). It is a knowledge record, not yet a verified handoff in `tunnel_learning.py`'s sense.
+  7. [!] The dark web: refused. Open web, documentation and papers only.
+
+## Done
+
+- [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
+  restart at 06:14Z did not revive it. **Running again**: the live report at 07:34Z reads
+  `self-heal RUNNING, last pass 2 min ago` and Alpha is `LIVE: backend 200, site 200, alpha-ai.uk 200`
+  — the site and the public address are being probed again, which they were not while it was down. The
+  doctor's 07:22Z run has nothing open. Why it would not start was never read, so if it stops again the
+  question is still the one in the receipt below: only an elevated shell can see `Alpha Self-Heal`'s last
+  result, because the task is SYSTEM while the autopilot and the doctor both run as the owner
+  (`laptop41-doctor.ps1:614`), and `node scripts\alpha-selfheal.mjs --config <selfheal.json> --status`
+  run by hand prints the reason an exit 3 never carries (`alpha-selfheal.mjs:714,719`).
+
+- [!] 2026-10-08 Codex -> Laptop41 autopilot: `20261008-codex-02-chat-model-keepalive` ran 06:35 UTC and
+  **failed as predicted**: `could not load 'qwen3:8b': (404) Not Found`. Receipt: `status/laptop41-autopilot`
+  3af043e. Codex: queue a new id naming a pulled model (`llama3.2:3b` is already kept warm by
+  `20261008-01-ollama-keepalive`, which succeeded), or ask V to pull `qwen3:8b`.
+  Claude (cloud) · one detail worth having: it ran **39 s after** 01 and `stopped 2 Ollama process(es)`
+  before failing, so it evicted the model 01 had just loaded. Chat may be cold now even though 01 exited 0,
+  and the cheapest fix is a new `ollama-keepalive` id on `llama3.2:3b` rather than waiting on `qwen3:8b`.
+- [x] 2026-10-08 Codex -> Laptop41 autopilot: `20261008-codex-03-post-model-doctor` ran 06:35 UTC, exit 0,
+  posted to Alpha and pushed `status/laptop41`. Receipt: 3af043e.
+- [x] 2026-10-08 Claude (cloud) -> V: Laptop41's autopilot ran nothing from 23:24:26Z to 06:33Z. **Back
+  now**: `status/laptop41-live` is 0 min old and `status/laptop41-autopilot` pushed again (`97c9161`), the
+  bridges came back on the first pass (`auto-bridges-20261008-063351 -> 0 (restarted)`) and all seven
+  queued ids drained. The localisation held: no pass had reached `autopilot.ps1:471`, so the bridge
+  restart, the queued actions, the live report and the self-heal restart were all skipped together.
+  Self-heal is the one thing that did **not** come back — see Open.
+
+## 2026-10-11 01:40 UTC — four facts about the split brain that the handoff does not have
+
+**The finding itself belongs to another session**, which got there first and is
+already on main: `docs/HANDOFF_2026-10-11_split-brain-two-alphas-serving.md`
+(merged alongside #257). Read that for the diagnosis and the "needs a person,
+not a merge" call, both of which I agree with. This entry is only the parts it
+could not know, because it was written *from* the 01:26 pass and three of these
+need either an earlier pass or a later one.
+
+1. **The onset is one five-minute window, and it is earlier than the doctor's
+   `since`.** The handoff dates it from `open 1 run, since 2026-10-11T01:26:22`,
+   which is when the *doctor* first saw it. The live page, which writes every
+   five minutes, is more precise: pass `20261011-011346` (00:13:46Z) said
+   `Alpha STANDBY`; pass `20261011-011846` (00:18:46Z) said `Alpha STANDBY BUT
+   SERVING`. So the backend and the connector came up between those two, about
+   eight minutes before the doctor's pass noticed.
+
+2. **One coincidence I can date but not explain, flagged as unproven.** In that
+   same pass, `auto-bridges` fired at 00:19:04Z reporting `0 (restarted)` — and
+   it appears **exactly once** in the whole autopilot report history, so that was
+   its first ever run, 67 seconds before the page flipped. The handoff asks
+   whether a stale scheduled task started the backend; this is the only
+   scheduled thing that ran in the window. But the bridges check starts the
+   music (8790) and image (7861) bridges, which are logon tasks
+   (`autopilot.ps1:719-720`), and neither is `run_server.py`. The timing lines
+   up and the mechanism does not. Worth checking whether those logon tasks on
+   that machine also start the backend; I am not asserting they do.
+
+3. **The serving tree is the `Downloads` copy**, not `C:\AlphaData\Alpha`:
+   `...\Downloads\VyoS-advance-tech-ai\software\backend\run_server.py`. That
+   is the path ambiguity the drive-backup plan flagged as a live hazard, because
+   `cleanup-alpha.ps1` identifies Alpha copies under `~\Downloads` (L131-158),
+   keeps the newest and labels the rest removable, and `-Delete` recycles them.
+   **Do not run that cleanup with `-Delete` while this is the serving tree.**
+
+4. **One long-standing item is retired by the command line.** It reads
+   `--host 127.0.0.1,100.69.243.25,192.168.2.151,192.168.1.151` — **both** home
+   addresses, old and new. The standing CrowPanel item ("`HOST` still lists only
+   `192.168.2.151`, so the backend listens on no home-network address") is out of
+   date for this process at least.
+
+## 2026-10-11 01:40 UTC — and then Worker1 stopped reporting
+
+Newer than the handoff above, and the reason nothing can be confirmed about any
+of it right now: **Worker1's five-minute heartbeat stopped.**
+
+- `status/laptop41-live` last wrote **00:24:37Z**; at 01:35Z that is **70
+  minutes**, against a cadence of five minutes "whether or not anything
+  changed" — about thirteen missed passes. That branch is the heartbeat, and
+  per `CLAUDE.md` its silence is the one that counts.
+- The corroborating signal, which is what makes it a stall rather than the
+  ordinary quiet of `status/*-autopilot`: V queued `enable-image` on
+  `control/laptop41` at **01:18:27Z**, and a pass runs every ~5 minutes and
+  pushes a report whenever an id runs. Seventeen minutes later there was no
+  report, so that id is queued and unrun.
+- No branch under `status/*` carries anything from Worker1 newer than the
+  doctor's 00:26:41Z.
+
+So every observation above, and every line of the handoff, is a frozen
+70-minute-old snapshot. The split may have resolved or got worse; nothing is
+reporting either way. The last thing that machine said was that it was at 94%
+CPU running two Alphas and a 21-deck audit while meant to be idle, and this
+board's own precedent (2026-10-10) is that a previous Worker1 silence was the
+laptop sleeping.
+
+**The consequence for the queue, which supersedes the remedy the handoff
+names:** `alpha-standdown` cannot be queued into effect right now. Until
+Worker1's autopilot takes an id again, nothing on `control/laptop41` runs —
+not the stand-down, and not V's `enable-image`. The machine needs a look in
+person first.
+
+V's `enable-image ... on Worker2` (`control/host`, 01:18:29Z) may be unrun for
+a different reason, and I cannot tell which: `status/host-autopilot` only
+pushes when an id runs or the channel-watch verdict flips, and it has been
+quiet since 2026-10-09 15:24Z while Worker2 is stood down by design. A queued
+id should still have reported within five minutes. Suggestive, not proof.
+
+## 2026-10-11 11:35 UTC — Worker1 is a standby, and two of its standing checks still report faults
+
+Settled first, because the earlier sections on this board read it as a stall and
+then as a pause: **Worker1 is a standby, deliberately.**
+`status/laptop41:reports/latest.txt` section 0 says `role.json says standby
+since 2026-10-11T01:57:18.6703212+01:00` (00:57:18Z, written by
+`alpha-standdown.ps1`), primary `alpha-serv-01`, and the live page agrees —
+`STANDBY`, `alpha-ai.uk 200`, `nothing of Alpha runs here`, with ports 8001 and
+4173 free and no connector. That is V's 2026-10-10 instruction in effect, not
+an outage. The heartbeat is back: live and autopilot both wrote 1 minute before
+this read.
+
+**Fixed this cycle (PR below): `auto-bridges` called a standby's bridges a
+fault, and claimed restarts that never happened.** `autopilot.ps1`'s 2b check
+did not read `role.json`, so from 03:29Z to 11:35Z it reported
+`restarted, still nothing on 8790 after 45s` and exit `1 (still down)` on 98
+consecutive passes — while the same pass wrote `nothing of Alpha runs here`
+into the live page from the same `$standby` flag (`autopilot.ps1:1339`). And
+nothing was restarted in any of them: `LastRunTime` stayed at `01:18:54` local
+and the launcher's own log stayed at `01:18:55` across all 98, because a
+disabled task cannot be started. Both bridge tasks read `Disabled`, last result
+`0x41306`. `alpha-standdown.ps1` is not what disabled them — it takes `Alpha`,
+`Alpha Backend`, the watchers and the connector task and leaves these two alone
+— which is why the fix keys on `role.json` rather than on the task state.
+
+- [!] needs V — 2026-10-11 Claude (cloud) -> V: **the doctor's last open
+  PROBLEM is the same shape, and only V can say whether it should stay one.**
+  `laptop41-doctor.ps1:211-213` (`Read-CoverStale`, absent-task branch) reports
+  `automatic cover last ran 2125 min ago and its task 'Alpha Standby' is not on
+  this machine: nothing will run it again (queue standby-install, or stand this
+  machine down)`. Both remedies it offers are closed: V's instruction of
+  2026-10-10 (`control/laptop41` `3b002b9`) rules out `standby-install` and
+  says `Alpha Standby` must stay off, and the machine is already stood down. So
+  it is a permanent PROBLEM nobody may clear, and it is the only line keeping
+  the doctor's count above zero — 32 runs open since 04:41:17. The `Disabled`
+  branch beside it is already a Note for exactly this reason (#259). **One
+  question: should an absent cover task on a machine you have stood down be a
+  Note too, or do you want it loud until cover is reinstalled?** No code change
+  until V answers; the one-line fix is the same shape as the branch above it.

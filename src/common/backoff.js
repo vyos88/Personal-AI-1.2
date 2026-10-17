@@ -29,3 +29,16 @@ export function sleep(ms, { signal } = {}) {
     signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
+
+// How long a supervised child has to stay up before its next exit counts as a
+// first failure again. Without a reset, a supervisor that restarts an agent or
+// Alpha counted every crash it had ever seen: one a week after the last, on a
+// process that had been healthy in between, still waited out the full cap as
+// if it were crash-looping. Five minutes is far past any backoff delay, so a
+// real crash loop never gets that far and keeps backing off.
+export const HEALTHY_RUN_MS = 5 * 60 * 1_000;
+
+/** The failure count to back off from, given how long the child just ran. */
+export function failuresAfterRun(failures, ranMs, healthyMs = HEALTHY_RUN_MS) {
+  return ranMs >= healthyMs ? 0 : failures;
+}

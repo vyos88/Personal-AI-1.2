@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { ProtocolError } from '../../common/protocol.js';
+import { resolveExecutable } from '../../common/resolve-executable.js';
 
 /**
  * Reports and advances the Alpha working copy on the host, by queued task.
@@ -243,4 +244,35 @@ export async function run(payload, { signal, log } = {}) {
     stderr: pulled.stderr.slice(-MAX_OUTPUT),
     ...after,
   };
+}
+
+/**
+ * Proves this machine has something to update before the agent offers the
+ * type.
+ *
+ * Same reason as `alpha.coordination`: a laptop running from a copied
+ * `.env.agent` advertised `alpha.update` with no Alpha working copy on it,
+ * won the task, and failed it at `run()` with an attempt spent. Being opt-in
+ * does not prevent that, because the opt-in travels in the copied file.
+ *
+ * It asks exactly what `run()` asks, by calling the same `requireRoot()` -
+ * set, exists, and is a git working copy - and adds the one thing `run()`
+ * can only discover by spawning: that git is on PATH. Nothing is executed;
+ * whether git can reach the remote is not knowable without a fetch, and
+ * `Fetch`/`Pull` still report that honestly.
+ */
+export function available() {
+  try {
+    requireRoot();
+  } catch (error) {
+    return { ok: false, reason: error.message };
+  }
+  const exe = process.env.ALPHA_GIT ?? 'git';
+  if (!resolveExecutable(exe)) {
+    return {
+      ok: false,
+      reason: `git not found (${exe}). This handler drives the git CLI; set ALPHA_GIT to its path.`,
+    };
+  }
+  return { ok: true };
 }

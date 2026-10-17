@@ -11,6 +11,10 @@ export const SCOPES = Object.freeze({
   TASKS_WRITE: 'tasks:write',
   TASKS_CANCEL: 'tasks:cancel',
   AGENTS_READ: 'agents:read',
+  // Pause and resume machines by name. Deliberately separate from every other
+  // grant, so a supervisor (Alpha) can hold this and nothing that queues work
+  // or touches credentials.
+  AGENTS_CONTROL: 'agents:control',
   AGENT_CONNECT: 'agent:connect',
   USERS_READ: 'users:read',
   USERS_WRITE: 'users:write',
@@ -31,6 +35,7 @@ export const SCOPE_PRESETS = Object.freeze({
     SCOPES.TASKS_WRITE,
     SCOPES.TASKS_CANCEL,
     SCOPES.AGENTS_READ,
+    SCOPES.AGENTS_CONTROL,
     SCOPES.KEYS_WRITE,
   ],
   agent: [SCOPES.AGENT_CONNECT],

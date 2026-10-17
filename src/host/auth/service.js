@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+
 import { AuthStore } from './store.js';
 import { hashPassword, verifyPassword, assertPasswordAcceptable } from './passwords.js';
 import {
@@ -27,6 +29,12 @@ export const MAX_TTL_MS = 365 * 24 * 60 * 60 * 1_000; // 1 year
 // impractical without needing a store round-trip per attempt.
 const LOGIN_MAX_FAILURES = 8;
 const LOGIN_LOCKOUT_MS = 15 * 60 * 1_000;
+// Failures are tracked per email *attempted*, not per account, and the login
+// route is unauthenticated — so without a bound, anyone who can reach the port
+// grows this Map by one entry per made-up address for as long as the host
+// runs. Past this many, entries old enough to have unlocked are dropped, then
+// the oldest.
+export const LOGIN_FAILURES_TRACKED_MAX = 10_000;
 
 // A stand-in hash with the real cost, verified against when no user matches.
 // Without it, "unknown email" returns fast and "known email, wrong password"
@@ -110,6 +118,65 @@ function inviteStatus(invite, now) {
   return 'pending';
 }
 
+/**
+ * Why a login failed, for the log only.
+ *
+ * `login()` deliberately answers all three of these with the same 401 and the
+ * same message, and burns the same time on a password verification even when
+ * no such user exists, so a stranger cannot use the endpoint to discover which
+ * addresses have accounts. That protection is for the response. It is not for
+ * the operator, who owns the machine and is the one person entitled to know
+ * whether the attempts hitting it are aimed at a real account or are a scan
+ * walking a username list — which is the whole difference between "ignore it"
+ * and "rotate that password now".
+ *
+ * Exported so the classification can be tested without asserting on log text.
+ */
+export function loginFailureReason(user, passwordMatched) {
+  if (!user) return 'no_such_user';
+  if (!passwordMatched) return 'wrong_password';
+  if (user.status !== UserStatus.ACTIVE) return 'user_disabled';
+  return null;
+}
+
+/**
+ * An attempted address, made safe to put in a line-oriented log.
+ *
+ * The malformed case is the reason this exists: that value never passed
+ * `normalizeEmail`, so it can be any type, any length, and can contain the
+ * newline that would let it forge a second log line.
+ */
+function previewEmail(value) {
+  if (typeof value !== 'string') return `<${value === null ? 'null' : typeof value}>`;
+  const flattened = value.replace(/[\r\n\t\u0000-\u001f]/g, ' ').trim();
+  const clipped = flattened.length > 120 ? `${flattened.slice(0, 120)}...` : flattened;
+  // Quoted, because the human log format writes string fields raw: an attempted
+  // address reading `nope WARN [host:auth] login succeeded` would otherwise sit
+  // in the line looking exactly like the record it is pretending to be. The
+  // newline is already gone, so this is the last way it could imitate structure.
+  return JSON.stringify(clipped);
+}
+
+/**
+ * Drops login sessions past their expiry. Every login writes one record and
+ * nothing else ever removed them, so auth.json grew by one per login for the
+ * life of the host. An expired session can never authenticate again and a
+ * user cannot revoke it (it is not theirs to manage the way an API key is),
+ * so there is nothing it is kept for. API keys are left alone even when
+ * expired: they are named, deliberately issued credentials an operator may
+ * still want to see listed.
+ */
+function pruneExpiredSessions(data, now) {
+  let pruned = 0;
+  for (const [id, key] of Object.entries(data.apiKeys)) {
+    if (key.kind === TokenKind.SESSION && key.expiresAt && key.expiresAt <= now) {
+      delete data.apiKeys[id];
+      pruned += 1;
+    }
+  }
+  return pruned;
+}
+
 export class AuthService {
   #loginFailures = new Map();
 
@@ -119,14 +186,27 @@ export class AuthService {
    *   credential with full scope. Intended to create the first real admin and
    *   then be removed.
    */
-  constructor({ store = new AuthStore(), bootstrapToken = null, now = () => Date.now() } = {}) {
+  constructor({
+    store = new AuthStore(),
+    bootstrapToken = null,
+    now = () => Date.now(),
+    maxTrackedLoginFailures = LOGIN_FAILURES_TRACKED_MAX,
+  } = {}) {
     this.store = store;
+    this.maxTrackedLoginFailures = maxTrackedLoginFailures;
     this.bootstrapToken = bootstrapToken || null;
     this.now = now;
   }
 
   async load() {
     await this.store.load();
+    // A host that restarts after a quiet spell sheds what accumulated before
+    // it went down, rather than waiting for the next login to do it.
+    const pruned = pruneExpiredSessions(this.store.data, this.now());
+    if (pruned > 0) {
+      await this.store.save();
+      log.info('pruned expired login sessions', { count: pruned });
+    }
     if (this.bootstrapToken && this.userCount() > 0) {
       log.warn(
         'ALPHA_BOOTSTRAP_TOKEN is still set but real users exist — ' +
@@ -344,9 +424,44 @@ export class AuthService {
 
   // ------------------------------------------------------------------- login
 
-  async login({ email, password }) {
-    const normalizedEmail = normalizeEmail(email);
-    this.#assertNotLockedOut(normalizedEmail);
+  async login({ email, password, remoteAddress = null, forwardedFor = null }) {
+    // Where it came from. Two fields rather than one, because they are trusted
+    // differently and collapsing them would hide that: `remoteAddress` is the
+    // socket and cannot be forged, but behind Cloudflare or a Vite proxy it is
+    // the proxy rather than the person; `forwardedFor` is a header the client
+    // sent and can say anything at all, and is the only way to see past that
+    // proxy. Neither is the answer on its own.
+    const origin = {
+      remoteAddress: remoteAddress ?? null,
+      forwardedFor: forwardedFor ? previewEmail(forwardedFor) : null,
+    };
+
+    let normalizedEmail;
+    try {
+      normalizedEmail = normalizeEmail(email);
+    } catch (error) {
+      // Refused before any credential is looked at, so without this it left no
+      // trace whatsoever — and "not even an email address" is precisely the
+      // shape of a scan walking `admin`, `root`, `test`. The single most
+      // common thing an exposed login endpoint sees was the one thing this
+      // host could not see.
+      log.warn('login failed', { reason: 'malformed_email', email: previewEmail(email), ...origin });
+      throw error;
+    }
+
+    try {
+      this.#assertNotLockedOut(normalizedEmail);
+    } catch (error) {
+      // The loudest signal there is: this address already failed
+      // LOGIN_MAX_FAILURES times and is still being tried.
+      log.warn('login failed', {
+        reason: 'locked_out',
+        email: normalizedEmail,
+        failures: this.#loginFailures.get(normalizedEmail)?.count ?? 0,
+        ...origin,
+      });
+      throw error;
+    }
 
     const user = this.#findUserByEmail(normalizedEmail);
     // Always run a real verification, even with no user, so the response time
@@ -354,8 +469,17 @@ export class AuthService {
     const hash = user ? user.passwordHash : await DUMMY_HASH_PROMISE;
     const ok = await verifyPassword(password, hash);
 
-    if (!user || !ok || user.status !== UserStatus.ACTIVE) {
+    const reason = loginFailureReason(user, ok);
+    if (reason) {
       this.#recordLoginFailure(normalizedEmail);
+      // The password is never logged, in any form: a mistyped one is usually a
+      // real password, often the right one for somewhere else.
+      log.warn('login failed', {
+        reason,
+        email: normalizedEmail,
+        failures: this.#loginFailures.get(normalizedEmail)?.count ?? 0,
+        ...origin,
+      });
       throw new ProtocolError('invalid email or password', {
         status: 401,
         code: 'invalid_credentials',
@@ -375,11 +499,15 @@ export class AuthService {
     });
 
     await this.store.mutate((data) => {
+      // Pruned at issue time because issuing is the only thing that adds one:
+      // the file then holds at most the sessions of the last TTL, however
+      // long the host runs.
+      pruneExpiredSessions(data, now);
       data.apiKeys[session.record.id] = session.record;
       data.users[user.id].lastLoginAt = now;
     });
 
-    log.info('login succeeded', { userId: user.id, email: user.email });
+    log.info('login succeeded', { userId: user.id, email: user.email, ...origin });
     return {
       user: publicUser(this.store.data.users[user.id]),
       token: session.token,
@@ -405,7 +533,49 @@ export class AuthService {
     const entry = this.#loginFailures.get(email) ?? { count: 0, lastAt: 0 };
     entry.count += 1;
     entry.lastAt = this.now();
+    // Re-inserted so the Map's order is least-recently-failed first, which is
+    // the order the bound below evicts in.
+    this.#loginFailures.delete(email);
     this.#loginFailures.set(email, entry);
+    if (this.#loginFailures.size > this.maxTrackedLoginFailures) this.#forgetLoginFailures();
+  }
+
+  /**
+   * Forget the failures recorded against an email.
+   *
+   * Called when the password itself changes, because the count is a count of
+   * failures against a secret that no longer exists. Without this, the one
+   * user who most needs to get back in cannot: eight wrong attempts and an
+   * admin reset leave a *correct* temporary password answering 429 for the
+   * rest of the lockout window, and `changePassword` is worse still — it
+   * revokes every session, so the user must log in again immediately with a
+   * password nobody has ever failed on.
+   *
+   * Deliberately *not* called from `setUserStatus`. Re-enabling a user does
+   * not change their password, so failures against it are still failures
+   * against a live secret and still worth counting.
+   */
+  #clearLoginFailures(email) {
+    this.#loginFailures.delete(normalizeEmail(email));
+  }
+
+  #forgetLoginFailures() {
+    const cutoff = this.now() - LOGIN_LOCKOUT_MS;
+    for (const [key, entry] of this.#loginFailures) {
+      if (entry.lastAt <= cutoff) this.#loginFailures.delete(key);
+    }
+    // Still over after that means a burst inside one lockout window. Dropping
+    // the least recent is what bounds it; the cost is that an address being
+    // guessed slowly under cover of a flood loses its count and starts again.
+    for (const key of this.#loginFailures.keys()) {
+      if (this.#loginFailures.size <= this.maxTrackedLoginFailures) break;
+      this.#loginFailures.delete(key);
+    }
+  }
+
+  /** How many emails currently have failures on record. For tests. */
+  get trackedLoginFailures() {
+    return this.#loginFailures.size;
   }
 
   // -------------------------------------------------------------------- keys
@@ -526,6 +696,53 @@ export class AuthService {
     return publicUser(this.store.data.users[userId]);
   }
 
+  /**
+   * Resets a user's password without the current one — the admin-side
+   * counterpart to `changePassword`, and the recovery path for an account
+   * whose password is lost or forgotten. There is deliberately no other way to
+   * get in: authorization for this is the caller's own scope (checked by the
+   * server route, the same as `setUserStatus`/`setUserScopes`), not knowledge
+   * of the old secret.
+   *
+   * `newPassword` is optional. Omit it and a random one is generated and
+   * returned exactly once, the same way an invite or key token is — it is
+   * never stored or logged in plaintext, only its hash is.
+   */
+  async adminResetPassword({ userId, newPassword, by }) {
+    const user = this.store.data.users[userId];
+    if (!user) throw new ProtocolError('unknown user', { status: 404, code: 'unknown_user' });
+
+    const generated = newPassword === undefined || newPassword === null;
+    const password = generated ? randomBytes(24).toString('base64url') : newPassword;
+    assertPasswordAcceptable(password);
+    const passwordHash = await hashPassword(password);
+    const now = this.now();
+
+    await this.store.mutate((data) => {
+      data.users[userId].passwordHash = passwordHash;
+      data.users[userId].updatedAt = now;
+      // Same reasoning as changePassword: a reset is itself a response to a
+      // lost or suspected-compromised credential, so every existing session
+      // dies with it. Non-session API keys survive — they belong to running
+      // agents and are revoked separately if that is ever the intent.
+      for (const key of Object.values(data.apiKeys)) {
+        if (key.userId === userId && key.kind === TokenKind.SESSION && !key.revokedAt) {
+          key.revokedAt = now;
+        }
+      }
+    });
+
+    this.#clearLoginFailures(this.store.data.users[userId].email);
+
+    log.info('password reset by admin', { userId, by: by?.label });
+    return {
+      user: publicUser(this.store.data.users[userId]),
+      // Only present when this method chose the password itself — a caller
+      // who supplied one already knows it.
+      temporaryPassword: generated ? password : undefined,
+    };
+  }
+
   async changePassword({ userId, currentPassword, newPassword }) {
     const user = this.store.data.users[userId];
     if (!user) throw new ProtocolError('unknown user', { status: 404, code: 'unknown_user' });
@@ -553,6 +770,8 @@ export class AuthService {
         }
       }
     });
+
+    this.#clearLoginFailures(this.store.data.users[userId].email);
 
     log.info('password changed', { userId });
     return publicUser(this.store.data.users[userId]);

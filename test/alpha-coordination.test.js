@@ -4,11 +4,20 @@ import { mkdtemp, mkdir, writeFile, readFile, chmod } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
+import { createHost } from '../src/host/server.js';
+import { TunnelAgent } from '../src/agent/agent.js';
+import { HandlerRegistry } from '../src/agent/handlers/index.js';
+import { fetchJson } from '../src/common/http.js';
 
 import {
+  ACK_STAGES,
   ALLOWED_ACTIONS,
   buildArgs,
+  configuredActions,
+  requireOffered,
   run,
+  statusEvidence,
+  validateAck,
   validateAction,
   validateActor,
   validatePaths,
@@ -41,12 +50,14 @@ const psLiteral = (value) => `'${String(value).replace(/'/g, "''")}'`;
  * itself and the script sees only what follows. They are still pinned on
  * Windows -- by the buildArgs test above, and by the script running at all.
  */
-async function fixture({ exitCode = 0, stderr = '' } = {}) {
+async function fixture({ exitCode = 0, stderr = '', stdout = 'stub ok' } = {}) {
   const root = await mkdtemp(join(tmpdir(), 'alpha-repo-'));
   await mkdir(join(root, 'scripts'), { recursive: true });
   const scriptPath = join(root, 'scripts', 'alpha_coordination_tunnel.ps1');
   const argvLog = join(root, 'argv.json');
 
+  const outputPath = join(root, 'output.txt');
+  await writeFile(outputPath, stdout);
   if (isWindows) {
     // WriteAllText avoids the BOM that Set-Content -Encoding UTF8 emits on
     // Windows PowerShell 5.1, which JSON.parse would choke on. The join
@@ -56,7 +67,7 @@ async function fixture({ exitCode = 0, stderr = '' } = {}) {
       scriptPath,
       `$items = @($args | ForEach-Object { $_ | ConvertTo-Json -Compress })
 [System.IO.File]::WriteAllText(${psLiteral(argvLog)}, '[' + ($items -join ',') + ']')
-[Console]::Out.Write('stub ok')
+[Console]::Out.Write([System.IO.File]::ReadAllText(${psLiteral(outputPath)}))
 ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode}
 `,
     );
@@ -71,7 +82,7 @@ ${stderr ? `[Console]::Error.Write(${psLiteral(stderr)})\n` : ''}exit ${exitCode
     `#!/usr/bin/env node
 const { writeFileSync } = require('node:fs');
 writeFileSync(${JSON.stringify(argvLog)}, JSON.stringify(process.argv.slice(2)));
-process.stdout.write('stub ok');
+process.stdout.write(require('node:fs').readFileSync(${JSON.stringify(outputPath)}));
 ${stderr ? `process.stderr.write(${JSON.stringify(stderr)});\n` : ''}// Set the code rather than calling process.exit(), which would not wait for
 // those writes to flush when stdout is a pipe.
 process.exitCode = ${exitCode};
@@ -103,6 +114,69 @@ function withEnv(vars, fn) {
   });
 }
 
+test('a large real PowerShell status retains its validated summary and complete stdout', async () => {
+  const snapshot = {
+    schema: 'alpha.coordination.status.v1', generated_at: '2026-10-08T09:00:00Z',
+    tunnel_identity: { host_id: 'worker1', workspace_id: 'different-install' },
+    claims: { 'software/backend/main.py': { actor: 'claude', state: 'current' } },
+    claims_lifecycle: { records: 1, current: 1, details: [{ path: 'software/backend/main.py' }] },
+    recent_events: [{ message: 'x'.repeat(20_000) }],
+  };
+  const raw = JSON.stringify(snapshot);
+  const { root, stub } = await fixture({ stdout: raw, stderr: 'y'.repeat(17_000) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const result = await run({ action: 'Status', actor: 'codex' });
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.sourceRoot, root);
+    assert.equal(result.stdout, raw);
+    assert.equal(result.stdoutTruncated, false);
+    assert.equal(result.statusComplete, true);
+    assert.equal(result.stderrTruncated, true);
+    assert.equal(result.statusError, null);
+    assert.deepEqual(result.status.claims, snapshot.claims);
+    assert.equal(result.status.claimsLifecycle.current, 1);
+    assert.equal(result.status.tunnelIdentity.workspace_id, 'different-install');
+    assert.equal(result.status.claimsComplete, true);
+  });
+});
+
+test('malformed or missing status evidence never becomes an empty ownership result', () => {
+  for (const raw of ['tail of JSON}', '{}', '{"schema":"alpha.coordination.status.v1"}']) {
+    const result = statusEvidence(raw);
+    assert.equal(result.status, null);
+    assert.match(result.statusError, /ownership is unknown/);
+  }
+  const result = statusEvidence('\uFEFF' + JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {},
+  }));
+  assert.equal(result.status.claimsLifecycle.current, undefined);
+  assert.equal(result.status.tunnelIdentity, null);
+});
+
+test('bounded status claims explicitly report incomplete lists and retain exact counts', () => {
+  const claims = Object.fromEntries(Array.from({ length: 65 }, (_, i) => ['file' + i, { actor: 'claude' }]));
+  const result = statusEvidence(JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims,
+    claims_lifecycle: { records: 65, current: 65, details: Object.keys(claims).map(path => ({ path })) },
+  }));
+  assert.equal(result.status.claimEntries, 65);
+  assert.equal(Object.keys(result.status.claims).length, 64);
+  assert.equal(result.status.claimsComplete, false);
+  assert.equal(result.status.lifecycleDetailsComplete, false);
+  assert.equal(result.status.claimsLifecycle.current, 65);
+});
+
+test('a failed status command never attaches parsed ownership evidence', async () => {
+  const { root, stub } = await fixture({ exitCode: 1, stdout: JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: { current: 0 },
+  }) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const result = await run({ action: 'Status', actor: 'codex' });
+    assert.equal(result.exitCode, 1);
+    assert.equal(result.status, undefined);
+  });
+});
+
 // ------------------------------------------------------------- validation
 
 test('only allowlisted actions are accepted', () => {
@@ -110,6 +184,59 @@ test('only allowlisted actions are accepted', () => {
   assert.throws(() => validateAction('Delete'), /unsupported action/);
   assert.throws(() => validateAction('post'), /unsupported action/); // case matters
   assert.throws(() => validateAction(undefined), /unsupported action/);
+});
+
+test('ALPHA_COORDINATION_ACTIONS narrows the actions, and unset means all of them', () => {
+  assert.deepEqual(configuredActions(undefined), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(''), ALLOWED_ACTIONS);
+  assert.deepEqual(configuredActions(' Post , Ack,Status,Post '), ['Post', 'Ack', 'Status']);
+  // A typo must not leave a standby taking claims, or taking nothing quietly.
+  assert.throws(() => configuredActions('Post,claim'), /"claim", which is not one of/);
+  assert.throws(() => configuredActions('Post,Delete'), /"Delete"/);
+  assert.throws(() => configuredActions(' , '), /names no action/);
+});
+
+test('an action this agent was configured not to take is refused with the reason', () => {
+  const offered = configuredActions('Post,Ack,Status');
+  assert.equal(requireOffered('Post', offered), 'Post');
+  assert.throws(
+    () => requireOffered('Claim', offered),
+    (error) =>
+      error.code === 'action_not_offered' &&
+      /takes only Post, Ack, Status/.test(error.message) &&
+      /Claim waits for the main coordination agent/.test(error.message),
+  );
+  // Every allowed action passes when nothing narrows the list.
+  for (const action of ALLOWED_ACTIONS) assert.equal(requireOffered(action, configuredActions('')), action);
+});
+
+test('a narrowed agent refuses Claim before running anything, and still posts', async () => {
+  const { root, stub, argvLog } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Ack,Status' },
+    async () => {
+      await assert.rejects(
+        () => run({ action: 'Claim', actor: 'claude', paths: ['a.txt'] }),
+        /takes only Post, Ack, Status/,
+      );
+      await assert.rejects(() => readFile(argvLog), { code: 'ENOENT' });
+      const result = await run({ action: 'Post', actor: 'claude', message: 'standby note' });
+      assert.equal(result.exitCode, 0);
+    },
+  );
+});
+
+test('available() reports a bad ALPHA_COORDINATION_ACTIONS instead of offering the type', async () => {
+  const { available } = await import('../src/agent/handlers/alpha-coordination.js');
+  const { root, stub } = await fixture();
+  await withEnv(
+    { ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub, ALPHA_COORDINATION_ACTIONS: 'Post,Relase' },
+    async () => {
+      const verdict = available();
+      assert.equal(verdict.ok, false);
+      assert.match(verdict.reason, /"Relase"/);
+    },
+  );
 });
 
 test('actor names are constrained to something legible', () => {
@@ -163,6 +290,41 @@ test('argv places each value in its own slot, never a command string', () => {
   ]);
 });
 
+const HANDOFF_ID = '0123456789abcdef0123456789abcdef';
+
+test('Ack needs the event id it answers, and only a stage the script knows', () => {
+  assert.deepEqual(validateAck('Ack', HANDOFF_ID, undefined), { eventId: HANDOFF_ID, stage: null });
+  for (const stage of ACK_STAGES) {
+    assert.deepEqual(validateAck('Ack', HANDOFF_ID, stage), { eventId: HANDOFF_ID, stage });
+  }
+  assert.throws(() => validateAck('Ack', undefined, undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID.toUpperCase(), undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', `${HANDOFF_ID}; rm -rf /`, undefined), /Ack requires "eventId"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID, 'done'), /unsupported stage "done"/);
+  assert.throws(() => validateAck('Ack', HANDOFF_ID, 'Accepted'), /unsupported stage/); // case matters
+});
+
+test('eventId and stage are refused on every action but Ack, not dropped', () => {
+  assert.deepEqual(validateAck('Post', undefined, undefined), { eventId: null, stage: null });
+  assert.throws(() => validateAck('Post', HANDOFF_ID, undefined), /only accepted with the Ack action/);
+  assert.throws(() => validateAck('Status', undefined, 'tested'), /only accepted with the Ack action/);
+});
+
+test('Ack argv names the event, and passes -Stage only when one was given', () => {
+  const base = { script: 'C:\\alpha\\scripts\\alpha_coordination_tunnel.ps1', action: 'Ack', actor: 'claude', paths: [] };
+  const staged = buildArgs({ ...base, message: 'accepted: claiming files', eventId: HANDOFF_ID, stage: 'accepted' });
+  assert.deepEqual(staged.slice(staged.indexOf('-Action')), [
+    '-Action', 'Ack', '-Actor', 'claude', '-Message', 'accepted: claiming files',
+    '-EventId', HANDOFF_ID, '-Stage', 'accepted',
+  ]);
+  // A plain Ack names no stage. (A script from before Alpha PR #59 has no
+  // -Stage either; it ignores it rather than refusing, which was checked
+  // against that script, not assumed here.)
+  const plain = buildArgs({ ...base, eventId: HANDOFF_ID });
+  assert.deepEqual(plain.slice(plain.indexOf('-Action')), ['-Action', 'Ack', '-Actor', 'claude', '-EventId', HANDOFF_ID]);
+  assert.equal(plain.includes('-Stage'), false);
+});
+
 test('a path containing a comma is refused rather than silently split', () => {
   assert.throws(() => validatePaths(['software/a,b.py'], '/srv/alpha'), /must not contain a comma/);
 });
@@ -213,6 +375,46 @@ test('a real invocation passes exactly the expected argv', async () => {
   ]);
 });
 
+test('a real Ack invocation passes exactly the expected argv', async () => {
+  const { root, stub, argvLog, argvPrefix } = await fixture();
+
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({
+      action: 'Ack',
+      actor: 'claude',
+      eventId: HANDOFF_ID,
+      stage: 'tested',
+      message: 'tested: node --test test/alpha-coordination.test.js; all passed',
+    }),
+  );
+
+  assert.equal(result.exitCode, 0);
+  assert.equal(result.eventId, HANDOFF_ID);
+  assert.equal(result.stage, 'tested');
+  const argv = JSON.parse(await readFile(argvLog, 'utf8'));
+  assert.deepEqual(argv, [
+    ...argvPrefix,
+    '-Action',
+    'Ack',
+    '-Actor',
+    'claude',
+    '-Message',
+    'tested: node --test test/alpha-coordination.test.js; all passed',
+    '-EventId',
+    HANDOFF_ID,
+    '-Stage',
+    'tested',
+  ]);
+});
+
+test('an Ack with no event id never reaches the script', async () => {
+  const { root, stub, argvLog } = await fixture();
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    await assert.rejects(() => run({ action: 'Ack', actor: 'claude', stage: 'received' }), /Ack requires "eventId"/);
+  });
+  await assert.rejects(() => readFile(argvLog, 'utf8'), { code: 'ENOENT' });
+});
+
 test('a non-zero exit is reported as data, not thrown', async () => {
   const { root, stub } = await fixture({ exitCode: 3, stderr: 'claim refused' });
 
@@ -224,6 +426,127 @@ test('a non-zero exit is reported as data, not thrown', async () => {
   // succeed while reporting what happened.
   assert.equal(result.exitCode, 3);
   assert.match(result.stderr, /claim refused/);
+});
+
+test('a run aborted before it finished is a failure, not exit code 0', async () => {
+  if (isWindows) return;
+  const { root, stub } = await fixture();
+  // Outlast the abort: a killed child reports code null, which `?? 0` used to
+  // turn into a clean exit, so a run that never finished read as success.
+  await writeFile(stub, '#!/usr/bin/env bash\nsleep 5\n');
+  await chmod(stub, 0o755);
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), 150);
+
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    assert.rejects(
+      run({ action: 'Status', actor: 'claude-remote' }, { signal: controller.signal }),
+      (error) => error.code === 'coordination_killed',
+    ),
+  );
+});
+
+function largeStatus() {
+  return { schema: 'alpha.coordination.status.v1', claims_lifecycle: {},
+    claims: Object.fromEntries(Array.from({ length: 900 }, (_, i) =>
+    [`software/file-${i}.js`, { actor: `owner-${i}`, note: 'Preserve this active owner and its work.' }])) };
+}
+
+test('Status preserves complete ownership JSON beyond the diagnostic tail', async () => {
+  const status = largeStatus();
+  const stdout = JSON.stringify(status);
+  assert.ok(stdout.length > 16_000);
+  const { root, stub } = await fixture({ stdout });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Status', actor: 'audit' }));
+  assert.equal(result.statusComplete, true);
+  assert.equal(result.stdoutTruncated, false);
+  assert.equal(result.sourceRoot, root);
+  assert.equal(result.statusError, null);
+  assert.equal(result.status.claimEntries, 900);
+  assert.equal(result.status.claimsComplete, false);
+  assert.deepEqual(JSON.parse(result.stdout), status);
+});
+
+test('invalid, oversized and failed Status never claim complete ownership', async (t) => {
+  for (const [name, stdout, exitCode, expected] of [
+    ['malformed', 'x'.repeat(17_000) + '{"claims":', 0, 'invalid_status'],
+    ['missing claims', '{}', 0, 'invalid_status'],
+    ['array claims', '{"claims":[]}', 0, 'invalid_status'],
+    ['missing lifecycle', '{"schema":"alpha.coordination.status.v1","claims":{}}', 0, 'invalid_status'],
+    ['oversized escaped envelope', JSON.stringify({ schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {}, note: '\\'.repeat(400_000) }), 0, 'status_too_large'],
+    ['oversized structured summary', JSON.stringify({ schema: 'alpha.coordination.status.v1', claims: { file: { note: '\\'.repeat(400_000) } }, claims_lifecycle: {} }), 0, 'status_too_large'],
+    ['nonzero script', JSON.stringify(largeStatus()), 3, 'script_failed'],
+  ]) {
+    await t.test(name, async () => {
+      const { root, stub } = await fixture({ stdout, exitCode });
+      const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+        run({ action: 'Status', actor: 'audit' }));
+      assert.equal(result.statusComplete, false);
+      assert.equal(result.statusCompletenessError, expected);
+      assert.equal(result.exitCode, exitCode);
+      assert.ok(result.stdout.length <= 16_000);
+      assert.ok(Buffer.byteLength(JSON.stringify({ result }), 'utf8') < 1_000_000);
+      if (name === 'oversized structured summary') {
+        assert.equal(result.status, null);
+        assert.match(result.statusError, /ownership is unknown/);
+      }
+    });
+  }
+});
+
+test('a PowerShell BOM cannot make a complete status unreadable', async () => {
+  const { root, stub } = await fixture({ stdout: '\uFEFF{"schema":"alpha.coordination.status.v1","claims":{},"claims_lifecycle":{}}' });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Status', actor: 'audit' }));
+  assert.equal(result.statusComplete, true);
+  assert.deepEqual(JSON.parse(result.stdout), { schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {} });
+});
+
+test('ordinary coordination diagnostics retain the bounded tail with explicit truncation', async () => {
+  const stdout = 'a'.repeat(20_000) + 'end';
+  const { root, stub } = await fixture({ stdout });
+  const result = await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, () =>
+    run({ action: 'Post', actor: 'audit', message: 'receipt' }));
+  assert.equal(result.stdout, stdout.slice(-16_000));
+  assert.equal(result.stdoutTruncated, true);
+  assert.equal(result.statusComplete, undefined);
+});
+
+test('complete Status travels through a real leased task and result endpoint', { timeout: 30_000 }, async () => {
+  const status = largeStatus();
+  const { root, stub } = await fixture({ stdout: JSON.stringify(status) });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const token = 'coordination-status-test-token';
+    const host = createHost({ token });
+    await new Promise(resolve => host.server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${host.server.address().port}`;
+    const agent = new TunnelAgent({ hostUrl: url, token, name: 'status-auditor', pollWaitMs: 500,
+      handlers: new HandlerRegistry([{ type: 'alpha.coordination', run }]) });
+    const running = agent.start();
+    try {
+      const { body: created } = await fetchJson(`${url}/tasks`, { method: 'POST', token,
+        body: { type: 'alpha.coordination', maxAttempts: 1, payload: { action: 'Status', actor: 'audit' } } });
+      let finished;
+      const deadline = Date.now() + 20_000;
+      while (Date.now() < deadline) {
+        const { body } = await fetchJson(`${url}/tasks/${created.id}`, { token });
+        if (!['queued', 'leased'].includes(body.status)) { finished = body; break; }
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      assert.ok(finished, 'original task must reach a terminal state');
+      assert.equal(finished.status, 'succeeded');
+      assert.equal(finished.attempts, 1);
+      assert.equal(finished.result.statusComplete, true);
+      assert.equal(finished.result.stdoutTruncated, false);
+      assert.equal(finished.result.sourceRoot, root);
+      assert.deepEqual(JSON.parse(finished.result.stdout), status);
+    } finally {
+      await agent.stop();
+      await running;
+      await host.close();
+    }
+  });
 });
 
 // ---------------------------------------------------------- configuration
