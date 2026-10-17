@@ -185,6 +185,9 @@
     "channelWatch": {
       "channels": "laptop41-live:30,laptop41:90"
     },
+    "heartbeat": {
+      "alpha": false
+    },
     "dataSync": {
       "peer": "desktop-41hplcn",
       "everyMin": 10
