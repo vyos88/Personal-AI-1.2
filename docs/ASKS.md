@@ -597,3 +597,50 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   question: should an absent cover task on a machine you have stood down be a
   Note too, or do you want it loud until cover is reinstalled?** No code change
   until V answers; the one-line fix is the same shape as the branch above it.
+
+- [!] needs V — 2026-10-17 Claude (cloud) -> V: **Worker1 has not taken an
+  update since 2026-10-12 and is 32 commits behind, because thirteen untracked
+  files look to `self-update` like somebody working. Only V can say which way
+  that should break.**
+  The machine says it itself, in `status/laptop41-autopilot:reports/autopilot.md`
+  (pass `20261017-045348`): `checkout c1aa4356 did NOT update (self-update exit
+  1): self-update: working copy has uncommitted changes`, then thirteen paths
+  every one of which is `??` — `scripts/alpha_song_cover_*` (5),
+  `scripts/run-worker1-gpu.ps1`, `scripts/song-cover-preview-input.png`,
+  `scripts/song-cover-preview-output/`, `scripts/worker1-gpu-demand.mjs` plus
+  its two `.before-*` copies, `scripts/worker1-small-output/` and
+  `scripts/worker1-small-render.py`. I checked each against `origin/main`: none
+  exists upstream.
+  **The arithmetic.** `c1aa435` is 2026-10-12 15:33:23 +0100, so the doctor's
+  11:41Z pass today found it 4 d 21 h old; `git rev-list --count
+  c1aa4356..origin/main` = 32.
+  **What the stall costs, and it is not just stale code.** Two fixes written for
+  this exact machine are on main and cannot reach it:
+  - `72b8471` (2026-10-12 18:48:55Z, four hours and fifteen minutes *after* that
+    HEAD) added `Get-StandbyPortVerdict`, which probes `/health` before calling a
+    held port a second Alpha. It greps 0 times in `c1aa4356`'s copy, which still
+    runs the unconditional form at `c1aa4356:scripts/laptop41-doctor.ps1:717`.
+    So the doctor still reports `standby, but the backend runs here (pid 2180
+    pythonw.exe ... AlphaPanelFeed ...): two Alphas` — the AlphaPanelFeed false
+    positive that `laptop41-doctor.ps1:305-320` already documents, naming both
+    remedies it offers as wrong. Its summary says **open 255 run(s) since
+    2026-10-14T16:26:24**.
+  - the `Checkout | STALE` row (`autopilot.ps1:1595-1603`), added for this stall
+    specifically, cannot arrive either — which is why laptop41's `live.json` has
+    no `checkout` key at all while the Host's page has carried one from the start.
+    The stall is invisible on the page a reader is told to open first.
+  **Why I am not fixing it in code.** I changed the dirty test to
+  `--untracked-files=no`, on the reasoning that a fast-forward cannot overwrite
+  an untracked file. That is true and beside the point, and two suites caught it:
+  `test/alpha-update.test.js:349` "a laptop somebody is working on is left alone"
+  and `test/keep-agent.test.js:205` "a checkout somebody is working on stops the
+  update, not the agent", both of which make the tree dirty with an *untracked*
+  `scratch.txt`. An untracked file is this repo's evidence that a person is
+  mid-task on that machine, and the policy is to leave their code and their agent
+  alone. Reverted; `self-update.mjs` is byte-identical to main.
+  **One question: may those thirteen paths be moved aside on Worker1** (into a
+  folder beside the checkout, not deleted) so it starts taking updates again?
+  Moving files is on your list, so I have not. If they are work in progress, the
+  durable alternative is to bound the refusal — "somebody is working here" stops
+  being true after five days — but that reverses the same policy more carefully
+  and is equally yours to call.
