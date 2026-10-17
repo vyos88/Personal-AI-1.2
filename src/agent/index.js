@@ -11,6 +11,7 @@ import {
   MB,
   DEFAULT_MAX_LOAD,
   DEFAULT_AGENT_CONCURRENCY,
+  EXCLUSIVE_TASK_TYPES,
   AGENT_SHUTDOWN_MESSAGE,
 } from '../common/protocol.js';
 import { loadEnv } from '../common/env.js';
@@ -142,6 +143,16 @@ try {
   process.exit(1);
 }
 
+// Types this machine runs one at a time whatever its concurrency (GPU work,
+// the CrowPanel, Alpha updates). Unset keeps the default list; `none` lets
+// every slot take anything.
+const exclusiveSetting = (process.env.ALPHA_AGENT_EXCLUSIVE_TYPES ?? '').trim();
+const exclusiveTypes = exclusiveSetting === ''
+  ? EXCLUSIVE_TASK_TYPES
+  : exclusiveSetting.toLowerCase() === 'none'
+    ? []
+    : exclusiveSetting.split(',').map((entry) => entry.trim()).filter(Boolean);
+
 let agent;
 try {
   agent = new TunnelAgent({
@@ -154,6 +165,7 @@ try {
     memoryReservePercent,
     maxLoad,
     concurrency,
+    exclusiveTypes,
   });
 } catch (error) {
   log.error(error.message);

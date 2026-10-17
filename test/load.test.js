@@ -564,3 +564,126 @@ function blockingHandler() {
     },
   };
 }
+
+/** Blocking handlers for several types, with overlap counted per type and in total. */
+function blockingTypes(types) {
+  const overlap = { total: { now: 0, max: 0 } };
+  const releases = [];
+  const handlers = new HandlerRegistry(types.map((type) => {
+    overlap[type] = { now: 0, max: 0 };
+    return {
+      type,
+      async run() {
+        for (const counter of [overlap[type], overlap.total]) {
+          counter.now += 1;
+          counter.max = Math.max(counter.max, counter.now);
+        }
+        await new Promise((resolve) => releases.push(resolve));
+        overlap[type].now -= 1;
+        overlap.total.now -= 1;
+        return { ok: true };
+      },
+    };
+  }));
+  const releaseAll = () => {
+    for (const resolve of releases.splice(0)) resolve();
+  };
+  return { handlers, overlap, releaseAll };
+}
+
+async function until(predicate, timeoutMs = 5_000) {
+  const deadline = Date.now() + timeoutMs;
+  while (!predicate() && Date.now() < deadline) await new Promise((r) => setTimeout(r, 20));
+  return predicate();
+}
+
+test('an exclusive type runs one at a time while the other slots take everything else', async (t) => {
+  // Raising concurrency on a machine that also offers GPU work must not put
+  // two renders on one card. The free slots keep taking the light work.
+  const host = await startHost();
+  const { handlers, overlap, releaseAll } = blockingTypes(['gpu', 'cpu']);
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'busy-server',
+    handlers,
+    concurrency: 3,
+    exclusiveTypes: ['gpu'],
+    loadSampler: fakeSampler(0),
+  });
+  const running = agent.start();
+  t.after(async () => {
+    releaseAll();
+    await agent.stop();
+    await running;
+  });
+  t.after(() => host.close());
+
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  await enqueue(host.url, { type: 'cpu', leaseMs: 10_000 });
+  await enqueue(host.url, { type: 'cpu', leaseMs: 10_000 });
+
+  assert.ok(await until(() => overlap.total.now === 3), 'three slots are busy');
+  assert.equal(overlap.gpu.now, 1, 'one gpu task at a time');
+  assert.equal(overlap.cpu.now, 2, 'and both cpu tasks beside it');
+  // Give a wrongly-placed second gpu task a chance to appear.
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(overlap.gpu.max, 1, 'the second gpu task never ran beside the first');
+
+  releaseAll();
+  assert.ok(await until(() => overlap.gpu.now === 1 && overlap.gpu.max === 1 && overlap.total.now === 1),
+    'the waiting gpu task runs once the first has finished');
+});
+
+test('an empty exclusive list lets every slot take anything, as before', async (t) => {
+  const host = await startHost();
+  const { handlers, overlap, releaseAll } = blockingTypes(['gpu']);
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'opted-out',
+    handlers,
+    concurrency: 2,
+    exclusiveTypes: [],
+    loadSampler: fakeSampler(0),
+  });
+  const running = agent.start();
+  t.after(async () => {
+    releaseAll();
+    await agent.stop();
+    await running;
+  });
+  t.after(() => host.close());
+
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  assert.ok(await until(() => overlap.gpu.max === 2), 'both ran at once');
+});
+
+test('an agent offering only exclusive types takes one at a time even with spare slots', async (t) => {
+  const host = await startHost();
+  const { handlers, overlap, releaseAll } = blockingTypes(['gpu']);
+  const agent = new TunnelAgent({
+    hostUrl: host.url,
+    token: TOKEN,
+    name: 'gpu-only',
+    handlers,
+    concurrency: 4,
+    exclusiveTypes: ['gpu'],
+    loadSampler: fakeSampler(0),
+  });
+  const running = agent.start();
+  t.after(async () => {
+    releaseAll();
+    await agent.stop();
+    await running;
+  });
+  t.after(() => host.close());
+
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  await enqueue(host.url, { type: 'gpu', leaseMs: 10_000 });
+  assert.ok(await until(() => overlap.gpu.now === 1));
+  await new Promise((r) => setTimeout(r, 200));
+  assert.equal(overlap.gpu.max, 1);
+});
