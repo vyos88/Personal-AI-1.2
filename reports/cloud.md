@@ -1,24 +1,23 @@
-Claude (cloud) report, 2026-10-13 03:57 UTC
+Claude (cloud) report, 2026-10-17 12:00 UTC
 
-alpha-ai.uk: 200 from alpha-serv-01 (last night's short 530 recovered).
+alpha-ai.uk: 200 from alpha-serv-01 now, but it blipped 7 times in a week (14-17 Oct), each gone by the next pass. Check on alpha-serv-01: backend healthy but public side failing = cloudflared at fault (HANDOFF_2026-10-16).
 
-3-6-9 PROVEN LIVE: Operating Cycle + 'Alpha 3-6-9 Reporter' (#89), per V. alpha-report retired; #90 closed.
-
+3-6-9 proven live (#89).
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
-Owner-approved: "agents on, big changes still asked" (automation on at alpha-serv-01). The Worker1-to-Host merge (merge-wt, not live) is claude-alpha-serv's.
+Owner-approved: "agents on, big changes still asked".
 Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand only; song check passed.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 03:11, live 03:43 UTC). 'STANDBY BUT SERVING' is a false positive (AlphaPanelFeed's python, not the backend; ports clean); #277 fixes it; Worker1 still runs c1aa435 at 03:11 (8h after #277: self-update running?); clears once it updates. Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (Note? V decides); CPU-90% flaps (owner's apps).
+WORKER1 (Laptop41): fresh (doctor 11:57, live 11:55 UTC; this relay's report was seen). 3 open. 'STANDBY BUT SERVING' is a false positive (AlphaPanelFeed's python); #277 fixes it; Worker1 STILL runs c1aa435 (12 Oct), 5 days after #277: its self-update is not landing; someone on Worker1 should check. Do NOT queue alpha-standdown for it; V decides. Also open: cover task 'Alpha Standby' absent (expected, V decides); CPU 96% (owner's apps).
 control/host h32 still queued.
 
-Merged: Alpha#101-#102, #104, #111, #116 (Music Creator: fleet line, 'Made on the fleet', Remove vocals; billing untouched). Alpha#103 OPEN: memory/books rewrite; fixes a prune that deleted users' memories. OPEN (credentials): Alpha#109 Spotify token stored encrypted at rest; Alpha#110 new Ring integration (unofficial API, takes the Ring password). Neither tested on a real account. Alpha#113 OPEN: owner shell in the web UI.
-Earlier merged: #253-#278.
+NEW merged (17 Oct): #30 (which device listing to use), #31 (grow logger fix + WiFi survey), #35 (listen() retry crash); #37 closed. docs/HANDOFF_2026-10-17_recommendations-for-alpha.md gathers the host to-dos. Alpha#120 merged (tunnel sync); Alpha#122 open sync draft.
+Merged before: Alpha#101-#102, #104, #111, #116 (Music Creator). Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring (untested on real accounts). Alpha#113 OPEN: owner shell in the web UI.
 
-NEEDS V: Alpha#117 ALPHA 2.0 RELEASE (594 files; APK/installers never built; GitHub Actions never started a job: check Billing and Actions settings; Android signing secrets) is a ship decision; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: Alpha#117 ALPHA 2.0 RELEASE (APK/installers never built; Actions never ran: check Billing; Android signing) is a ship decision; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
-Open: #249 (draft), #229 (draft), #160 (conflicts), #136, #86, #83.
+Open: #153, #249, #229 (drafts), #160 (conflicts), #136, #86, #83; a long September draft tail on both repos for V to sort out.
 Owner's rule: every session posts in the tunnel before and after working on either laptop.
 
 Still stands:
@@ -31,4 +30,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: no standdown on Worker1 for the panel feed; leave Alpha#103/#109/#110/#113/#117 for V. Alpha: ASKS line 1; C3 and C5, read-only. claude-alpha-serv: the merge handoff.
+Alpha/Codex: no standdown on Worker1 for the panel feed; on alpha-serv-01, compare backend and public health at the next blip; leave Alpha#103/#109/#110/#113/#117 for V. Alpha: ASKS line 1; C3 and C5, read-only.
