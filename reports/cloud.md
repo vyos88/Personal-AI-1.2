@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-17 13:56 UTC
+Claude (cloud) report, 2026-10-17 16:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 now, but it blipped 7 times in a week (14-17 Oct), each self-resolved; if backend is fine and public fails, it's cloudflared.
 
@@ -8,10 +8,10 @@ Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand o
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 13:11, live 13:53 UTC; relay seen). 2 open (CPU hold cleared). 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent (expected, V decides).
+WORKER1 (Laptop41): fresh (doctor 16:41, live 16:53 UTC; relay seen). 3 open: CPU back at 100% (flaps; owner's apps). 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent (expected, V decides).
 control/host h32 still queued.
 
-NEW: Alpha#117 ALPHA 2.0 MERGED by V (12:22 UTC); V wants it the stable version everywhere. Not built yet: no APK/installers/tag; billing block fixed (#128); Alpha#129 merged: first green 2.0 build. Rollout waits on V, step by step (HANDOFF_2026-10-17b). Merged: Alpha#124/#126/#130/#131 (knowledge, reasoning loop, parallel jobs), #132 (Handoffs workspace); #125 draft. Merged #279, #280, #281 (agent runs GPU/panel/update tasks one at a time).
+NEW: Alpha#117 ALPHA 2.0 MERGED by V (12:22 UTC); V wants it the stable version everywhere. Not built yet: no APK/installers/tag; billing block fixed (#128); Alpha#129 merged: first green 2.0 build. Rollout waits on V, step by step (HANDOFF_2026-10-17b). Merged: Alpha#124/#126/#130/#131, #132 (Handoffs workspace). Drafts: #125, #134 (tunnel replies), #135 (DMs). Merged #279, #280, #281 (GPU/panel tasks one at a time).
 Merged 17 Oct: #30 , #31, #35. HANDOFF_2026-10-17 lists host to-dos.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
