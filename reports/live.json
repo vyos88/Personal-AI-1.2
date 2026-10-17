@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-10-17T13:44:10.2075525+01:00",
+    "at":  "2026-10-17T13:49:51.3079422+01:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 404; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 10843 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 10849 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (9383 min ago) (89 MB still to send)"
+                 "detail":  "sent 680 file(s) to alpha-serv-01 at 2026-10-11T00:20:46Z (9389 min ago) (89 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  10843,
+                     "age_min":  10849,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -28,5 +28,5 @@
                   "not_live":  "all decks: backend (/health)",
                   "checked_at":  "2026-10-17T12:43:54.718119+00:00"
               },
-    "sync":  "IN SYNC: this machine runs 144d46d of claude/frie...(30)"
+    "sync":  "IN SYNC: this machine runs 754e747 of claude/frie...(30)"
 }
