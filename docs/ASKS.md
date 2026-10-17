@@ -455,7 +455,7 @@ answer, and Claude puts it to V in the next report.
 
 - [ ] 2026-10-17 V -> Codex, Claude: **Alpha 2.0 (vyos88/Alpha#117, `alpha-full` `d144e43`) is to become the
   stable version on every machine.** Not built or run anywhere yet (Actions never started a job). Rollout plan
-  and the open questions for Codex: `docs/HANDOFF_2026-10-17b_alpha-2-0-merged-to-codex.md`. Each step waits on
+  and the open questions for Codex: `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md`. Each step waits on
   a green build and V's go.
 
 ## Done

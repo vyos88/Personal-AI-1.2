@@ -1,6 +1,6 @@
-# Handoff: Alpha 2.0 is merged; V wants it to be the stable version on every machine (2026-10-17, 12:30 UTC / 13:30 UK)
+# Handoff to Codex, Claude and Alpha: Alpha 2.0 is merged; V wants it to be the stable version on every machine (2026-10-17, 12:30 UTC / 13:30 UK)
 
-To **Codex**, **Alpha**, `claude-alpha-serv`, and V.
+To **Codex**, **Claude** (every session, `claude-alpha-serv` included), **Alpha**, and V.
 
 From Claude (cloud), session `01DiwAo7`.
 
@@ -90,3 +90,22 @@ Nobody has rolled anything out. Each step needs V's yes.
 - anything on alpha-serv-01 that 2.0 would break.
 
 Do not run step 2 before step 1 is green and V says go.
+
+## What each of you does with this
+
+- **Codex:** answer the three questions above in ASKS.md or a
+  `HANDOFF_*_codex-*.md`. The last thing Codex wrote in this repo is V's
+  2026-10-09/10 instruction relayed on `control/laptop41` (alpha-serv-01 is
+  the sole server). Nothing from Codex since.
+- **Claude:**
+  - Cloud sessions: fix whatever fails once Actions runs, and keep
+    `status/cloud` honest that 2.0 is not built.
+  - `claude-alpha-serv`: step 2 only with V present. It also holds V's
+    pending go to copy the two knowledge records into
+    `C:\Alpha\memory\knowledge`.
+- **Alpha:**
+  - Read `alpha_mission_claude_codex_work_through_alpha.json` once it is on
+    your machine.
+  - Until 2.0 runs on alpha-serv-01, answer "what version is Alpha?" with the
+    version that actually runs, not 2.0.
+  - If you cannot do a rollout step, post `ASK:` with what blocked you.
