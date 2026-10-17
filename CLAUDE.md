@@ -308,6 +308,22 @@ say so at each site; this is the short list.
 - **An agent must not deregister while tasks are still reporting.** `stop()`
   drains first, then aborts, then deregisters. Deregistering up front makes
   every in-flight result a 410, and the host re-runs work that succeeded.
+- **`ALPHA_HOST_BIND` must name *this* machine's own tailnet address, never a
+  copied or remembered one.** Found live on the Alpha host itself: `.env` had
+  it set to a different machine's `100.x` address entirely (leftover from an
+  earlier setup pass), so `listenWhenAvailable()` retried forever against an
+  address that could never come up on this box — indistinguishable at a glance
+  from the ordinary "Tailscale hasn't assigned it yet" boot-time wait the retry
+  loop exists for. Worse, the moment loopback (`127.0.0.1`) bound successfully
+  while the wrong tailnet address kept failing, the very next retry re-called
+  `.listen()` on the already-bound loopback server and crashed the whole
+  process on `ERR_SERVER_ALREADY_LISTEN` — a second, previously-unfound bug,
+  now fixed in `listen()` (`src/host/server.js`) by skipping any server that
+  is already `.listening`, with a regression test in `test/tunnel.test.js`.
+  Checking `$env:ALPHA_HOST_BIND` (an OS-level environment variable silently
+  wins over `.env` — `process.loadEnvFile()` never overrides one) and
+  `tailscale ip -4` against each other is the fast way to catch this before it
+  costs another debugging session.
 
 ## Two supervisors, and why neither is a handler
 
@@ -1251,6 +1267,30 @@ turns a driver problem into a hunt for a cable.
 Same fix as `grow` against `alpha.render`: the overlap costs legibility, not
 correctness, so it is spent on the two `description` strings, which is what
 `describe()` and `alpha-admin agents` print at the moment of the confusion.
+
+`wifi-survey.js` is the sixth, and the one whose name has to be read
+carefully. `wifi.survey` runs `netsh wlan show networks mode=bssid` and returns
+every access point the machine can hear, per radio: BSSID, signal, band,
+channel. It follows `alpha-devices`' tightening — **no arguments at all**,
+since the argv is a constant, so `{ ssid: 'home' }` is refused rather than
+returning everything and looking like a filter that matched. Three things it
+gets right on purpose:
+
+- **It measures attenuation; it does not see through walls.** A WiFi chip
+  reports one number per AP and nothing about what is between them. Two
+  surveys from two rooms differ by what the wall costs, in dB, and that is a
+  real and useful measurement — but through-wall *imaging* needs channel state
+  information from specific chipsets, or radar. The `description` says so,
+  because the name alone invites the other reading.
+- **Signal is carried in dBm as well as Windows' percentage.** The mapping is
+  linear (0% is -100 dBm, 100% is -50 dBm); keeping both means a survey can be
+  compared with one taken by anything else, while still showing what the
+  machine actually said.
+- **An unreadable answer is not an empty one.** netsh's output is localised, so
+  on a non-English Windows the labels are words this parser does not know and
+  the survey would return zero networks — indistinguishable from a room with no
+  WiFi. It throws instead, with the first 300 characters of what it got. Same
+  failure `alpha-devices` records for `serialPorts`, caught before it ships.
 
 `alpha-coordination.js` is the reference for that case: pinned interpreter,
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
