@@ -125,11 +125,11 @@ coding and execution, on 256 GB RAM and 2 × 14 cores.
 
 | ID | Item | Done when |
 |---|---|---|
-| A2 | **In review: vyos88/Alpha#136.** The last 122 dead route copies are deleted there (8 modules went in Alpha#125), two fixes they held are ported, and `tests/route_shadow_baseline.json` is empty. Merge it, then delete this row. | Alpha#136 is merged |
 | A3 | Split `main.py` (39k lines) one hub at a time into `api/<hub>.py` routers. The shadow ratchet makes each move safe. | one hub per PR, no new shadowing |
 | A5 | The Brain deck's 3D view draws Alpha's software surfaces (decks, hubs, memory), not the anatomy regions the Neurons view draws, so switching views loses your place. **Owner decision:** draw the regions in 3D with the Neurons colours and selection, or keep 3D as a separate surface map and say so on the tab. | the 3D tab matches the decision |
 | A6 | The code/Codex upgrade skills have no executors; since Alpha#136 they say `not-run` instead of claiming "completed". Wire real checks (lint, tests, `pip list --outdated`), or stop the loop. | a skill that reports completed ran the check it names |
 | A7 | `api/arduino.py` (542 lines) is never registered (`api/__init__.py` says so); delete it after checking nothing imports it. | the file is gone and the suite passes |
+| A8 | **Person.** Alpha-serv-01 runs Alpha from `C:\Alpha` on branch `host/msi-vector-16hx`, which has drifted from `alpha-full` in 126 files (`apply-alpha-update.mjs` refuses them all). Merged work since then went in by hand (`HANDOFF_2026-10-17d_brain-live-on-server.md`). Decide: publish the host branch and merge `alpha-full` into it, or reset the host onto `alpha-full` | `apply-alpha-update.mjs --alpha-root C:\Alpha` reports no conflicts |
 | V1 | Type floor 8px → 11px, one sheet at a time, with a visual-audit run before and after each. | no text under 11px in `visual-audit.mjs` tiny counts |
 | V2 | Move the global sheets to `@layer`. Inside a layer `!important` reverses, so audit every deck before and after. | the nine sheets are layered and the audit is unchanged |
 | V3 | Light theme for content panels (atlas-day reaches only the frame today), then `prefers-color-scheme`. | content is readable in atlas-day on every route |
@@ -161,9 +161,7 @@ The fleet that "Alpha Governed Agents" starts on Worker1. Scripts are in `vyos88
 |---|---|---|---|
 | ST1 | person / code | Merge the Alpha#58 steward changes into Worker1's own `scripts\` copies (11 refuse; see H2). `--skip-scripts` alone does not get H1 through, because 25 `software\` files refuse too | `apply-alpha-update.mjs` reports `already` for every `scripts/` file |
 | ST2 | code | `-NoExit` (`start_visible_alpha_codex_agents.ps1`, `Open-AgentWindow`) keeps a crashed hidden worker's window alive, so the manager never sees it exit and never restarts it. First confirm that every worker's command loops forever (voice, interface style, evolution, the tunnel `Watch`), then drop `-NoExit` for hidden windows | a worker that throws shows `exited` in the manager and is restarted by auto-heal |
-| ST3 | code | **In review: vyos88/Alpha#136** (one bounded copy in `alpha_steward_python_token.ps1`, tested under PowerShell 7). Merge it, then delete this row. | Alpha#136 is merged |
 | ST4 | code | The package and voice stewards have no DPAPI fallback, so they stop when the credential cannot be decrypted in their context | both pass `-TokenFallback` like the deck steward |
-| ST5 | code | **In review: vyos88/Alpha#136** (`process_started_at` in `workers.json`, checked by the launcher and the manager; `-ForceNew` stops the old fleet). Merge it, then delete this row. | Alpha#136 is merged |
 | ST6 | code | The manager gives a campaign agent's `/run` 30s (`Invoke-CampaignAgentCycleIfDue`); a real cycle takes longer and is recorded as an error | the timeout matches the agent's cycle budget, or the call is fire-and-forget with the receipt read later |
 
 ## Reports — for Codex (read-only)
