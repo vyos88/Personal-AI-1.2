@@ -123,21 +123,7 @@ async function main(argv) {
     return { ok: false, reason: before.stderr || 'could not read HEAD', exit: EXIT_FAILED };
   }
 
-  // --untracked-files=no, because a fast-forward cannot destroy a file git is
-  // not tracking. Plain --porcelain counts `??` lines too, and on 2026-10-17
-  // that had frozen Worker1 at c1aa4356 for four days and 32 commits over
-  // thirteen untracked scripts\alpha_song_cover_* / worker1-* experiment files,
-  // none of which exists upstream. The cost was not the stale code: the
-  // "two Alphas" false positive fixed four hours after that commit, and the
-  // Checkout row that would have made the stall visible on the live page, both
-  // sat on main unable to reach the machine that needed them, while its doctor
-  // asked for a person 255 passes running.
-  //
-  // The one case where an untracked file genuinely blocks the update -- an
-  // incoming commit adding that same path -- is not guessed at here: git
-  // refuses the fast-forward itself, and the pull branch below already hands
-  // that back as a person's decision.
-  const dirty = await git(options.repo, ['status', '--porcelain', '--untracked-files=no']);
+  const dirty = await git(options.repo, ['status', '--porcelain']);
   if (dirty.stdout) {
     // Somebody is working here. Updating under them is how you lose an
     // afternoon's changes and gain a bug report about a machine that "just
