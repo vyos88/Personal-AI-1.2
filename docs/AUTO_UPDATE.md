@@ -318,6 +318,21 @@ When it refuses:
 | `Not possible to fast-forward` | this machine has a commit the remote does not | push it, or reset onto the remote if it was a mistake |
 | `not a git working copy` | wrong `--repo` path | point it at the checkout the agent runs from |
 
+**A refusal names the cost as well as the remedy.** The first two messages
+above repeat unchanged on every pass, which is exactly what makes them easy to
+leave alone: the Host's autopilot reported `checkout cannot update` from 07:49Z
+on 2026-10-08 over one uncommitted `scripts/usb-inventory.ps1`, and was still
+pinned at `e175472` eight hours and sixteen commits later. So both refusals now
+add a second line -- how many commits this checkout is missing and how long the
+oldest has been waiting -- and the JSON carries `behind` and `oldestMissing`
+beside the reason.
+
+It fetches to answer that, including on the dirty path, which never touched
+the network before. Fetching is not updating: it writes `refs/remotes` and no
+tracked file, so rule 2 stands. A fetch that fails leaves the gap out rather
+than guessing, and never replaces the reason the caller came for with a second
+one about the network. `test/self-update.test.js` pins all four cases.
+
 ---
 
 ## The Alpha host: updating Alpha itself, from a task

@@ -250,3 +250,21 @@ test('a machine opts in with ALPHA_EXTRA_HANDLERS, and then advertises it', asyn
   const capabilities = /capabilities=(\[[^\]]*\])/.exec(output)?.[1] ?? '';
   assert.match(capabilities, /device\.inventory/);
 });
+
+test('on Windows the default powershell.exe is found as named, not as powershell.exe.EXE', async (t) => {
+  // PATHEXT used to be appended to a name that already had an extension, so
+  // every Windows machine reported PowerShell missing and dropped the handler.
+  const dir = await mkdtemp(join(tmpdir(), 'ps-path-'));
+  await writeFile(join(dir, 'powershell.exe'), '');
+  const saved = { platform: process.platform, PATH: process.env.PATH, PS: process.env.ALPHA_POWERSHELL };
+  Object.defineProperty(process, 'platform', { value: 'win32' });
+  process.env.PATH = dir;
+  delete process.env.ALPHA_POWERSHELL;
+  t.after(() => {
+    Object.defineProperty(process, 'platform', { value: saved.platform });
+    process.env.PATH = saved.PATH;
+    if (saved.PS === undefined) delete process.env.ALPHA_POWERSHELL;
+    else process.env.ALPHA_POWERSHELL = saved.PS;
+  });
+  assert.deepEqual(available(), { ok: true });
+});

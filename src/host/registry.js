@@ -1,6 +1,7 @@
 import {
   newId,
   AGENT_STALE_MS,
+  AGENT_SILENT_MS,
   MEMORY_REPORT_STALE_MS,
   LOAD_REPORT_STALE_MS,
   SUPERSEDED_MEMORY_MS,
@@ -43,13 +44,19 @@ export class AgentRegistry {
   // Registrations dropped because the same worker registered again, kept just
   // long enough to tell the superseded process why its id stopped working.
   #superseded = new Map();
+  // Machines told to take no new work, by name. A name rather than an id for
+  // the reason targetAgent uses one: ids are minted per registration, so a
+  // pause by id would be lifted by the laptop restarting.
+  #paused = new Map();
 
   constructor({
     staleMs = AGENT_STALE_MS,
+    silentMs = AGENT_SILENT_MS,
     supersededMemoryMs = SUPERSEDED_MEMORY_MS,
     now = () => Date.now(),
   } = {}) {
     this.staleMs = staleMs;
+    this.silentMs = silentMs;
     this.supersededMemoryMs = supersededMemoryMs;
     this.now = now;
   }
@@ -355,6 +362,10 @@ export class AgentRegistry {
   // without a requirement are admitted by every agent and hold nothing.
 
   canAdmit(agentId, task) {
+    // A paused machine is offered nothing, whatever it could run. What it is
+    // already running is left alone: a pause is "take no more", and stopping
+    // work in flight is what cancelling the task is for.
+    if (this.isPaused(agentId)) return false;
     // A task that names a machine is offered to that machine and to nothing
     // else. Checked first because it is exact and free, where everything below
     // is arithmetic on reports that age.
@@ -476,7 +487,12 @@ export class AgentRegistry {
     // scope than the `keys:read` that exists for looking at credentials.
     return [...this.#agents.values()].map(({ keyId, ...agent }) => ({
       ...agent,
+      lastSeenAt: agent.lastSeenAt,
       idleMs: now - agent.lastSeenAt,
+      // Reported, never acted on: the row stays, and stays placeable, until
+      // prune() drops it at `staleMs`. This only stops a reader taking a
+      // machine that has missed two heartbeats for one that is attached.
+      stale: now - agent.lastSeenAt > this.silentMs,
       availableBytes: this.offerableBytes(agent),
       // Of `reservedBytes`, the part the agent's own reports have not shown
       // being taken yet — the only part still being held back by hand.
@@ -485,6 +501,7 @@ export class AgentRegistry {
       // actually used — null where the report is missing or stale.
       loadFactor: this.loadFactor(agent),
       rank: this.rank(agent),
+      paused: this.#paused.has(agent.name),
     }));
   }
 
@@ -517,6 +534,51 @@ export class AgentRegistry {
       if (agent.capabilities.includes(type)) return true;
     }
     return false;
+  }
+
+  /**
+   * Stop offering work to every machine answering to `name`.
+   *
+   * `by` is the principal that asked. A pause made with admin can be lifted
+   * only with admin: the creator's hold is not something a supervisor key can
+   * overrule. Re-pausing replaces the reason but never downgrades that hold.
+   */
+  pause(name, { reason = '', by }) {
+    const existing = this.#paused.get(name);
+    const creatorHold = Boolean(by?.admin) || Boolean(existing?.creatorHold);
+    const entry = {
+      name,
+      reason: String(reason ?? '').slice(0, 500),
+      by: by?.label ?? 'unknown',
+      creatorHold,
+      at: this.now(),
+    };
+    this.#paused.set(name, entry);
+    return { ...entry, attached: this.hasAgentNamed(name) };
+  }
+
+  /** Lift a pause. Returns null if there was none; throws 403 on a creator's hold. */
+  resume(name, { by }) {
+    const existing = this.#paused.get(name);
+    if (!existing) return null;
+    if (existing.creatorHold && !by?.admin) {
+      const error = new Error(`${name} was paused by an admin; only an admin can resume it`);
+      error.status = 403;
+      error.code = 'creator_hold';
+      throw error;
+    }
+    this.#paused.delete(name);
+    return existing;
+  }
+
+  isPaused(agentId) {
+    if (this.#paused.size === 0) return false;
+    const agent = typeof agentId === 'string' ? this.#agents.get(agentId) : agentId;
+    return Boolean(agent && this.#paused.has(agent.name));
+  }
+
+  pauses() {
+    return [...this.#paused.values()].map((entry) => ({ ...entry, attached: this.hasAgentNamed(entry.name) }));
   }
 
   /** Whether a machine is attached under this name. */

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { PRESETS, expand, normalizeRecipe, run, walk } from '../src/agent/handlers/grow.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { ProtocolError } from '../src/common/protocol.js';
+import { createLogger } from '../src/common/log.js';
 
 /** Every axis has real extent, which is the difference between 3D and a drawing. */
 function spansAllAxes(bounds, min = 0.2) {
@@ -180,6 +181,14 @@ test('grow is registered as a built-in and describes itself', () => {
   assert.ok(registry.has('grow'));
   const entry = registry.describe().find((h) => h.type === 'grow');
   assert.ok(entry.description.length > 0);
+});
+
+test('runs with the logger object the agent actually passes, not a bare function', async () => {
+  // The agent hands handlers `log: taskLog`, an object with .info/.warn/etc,
+  // never a callable — a handler that calls `log(...)` directly only breaks
+  // once it runs for real, since `run(payload)` in the tests above leaves
+  // `log` undefined and `log?.()` skips silently either way.
+  await run({ preset: 'fern' }, { log: createLogger('test').child('grow') });
 });
 
 test('the result carries the recipe that produced it', async () => {

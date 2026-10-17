@@ -40,19 +40,23 @@ Options
   --species <a,b,...>   Render these, one per job, cycling through the list.
                         Sets the payload's species, so it is for alpha.render
   --seed <n>            First seed. Each job gets the next one, so a batch is
-                        distinct renders rather than the same one N times.
-                        Default: 0 — the same command reproduces the same
+                        distinct renders or tracks rather than the same one N
+                        times. Applies to any payload: without it, a --payload
+                        carrying a seed starts from that seed, and --species
+                        starts from 0 — the same command reproduces the same
                         recipes, which is what a recipe is for
   --save <file>         Write what came back to this file as JSON. For renders
-                        that is the recipe book: the images stay on the machine
-                        that made them, the recipes come here
+                        and tracks that is the recipe book: the files stay on
+                        the machine that made them, the recipes come here.
+                        Jobs that did not finish are listed with their status
   --agent <name>        Run them all on this machine — the NAME from
                         \`alpha-admin agents\`. Renders want this: the GPU and
                         the generator are only on one box
   --min-memory-mb <n>   Only place each job where that much RAM is free
   --lease-ms <n>        Lease per job. Raise it for work that outlives 60s
   --timeout <seconds>   How long to wait for the batch. Default: 120
-  --json                The finished tasks, as JSON
+  --json                The finished tasks, as JSON on stdout (progress goes
+                        to stderr). Combines with --save
   --help                This message
 
   Host:  ALPHA_HOST_URL    (default http://127.0.0.1:8787)
@@ -74,7 +78,10 @@ const OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 };
 
-const say = (line = '') => process.stdout.write(`${line}\n`);
+// Under --json, stdout is the JSON and nothing else; the running commentary
+// moves to stderr so `--json > out.json` is still a parseable file.
+let out = process.stdout;
+const say = (line = '') => out.write(`${line}\n`);
 const mb = (bytes) => (Number.isFinite(bytes) ? `${Math.round(bytes / (1024 * 1024))}M` : '-');
 const pct = (value) => (Number.isFinite(value) ? `${Math.round(value * 100)}%` : '-');
 
@@ -126,6 +133,30 @@ async function agentNames(into = new Map()) {
  * and seed reproduce it exactly — so a batch of renders reads as a list of
  * recipes, which is the thing you would write down.
  */
+function describeRecipe(recipe) {
+  if (!recipe || typeof recipe !== 'object') return '';
+  // alpha.render: species and seed are the whole recipe.
+  if (recipe.species !== undefined) return `${recipe.species}/${recipe.seed}`;
+  // alpha.music: { genre, subgenre, bpm, key, vocals, seed, durationSec }.
+  if (recipe.genre !== undefined) {
+    return [
+      recipe.subgenre ? `${recipe.genre}/${recipe.subgenre}` : recipe.genre,
+      Number.isFinite(recipe.bpm) ? `${recipe.bpm} BPM` : null,
+      recipe.key ?? null,
+      typeof recipe.vocals === 'boolean' ? (recipe.vocals ? 'vocals' : 'instrumental') : null,
+      recipe.seed !== undefined ? `seed ${recipe.seed}` : null,
+      Number.isFinite(recipe.durationSec) ? `${recipe.durationSec}s` : null,
+    ]
+      .filter(Boolean)
+      .join(' ');
+  }
+  // Anything else: say what it holds rather than guessing at a shape and
+  // printing `undefined`.
+  return Object.entries(recipe)
+    .map(([key, value]) => `${key}=${typeof value === 'object' ? JSON.stringify(value) : value}`)
+    .join(' ');
+}
+
 function recipeOf(task) {
   const recipe = task.result?.recipe;
   if (!recipe) return '';
@@ -133,7 +164,26 @@ function recipeOf(task) {
   const wrote = outputs.length
     ? ` → ${outputs.map((o) => `${o.name} (${size(o.bytes)})`).join(', ')}`
     : '';
-  return `  ${recipe.species}/${recipe.seed}${wrote}`;
+  return `  ${describeRecipe(recipe)}${wrote}`;
+}
+
+/**
+ * The payload for job `i` of a batch.
+ *
+ * A batch of renders or tracks should be a batch of *different* ones. Species
+ * cycle through the list, and every job gets its own seed whenever the work is
+ * seeded at all — by --seed, by a seed already in --payload (alpha.music
+ * carries one), or by --species, which has always started from 0. Work with no
+ * seed anywhere (sysinfo, echo) is queued exactly as given.
+ */
+function payloadFor(i, { payload, species = [], seed }) {
+  const firstSeed =
+    seed ?? (Number.isInteger(payload?.seed) ? payload.seed : species.length ? 0 : null);
+  if (firstSeed === null && species.length === 0) return payload;
+  const next = { ...payload };
+  if (species.length) next.species = species[i % species.length];
+  if (firstSeed !== null) next.seed = firstSeed + i;
+  return next;
 }
 
 function showFleet(agents) {
@@ -159,6 +209,7 @@ async function main() {
     die(`${error.message}\n\n${USAGE}`);
   }
   if (flags.help) return say(USAGE);
+  if (flags.json) out = process.stderr;
   if (!TOKEN) die(`no credential. Set ALPHA_ADMIN_TOKEN.\n\n${USAGE}`);
   if (!flags.type) die(`--type is required.\n\n${USAGE}`);
 
@@ -183,25 +234,25 @@ async function main() {
   if (flags['min-memory-mb']) body.minMemoryMB = Number.parseInt(flags['min-memory-mb'], 10);
   if (flags['lease-ms']) body.leaseMs = Number.parseInt(flags['lease-ms'], 10);
 
-  // A batch of renders should be a batch of *different* renders. Species cycle
-  // through the list and every job gets its own seed, so `--count 6` over two
-  // species is six distinct creatures rather than the same one six times.
+  // `--count 6` over two species is six distinct creatures, and `--count 5`
+  // of a seeded music payload is five tracks — see payloadFor.
   const species = (flags.species ?? '')
     .split(',')
     .map((entry) => entry.trim())
     .filter(Boolean);
-  const firstSeed = positiveInt(flags.seed, 'seed', 0, { min: 0 });
-  const bodyFor = (i) =>
-    species.length === 0
-      ? body
-      : {
-          ...body,
-          payload: { ...payload, species: species[i % species.length], seed: firstSeed + i },
-        };
+  const seed = positiveInt(flags.seed, 'seed', undefined, { min: 0 });
+  const bodyFor = (i) => ({ ...body, payload: payloadFor(i, { payload, species, seed }) });
+  const firstSeed = bodyFor(0).payload?.seed;
+  const seeds = Number.isInteger(firstSeed)
+    ? count > 1
+      ? `seeds ${firstSeed}–${firstSeed + count - 1}`
+      : `seed ${firstSeed}`
+    : '';
+  const detail = [species.join(', '), seeds].filter(Boolean).join(', ');
 
   say(
     `\nQueueing ${count} × ${flags.type}` +
-      `${species.length ? ` (${species.join(', ')}, seeds ${firstSeed}–${firstSeed + count - 1})` : ''}` +
+      `${detail ? ` (${detail})` : ''}` +
       `${flags.agent ? ` for "${flags.agent}"` : ''}` +
       `${body.minMemoryMB ? `, needing ${body.minMemoryMB} MB each` : ''}`,
   );
@@ -224,10 +275,14 @@ async function main() {
 
   const deadline = Date.now() + timeoutMs;
   const finished = new Map();
+  // The last state seen for every job, so one that never finished still has a
+  // status to report instead of vanishing from the recipe book.
+  const latest = new Map();
   while (finished.size < queued.length && Date.now() < deadline) {
     for (const job of queued) {
       if (finished.has(job.id)) continue;
       const task = await api(`/tasks/${job.id}`);
+      latest.set(job.id, task);
       if (task.status !== 'queued' && task.status !== 'leased') {
         finished.set(job.id, { ...task, ms: Date.now() - job.queuedAt });
       }
@@ -238,7 +293,6 @@ async function main() {
 
   if (flags.json) {
     process.stdout.write(JSON.stringify([...finished.values()], null, 2) + '\n');
-    return;
   }
 
   say('');
@@ -261,21 +315,31 @@ async function main() {
   if (flags.save) {
     // What came back, which for a render is the recipe and the names of the
     // files it left on the machine that made it — never the images themselves.
-    const saved = queued
-      .map((job) => finished.get(job.id))
-      .filter(Boolean)
-      .map((task) => ({
+    // A job that did not finish is listed with the status it was last seen in
+    // and `finished: false`, so a short book reads as "these are missing"
+    // rather than as a smaller batch.
+    const saved = queued.map((job, i) => {
+      const done = finished.get(job.id);
+      const task = done ?? latest.get(job.id) ?? { id: job.id, type: flags.type, status: 'queued' };
+      return {
         id: task.id,
         type: task.type,
         status: task.status,
+        finished: Boolean(done),
         machine: names.get(task.agentId) ?? task.agentId ?? null,
-        ms: task.ms,
+        ms: done ? done.ms : null,
+        payload: bodyFor(i).payload,
         recipe: task.result?.recipe ?? null,
         outputs: task.result?.outputs ?? null,
         error: task.error ?? null,
-      }));
+      };
+    });
     await writeFile(flags.save, JSON.stringify(saved, null, 2) + '\n');
-    say(`\nWrote ${saved.length} result(s) to ${flags.save}`);
+    const unfinished = saved.filter((entry) => !entry.finished).length;
+    say(
+      `\nWrote ${saved.length} result(s) to ${flags.save}` +
+        `${unfinished ? ` — ${unfinished} unfinished, marked with their status` : ''}`,
+    );
   }
 
   const spread = [...ranOn].map(([machine, n]) => `${machine} ${n}`).join(', ');

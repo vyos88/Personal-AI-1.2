@@ -1,5 +1,5 @@
 <#
-  sync-alpha.ps1 — copy Alpha from the host to another laptop, over the tailnet.
+  sync-alpha.ps1 - copy Alpha from the host to another laptop, over the tailnet.
 
   This exists because Alpha's code is not in version control. `alpha.update`
   over the tunnel can only fast-forward a git working copy, and there is no
@@ -106,7 +106,7 @@ if (Test-Path $AlphaRoot) {
   Copy-Item $AlphaRoot $backup -Recurse
   OK "backed up to $backup"
 } else {
-  Warn "$AlphaRoot does not exist — this is a first install, not an update."
+  Warn "$AlphaRoot does not exist - this is a first install, not an update."
   New-Item -ItemType Directory -Force -Path $AlphaRoot | Out-Null
 }
 
@@ -121,7 +121,7 @@ $pkgDirs = @()
 if (Test-Path (Join-Path $AlphaRoot 'package.json'))          { $pkgDirs += $AlphaRoot }
 if (Test-Path (Join-Path $AlphaRoot 'frontend\package.json')) { $pkgDirs += (Join-Path $AlphaRoot 'frontend') }
 if (-not $pkgDirs) {
-  Warn "No package.json found — nothing to build. If Alpha builds another way, do that step by hand."
+  Warn "No package.json found - nothing to build. If Alpha builds another way, do that step by hand."
 } else {
   foreach ($d in $pkgDirs) {
     Write-Host "  npm install in $d"

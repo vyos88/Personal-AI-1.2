@@ -8,7 +8,7 @@ import { TunnelAgent } from '../src/agent/agent.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
 import { MemoryStore } from '../src/agent/memstore.js';
 import * as memstoreHandler from '../src/agent/handlers/memstore.js';
-import { memorySnapshot, reserveFromEnv } from '../src/agent/memory.js';
+import { memorySnapshot, reserveFromEnv, reservePercentFromEnv } from '../src/agent/memory.js';
 import { fetchJson } from '../src/common/http.js';
 import {
   TaskStatus,
@@ -24,6 +24,13 @@ import {
 } from '../src/common/protocol.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 
 async function startHost(options = {}) {
   const host = createHost({ token: TOKEN, ...options });
@@ -483,6 +490,7 @@ test('a real agent hands back work its machine went too tight to hold, and runs 
 
   let offerableBytes = gb(8);
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -795,6 +803,38 @@ test('a memory snapshot never offers more than is free, and holds back the reser
   assert.equal(reserved.offerableBytes, 0);
 });
 
+test('a reserve said as a share of the machine scales with the machine', () => {
+  // The case the MB figure cannot cover: .env.agent is copied from one laptop
+  // to the next, and 512 MB is a tenth of one machine and a thirty-second of
+  // another. A percentage means the same thing wherever the file lands.
+  const plain = memorySnapshot({ reserveBytes: 0 });
+  const tenth = memorySnapshot({ reserveBytes: 0, reservePercent: 10 });
+  assert.equal(tenth.reserveBytes, Math.floor(plain.totalBytes * 0.1));
+  assert.equal(tenth.offerableBytes, Math.max(0, plain.freeBytes - tenth.reserveBytes));
+
+  // The larger of the two wins: the MB figure is a floor, not an alternative.
+  // A machine told to keep 1% still never lends its last half gigabyte.
+  const both = memorySnapshot({ reserveBytes: gb(1), reservePercent: 1 });
+  assert.equal(both.reserveBytes, Math.max(gb(1), Math.floor(plain.totalBytes * 0.01)));
+
+  // 100% is a machine that is here for pinned work and nothing else.
+  assert.equal(memorySnapshot({ reserveBytes: 0, reservePercent: 100 }).offerableBytes, 0);
+  // And the report stays honest about what the machine actually has.
+  assert.equal(memorySnapshot({ reservePercent: 100 }).freeBytes, plain.freeBytes);
+});
+
+test('the reserve percentage is read from the environment, or refused', () => {
+  assert.equal(reservePercentFromEnv(undefined), 0);
+  assert.equal(reservePercentFromEnv(''), 0);
+  assert.equal(reservePercentFromEnv('10'), 10);
+  assert.equal(reservePercentFromEnv('100'), 100);
+  // A typo here silently changes what a machine lends, so it is refused at
+  // startup rather than clamped into something plausible.
+  assert.throws(() => reservePercentFromEnv('101'), /between 0 and 100/);
+  assert.throws(() => reservePercentFromEnv('-1'), /between 0 and 100/);
+  assert.throws(() => reservePercentFromEnv('most of it'), /between 0 and 100/);
+});
+
 test('the reserve is read from the environment in MB', () => {
   assert.equal(reserveFromEnv(undefined), DEFAULT_MEMORY_RESERVE_BYTES);
   assert.equal(reserveFromEnv(''), DEFAULT_MEMORY_RESERVE_BYTES);
@@ -953,6 +993,7 @@ test('the store limit comes from the environment, falling back to a share of the
 test('an attached agent publishes its free memory to the host', async (t) => {
   const host = await startHost();
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'ram-lender',
@@ -986,6 +1027,7 @@ test('an attached agent publishes its free memory to the host', async (t) => {
 test('a task asking for more RAM than any agent has waits instead of running', async (t) => {
   const host = await startHost();
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     capabilities: ['echo'],
@@ -1021,6 +1063,7 @@ test('a task within the agent\'s free memory runs there', async (t) => {
     { type: 'crunch', run: async () => ({ crunched: true }) },
   ]);
   const agent = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     handlers,
@@ -1051,7 +1094,7 @@ test('the host stores data in the laptop\'s RAM and reads it back', async (t) =>
   const handlers = new HandlerRegistry([memstoreHandler]);
   memstoreHandler.setStore(new MemoryStore({ limitBytes: 1 * MB }));
 
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 500 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 500 });
   const running = agent.start();
 
   t.after(async () => {

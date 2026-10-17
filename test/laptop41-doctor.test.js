@@ -1,0 +1,955 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, utimesSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { delimiter, dirname, join } from 'node:path';
+
+// scripts/laptop41-doctor.ps1 needs PowerShell. Set PWSH to its path, or have
+// pwsh on PATH; without it these tests are skipped, not failed.
+const PWSH = process.env.PWSH || 'pwsh';
+const hasPwsh = !spawnSync(PWSH, ['-NoProfile', '-Command', '1'], { encoding: 'utf8' }).error;
+const skip = hasPwsh ? false : 'PowerShell not found (set PWSH)';
+
+const git = (cwd, ...args) => execFileSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', ...args], { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+
+test('the scheduled doctor finds scripts\\ beside software\\ and relays both cloud branches', { skip, timeout: 300_000 }, () => {
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-relay-'));
+  const remote = join(dir, 'remote.git');
+  const work = join(dir, 'work');
+  git(dir, 'init', '-q', '--bare', remote);
+  git(dir, 'clone', '-q', remote, work);
+  git(work, 'checkout', '-q', '-b', 'main');
+  mkdirSync(join(work, 'scripts'));
+  copyFileSync(join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'), join(work, 'scripts', 'laptop41-doctor.ps1'));
+  git(work, 'add', '.');
+  git(work, 'commit', '-qm', 'init');
+  git(work, 'push', '-q', 'origin', 'main');
+  git(work, 'checkout', '-q', '--orphan', 'status/cloud');
+  git(work, 'rm', '-rq', '--cached', '.');
+  mkdirSync(join(work, 'reports'));
+  writeFileSync(join(work, 'reports', 'cloud.md'), 'Claude (cloud) report, test\n');
+  git(work, 'add', 'reports/cloud.md');
+  git(work, 'commit', '-qm', 'cloud');
+  git(work, 'push', '-q', 'origin', 'status/cloud');
+  const cloudHead = git(work, 'rev-parse', 'HEAD').trim();
+  git(work, 'checkout', '-q', '--orphan', 'status/claude-laptop41');
+  git(work, 'rm', '-rq', '--cached', '.');
+  writeFileSync(join(work, 'reports', 'handoff.md'), '# Claude handoff, test\n');
+  git(work, 'add', 'reports/handoff.md');
+  git(work, 'commit', '-qm', 'handoff');
+  git(work, 'push', '-q', 'origin', 'status/claude-laptop41');
+  const handoffHead = git(work, 'rev-parse', 'HEAD').trim();
+  git(work, 'checkout', '-q', '-f', 'main');
+  git(work, 'clean', '-qfd');
+
+  // Laptop41's layout: the schedule passes software\ as -AlphaRoot, and
+  // Alpha's coordination script sits in scripts\ beside it. A stand-in
+  // records what would have been posted.
+  const app = join(dir, 'app');
+  mkdirSync(join(app, 'software', 'backend'), { recursive: true });
+  mkdirSync(join(app, 'scripts'));
+  const posts = join(app, 'scripts', 'posts.log');
+  writeFileSync(join(app, 'scripts', 'alpha_coordination_tunnel.ps1'),
+    'param([string]$Action, [string]$Actor, [string]$Message)\n' +
+    'Add-Content -Path (Join-Path $PSScriptRoot "posts.log") -Value "$Action|$Actor|$($Message.Split("`n")[0])"\n' +
+    'exit 0\n');
+  // The doctor calls powershell.exe by name.
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'powershell.exe'), `#!/bin/sh\nexec "${PWSH}" "$@"\n`);
+  chmodSync(join(bin, 'powershell.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}` };
+  const ops = join(dir, 'ops');
+  // Laptop41 runs Windows PowerShell 5.1, which passes native arguments the
+  // legacy way: a " inside -Message is not escaped and splits the message.
+  // Legacy mode reproduces that here.
+  const args = ['-NoProfile', '-Command',
+    `$PSNativeCommandArgumentPassing = 'Legacy'; & '${join(work, 'scripts', 'laptop41-doctor.ps1')}' -Watch -AlphaRoot '${join(app, 'software')}' -OpsDir '${ops}'; exit $LASTEXITCODE`];
+
+  const first = spawnSync(PWSH, args, { encoding: 'utf8', env });
+  assert.equal(first.status, 0, first.stdout + first.stderr);
+  assert.ok(existsSync(posts), `nothing was posted:\n${first.stdout}`);
+  const lines = readFileSync(posts, 'utf8').trim().split(/\r?\n/);
+  assert.ok(lines.some((l) => /^Post\|alpha-doctor\|Alpha host check/.test(l)), lines.join('\n'));
+  assert.ok(lines.includes('Post|claude-cloud|Claude (cloud) report, test'), lines.join('\n'));
+  const state = JSON.parse(readFileSync(join(ops, 'doctor-state.json'), 'utf8'));
+  assert.ok(lines.includes('Post|claude-laptop41|# Claude handoff, test'), lines.join('\n'));
+  assert.equal(state.cloudSeen, cloudHead);
+  assert.equal(state.handoffSeen, handoffHead);
+  assert.ok(state.lastPost, 'lastPost is recorded');
+  assert.match(state.relay, /relayed status\//);
+
+  const pushes = () => Number(git(remote, 'rev-list', '--count', 'status/laptop41').trim());
+  const pushedFirst = pushes();
+  assert.ok(pushedFirst >= 1, 'the first run pushed status/laptop41');
+
+  // A new handoff arrives while nothing else changed: the relay alone is
+  // reason to push, or the cloud session never sees that it got through.
+  git(work, 'checkout', '-q', 'status/claude-laptop41');
+  writeFileSync(join(work, 'reports', 'handoff.md'), '# Claude handoff, second: "Claude · Worker1" works\nline two\n');
+  git(work, 'commit', '-qam', 'handoff 2');
+  git(work, 'push', '-q', 'origin', 'status/claude-laptop41');
+  const handoff2 = git(work, 'rev-parse', 'HEAD').trim();
+  git(work, 'checkout', '-q', 'main');
+
+  // The same reports are relayed once, not every 15 minutes.
+  const second = spawnSync(PWSH, args, { encoding: 'utf8', env });
+  assert.equal(second.status, 0, second.stdout + second.stderr);
+  const again = readFileSync(posts, 'utf8').trim().split(/\r?\n/);
+  assert.equal(again.filter((l) => l.startsWith('Post|claude-cloud|')).length, 1);
+  assert.equal(again.filter((l) => l.startsWith('Post|claude-laptop41|')).length, 2);
+  assert.ok(again.includes('Post|claude-laptop41|# Claude handoff, second: "Claude · Worker1" works'), again.join('\n'));
+  assert.equal(pushes(), pushedFirst + 1, 'the new relay was pushed');
+  const pushedState = JSON.parse(git(remote, 'show', 'status/laptop41:reports/doctor-state.json'));
+  assert.equal(pushedState.handoffSeen, handoff2);
+
+  // Nothing new: nothing relayed again.
+  const third = spawnSync(PWSH, args, { encoding: 'utf8', env });
+  assert.equal(third.status, 0, third.stdout + third.stderr);
+  assert.equal(readFileSync(posts, 'utf8').trim().split(/\r?\n/).filter((l) => l.startsWith('Post|claude-')).length, 3);
+});
+
+// Chat is checked without a login: /ready, /chat guarded, Ollama has the
+// model and answers. A stand-in serves both the backend and Ollama.
+import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+
+function runPwsh(args, env) {
+  return new Promise((resolve) => {
+    const p = spawn(PWSH, args, { env });
+    let out = '';
+    p.stdout.on('data', (d) => { out += d; });
+    p.stderr.on('data', (d) => { out += d; });
+    p.on('close', (status) => resolve({ status, out }));
+  });
+}
+
+// files: paths under the temporary dir to write first, e.g. { 'app/.env.local': '...' }.
+// curlExe: put a curl.exe on PATH, for checks that go through the doctor's Http/Body.
+async function doctorAgainst(handler, { env: extraEnv = {}, files = {}, curlExe = false, stubs = '' } = {}) {
+  const server = createServer(handler);
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-chat-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  for (const [path, text] of Object.entries(files)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), text);
+  }
+  const env = { ...process.env, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ALPHA_PANEL_LAN_READ: '', ...extraEnv };
+  if (curlExe) {
+    // The doctor calls curl.exe by name and discards bodies to NUL.
+    const bin = join(dir, 'bin');
+    mkdirSync(bin);
+    writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nfor a; do shift; [ "$a" = NUL ] && a=/dev/null; set -- "$@" "$a"; done\nexec curl "$@"\n');
+    chmodSync(join(bin, 'curl.exe'), 0o755);
+    env.PATH = `${bin}${delimiter}${env.PATH}`;
+  }
+  const script = join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1');
+  const params = ['-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`, '-ChatModel', 'llama3.2:3b'];
+  // stubs: PowerShell defined before the script runs, standing in for
+  // Windows-only cmdlets such as Get-NetTCPConnection.
+  const r = await runPwsh(stubs
+    ? ['-NoProfile', '-Command', `${stubs}\n& '${script}' ${params.map((a) => (a.startsWith('-') ? a : `'${a}'`)).join(' ')}; exit $LASTEXITCODE`]
+    : ['-NoProfile', '-File', script, ...params], env);
+  server.close();
+  return r;
+}
+
+// Ollama's own format: nanoseconds and a local offset, e.g. 2026-10-07T17:40:00.123456789+01:00.
+const ollamaTime = (ms) => new Date(ms + 3600e3).toISOString().replace('Z', '').replace(/\.(\d{3})$/, '.$1456789') + '+01:00';
+const json = (res, code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+
+test('chat is checked without a login: route guarded, model pulled and answering', { skip, timeout: 300_000 }, async () => {
+  const { status, out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 200, { ready: true, phase: 'ready' });
+    if (req.url === '/chat') return json(res, 401, { detail: 'Not authenticated' });
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'llama3.2:3b' }] });
+    if (req.url === '/api/generate') return json(res, 200, { response: 'OK', load_duration: 2e9, eval_count: 4, eval_duration: 1e9 });
+    if (req.url === '/api/ps') return json(res, 200, { models: [{ name: 'llama3.2:3b', expires_at: ollamaTime(Date.now() + 24 * 3600e3) }] });
+    json(res, 404, {});
+  });
+  assert.equal(status, 0, out);
+  assert.match(out, /ok: Ollama keeps 'llama3\.2:3b' loaded for 24 h after each use/);
+  assert.match(out, /ok: backend ready \(phase ready\)/);
+  assert.match(out, /ok: \/chat is mounted and asks for a login \(HTTP 401\)/);
+  assert.match(out, /ok: chat model 'llama3\.2:3b' answered in [\d.]+s \(load 2s, 4 tokens\/s\): OK/);
+  assert.doesNotMatch(out, /PROBLEM: (backend (is still|\/ready)|\/chat|Ollama|chat model)/);
+});
+
+test('a missing chat model and an open /chat are problems with a next step', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 503, { ready: false });
+    if (req.url === '/chat') return json(res, 200, { response: 'hi' });
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'qwen2.5:0.5b' }] });
+    json(res, 404, {});
+  });
+  assert.match(out, /PROBLEM: backend is still warming up/);
+  assert.match(out, /PROBLEM: \/chat answered without a login/);
+  assert.match(out, /Ollama models: qwen2\.5:0\.5b/);
+  assert.match(out, /PROBLEM: chat model 'llama3\.2:3b' is not pulled in Ollama/);
+  assert.match(out, /Pull the chat model/);
+});
+
+// 2026-10-06: a 77.9s reply was 75.6s of loading at a normal speed. That is a
+// keep-alive problem, and "close apps or move chat" was the wrong advice.
+test('a slow load is reported as a load, with the keep-alive fix', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => {
+    if (req.url === '/ready') return json(res, 200, { ready: true, phase: 'ready' });
+    if (req.url === '/chat') return json(res, 401, {});
+    if (req.url === '/api/tags') return json(res, 200, { models: [{ name: 'llama3.2:3b' }] });
+    if (req.url === '/api/generate') return json(res, 200, { response: 'OK', load_duration: 75.6e9, eval_count: 9, eval_duration: 1e9 });
+    if (req.url === '/api/ps') return json(res, 200, { models: [{ name: 'llama3.2:3b', expires_at: ollamaTime(Date.now() + 5 * 60e3) }] });
+    json(res, 404, {});
+  });
+  assert.match(out, /PROBLEM: chat model 'llama3\.2:3b' took 75\.6s to load: the first chat after an idle spell waits that long/);
+  assert.doesNotMatch(out, /to answer once loaded/);
+  assert.match(out, /Ollama unloads 'llama3\.2:3b' 5 min after each use/);
+  assert.match(out, /"do":"ollama-keepalive"/);
+  assert.doesNotMatch(out, /close heavy apps/);
+});
+
+// 2026-10-06: Generate failed three ways at once and the doctor said nothing.
+test('the Music Creator path is checked link by link', { skip, timeout: 300_000 }, async () => {
+  const server = createServer((req, res) => {
+    // The live site's mistake: /music went to Alpha's backend.
+    if (req.url === '/music/healthz') return json(res, 404, { detail: 'Not Found' });
+    json(res, 404, {});
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-music-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  // The doctor calls curl.exe by name.
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
+  chmodSync(join(bin, 'curl.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '' };
+  const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', String(port),
+    '-BackendPort', String(port), '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  server.close();
+  assert.match(out, /=== 5b\. Music Creator ===/);
+  assert.match(out, /PROBLEM: music bridge is not running on 127\.0\.0\.1:8790/);
+  assert.match(out, /PROBLEM: the site sends \/music to Alpha's backend, not the music bridge/);
+  assert.match(out, /"do":"enable-music","bridge":true/);
+  assert.match(out, /=== 5c\. Image creator ===/);
+  assert.match(out, /PROBLEM: image bridge is not running on 127\.0\.0\.1:7861/);
+});
+
+// Signed out of the coordinator, the doctor's agent list is the "Not signed
+// in" text. Read as a fleet, it said "no machine offers alpha.music" on every
+// run (Worker1, 2026-10-06), so the bridges are asked instead.
+async function doctorWithBridges(routes, { env: extraEnv = () => ({}), hits } = {}) {
+  // A route given 'never' is accepted and left unanswered, so curl's
+  // --max-time decides -- what the doctor actually saw from a bridge waiting
+  // on an unreachable coordinator. 404 is not the same input.
+  const unanswered = new Set();
+  const server = createServer((req, res) => {
+    if (hits) hits.push(req.url);
+    const hit = routes[req.url];
+    if (hit?.[2] === 'never') return void unanswered.add(res);
+    if (hit) return json(res, hit[0], hit[1]);
+    json(res, 404, {});
+  });
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = String(server.address().port);
+  const dir = mkdtempSync(join(tmpdir(), 'doctor-fleet-'));
+  mkdirSync(join(dir, 'app', 'software', 'backend'), { recursive: true });
+  const bin = join(dir, 'bin');
+  mkdirSync(bin);
+  writeFileSync(join(bin, 'curl.exe'), '#!/bin/sh\nexec curl "$@"\n');
+  chmodSync(join(bin, 'curl.exe'), 0o755);
+  const env = { ...process.env, PATH: `${bin}${delimiter}${process.env.PATH}`, OLLAMA_BASE_URL: '', OLLAMA_MODEL: '', ...extraEnv(port) };
+  const { out } = await runPwsh(['-NoProfile', '-File', join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1'),
+    '-AlphaRoot', join(dir, 'app', 'software'), '-OpsDir', join(dir, 'ops'), '-FrontendPort', port, '-BackendPort', port,
+    '-MusicBridgePort', port, '-ImageBridgePort', port, '-OllamaUrl', `http://127.0.0.1:${port}`], env);
+  for (const res of unanswered) res.socket?.destroy();
+  server.close();
+  return out;
+}
+
+test('signed out, the bridges say which machines make music and images', { skip, timeout: 300_000 }, async () => {
+  const out = await doctorWithBridges({
+    '/music/healthz': [200, { ok: true }],
+    '/music/fleet': [200, { machines: [{ name: 'worker1', idleMs: 10, inFlight: 0 }, { name: 'host', idleMs: 5, inFlight: 1 }] }],
+    '/healthz': [200, { ok: true }],
+    '/sdapi/v1/sd-models': [200, [{ title: 'Alpha (host, worker1)', model_name: 'Alpha' }]],
+  });
+  assert.match(out, /ok: the site routes \/music to the bridge/);
+  assert.match(out, /ok: machines that make music \(the music bridge's view\): worker1, host/);
+  assert.match(out, /ok: machines that make images \(the image bridge's view\): host, worker1/);
+  assert.doesNotMatch(out, /no machine offers alpha\.(music|image)/);
+});
+
+test('signed out, a bridge that cannot tell is not read as an empty fleet', { skip, timeout: 300_000 }, async () => {
+  const out = await doctorWithBridges({
+    '/music/healthz': [200, { ok: true }],
+    '/music/fleet': [502, { error: 'bridge_key_rejected', message: 'issue it with agents:read' }],
+    '/healthz': [200, { ok: true }],
+    '/sdapi/v1/sd-models': [503, { error: 'no_image_machine', message: 'no attached machine offers alpha.image' }],
+  });
+  assert.match(out, /which machines make music is not known here: .*cannot list machines \(it needs agents:read\)/);
+  assert.doesNotMatch(out, /no machine offers alpha\.music/);
+  assert.match(out, /PROBLEM: no machine offers alpha\.image: the image bridge has nowhere to send work/);
+});
+
+// Worker1, 2026-10-09 19:11: three passes running, section 5c said "ok: image
+// bridge answers on 127.0.0.1:7861" and section 8 said "PROBLEM: image backend
+// not running: nothing answers on http://127.0.0.1:7861" -- the same port, the
+// same pass, and section 8 printed image-bridge.mjs's own pid on the line
+// above. The bridge's /sdapi/v1/sd-models asks the coordinator for the agent
+// list (bounded at fetchJson's 15 s) and Http waits 10, so an unreachable
+// coordinator makes that probe '000'. One fault was reported as two, and the
+// second recommended starting Stable Diffusion on a machine that has none.
+test('a tunnel image bridge with no coordinator could not be verified, which is not a missing backend', { skip, timeout: 300_000 }, async () => {
+  const hits = [];
+  const out = await doctorWithBridges({ '/healthz': [200, { ok: true }], '/sdapi/v1/sd-models': [0, {}, 'never'] }, {
+    hits,
+    // IMAGE_GEN_URL on the bridge's own port is how Alpha is configured on
+    // Worker1; port 1 is a coordinator nothing answers on.
+    env: (port) => ({ IMAGE_GEN_URL: `http://127.0.0.1:${port}/sdapi/v1/txt2img`, ALPHA_HOST_URL: 'http://127.0.0.1:1' }),
+  });
+  assert.match(out, /PROBLEM: no coordinator answering at http:\/\/127\.0\.0\.1:1/, 'the one real fault');
+  assert.match(out, /ok: image bridge answers on 127\.0\.0\.1:\d+/, '5c, unchanged');
+  assert.match(out, /port \d+ is the tunnel's image bridge and it answers \/healthz \(5c\); whether chat images work is not known here/);
+  assert.doesNotMatch(out, /PROBLEM: image backend not running/, 'a bridge that answers is not a missing backend');
+  assert.doesNotMatch(out, /webui-user\.bat/, 'and nobody is sent to start Stable Diffusion on a machine without it');
+  // 5c asks the bridge for its model list once, legitimately. Section 8 asked
+  // for the same route again and read the empty answer as a missing backend;
+  // once is the fix, twice is the bug.
+  assert.equal(hits.filter((u) => u === '/sdapi/v1/sd-models').length, 1, 'section 8 does not re-run 5c\'s probe to call its silence a failure');
+  assert.match(out, /which machines make images is not known here: the image bridge did not answer its model list in time/);
+  assert.doesNotMatch(out, /it needs agents:read/, 'an unanswered probe is not blamed on a narrow key');
+});
+
+// Alpha's deck panel polls /panel/crowpanel/public-state with no credential.
+// The doctor says whether that feed is on, live, or stale and why.
+const deckFeed = (code, body) => (req, res) => {
+  if (req.url === '/panel/crowpanel/public-state') return json(res, code, body);
+  json(res, 404, {});
+};
+
+test("Alpha's deck feed: live is ok", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { stale: false, reason: 'live', heartbeat_age_s: 12 } }),
+    { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /ok: Alpha's deck feed is live \(assistant heartbeat 12s old\)/);
+  assert.doesNotMatch(out, /PROBLEM: Alpha's deck feed/);
+});
+
+test("Alpha's deck feed: stale says why and what clears it", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded',
+    freshness: { stale: true, reason: 'assistant-loop-not-started', advice: 'assistant loop is not running on the host.' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded: assistant-loop-not-started\. assistant loop is not running on the host\./);
+  assert.match(out, /lightweight autonomy is off or interactive-first mode is on/);
+});
+
+// 2026-10-07: after a restart Worker1's loop stayed not-started, though the
+// same task ran it before. The three settings that decide it are named with
+// their value and where each came from, so a changed one shows.
+test("Alpha's deck feed: a loop that is not started names the settings that start it", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded',
+    freshness: { stale: true, reason: 'assistant-loop-not-started', advice: 'assistant loop is not running on the host.' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true', ALPHA_INTERACTIVE_FIRST_MODE: 'true', ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED: 'true' }, curlExe: true });
+  assert.match(out, /settings that start the loop: ALPHA_INTERACTIVE_FIRST_MODE=true \(environment \(Process\)\); ALPHA_LIGHTWEIGHT_AUTONOMY_ENABLED=true \(environment \(Process\)\); ALPHA_BACKGROUND_AUTOMATION_ENABLED not set/);
+});
+
+// 2026-10-07: Worker1's feed went heartbeat-stale with no restart in between.
+// Whether the loop stalled or the panel snapshot is old decides the fix.
+test("Alpha's deck feed: a stale heartbeat shows its age and the snapshot's", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, {
+    status: 'degraded', snapshot_age_s: 4.2,
+    freshness: { stale: true, reason: 'heartbeat-stale', advice: 'feed stale', heartbeat_age_s: 900, threshold_s: 420, stale_since: '2026-10-07T01:26:00',
+      cycle_step: 'serial-port-scan', cycle_step_since: '2026-10-07T01:28:00',
+      lane_active_task: 'auto-improve', lane_waiting_task: 'assistant-monitor', lane_waiting_reason: 'host-resource-pressure' },
+  }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /background lane held by 'auto-improve'; 'assistant-monitor' waits for it \(host-resource-pressure\)/);
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded: heartbeat-stale/);
+  assert.match(out, /assistant heartbeat 900s old \(live under 420s\); stale since 2026-10-07T01:26:00; panel snapshot 4\.2s old; assistant cycle in step 'serial-port-scan' since 2026-10-07T01:28:00/);
+});
+
+// The backend live on Laptop41 on 2026-10-06 predates Alpha#26: its feed has
+// a status but no freshness block.
+test("Alpha's deck feed: an older backend's stale feed points at Alpha#26", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'degraded', alive: false }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is degraded, and this backend does not say why: it predates Alpha#26/);
+  assert.match(out, /Alpha#26 \(merged to alpha-full\) keeps it fresh between cycles/);
+});
+
+test("Alpha's deck feed: off in .env.local is named, with the setting and file", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(404, { detail: 'Not Found' }),
+    { files: { 'app/.env.local': 'HOST=127.0.0.1\nALPHA_PANEL_LAN_READ=false\nALPHA_PANEL_LAN_READ=true\n' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed is off: ALPHA_PANEL_LAN_READ is 'false' in \S+\.env\.local, so the deck panel has nothing to read/);
+  assert.match(out, /Turn on the deck feed: set ALPHA_PANEL_LAN_READ=true/);
+});
+
+test("Alpha's deck feed: on but 404 means the backend predates the setting", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(404, { detail: 'Not Found' }), { env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true });
+  assert.match(out, /PROBLEM: Alpha's deck feed answers 404 though ALPHA_PANEL_LAN_READ=true \(environment \(Process\)\): the backend started before that was set/);
+  assert.match(out, /Restart the backend so it reads its settings again/);
+});
+
+// Laptop41's addresses as Windows reports them: Ethernet on the home network,
+// the WSL switch, and the tailnet. Connections are filtered by state only.
+const netStubs = (listen, connections, own = [['192.168.1.250', 'Ethernet']]) => `
+function Get-NetIPAddress {
+${own.map(([ip, nic]) => `  [pscustomobject]@{ IPAddress = '${ip}'; InterfaceAlias = '${nic}' }`).join('\n')}
+  [pscustomobject]@{ IPAddress = '172.20.0.1'; InterfaceAlias = 'vEthernet (WSL)' }
+  [pscustomobject]@{ IPAddress = '100.69.243.25'; InterfaceAlias = 'Tailscale' }
+}
+function Get-NetTCPConnection {
+  param($LocalPort, $State)
+  $rows = @(
+${listen.map((a) => `    [pscustomobject]@{ LocalAddress = '${a}'; State = 'Listen'; RemoteAddress = '0.0.0.0' }`).join('\n')}
+${connections.map(([remote, state]) => `    [pscustomobject]@{ LocalAddress = '192.168.1.250'; State = '${state}'; RemoteAddress = '${remote}' }`).join('\n')}
+  )
+  if ($State) { $rows | Where-Object { $_.State -eq $State } } else { $rows }
+}`;
+
+// HOST in .env.local named 127.0.0.1 and the tailnet address only: the
+// backend answered at home and on the tailnet, and the panel on WiFi had no
+// way in.
+test("Alpha's deck feed: a backend bound to no home-network address is the problem named", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { reason: 'live', heartbeat_age_s: 3 } }), {
+    env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true,
+    stubs: netStubs(['127.0.0.1', '100.69.243.25'], [['127.0.0.1', 'Established']]),
+  });
+  assert.match(out, /backend listens on: 100\.69\.243\.25, 127\.0\.0\.1/);
+  assert.match(out, /not listening on 192\.168\.1\.250 \(Ethernet\)/);
+  assert.doesNotMatch(out, /172\.20\.0\.1/);
+  assert.match(out, /PROBLEM: the backend listens on no home-network address \(this machine has 192\.168\.1\.250 on Ethernet\): the deck panel cannot reach it/);
+  assert.match(out, /PROBLEM: no device on the home network has called the backend in the last couple of minutes/);
+  assert.match(out, /Add the home-network address section 6 names to HOST in \.env\.local/);
+});
+
+// The WSL switch's address is in the home-network range but is this machine.
+test("Alpha's deck feed: the panel's calls are counted, this machine's own are not", { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst(deckFeed(200, { status: 'live', freshness: { reason: 'live', heartbeat_age_s: 3 } }), {
+    env: { ALPHA_PANEL_LAN_READ: 'true' }, curlExe: true,
+    stubs: netStubs(['127.0.0.1'], [['::ffff:192.168.1.97', 'Established'], ['192.168.1.97', 'TimeWait'], ['172.20.0.1', 'TimeWait'], ['100.69.243.25', 'Established']], []),
+  });
+  assert.match(out, /ok: home-network devices that called the backend in the last couple of minutes: 192\.168\.1\.97 \(2 connections\)/);
+  assert.doesNotMatch(out, /PROBLEM: (the backend listens on no|no device on the home network)/);
+});
+
+// ---------------------------------------------------------------- CPU pressure
+//
+// The one number section 7 did not print, on the machine it mattered most on.
+//
+// Alpha gates every local model call on system CPU. At or above the hold,
+// gpu_work.py's admission_reason refuses and the caller gets a 502: "Timeout:
+// Waiting for system CPU below the configured hold limit; GPU admission timed
+// out without starting language-model". Worse, the only place that schedules a
+// GPU telemetry probe is itself guarded on being under that hold, so while CPU
+// is pinned the telemetry never becomes "observed" and admission then refuses
+// with "Waiting for fresh per-adapter GPU telemetry" even once CPU drops. On
+// Worker1 that produced 201 agent receipts, every one classed
+// evidence-contract, from models that never started.
+//
+// Section 7 ranked working set and read no CPU at all, so the number that
+// explained a stalled fleet was the one nothing printed.
+//
+// `Read-CpuPressure` is the seam, exposed as `-ReadCpuPressure` the way
+// repair-alpha-host.ps1 exposes `-ReadAgentList`, and answered before the
+// script creates a directory or writes a report.
+const DOCTOR = join(import.meta.dirname, '..', 'scripts', 'laptop41-doctor.ps1');
+const readCpu = (percent, ...extra) => {
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuPressure', percent, ...extra], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  // The seam must answer before the script touches the machine. On a host with
+  // no C: drive the rest of the doctor cannot run, so a clean stderr is also
+  // the proof that nothing below the seam executed.
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a CPU at or above the hold is a problem that names the consequence', { skip }, () => {
+  for (const value of ['95', '90', '99.9']) {
+    const verdict = readCpu(value);
+    assert.equal(verdict.measured, true, value);
+    assert.equal(verdict.holding, true, value);
+    // The note carries the consequence, or a reader sees a percentage and not
+    // the reason every agent receipt says evidence-contract.
+    assert.match(verdict.note, /GPU-admission hold/, value);
+    assert.match(verdict.note, /evidence-contract/, value);
+  }
+});
+
+// 2026-10-11: Worker1 is a standby -- role.json names alpha-serv-01, and the
+// same pass reported `nothing of Alpha runs here` with 8001 and 4173 free. It
+// read 93% and was told "local model calls time out with a 502 and every agent
+// receipt reads evidence-contract". There is no Alpha there to time out. The
+// hold stays Alpha's number so one machine's reading means the same as the
+// other's, and the problem stays a problem; only the consequence changes, to
+// what a pinned CPU actually costs a machine that serves no Alpha.
+test('on a standby the CPU hold names what it costs here, not Alpha\'s admission', { skip }, () => {
+  const held = readCpu('93', '-ReadCpuStandby');
+  assert.equal(held.measured, true);
+  assert.equal(held.holding, true, 'still a problem: the threshold does not move');
+  assert.equal(held.percent, 93);
+  assert.doesNotMatch(held.note, /GPU-admission|evidence-contract|502/, 'no Alpha runs here to time out');
+  assert.match(held.note, /no Alpha runs here/);
+  assert.match(held.note, /ALPHA_AGENT_MAX_LOAD/, 'the agent stops asking for tunnel work');
+  // The serving machine's line is untouched.
+  assert.match(readCpu('93').note, /GPU-admission hold/);
+  assert.match(readCpu('93').note, /evidence-contract/);
+  // Inclusive on a standby too, and below the hold both say where 90 comes from.
+  assert.equal(readCpu('90', '-ReadCpuStandby').holding, true);
+  assert.equal(readCpu('89.9', '-ReadCpuStandby').holding, false);
+  assert.equal(readCpu('56', '-ReadCpuStandby').note, readCpu('56').note);
+  // The doctor asks the role it already read; Check-Resources runs after it.
+  const text = readFileSync(DOCTOR, 'utf8');
+  assert.match(text, /\$cpu = Read-CpuPressure \$cpuRaw 90 \$script:standby/);
+  assert.ok(text.indexOf('$script:standby = [bool]') < text.indexOf('Run-Checks\n'), 'the role is read before the checks run');
+});
+
+test('the CPU hold is inclusive, because Alpha compares with >=', { skip }, () => {
+  // gpu_work.py: `if float(cpu_percent) >= float(cpu_hold_percent)`. Exactly 90
+  // is held, so calling it fine would disagree with the gate this mirrors.
+  assert.equal(readCpu('90').holding, true);
+  assert.equal(readCpu('89.9').holding, false);
+});
+
+test('a CPU below the hold still says what the hold is', { skip }, () => {
+  const verdict = readCpu('12.4');
+  assert.equal(verdict.measured, true);
+  assert.equal(verdict.holding, false);
+  assert.equal(verdict.percent, 12.4);
+  // Without the threshold, 12.4% is a number with nothing to compare against.
+  assert.match(verdict.note, /holds GPU admission at 90%/);
+});
+
+test('an unmeasurable CPU is never read as idle', { skip }, () => {
+  // Win32_Processor.LoadPercentage is absent on some hosts. Calling that 0%
+  // would say "the CPU is free" about the machine least able to prove it --
+  // the rule the coordinator already applies to a missing agent load report.
+  for (const value of ['', '   ']) {
+    const verdict = readCpu(value);
+    assert.equal(verdict.measured, false, JSON.stringify(value));
+    assert.equal(verdict.percent, null, JSON.stringify(value));
+    assert.equal(verdict.holding, null, JSON.stringify(value));
+    assert.match(verdict.note, /unknown is not idle/, JSON.stringify(value));
+  }
+});
+
+test('a CPU reading that is not a number is unreadable, and says what it got', { skip }, () => {
+  const verdict = readCpu('n/a');
+  assert.equal(verdict.measured, false);
+  assert.equal(verdict.holding, null);
+  // The text comes back so a wrong counter can be told from a missing one.
+  assert.match(verdict.note, /unreadable: n\/a/);
+});
+
+// Self-heal's log went quiet on Laptop41 at 13:22 on 2026-10-09 and the doctor
+// Worker1, 2026-10-09: CPU 93% for four doctor runs, raised as NEEDS A PERSON,
+// and the eight lines printed under it were ranked by WorkingSet64 and carried
+// only MB -- topped by Memory Compression, which is not what an operator can
+// act on. The problem's own recommendation says "Section 7 names the heaviest
+// processes", true of memory and false of CPU. Read-CpuBusiest is the seam.
+const readBusiest = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-busy-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCpuBusiest', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+// 2026-10-11, Worker1's 22:28Z pass: `CPU 100%` over a list whose six rows came
+// to 18.9% of the machine, with the rest inside a `not measured:` line of about
+// 160 names -- `svchost` more than a hundred times. Nothing added the rows up,
+// and nothing said the one thing a reader needed: this doctor runs unelevated,
+// so Windows hides other accounts' process times and it cannot see most of the
+// machine. The per-process honesty was already here; the total was not.
+test('the CPU list says how much of the machine it could measure, and how much it could not', { skip }, () => {
+  const before = [{ name: 'ChatGPT', pid: 19404, cpu: 100 }, { name: 'chrome', pid: 4144, cpu: 50 }];
+  const after = [{ name: 'ChatGPT', pid: 19404, cpu: 103.56 }, { name: 'chrome', pid: 4144, cpu: 50.47 }];
+  // The shape of that pass: a handful measurable, a crowd of hidden services.
+  for (let i = 0; i < 120; i += 1) {
+    before.push({ name: 'svchost', pid: 1000 + i, cpu: null });
+    after.push({ name: 'svchost', pid: 1000 + i, cpu: null });
+  }
+  for (const [i, name] of ['System', 'Idle', 'MsMpEng', 'tailscaled', 'nssm'].entries()) {
+    before.push({ name, pid: 9000 + i, cpu: null });
+    after.push({ name, pid: 9000 + i, cpu: null });
+  }
+  const out = readBusiest({ seconds: 7.1, cores: 8, before, after });
+  // 3.56s and 0.47s of 56.8 core-seconds. The real pass printed ChatGPT at
+  // 6.3%, which is what makes this the same measurement.
+  assert.deepEqual(out.rows.map((r) => [r.name, r.percent]), [['ChatGPT', 6.3], ['chrome', 0.8]]);
+  assert.equal(out.measured, 7.1, 'the sum over every measured process, not just the rows shown');
+  assert.equal(out.hidden, 125, 'and how many it could not read at all');
+  // Grouped and capped like the rows, or the signal is buried in its own noise:
+  // 125 names on one line is what the pass actually printed.
+  assert.equal(out.names[0], 'svchost x120', 'the crowd is counted, not listed');
+  assert.ok(out.names.length <= 6, `capped like rows, got ${out.names.length}`);
+  assert.ok(!out.names.some((n) => n.includes('(')), 'names only, the pids are in `unknown`');
+  // The full list is still there for anything that wants it.
+  assert.equal(out.unknown.length, 125);
+
+  // Nothing hidden: no count to report, and the total is the whole machine.
+  const clean = readBusiest({
+    seconds: 2,
+    cores: 4,
+    before: [{ name: 'a', pid: 1, cpu: 0 }, { name: 'b', pid: 2, cpu: 0 }],
+    after: [{ name: 'a', pid: 1, cpu: 4 }, { name: 'b', pid: 2, cpu: 2 }],
+  });
+  assert.equal(clean.hidden, 0);
+  assert.deepEqual(clean.names, []);
+  assert.equal(clean.measured, 75, '4s + 2s of 8 core-seconds');
+
+  // The report prints the measured share beside the window, and names the
+  // remedy whenever anything is hidden -- not only when nothing was readable.
+  const doctor = readFileSync(DOCTOR, 'utf8');
+  assert.match(doctor, /it could measure account for \$\(\$busy\.measured\)% of the machine/);
+  assert.match(doctor, /elseif \(\$busy\.hidden\) \{ Note "\$\(\$busy\.hidden\) process\(es\) could not be measured/);
+  assert.match(doctor, /rows above are a floor and not the whole machine/);
+  assert.match(doctor, /run the doctor as Administrator to see other accounts' process times/);
+});
+
+test('while the hold is on, the processes are ranked by CPU and the unmeasurable are named', { skip }, () => {
+  const out = readBusiest({
+    seconds: 2, cores: 8,
+    before: [
+      { name: 'llama-server', pid: 1040, cpu: 100 },
+      { name: 'Memory Compression', pid: 3840, cpu: 50 },
+      { name: 'node', pid: 21168, cpu: 10 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'oldthing', pid: 777, cpu: 900 },
+    ],
+    after: [
+      // 12 of 16 available core-seconds: three quarters of the machine.
+      { name: 'llama-server', pid: 1040, cpu: 112 },
+      // The memory list's top row barely touches the CPU.
+      { name: 'Memory Compression', pid: 3840, cpu: 50.1 },
+      { name: 'node', pid: 21168, cpu: 10.8 },
+      { name: 'MsMpEng', pid: 6040, cpu: null },
+      { name: 'newthing', pid: 4242, cpu: 3 },
+      { name: 'reused', pid: 777, cpu: 1 },
+    ],
+  });
+  assert.deepEqual(out.rows.map((r) => [r.name, r.percent]), [
+    ['llama-server', 75],
+    ['node', 5],
+    ['Memory Compression', 0.6],
+  ], 'ranked by CPU share of the whole machine, not by megabytes');
+  assert.equal(out.rows[0].seconds, 12);
+  // Unmeasurable is never idle -- the rule Read-CpuPressure follows. Each of
+  // these would have sorted last as 0% and read as an idle process.
+  assert.deepEqual(out.unknown.sort(), [
+    'MsMpEng (6040) time hidden',
+    'newthing (4242) started during the sample',
+    'reused (777) pid reused during the sample',
+  ].sort());
+  assert.ok(!out.rows.some((r) => r.percent === 0), 'nothing unmeasured is scored zero');
+});
+
+// Worker1, 2026-10-09 23:02-00:28 local: "the build is older than the source:
+// the site shows the old Alpha until dist is rebuilt" held open for seven runs
+// into NEEDS A PERSON. Section 3's own lines said dist was built 2026-10-08
+// 06:38, the newest "source" was src\liveCoordinationLabels.test.js at
+// 2026-10-09 22:55, and dist, :4173 and the public site were all serving
+// index-DrRVpMIZ.js. A test file is not a thing a build ships, and the remedy
+// that problem points at is a 45-minute rebuild.
+const readStale = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-stale-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadStaleBuild', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a test file newer than the build is not a stale build, and says so', { skip }, () => {
+  const built = '2026-10-08T06:38:00';
+  // Worker1's own shape: one real source older than the build, the newest file
+  // a test, written 40 hours after it.
+  const out = readStale({ built, files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-08T06:20:00' },
+    { path: 'src\\liveCoordinationLabels.test.js', at: '2026-10-09T22:55:00' },
+    { path: 'src\\__snapshots__\\deck.snap', at: '2026-10-09T22:56:00' },
+  ] });
+  assert.equal(out.stale, false, 'a build is not stale because a test was saved');
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx', 'the newest build input, not the newest file');
+  assert.equal(out.skippedNewer, 2);
+  // It never contradicts somebody who just saved one of those files.
+  assert.match(out.note, /build is newer than every source file; 2 newer file\(s\) under src\\ are tests/);
+});
+
+test('a real source newer than the build is still the problem it was', { skip }, () => {
+  const out = readStale({ built: '2026-10-08T06:38:00', files: [
+    { path: 'src\\app\\shell\\AppShell.tsx', at: '2026-10-09T22:55:00' },
+    { path: 'src\\thing.test.ts', at: '2026-10-09T23:10:00' },
+  ] });
+  assert.equal(out.stale, true);
+  assert.equal(out.newest.path, 'src\\app\\shell\\AppShell.tsx');
+  assert.match(out.note, /^the build is older than the source/);
+  assert.match(out.note, /1 newer file\(s\) under src\\ are tests/, 'and the skipped one is still accounted for');
+});
+
+test('a minute of slack survives, and a src of nothing but tests says which empty it is', { skip }, () => {
+  // The build writes dist\index.html a moment after reading its inputs.
+  const close = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.ts', at: '2026-10-08T06:38:30' }] });
+  assert.equal(close.stale, false, 'half a minute is the build itself, not a change');
+
+  const onlyTests = readStale({ built: '2026-10-08T06:38:00', files: [{ path: 'src\\a.test.ts', at: '2026-10-09T22:55:00' }] });
+  assert.equal(onlyTests.stale, false);
+  assert.equal(onlyTests.newest, null, 'nothing to compare against');
+  assert.match(onlyTests.note, /no build input under src\\ \(only tests and fixtures\)/);
+});
+
+// V's instruction of 2026-10-10, relayed by Codex on control/laptop41
+// (3b002b9): alpha-serv-01 is the sole server, DESKTOP-41HPLCN stays a worker,
+// and 'Alpha Standby' is disabled and stays disabled. The doctor raised
+// "automatic cover has not run for 70 min: its task is not running passes" as
+// a PROBLEM anyway, every 15 minutes, and the only remedy it pointed at was
+// re-installing the cover -- which would have gone against that instruction.
+const readCover = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-cover-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ReadCoverStale', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('a cover whose task is disabled is a decision, not a fault', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Disabled', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, false, 'a disabled task is somebody deciding, and does not need a person');
+  // It still says the consequence, because that is what a reader needs.
+  assert.match(out.note, /automatic cover is off: its task 'Alpha Standby' is disabled, so nothing takes Alpha over here if alpha-serv-01 goes down/);
+  assert.doesNotMatch(out.note, /standby-install/, 'and does not recommend what V ruled out');
+});
+
+test('a cover whose task is enabled and quiet is still the fault it was', { skip }, () => {
+  const out = readCover({ ageMin: 70, taskState: 'Ready', primary: 'alpha-serv-01' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /automatic cover has not run for 70 min: its task 'Alpha Standby' is Ready and not running passes/);
+});
+
+test('a cover with a last pass but no task at all says nothing will run it again', { skip }, () => {
+  const out = readCover({ ageMin: 9, taskState: '', primary: '' });
+  assert.equal(out.problem, true);
+  assert.match(out.note, /its task 'Alpha Standby' is not on this machine: nothing will run it again/);
+  assert.match(out.note, /if the primary goes down|stand this machine down/, 'and names a way out either way');
+});
+
+test('a sample window of nothing does not divide by it', { skip }, () => {
+  const out = readBusiest({ seconds: 0, cores: 0, before: [{ name: 'a', pid: 1, cpu: 1 }], after: [{ name: 'a', pid: 1, cpu: 2 }] });
+  assert.equal(out.rows[0].percent, 0);
+  assert.equal(out.rows[0].seconds, 1, 'the seconds it used are still true');
+});
+
+// said "check the task's last result as Administrator (3 = config unreadable)"
+// -- a guess, and the wrong one: a pass that died holding the lock silences
+// every pass after it. alpha-selfheal.mjs now leaves the reason on disk, and
+// `-ExplainSelfHeal` is the seam that reads it, as `-ReadCpuPressure` is.
+const explainSelfHeal = (ops) => {
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-ExplainSelfHeal', '-OpsDir', ops], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  assert.equal(existsSync(join(ops, 'reports')), false, 'the seam writes nothing');
+  return JSON.parse(r.stdout);
+};
+
+test('a quiet self-heal is explained by what it left on disk, not by a guess', { skip }, () => {
+  const ops = mkdtempSync(join(tmpdir(), 'doctor-selfheal-'));
+  mkdirSync(join(ops, 'logs'));
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const line = (extra = {}) => JSON.stringify({ at: '2026-10-09T12:22:54Z', probes: {}, actions: [], events: [], ...extra });
+  writeFileSync(log, `${line()}\n`);
+  let v = explainSelfHeal(ops);
+  assert.equal(v.ok, true);
+  assert.match(v.text, /its log was written 0 min ago/);
+
+  const old = new Date(Date.now() - 19 * 60_000);
+  utimesSync(log, old, old);
+  v = explainSelfHeal(ops);
+  assert.equal(v.ok, false);
+  assert.match(v.text, /its log is 19 min old: its task is not starting passes: .*4 = a pass did not finish/);
+
+  // a lock left by a pass whose process is gone
+  writeFileSync(join(ops, 'selfheal.json'), JSON.stringify({ stateDir: join(ops, 'state') }));
+  mkdirSync(join(ops, 'state'));
+  writeFileSync(join(ops, 'state', 'selfheal.lock'), JSON.stringify({ pid: 999999, at: 0 }));
+  v = explainSelfHeal(ops);
+  assert.match(v.text, /its log is 19 min old: a pass has held its lock for 0 min \(pid 999999, gone: the next pass takes the lock\)/);
+
+  // a config it could not read, written after its last line
+  writeFileSync(join(ops, 'selfheal.json.error.json'), JSON.stringify({ at: 'x', error: 'Unexpected end of JSON input' }));
+  v = explainSelfHeal(ops);
+  assert.match(v.text, /it cannot read selfheal\.json \(Unexpected end of JSON input\): run scripts\\repair-alpha-host\.ps1/);
+});
+
+test('self-heal whose passes keep not finishing is a problem even with a fresh log', { skip }, () => {
+  const ops = mkdtempSync(join(tmpdir(), 'doctor-selfheal-'));
+  mkdirSync(join(ops, 'logs'));
+  const log = join(ops, 'logs', 'selfheal.jsonl');
+  const stuck = JSON.stringify({ at: 'x', actions: [], events: [], unfinished: { why: 'still running after 240 s', stage: 'restart backend', afterSec: 240 } });
+  const fine = JSON.stringify({ at: 'x', probes: {}, actions: [], events: [] });
+  writeFileSync(log, `${fine}\n${stuck}\n${stuck}\n`);
+  assert.equal(explainSelfHeal(ops).ok, true, 'two are not yet a pattern');
+  writeFileSync(log, `${stuck}\n${stuck}\n${stuck}\n`);
+  const v = explainSelfHeal(ops);
+  assert.equal(v.ok, false);
+  assert.match(v.text, /last 3 passes did not finish \(latest: still running after 240 s, at restart backend\)/);
+});
+
+// A standby (alpha-standdown.ps1 wrote role.json) serves nothing on purpose:
+// the doctor asks whether the primary serves alpha-ai.uk and whether anything
+// of Alpha is serving here too, instead of reading every stopped part as an
+// outage. curl.exe as a function stands in for the public answer.
+const standbyRole = { 'ops/role.json': JSON.stringify({ role: 'standby', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:00:00Z' }) };
+const publicAnswers = "function curl.exe { if ($args[-1] -like 'https://alpha-ai.uk*') { '200' } }";
+
+test('a standby is checked as a standby: who serves, and nothing of Alpha here', { skip, timeout: 300_000 }, async () => {
+  const { status, out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: publicAnswers });
+  assert.equal(status, 0, out);
+  assert.match(out, /=== 0\. Standby: Alpha serves from laptop-gj8dfmlk ===/);
+  assert.match(out, /ok: https:\/\/alpha-ai\.uk\/ answers 200, served from laptop-gj8dfmlk/);
+  assert.match(out, /ok: no backend here/);
+  assert.match(out, /ok: no connector here/);
+  assert.match(out, /=== 7\. Memory, disk, heaviest processes ===/);
+  assert.doesNotMatch(out, /=== 1\. Backend|=== 2\. Chat|=== 4\. Public/, 'the serving checks would all read as outages');
+  assert.doesNotMatch(out, /PROBLEM: (standby|https)/);
+});
+
+// The port is held by a process the doctor can name; whether that process is
+// Alpha is a second question, and the two answers want opposite remedies.
+const heldPort = (command) => `function Get-NetTCPConnection { [pscustomobject]@{ OwningProcess = 4242 } }
+function Get-CimInstance { param($ClassName, $Filter)
+  if ("$Filter" -like 'ProcessId=*') { [pscustomobject]@{ ProcessId = 4242; Name = 'python.exe'; CommandLine = '${command}' } }
+  elseif ("$Filter" -like "Name='cloudflared.exe'") { [pscustomobject]@{ ProcessId = 99; Name = 'cloudflared.exe' } } }`;
+
+test('a standby with Alpha still serving here is two Alphas, and says so', { skip, timeout: 300_000 }, async () => {
+  // This backend answers /health, so it really is a second Alpha.
+  const answers = "function curl.exe { if ($args[-1] -like 'https://alpha-ai.uk*' -or $args[-1] -like '*/health') { '200' } }";
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: `${answers}\n${heldPort('python run_server.py')}` });
+  assert.match(out, /PROBLEM: standby, but the backend runs here \(pid 4242 python\.exe: python run_server\.py\): two Alphas/);
+  assert.match(out, /PROBLEM: standby, but 1 cloudflared process\(es\) run here: alpha-ai\.uk's traffic is split between two machines/);
+});
+
+// 2026-10-12, 18:56:49Z: the held port was AlphaPanelFeed's helper, and the
+// deck-liveness check in the same pass set said backend (/health) -> no answer.
+// Reported as "two Alphas" it sends somebody to alpha-standdown (which stops
+// services that are already stopped) or alpha-standup (which cannot bind).
+test('a standby whose backend port is held by something else says so, not "two Alphas"', { skip, timeout: 300_000 }, async () => {
+  const feed = 'C:/Python312/python.exe C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_feed.py --policy policy.json --receipt latest.json';
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: `${publicAnswers}\n${heldPort(feed)}` });
+  assert.match(out, /PROBLEM: standby, and the backend port \d+ is held by something that is not Alpha \(pid 4242 python\.exe: .*AlphaPanelFeed/);
+  assert.match(out, /it answered 000, so nothing of Alpha serves here/);
+  assert.match(out, /stop that process on the machine/);
+  const line = out.split('\n').find((l) => /the backend port \d+ is held/.test(l));
+  assert.doesNotMatch(line, /two Alphas/, 'the remedy that would not free the port is not offered');
+});
+
+// Phase 3: a standby's automatic cover is checked too. Not installed, stopped,
+// or blind to the primary are each a problem: the first two mean nobody takes
+// Alpha over in an outage, the third that nobody ever hands it back.
+test('a standby says whether its automatic cover runs and can see the primary', { skip, timeout: 300_000 }, async () => {
+  let r = await doctorAgainst((req, res) => json(res, 404, {}), { files: standbyRole, stubs: publicAnswers });
+  assert.match(r.out, /PROBLEM: automatic cover is not installed: if laptop-gj8dfmlk goes down, nothing takes Alpha over here \(queue standby-install\)/);
+
+  const fresh = { ...standbyRole, 'ops/standby.json': JSON.stringify({ primaryUrl: 'http://100.93.104.24:8001/health' }) };
+  r = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { ...fresh, 'ops/standby/status.json': JSON.stringify({ role: 'standby', why: "laptop-gj8dfmlk's Alpha answers", probes: { primary: 200, public: 200 } }) },
+    stubs: publicAnswers,
+  });
+  assert.match(r.out, /ok: automatic cover: laptop-gj8dfmlk's Alpha answers \(0 min ago\)/);
+  assert.doesNotMatch(r.out, /PROBLEM: automatic cover/);
+
+  r = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { ...fresh, 'ops/standby/status.json': JSON.stringify({ role: 'standby', why: "laptop-gj8dfmlk's Alpha did not answer (1 of 3)", probes: { primary: 0, public: 200 } }) },
+    stubs: publicAnswers,
+  });
+  assert.match(r.out, /PROBLEM: automatic cover cannot see laptop-gj8dfmlk's Alpha at http:\/\/100\.93\.104\.24:8001\/health \(it answered nothing\) though alpha-ai\.uk is served: it would cover in an outage and never hand back/);
+});
+
+test('a machine covering for the primary is checked as the serving Alpha, and says why it serves', { skip, timeout: 300_000 }, async () => {
+  const { out } = await doctorAgainst((req, res) => json(res, 404, {}), {
+    files: { 'ops/role.json': JSON.stringify({ role: 'covering', primary: 'laptop-gj8dfmlk', since: '2026-10-09T18:02:00Z' }) },
+  });
+  assert.match(out, /=== 0\. Covering for laptop-gj8dfmlk ===/);
+  assert.match(out, /role\.json says covering since 2026-10-09T18:02:00Z: laptop-gj8dfmlk's Alpha did not answer, so this machine serves Alpha/);
+  assert.match(out, /=== 1\. Backend/, 'the serving checks still run');
+});
+
+// 2026-10-12, 18:56:49Z on Laptop41: a standby since 00:57Z, Alpha served from
+// alpha-serv-01, and a new PROBLEM reading
+//
+//   standby, but the backend runs here (pid 7828 python.exe: ...
+//   AlphaPanelFeed/alpha_*.py --policy ... --receipt ...): two Alphas.
+//   Queue alpha-standdown again, or alpha-standup to serve here
+//
+// That process is the AlphaPanelFeed helper out of %LOCALAPPDATA%, not
+// software\backend, and the deck-liveness check in the same pass set said
+// `backend (/health) -> the backend does not answer`. So the port was held by
+// something that is not Alpha, and both remedies the line names are wrong:
+// alpha-standdown stops services that are already stopped, alpha-standup would
+// fail to bind. The check read the port and nothing else. Get-StandbyPortVerdict
+// is the seam.
+const portVerdict = (facts) => {
+  const file = join(mkdtempSync(join(tmpdir(), 'doctor-standby-port-')), 'facts.json');
+  writeFileSync(file, JSON.stringify(facts));
+  const r = spawnSync(PWSH, ['-NoProfile', '-File', DOCTOR, '-StandbyPortVerdict', file], { encoding: 'utf8' });
+  assert.equal(r.status, 0, r.stderr);
+  assert.doesNotMatch(r.stderr, /Cannot find drive/, 'the seam ran after the report directory was created');
+  return JSON.parse(r.stdout);
+};
+
+test('on a standby, a held port is only a second Alpha if it answers as one', { skip }, () => {
+  const owner = 'pid 7828 python.exe: ...AlphaPanelFeed/alpha_feed.py --policy ... --receipt ...';
+
+  // Nothing listening: not a problem, and the wording the report already had.
+  const free = portVerdict({ what: 'backend', port: 8001, owner: '', code: '' });
+  assert.equal(free.problem, false);
+  assert.equal(free.note, 'no backend here (port 8001 free)');
+
+  // Held and answering /health: a real second Alpha, with the real remedy.
+  for (const code of ['200', '204', '301']) {
+    const two = portVerdict({ what: 'backend', port: 8001, owner, code });
+    assert.equal(two.problem, true, code);
+    assert.match(two.note, /two Alphas\. Queue alpha-standdown again, or alpha-standup to serve here/, code);
+  }
+
+  // Held and not answering: the Laptop41 case. A problem still, but a
+  // different one -- and it must not send anybody to standdown or standup,
+  // because neither would free the port.
+  for (const code of ['000', '404', '500']) {
+    const squat = portVerdict({ what: 'backend', port: 8001, owner, code });
+    assert.equal(squat.problem, true, code);
+    assert.match(squat.note, /held by something that is not Alpha/, code);
+    assert.match(squat.note, new RegExp(`it answered ${code}`), code);
+    assert.match(squat.note, /could not start here until that process lets the port go/, code);
+    assert.match(squat.note, /stop that process on the machine/, code);
+    assert.doesNotMatch(squat.note, /two Alphas/, code);
+  }
+  assert.match(portVerdict({ what: 'backend', port: 8001, owner, code: '404' }).note, /pid 7828/,
+    'the note still names the process, which is the only way to find it');
+
+  // An unprobed port keeps the old verdict: a code never obtained is not
+  // evidence, which is the rule the CPU reading follows. The site is passed
+  // this way, because Vite preview may serve HTTPS with its own certificate
+  // here and probing it would make a self-signed site a false squatter.
+  const site = portVerdict({ what: 'site', port: 4173, owner: 'pid 99 node.exe: vite preview', code: '' });
+  assert.equal(site.problem, true);
+  assert.match(site.note, /standby, but the site runs here/);
+  assert.match(site.note, /two Alphas/);
+});
+
+test('the standby check probes the backend port and leaves the site alone', { skip }, () => {
+  const text = readFileSync(DOCTOR, 'utf8');
+  // The probe is the backend's /health, the same URL the serving checks read.
+  assert.match(text, /@\('backend', \$BackendPort, "http:\/\/127\.0\.0\.1:\$BackendPort\/health"\), @\('site', \$FrontendPort, ''\)/);
+  // The verdict comes from the seam, so the test above is testing the report.
+  assert.match(text, /\$v = Get-StandbyPortVerdict \$pair\[0\]/);
+  assert.match(text, /if \(\$v\.problem\) \{ Problem \$v\.note \} else \{ OK \$v\.note \}/);
+  // And the old port-only wording is gone from the call site.
+  assert.ok(!/if \(\$o\) \{ Problem "standby, but the/.test(text), 'the port alone no longer decides');
+});
