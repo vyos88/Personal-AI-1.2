@@ -1,4 +1,4 @@
-laptop41-doctor 20261017-032604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261017-034106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,34 +6,26 @@ laptop41-doctor 20261017-032604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 10225 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 10240 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.9 of 15.8 GB RAM free
-  ok: C: 124.1 GB free
-  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  Taskmgr                         989 MB  pid 15396
-  ChatGPT                         599 MB  pid 22680
-  ChatGPT                         418 MB  pid 23304
-  MsMpEng                         411 MB  pid 4320
-  WindowsTerminal                 396 MB  pid 19668
-  explorer                        370 MB  pid 10600
-  Memory Compression              363 MB  pid 3828
-  ChatGPT                         348 MB  pid 18644
-  --- using the CPU, over 3.7s across 8 logical core(s): the processes it could measure account for 41.9% of the machine
-  chrome                         8.7% CPU   2.59s  pid 9020
-  chrome                         7.2% CPU   2.14s  pid 15220
-  chrome                         6.0% CPU   1.78s  pid 8584
-  svchost                        3.9% CPU   1.16s  pid 9528
-  chrome                         2.8% CPU   0.84s  pid 17880
-  chrome                         1.8% CPU   0.55s  pid 4800
-  158 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x90, WUDFHost x3, fontdrvhost x2, csrss x2, tailscaled x2, node x2 (run the doctor as Administrator to see other accounts' process times)
+  ok: 4.5 of 15.8 GB RAM free
+  ok: C: 125.6 GB free
+  ok: CPU 22% (Alpha holds GPU admission at 90%)
+  Taskmgr                         993 MB  pid 15396
+  ChatGPT                         576 MB  pid 22680
+  WindowsTerminal                 413 MB  pid 19668
+  Memory Compression              398 MB  pid 3828
+  ChatGPT                         394 MB  pid 23304
+  MsMpEng                         391 MB  pid 4320
+  explorer                        371 MB  pid 10600
+  ChatGPT                         347 MB  pid 18644
 
 === SUMMARY ===
-  this pass took 32s
-  - NEEDS A PERSON - automatic cover last ran 10225 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 457 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 222 run(s), since 2026-10-14T16:26:24)
-  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-17T03:26:32)
+  this pass took 17s
+  - NEEDS A PERSON - automatic cover last ran 10240 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 458 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 2180 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 223 run(s), since 2026-10-14T16:26:24)
+  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
