@@ -19,6 +19,13 @@ import { fetchJson } from '../src/common/http.js';
 import { TaskStatus, validateTaskInput, ProtocolError } from '../src/common/protocol.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
+
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
 const gb = (n) => n * 1024 ** 3;
 
 async function startHost(options = {}) {
@@ -210,6 +217,7 @@ test('a task named for one machine runs there, not on the better target', async 
   const agents = ['alpha-host', 'laptop'].map(
     (name) =>
       new TunnelAgent({
+        loadSampler: IDLE_LOAD,
         hostUrl: host.url,
         token: TOKEN,
         name,
@@ -251,6 +259,7 @@ test('a task waits for the machine it named rather than running elsewhere', asyn
   t.after(() => host.close());
 
   const laptop = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'laptop',
@@ -279,6 +288,7 @@ test('a task waits for the machine it named rather than running elsewhere', asyn
 
   // Then the machine it asked for attaches, and it goes straight there.
   const alphaHost = new TunnelAgent({
+    loadSampler: IDLE_LOAD,
     hostUrl: host.url,
     token: TOKEN,
     name: 'alpha-host',

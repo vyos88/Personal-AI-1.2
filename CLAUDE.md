@@ -53,6 +53,41 @@ the sweeper requeues it up to `maxAttempts`. A result from an agent that no
 longer holds the lease is rejected with 409 — that is deliberate, so a slow
 straggler cannot overwrite the answer from the agent that owns the work.
 
+**The queue survives a restart; the registry does not.** The Alpha host is
+restarted routinely, and a queue that emptied with it made the Music Creator
+tell people "the tunnel no longer remembers this track". `src/host/journal.js`
+copies the queue to `ALPHA_TASK_JOURNAL` (default `tasks.json` beside the auth
+store, so `./data/tasks.json`; `off` keeps nothing) on every change, and
+`queue.restore()` takes it back before the first request is served. Four things it rests on:
+
+- **The Map is still the queue.** The journal is a snapshot written through the
+  queue's `onChange` seam, coalesced so a burst of changes is one write, and
+  write-then-rename like the auth store. Being a snapshot is what bounds it:
+  the file holds exactly what the queue holds, and finished tasks leave it on
+  the same retention (`FINISHED_TASK_RETENTION_MS`, `MAX_FINISHED_TASKS`) they
+  leave the queue on. There is no log to compact.
+- **A leased task comes back queued, its attempt spent** — the lease-expiry
+  rule, applied early. Its agent's registration died with the old process, so
+  anything it reports gets the existing 410 (unknown id) or 409 (not leased to
+  it). Waiting out the old lease would gain nothing: nothing could complete it.
+  One with no attempts left fails with `coordinator_restarted`, and gets its
+  receipt; the restore runs after the receipt ledger loads so that receipt is
+  not overwritten.
+- **Bulk does not reach disk.** Queued tasks keep their payload whole (they
+  cannot run without it). A finished task keeps its result under
+  `MAX_KEPT_BYTES` (8 KB); over it, only what a receipt keeps — `recipe`,
+  `outputs`, `stats` — marked `resultTrimmed`. An `alpha.music.audio` slice is
+  ~700 KB of base64 and the whole file is rewritten per change.
+- **A task whose payload names a credential is never written.** `alpha.panel`'s
+  Provision carries a WiFi password; such a task is forgotten by a restart, as
+  every task was before. `key` is deliberately not on the list — it is a
+  musical key and a memstore key.
+
+It follows the receipt ledger on the two choices that differ from AuthStore:
+a corrupt journal is moved aside and the host starts empty rather than not at
+all, and only a host with a persistent auth store keeps one, so a test host
+never writes tasks the next real coordinator would pick up and run.
+
 **Placement is memory-aware.** `src/host/registry.js` doubles as an admission
 controller: a task with `minMemoryMB` is only offered to an agent whose last
 memory report can cover it, and that much is held against the agent. Without the
@@ -87,11 +122,49 @@ instant. Two invariants keep the two sides of that accounting honest:
   would break the case it exists to make legible: a task waiting for a machine
   with room is supposed to wait, and looks exactly like one an agent keeps
   refusing — both queued, both with `attempts` flat.
+- **What a machine lends is said as a share of it, not only in megabytes.**
+  `ALPHA_AGENT_MEMORY_RESERVE_PERCENT` is a reserve as a percentage of total
+  RAM, and the larger of it and `..._RESERVE_MB` applies. The MB figure cannot
+  survive `.env.agent` being copied — 512 MB is a tenth of one laptop and a
+  thirty-second of another, so one file gives two machines two different
+  bargains. The percentage is of *total*, not of free: "keep a tenth of this
+  laptop for its owner" is a claim about the machine, and a share of whatever is
+  free right now shrinks exactly when the owner needs it. 100 is legal and means
+  "lend nothing" — a machine present for `--agent`-pinned work only.
+  `docs/FLEET.md` is the per-machine version of this.
 - **RAM a handler holds for itself is never also offered to the host.** A
   handler may export `committedBytes()`; `HandlerRegistry.committedBytes()` sums
   it and `memorySnapshot()` takes it off the offer alongside the reserve.
   `memory.store` is the one that does — its *unused* budget only, since what it
   already holds is real heap and has left `freeBytes` on its own.
+
+**An agent may be given more than one coordinator, and comes home by itself.**
+`ALPHA_HOST_URL` takes a comma-separated list, primary first: the agent
+registers with the first that answers, which is what makes
+`scripts/standby-alpha.mjs` worth running — a laptop running Alpha while the
+host is off is no use if every worker still dials the machine that is not
+there. Three things hold it together, all tested in `test/failover.test.js`:
+
+- **Registration always starts at the top of the list**, so there is no
+  separate demotion to get wrong: the moment the primary answers, that is where
+  the next registration goes.
+- **A host that answers and refuses is not failed over from.** A 401 or a
+  protocol mismatch will say the same thing on the standby, and moving on would
+  bury the reason under a second, less useful error. Only an unreachable
+  coordinator moves the agent along.
+- **Coming home happens between tasks.** An agent on a standby checks the
+  primary's `/healthz` (the one endpoint needing no credential) at most once a
+  minute and only while holding nothing, then deregisters from the standby
+  before re-registering — moving mid-task would leave a lease with a
+  coordinator it had walked away from, and the work would be re-run elsewhere
+  while it was still running here.
+
+The panel follows the same shape from the other side: `host2` in its NVS is the
+standby, it reads the primary first on every poll, and the footer says
+`[standby]` while it is on the fallback. `docs/HOST_DOWN.md` is the runbook, and
+the thing it exists to stop people losing an evening to: **the panel is not on
+the tailnet.** It is on WiFi, so a `100.x` address does not exist for it and
+both URLs it is given have to be reachable from that network.
 
 **One registration per worker.** Agents dial out, so a worker that crashed and
 came back is indistinguishable on the wire from a new machine: it registers,
@@ -150,6 +223,21 @@ hold that together:
 - **Standing aside is bounded.** After `LOAD_THROTTLE_MAX_MS` with nothing in
   hand, a loaded agent takes work anyway — otherwise a fleet that is busy
   everywhere would never run anything.
+
+**A machine can be paused by name, and the creator's pause is final.**
+`POST /agents/pause {name, reason}` / `/agents/resume` (scope `agents:control`)
+make `registry.canAdmit` refuse every task for that name; work in flight is left
+alone, because stopping it is what `tasks:cancel` is for. Three properties, all
+in `test/pause.test.js`:
+
+- **By name, like `targetAgent`,** so a restarted laptop is still paused. Held in
+  memory like the rest of the registry: a coordinator restart lifts every pause.
+- **A pause made with admin can only be lifted with admin** (`creator_hold`), and
+  re-pausing never downgrades that. This is what lets Alpha hold an
+  `agents:read,agents:control` key as supervisor without being able to overrule
+  the person who owns the fleet. `docs/ALPHA_SUPERVISOR.md` is the runbook.
+- **Resume hands queued work out immediately** (`queue.redispatch()`); without it
+  a resumed machine waits out a whole long poll, and the test proves the wait.
 
 **A task may name its machine, and naming one narrows nothing else.**
 `targetAgent` on a task restricts the candidates to agents registered under
@@ -211,6 +299,12 @@ say so at each site; this is the short list.
   A port already in use still fails fast — waiting could never fix that.
 - **Every handler path must end the response.** Returning from the long-poll
   abort branch without `res.end()` leaves the request open and blocks close.
+- **A heartbeat that cannot reach the host counts, and does nothing else.**
+  `#heartbeatMissed` warns once at `HEARTBEAT_WARN_AFTER` (3) consecutive
+  misses and `#heartbeatAnswered` says so at info when one lands — a 410 counts
+  as an answer, because a restarted host saying "who are you" is reachable.
+  Neither clears the id or re-registers: those stay with the 410 branches, and
+  clearing the id on a stand-down is exactly the eviction loop they warn about.
 - **An agent must not deregister while tasks are still reporting.** `stop()`
   drains first, then aborts, then deregisters. Deregistering up front makes
   every in-flight result a 410, and the host re-runs work that succeeded.
@@ -222,7 +316,7 @@ and every three hours fast-forwards the checkout and restarts it onto the new
 code. It shells out to `self-update.mjs` rather than reimplementing the three
 rules. The division of labour is the whole design: `self-update.mjs` exits 10 to
 *ask* for a restart because a scheduled script does not own the agent process;
-the keeper owns it, so it may. Three things it must keep doing:
+the keeper owns it, so it may. Four things it must keep doing:
 
 - **Stop, never respawn, when its agent stood down.** The agent exits 0 in
   exactly one case nobody asked for — `410 stand_down`, another process on this
@@ -236,11 +330,23 @@ the keeper owns it, so it may. Three things it must keep doing:
 - **Run the agent from the checkout it updates**, not from beside itself. That
   is also the test seam — the suite puts a stub at `src/agent/index.js` in a
   temp repo and watches the *new* one start.
+- **Never exit under an update it started.** `self-update.mjs` is a process of
+  its own with git beneath it; a keeper that exits mid-update orphans both,
+  still pulling. On the way out it waits for the update, bounded by
+  `--stop-timeout-ms`, then kills the tree (`src/common/kill-tree.js`, shared
+  with the standby). That needs `spawn` with `detached` — `execFile` silently
+  drops `detached`, so the group it kills would be nobody's.
 
 It overlaps `scripts/watchdog.mjs` in the update-and-restart half and not in the
 other: the watchdog is one scheduled pass that asks the *host* whether this
 machine is attached and writes the answer down, which nothing running on the
-laptop can answer about itself. Run beside the keeper it wants `--no-update` and
+laptop can answer about itself. `--panel-key` adds the same question about the
+CrowPanel, and it has to be asked of the host for a stronger reason: the panel
+is not an agent at all — it registers nothing, holds no lease and has no row in
+`/agents` — so nothing in the fleet notices when its screen freezes. It does
+read `GET /stats` with a bearer key every five seconds, so that key's
+`lastUsedAt` (epoch ms, not an ISO string) is the receipt, and a key quiet for
+two minutes exits 1 like any other thing needing a person. Run beside the keeper it wants `--no-update` and
 no `--restart-command`, or the two bounce the same worker.
 
 `scripts/standby-alpha.mjs` runs Alpha on a laptop while the host is not
@@ -255,6 +361,30 @@ same rule with `package.json` as the allowlist — a name it does not define is
 refused at startup, and Windows gets `npm.cmd` because `npm` there cannot be
 spawned without a shell.
 
+**A standby watches Alpha, not the coordinator, and that is easy to get
+backwards here.** The names invert the fleet: Alpha runs on Worker1 and the
+coordinator runs on the Host, so the machine that should take Alpha over is the
+one running the coordinator — and `standby-alpha.mjs` defaults `--probe-url` to
+`ALPHA_HOST_URL/healthz`, which on that machine answers from loopback whatever
+happens to Worker1. A standby installed with the default there never promotes,
+and nothing says so: the failover looks installed and does not exist.
+`scripts/install-always-on.ps1` takes `-ProbeUrl` and `-LocalUrl` for this and
+warns when `-ProbeUrl` is omitted on a machine holding the coordinator port
+(`test/install-always-on.test.js` pins both). `-LocalUrl` is the other half: it
+is how a promotion that started nothing gets reported instead of counted as a
+live Alpha. `docs/HOST_DOWN.md` carries the recipe and the two things a staged
+clone still lacks — `.env.local` and `memory\` — because `prepare-alpha-here`
+copies no secrets and no data, so an armed standby there would promote and fail
+to start Alpha.
+
+**The public way in moves with Alpha.** `--cloudflared <tunnel>` runs a named
+Cloudflare tunnel for exactly as long as this machine is promoted, under the
+same supervision as Alpha itself — a tunnel that died is a public address
+pointing at nothing, and one left running beside a demoted Alpha is worse. The
+name is all it accepts: cloudflared also takes `--token <secret>`, and an argv
+is readable by every process on the machine, which is the same reason the
+panel's WiFi password never travels that way.
+
 **Stopping it stops the tree.** `npm run dev` is a wrapper and the server is its
 grandchild; killing only the spawned process leaves the port held and the next
 start fails to bind. POSIX gets its own process group, Windows gets
@@ -266,6 +396,311 @@ Its real hazard is split brain: the machine cannot tell "the host is down" from
 network is) is what keeps a dropped link from producing a second live Alpha, and
 demotion is on by default so a split heals when the link does. Neither is a
 quorum, and the docs say so rather than implying this is HA.
+
+## Self-heal on the Alpha host, and why it is bounded
+
+`scripts/alpha-selfheal.mjs` is one scheduled pass (every 2 minutes, as SYSTEM,
+installed by `scripts/repair-alpha-host.ps1`) that keeps Alpha's backend,
+production frontend and cloudflared connector up on Laptop41. Like the standby
+it is local and not a handler — the tunnel cannot repair the machine it runs
+on. Its policy lives in the pure `decide()` and is pinned by
+`test/alpha-selfheal.test.js`; keep it that way:
+
+- **Streak, cooldown, budget.** Nothing is repaired on one failed pass, a
+  repaired component is left alone for the cooldown, and past the hourly or
+  daily budget it stops and posts once. A supervisor that restarts forever
+  hides a crash loop instead of reporting it.
+- **The connector is gated on a proven origin.** cloudflared is restarted only
+  when the frontend was healthy on consecutive passes, the Internet answers,
+  and the edge returns a connector code. Its config and credentials are never
+  read or written.
+- **Configuration faults are reported, not restarted** — Vite's 403 "Blocked
+  request" for the public host, a missing `dist` with no snapshot.
+- **Rollback keeps the failed build** (`dist.failed-*`) beside the restored
+  `dist.last-good`; it never deletes the evidence of what broke.
+- Probes send `Host: <public host>` through `node:http` because that is what
+  cloudflared sends and `fetch` cannot.
+- **Chat is optional and restarted as its owner.** With `chat` in the config,
+  Ollama is probed and restarted through its own scheduled task
+  (`chat-task.ps1` makes `Alpha Ollama`), never started directly: self-heal is
+  SYSTEM, and an Ollama started as SYSTEM finds no models. A `chat` with no
+  task is reported once as needing a person, and no budget is spent on it.
+- **A pass that cannot finish still writes its line.** One pass at a time is
+  a lock file, and a pass that died holding it made every pass after it skip,
+  silently, for `lockStaleMs` -- on Laptop41 on 2026-10-09 the log stopped at
+  13:22 and the autopilot's restart at 13:30 changed nothing. So the lock names
+  its pid and a dead holder's lock is taken at once; `guardPass()` stops a pass
+  at `passDeadlineMs` (under Task Scheduler's 5-minute kill) and catches a
+  process ending with its pass unfinished, and both log `unfinished: {why,
+  stage}` and exit 4; and every probe is bounded as a whole and settles once,
+  because the socket timeout is idle time and a server sending a byte every
+  100 ms never trips it. The doctor (`-ExplainSelfHeal`) and the live page read
+  the lock and `selfheal.json.error.json` before they guess.
+- **Covering needs three signals, each from a different path.**
+  `alpha-standby.mjs` (Phase 3, every minute as SYSTEM) covers for the primary
+  only when all three hold:
+  - the primary's Alpha misses `failures` passes over the tailnet;
+  - alpha-ai.uk is served by nobody (a 1033 page counts as nobody);
+  - the control URL answers.
+
+  A primary that is up but unseen over the tailnet still serves the public
+  URL, and a standby whose own link is down cannot reach the control. Both
+  would otherwise make a second Alpha. It hands back after `recover` answers,
+  through the same tested stand-down, and it counts what changed in
+  `memory\` while it covered so that data can be carried back. Its moves are
+  `alpha-standdown.ps1`'s, never its own: `-Undo -StartConnector` to cover,
+  because Worker1's connector service was Stopped while another connector
+  served.
+- **The machine that serves sends; the other applies while it does not.**
+  `alpha-data-sync.ps1` is Phase 3's data half, and the same rule on both
+  machines is what makes it safe across a switch-over, a cover and a hand-back:
+  - a machine that never served here never pushes its stale copy;
+  - one that just stopped sends its last minutes once;
+  - nothing is applied under a running Alpha (it is held for `data-apply`).
+
+  It never deletes. Newer wins, with the replaced file kept. It never sends
+  back what it only received (`received.json`), and never resends what it
+  already sent (`sent.json`), so a clock running ahead cannot make a loop.
+  tar keeps whole seconds, so times match to the second.
+  Files are copied for packing under a short root (`C:\AlphaData\ds`), never
+  beside alpha-ops: there, on 2026-10-09, a 254-character path in memory\
+  came out at 274, Copy-Item failed, and the file was counted as sent and
+  would never have gone. A file that cannot be packed is now never counted as
+  sent and rides with the next pass. A folder that cannot be read is reported.
+  A package with a file that could not be written is kept for the next pass.
+  `-Resend` forgets what was sent, for files an older pass miscounted.
+  Names never pass through tar (format 2): the archive holds `f/0000000`,
+  ... and the manifest carries each memory\ path and its time to the tick.
+  Windows' tar.exe failed a part over PDFs named in Chinese, which would have
+  stuck the copy there for good. JSON is read as UTF-8 for the same names,
+  because Windows PowerShell reads a file with no BOM as ANSI.
+  A backlog of big files goes as its own task: `install-alpha-data-sync.ps1`
+  registers `Alpha Data Copy` (SYSTEM, IgnoreNew, 4 hours a run, output in
+  `data-sync\task-last.log`), and while it exists the autopilot's standing
+  check only reports its finished runs. Inside a 5-minute pass, a 300 MB file
+  at 400 KB/s timed out every pass and held the live page for 15 minutes,
+  and killing only PowerShell left its `tailscale file cp` uploading beside
+  the next one. A lock keeps one copy at a time.
+- **A standby repairs nothing.** `role.json` beside the config, written by
+  `alpha-standdown.ps1` when another machine serves Alpha, makes every pass
+  log one `standby` line and stop. The stand-down disables the task too; this
+  is what still holds when `repair-alpha-host` re-registers it. Only one Alpha
+  may serve alpha-ai.uk, so the autopilot refuses the jobs that would start a
+  second, and the doctor checks a standby for exactly that.
+
+**A verification that could not run is reported as that, never as a failure.**
+`repair-alpha-host.ps1`'s roster check captured
+`node src/admin/run.js agents 2>&1`, threw the exit code away and tested the
+string for the name. A scheduled run holds no admin token, so the string it
+tested was `Not signed in. Run ...` on stderr -- which does not contain the
+name, so the pass reported "No agent named like 'jack' is attached" and sent a
+person to a laptop that may have been attached the whole time. That one false
+problem is what made the 08:19 pass on Laptop41 exit 1. Three rules now:
+
+- **The exit code decides, and the text only says why.** `fail()` in
+  `src/admin/cli.js` exits 1 for every way the question goes unanswered -- no
+  token, a saved sign-in no longer accepted, HTTP 401, and a coordinator that
+  did not answer at all, which on this fleet is the whole premise of the
+  standby. Matching the four sentences would have to be revisited every time one
+  is reworded, and a bare `401` in a roster's own MEM column is not a 401. An
+  unrecognised exit 1 hands back the CLI's first line rather than a guess.
+- **Could-not-ask is still a problem, with a different remedy.** The pass still
+  exits 1, because a verification that cannot run is one -- but it asks for
+  `ALPHA_ADMIN_TOKEN` on *this* machine instead of a trip to Jack's laptop, and
+  `jackAttached` reads `unknown (<reason>)` rather than `False`.
+- **The seam answers before the script touches the machine.**
+  `-ReadAgentList` sits above the directory creation and the transcript, as
+  `panel-endpoint.ps1`'s `-ParseStatus` does: a test seam that touches the
+  machine is not one.
+
+**The doctor reads CPU, because that is the number a stalled fleet is stalled
+on.** `laptop41-doctor.ps1`'s "Memory, disk, heaviest processes" ranked working
+set and read no CPU at all -- so on the day 201 agent receipts failed because
+Alpha's GPU admission was held at its 90% CPU limit (above), the one figure that
+explained it was the one nothing printed. `Read-CpuPressure` now prints it
+against the hold and raises a problem at or above it, with the consequence in
+the line rather than a bare percentage. Three rules, pinned by
+`test/laptop41-doctor.test.js`:
+
+- **Unmeasurable is never idle.** `Win32_Processor.LoadPercentage` is a short
+  average and is absent on some hosts; reading a missing counter as 0% would say
+  "the CPU is free" about the machine least able to prove it. That is the rule
+  the coordinator already applies to an agent's missing load report, and an
+  unparseable reading is handed back as its own text so a wrong counter can be
+  told from a missing one.
+- **The hold is inclusive, because Alpha's is.** `gpu_work.py` compares
+  `cpu_percent >= cpu_hold_percent`, so exactly 90 is held; calling it fine
+  would disagree with the gate this mirrors. The 90 mirrors
+  `system_cpu_hold_percent`, which is *not* an environment variable:
+  `_routing_limits()` defaults it and `config/gpu-routing.json` overrides it, so
+  a host that has set its own number is held at that one, not at this.
+- **The seam answers above the report directory**, like `-ReadAgentList`. Its
+  test asserts the absence of `Cannot find drive` on a host with no `C:`, which
+  is also the proof that nothing below the seam ran.
+
+## Alpha's Agent Manager, seen from any machine
+
+Alpha's Agent Manager (`scripts/alpha_agent_manager.ps1` in vyos88/Alpha) runs
+on the machine that runs Alpha and is the one authority over Alpha's agents: it
+starts and stops them, holds a machine-wide mutex so a second copy exits, and
+checks an allocation before its `device-command` starts anything on another
+laptop. The owner asked to see every agent from either laptop, with no
+duplicate work and no loops between managers. That is answered here with a
+viewer, never a second manager:
+
+- **One manager, any number of viewers.** `scripts/fleet-agents.mjs` draws the
+  manager's snapshot beside the coordinator's agents and leases, in the
+  manager's own Norton layout. It sends reads and one task type,
+  `alpha.agent-manager.status`, at most one at a time and only when an attached,
+  non-silent agent offers it; a test pins that this is the whole of what it
+  sends. Installing the manager itself on a second laptop to "see" it is the
+  thing not to do: two authorities is exactly how stewards double up and
+  restart each other.
+- **The read is a handler because the HTTP route wants the owner.**
+  `/agent-manager/status` needs Alpha's owner login, which no scheduled
+  console should hold. `agent-manager-status.js` reads
+  `memory/local/agent-manager/manager-status.json` inside
+  `ALPHA_AGENT_MANAGER_ROOT`, else `ALPHA_REPO_ROOT` (the root the coordination
+  handler uses), takes no arguments, starts no process, and is opt-in.
+  `available()` declines a root with no snapshot, because the Host's records
+  standby has an `ALPHA_REPO_ROOT` too. The two roots differ on Worker1: its
+  coordination log is in `C:\Users\Vyo\Alpha-1.8`, but the live manager runs
+  from `C:\Users\Vyo\Downloads\VyoS-advance-tech-ai`, and reading the first
+  served a week-old snapshot. The stale check is what caught it.
+- **Stale is drawn as stale.** The manager rewrites its snapshot every 15 s;
+  both the handler and the viewer call it stale after two minutes, and the
+  viewer ages a kept snapshot by the time since it was read. An old snapshot
+  must never look like a live fleet.
+- **Managing across laptops is Alpha's, not this repo's.** Alpha already has
+  that half: `device-command` on the manager, `agent-control/poll` and
+  `receipt` from `alpha_agent_controller.py` on the other laptop, allowlisted
+  scripts only. A laptop takes part only if its device enrollment includes
+  `agent-control`; laptop-gj8dfmlk's 2026-10-02 enrollment left it out, which is
+  the "Managed control denied (HTTP=403)" in its supervisor log.
+
+`scripts/channel-watch.mjs` is a viewer of the same kind, for the one thing
+the autopilot writes every pass and nothing read. `Publish-Live` is the last
+step of a pass (`autopilot.ps1:850`), so a pass stuck in an action publishes
+nothing, and a hung pass cannot report itself — the watchdog's reason for
+asking the host about the laptop, applied to the pass. It asks git rather than
+the coordinator, so it needs no key and no tailnet, and it runs as the *other*
+machine's standing check (`autofix.channelWatch` on the Host watches Laptop41).
+Three rules it keeps:
+
+- **A verdict line carries no age.** `autopilot.ps1:751` builds its
+  change-detection key from the lines starting `OK`/`SILENT`/`MISSING`, so an
+  age in one of them would re-report the same silence every five minutes. The
+  ages go on a detail line, and anything added to this check belongs there too.
+- **Silence on `status/<channel>-autopilot` is not a channel to watch.** That
+  branch is pushed only when a queued id ran (`autopilot.ps1:733`), so hours of
+  quiet are ordinary; only `-live` and the doctor are heartbeats, which is why
+  the channels and their minutes are configuration rather than a list in code.
+- **A silent `<machine>-live` names the cost, not just the symptom** — the
+  commits pushed to `control/<machine>` since that last write, which are work
+  nothing is going to pick up. On 2026-10-08 Laptop41's pass went four hours
+  without publishing while its doctor kept pushing from the same machine, and
+  three commits of queued work landed on top. An age alone does not tell an
+  operator whether it matters yet.
+
+Two sessions wrote this check 26 minutes apart on 2026-10-08 (`70573bc` and a
+`fleet-heartbeat.mjs` removed in favour of it). It is the shape of duplicate
+this file warns about two paragraphs up, and `control/*` is where to look for a
+standing check before building one — `autofix.channelWatch` was in
+`control/host` before either landed on main.
+
+Turn it on with `agent-manager-status` in `ALPHA_EXTRA_HANDLERS` on the machine
+that runs Alpha (plus `ALPHA_AGENT_MANAGER_ROOT` where the manager's install is
+not `ALPHA_REPO_ROOT`), then on any machine:
+`node scripts/fleet-agents.mjs --machines host=laptop-gj8dfmlk,worker1=desktop-41hplcn`.
+
+## Reading Alpha's loops from the machine it runs on
+
+`scripts/alpha-runtime.mjs` answers the two questions that kept needing a person
+at the keyboard, and both answers were on the machine with nothing printing
+them. It is read-only -- one unauthenticated GET of the LAN deck feed, one JSON
+file read -- and `autopilot.ps1`'s `alpha-runtime` action is how a laptop with no
+route to this container runs it. Four things it rests on:
+
+- **`awareness` is two different words for two different things, and neither is
+  the loop.** Awareness runs inside the assistant cycle and shares its gate, so
+  `not-started` means the cycle has not had the shared background lane yet --
+  look at free memory, not at awareness. `degraded` is the opposite end:
+  `'ok' if failed == 0 else 'degraded'` over the awareness cycle's *own
+  hardware-test report* (ESP32 sketch compiles against the ports it found), so
+  it means the cycle ran and a board or a compile failed. Reading either as a
+  dead loop sends somebody to restart a loop that is running. The script prints
+  the note for both.
+- **The lane line is the diagnosis.** `waiting_on` plus `waiting_since` is what
+  turns a healthy-but-starved cycle into something actionable; everywhere else
+  it reads as a dead loop. `waiting_on=host busy (systemcpu)` with a fresh
+  heartbeat is a cycle taking its turn, not a stall.
+- **Receipts are one flat top-level list, not a field on an agent.** Alpha's
+  `_load_agent_registry` keeps `agents` and `receipts` side by side and joins
+  them by `agent_id` on read, so the `history` of `_agent_runtime_view` exists
+  only in an API response and never in the file. The first version of this read
+  `agents[].history` out of the file and reported `0 retained; classes none`
+  from a registry holding `evidence-contract` failures -- the `alpha-devices.js`
+  `serialPorts` mistake with a week of receipts behind it, and it reads as a
+  healthy fleet rather than as a bug. Timestamps are `completed_at` for the same
+  reason, and the agent's name is joined from the roster because an id alone
+  sends nobody anywhere.
+- **An empty answer says which kind of empty it is.** `0 retained` is the one
+  line that could mean this reader is wrong, so it never stands alone: the
+  registry's own top-level keys and their lengths are printed beside it. That is
+  the check that would have caught the shape above on the first pass instead of
+  the third.
+
+**What it found, so the answer is not re-derived: every agent receipt fails
+before a model starts.** The first pass with the reader fixed read 201 receipts,
+all classed `evidence-contract`, and every reason was the same 502 --
+`Local LLM request failed: Timeout: ... GPU admission timed out without
+starting language-model`. So the class is misleading: nothing failed a contract,
+because nothing produced output. Alpha's `gpu_work.py` gates every local model
+call, and two of its refusals explain the lot:
+
+- `Waiting for system CPU below the configured hold limit` -- CPU at or above
+  the hold (90%).
+- `Waiting for fresh per-adapter GPU telemetry` -- the *only* call that
+  schedules a telemetry probe is itself guarded on `not pressure_reasons`, so
+  while CPU is pinned no probe is scheduled, telemetry never becomes `observed`,
+  and a call landing just after CPU drops is refused for want of it. It is the
+  same gate the assistant cycle waits on, which is why the lane's
+  `waiting_since` sat unchanged for an hour.
+
+  **Settled, and neither of my first two framings was right.** Five of the
+  eight newest receipts carry the *telemetry* message, three the CPU one, and
+  the proof does not use the CPU samples at all -- it is the check order.
+  `admission_reason` tests CPU first and RAM second, returning early, so a
+  receipt reading `Waiting for fresh per-adapter GPU telemetry` proves CPU was
+  below the hold and RAM inside its limits at that moment; the admission loop
+  re-evaluates every 0.25 s and raises with the *last* reason, so it held to the
+  deadline; and with `pressure_reasons` empty `gpu_snapshot()` *does* schedule
+  the probe. It was scheduled, repeatedly, for an hour and a half, and
+  `gpu_telemetry_status` still never reached `observed`.
+
+  So the probe is not unscheduled -- **it is not producing `observed`.**
+  `windows_gpu.py` returns `"observed" if measured else "counter-unavailable"`,
+  where `measured` needs a configured adapter carrying a PDH
+  `utilization_percent`, and `_refresh_windows_gpu` backs off 300 s on failure.
+  I called it a pressure deadlock twice (CPU pinned, so no probe), and that was
+  wrong in the way that matters: **freeing CPU does not fix it.** CPU pressure
+  is real and separate -- `llama-server` resident at 1,932 MB answering chat at
+  6-10 tokens/s is CPU inference, and three receipts blame the hold -- but it is
+  a second problem, not this one. `docs/ASKS.md` carries the live question
+  (why the per-adapter probe never reaches `observed` on that host) and the two
+  read-only checks that would answer it.
+
+That diagnosis is why `laptop41-doctor.ps1` now reads CPU at all (below); the
+fix itself is in Alpha and is V's call, not this repo's.
+
+The reason it is a script and not a handler is the same one `standby-alpha.mjs`
+gives: the deck feed is LAN-only (`homeAddress()` refuses a `100.x` or
+`169.254.x` address deliberately), so it can only be asked from a machine on
+Alpha's network. And its entrypoint guard is a parameter-driven comparison, not
+`resolve(argv[1]) === fileURLToPath(import.meta.url)`: Windows hands the same
+file out as `C:\services` and `C:\Services`, the plain form answered *no*, and a
+guard that answers no is a script that exits 0 having printed nothing -- which
+is exactly what the first real pass on Worker1 did.
 
 ## Adding a handler
 
@@ -326,6 +761,63 @@ too. Two halves of the same problem: `--agent` decides where a render goes, and
 `available()` (above) stops a machine that cannot render from offering to in
 the first place — the second is what covers an *unpinned* render on a laptop
 holding a copy of the host's configuration.
+
+**The queue forgets; the ledger remembers.** `src/host/queue.js` is one
+in-memory Map, deliberately — but that meant the *answer* died with it, and
+after a restart there was no way to say how many renders ran last night or
+which species came back. Terminal tasks now also go to `src/host/receipts.js`
+via the queue's `onTerminal` seam. Four properties hold it up:
+
+- **It is the expendable half.** A ledger write that throws — full disk,
+  read-only mount — must never turn a task that genuinely succeeded into a 500
+  for the agent reporting it, which would cost the lease and re-run finished
+  work. `#finished()` swallows and logs.
+- **A corrupt file does not stop the host.** The opposite of `AuthStore`, and
+  for the opposite reason: overwriting credentials silently un-revokes access,
+  whereas blocking the coordinator over a damaged *history* file is worse than
+  losing the history. The bad file is moved aside and kept, never deleted.
+- **The agent's name is resolved at record time, not read time.** A receipt
+  outlives the registration that ran the work, and ids are minted per
+  registration — a minute later there is nothing to look up.
+- **Persistence follows the auth store's.** A host whose credentials are in
+  memory cannot outlive its process, so a durable ledger for it is meaningless
+  and actively harmful: defaulting it to the real path regardless put
+  kilobytes of fabricated receipts into `./data/receipts.json` on every
+  `npm test` run. Pinned by a test.
+
+`alpha-render-inventory.js` is the sixth external-facing handler and the only
+one that exists because of what the ledger *cannot* know. The ledger records
+from the moment a host started keeping one; every render before that left one
+durable trace, the file on the machine that made it. So this reads the output
+directory and reports it. Four rules it follows:
+
+- **It never parses a seed out of a filename.** The generator names its own
+  file, which is why `alpha.render` reports what appeared rather than
+  predicting a path; reconstructing `fern_7.png` → seed 7 reintroduces exactly
+  that assumption and breaks the first time the naming changes. Counts, bytes
+  and mtimes are what a file can honestly tell you.
+- **It takes no path from the payload**, only an optional `species` filter. A
+  handler that could be told where to look is a directory lister with a task
+  queue in front of it — the same objection `handlers/index.js` raises against
+  a shell handler.
+- **A render in flight is excluded but counted.** `run()`'s `.render-*`
+  staging directory holds a half-written image, which is not output; the
+  number of them is reported, because that is the other half of reading a
+  directory mid-flight.
+- **Its `available()` is weaker than `alpha.render`'s on purpose** — output
+  directory yes, Blender no. A machine whose Blender broke still holds every
+  render it made, and that is exactly when an inventory is wanted. It shares
+  `resolveOutputDir()` with the render handler rather than keeping a second
+  copy of the rule, because a copy that drifts reads a directory the renders
+  do not write to and calls a full machine empty.
+
+`scripts/alpha-manager.mjs` is what a scheduled loop runs, and the three things
+it adds over `run-jobs.mjs` are the three a loop needs: seeds **continue** from
+the ledger instead of repeating (a loop on `--seed 0` re-renders the same six
+forever), an allowlist and a per-window quota **approve** before anything is
+queued, and it **never waits** — a render outlives any sensible pass. A pass
+that would overrun the quota is refused whole rather than trimmed, because "I
+rendered some of what you asked" is the worse answer for an unattended job.
 
 `grow.js` sits next to `alpha-render.js` and the two are easy to mistake for
 rivals, because both were asked for by "3D creatures and plants". They are not.
@@ -402,7 +894,344 @@ The serial side is `fs` plus one `stty`/`mode.com` call, because Node's standard
 library can open a serial device but cannot set its baud rate, and this repo has
 no runtime dependencies. The port is opened once for a whole command sequence:
 opening per command resets the board on every adapter that ties DTR to EN, so
-the sketch would be restarting instead of answering.
+the sketch would be restarting instead of answering. Three rules there, each one
+a bug that was in this file:
+
+- **No read may wait forever.** `stty raw` sets `min 1 time 0`, so a read waits
+  for a byte a silent board never sends and the deadline is never looked at —
+  the task then holds its lease until the sweeper takes it away, which is the
+  exact failure the timeout exists to prevent. `min 0 time 1` goes *after*
+  `raw`, and every read is raced against the deadline so Windows, which has no
+  such knob, is covered by the close instead. The same outstanding read is
+  picked up on the next pass: a second read alongside it splits the reply.
+- **The open resets the board, so the conversation starts with `status`.** The
+  first line written otherwise lands in a sketch that is still in `setup()` —
+  which itself spends up to 15s joining WiFi — and is simply lost. The probe
+  repeats until the board answers, and the credentials go only to something that
+  has spoken. `ready:false` in the result is "nothing there", which sends an
+  operator somewhere different from `provisioned:false`.
+- **A reply budget outlasts what the sketch does before replying.** Its `wifi`
+  command joins for 20s before it answers, so a shorter budget here reports a
+  wrong password as silence. That is also why `Provision` wants `--lease-ms`,
+  not only `Flash`.
+
+`scripts/connect-panel.mjs` is the whole sequence as one command, run on the
+machine the board is on — port, flash, key, provision, verify. The last step is
+the only one that decides its exit code, and that is the point: a flash that
+worked, a join that worked and a `provisioned:true` still leave a dark screen if
+the panel cannot reach the coordinator. So it waits for the panel's key to be
+*used* on the host, and waits for a use newer than the provisioning rather than
+any use at all — "this key worked last Tuesday" is not a connected panel. It
+mints that key itself, scoped to `agents:read` and nothing else: the screen on
+the wall must not hold a credential that could queue work. It picks the port by
+the CH340 bridge and refuses to guess between two candidates, because flashing
+the wrong board is not something the next command can undo.
+
+**Which board is the panel is asked of the boards, not of the port names.**
+Worker1 carries five bridges — four CH340 clones and the panel — and every one
+of them is "USB-SERIAL CH340" to `mode.com`, while Windows renumbers COM ports
+on re-enumeration, so the number is the least durable fact there is about a
+board. `panel-up.mjs --identify` opens each port in turn and classifies what
+answers: **panel** (this firmware's `status` came back), **alpha-deck** (talking
+and naming itself `[crowpanel]` — Alpha's own deck firmware, which
+`scripts/panel-endpoint.ps1` points and this must never flash over),
+**other**, **silent** or **unreadable**. Four rules:
+
+- **The only thing written is the status query** the readiness probe already
+  sends. A board whose identity is unknown is never handed a command, which is
+  the same rule as refusing to guess which board to flash.
+- **One port at a time.** Opening a port reboots the board behind it, and five
+  boards rebooting at once on one laptop's USB is a brownout, not a diagnosis.
+- **A port gets the handler's own 30 s**, because the sketch spends up to 15 s
+  joining WiFi in `setup()` before its loop reads a byte. A shorter window
+  reports the panel as silent, which sends somebody looking for an unplugged
+  board.
+- **It feeds `pickPort()`.** With several ports and no `--port`, panel-up
+  identifies instead of giving up, and uses the one board that answered *this*
+  firmware. None answering is not a port it can choose — a board not yet
+  flashed with this firmware cannot answer — so it says so and asks for
+  `--port`.
+
+**The board is remembered by what it says, not by the port it was on.**
+`panel-up.mjs --pin [port]` writes `data/panel-board.json` (machine-local,
+gitignored — which USB socket a laptop's panel is in is not a fleet fact, and
+there is nothing secret in it). It keeps the board's own answer: `kind`,
+`firmware` and its **MAC**, which `panel-4` added to the `status` reply because
+it is the only identifier that survives both a re-enumeration and a reflash.
+Four rules:
+
+- **The port is a hint that gets checked.** `pickPort()` asks the pinned port
+  first and `verifyPin()` compares MACs; equal means this is the board, whatever
+  the port is called today. Trusting the number is the `device.inventory`
+  failure with a file behind it.
+- **A different MAC on the pinned port is a different board**, so the sweep runs
+  and the pin moves to where the panel actually is. That case is not
+  hypothetical: provisioning the wrong ESP32 is what pinning a bare number
+  eventually does.
+- **A board with no MAC is pinned by kind and port, and told so.** Alpha's deck
+  firmware reports none and neither did `panel-3`; `verifyPin` returns the weak
+  answer as a weak answer rather than dressing it up.
+- **Nothing silent is ever pinned.** `pinFromBoard()` takes only `panel` or
+  `alpha-deck` — a pin made from a port that said nothing is a guess the next
+  run believes.
+
+**The panel knows several networks, and picks by signal rather than by order.**
+It stores up to four (`PANEL_MAX_NETWORKS`, mirrored as `MAX_NETWORKS` in the
+handler so an operator hears "at most four" instead of silently losing the
+fifth), scans, keeps the ones it can see and tries the strongest first — the
+house WiFi provisioned first is the wrong first choice in a room where only the
+hotspot reaches. Three things that follow:
+
+- **A network the scan did not find is skipped, unless none of them were
+  found.** That case is also what a hidden SSID looks like, so it falls back to
+  trying everything in the order given rather than concluding there is nothing
+  here.
+- **`Provision` takes `networks: [...]`, and a bad entry fails the whole
+  command.** A panel holding three of the four networks somebody meant is the
+  kind of half-success nobody notices until they are in the wrong room. The
+  single `ssid`/`password` form still means a list of one.
+- **Every password is redacted, not just the first.** `redact()` takes an array
+  and replaces longest-first, or a password that contains another is left half
+  visible.
+
+**`Scan` is the action that settles "wrong password or wrong room".** It asks
+the board's own radio what it can hear from where the panel actually sits, which
+is not what the laptop beside it hears. `panel-up.mjs` runs it automatically
+when a join fails, and `--scan` runs it on its own. Reflashing does not cost a
+board its credentials: the previous firmware's single network is migrated into
+the list on first boot.
+
+**The port is opened as a device, and configured by its plain name.** The first
+real `--identify` sweep on Worker1 failed on every port, and the two halves of
+the failure say why: `could not open COM4: ENOENT ... open
+'C:\services\alpha-tunnel\COM4'` — `fs.open` resolves a bare `COM4` against the
+working directory like any other relative path, so `devicePath()` prefixes
+`\\.\` at *every* number, not only above COM9 as it first did. But
+`mode.com \\.\COM20 BAUD=...` failed in the same run where `mode.com COM4` had
+worked, so `mode` wants the plain name — the opposite way round.
+`portConfigAttempts()` tries the plain name and falls back to the device path,
+because the only evidence against the second spelling is one machine's two held
+ports. arduino-cli keeps the plain name in its argv throughout.
+
+**Serial ports are read from two sources per platform.** On Windows `mode.com`
+lists only ports it can *open*, so a board held by a serial monitor — the usual
+reason a flash fails — is missing from it; the registry's `SERIALCOMM` device
+map has it either way, and the difference between the two is reported as "in use
+by another program?" rather than as no board at all. On POSIX `/dev/serial/by-id`
+supplies the label (`usb-1a86_...` is the CH340 this panel is behind) while the
+port opened is the node it resolves to.
+
+**The panel has pages, and each one is fetched only while it is on screen.**
+Five — `fleet`, `machines`, `work`, `receipts`, `panel` — rotating every
+`PAGE_INTERVAL_MS`, each sourced from the endpoint that owns its numbers
+(`/stats`, `/agents`, `/stats`, `/receipts/summary`, and nothing). Four rules
+hold it up:
+
+- **Only the visible page's endpoint is fetched.** `/stats` is polled for the
+  header regardless; `/agents` and `/receipts/summary` are read when their page
+  comes round. A wall display must not be the reason a coordinator is busy.
+- **`/agents` is parsed through a `DeserializationOption::Filter`.** The row
+  carries every field the host knows; an ESP32 parsing all of it for four
+  numbers is how a panel runs out of heap on the day a fourth laptop joins.
+- **The `panel` page needs no network**, which is the whole point of it: it is
+  what answers "is it the panel or the fleet?" when nothing is answering, and
+  it is where the board starts before a coordinator has ever replied.
+- **`Page` is an action, and the page list is mirrored from the firmware**
+  (`PANEL_PAGES` against `PAGE_NAMES`). A payload naming a page the board does
+  not have is refused on the task rather than swallowed by a board that keeps
+  showing what it was showing. `hold` stops the rotation, because somebody
+  standing in front of the machines page should not have it slide away
+  mid-sentence.
+
+The panel's key carries `agents:read` **and `tasks:read`** — the receipts page
+needs the second, both are read-only, and nothing either scope allows can queue
+work. A panel provisioned before that shows `key needs tasks:read` on that page
+instead of a confident row of zeroes.
+
+**Alpha's deck feed is three settings, and `scripts/fix-panel-host.mjs` is all
+three.** Alpha's own panel reaches its backend on a home-network address or not
+at all — never `127.0.0.1`, never a tailnet `100.x` — so `HOST` (what the
+backend binds), `ALPHA_TRUSTED_HOSTS` (read at startup; an address bound but not
+trusted answers 400, which reads as the panel's fault) and
+`ALPHA_PANEL_LAN_READ` (the route itself; off is a 404) each keep the screen
+dark on their own. The script adds this machine's address to the first two,
+turns the third on, and then makes *the request the panel makes* from that
+address, which is the only check that means anything. Three rules it follows:
+
+- **Nothing is removed.** `127.0.0.1` goes back if somebody took it out — the
+  doctor, the frontend and every local script reach the backend there — and a
+  tailnet address already listed stays, because the rest of the fleet is
+  reaching the backend through it.
+- **A missing `ALPHA_TRUSTED_HOSTS` is not invented.** Absent means the default
+  decides; writing one would quietly narrow a backend nobody asked to narrow.
+- **Every duplicate is rewritten, and the value read is the first.**
+  `run_server.py` loads the file first-line-wins, as `laptop41-doctor.ps1`'s
+  `EnvSetting` does — not dotenv's last-line rule. Reporting the last is
+  reporting a value the backend never sees, and editing only one copy leaves a
+  file that disagrees with itself, so the first is read and all of them written.
+- **The file is looked for where this backend keeps it**, in `EnvSetting`'s own
+  order: `backend/.env.local`, the root, the directory above, then the `.env` of
+  each. One guessed path is what stopped a hand-run at
+  "no file at ...\app\.env.local" on a machine whose Alpha has no `app`
+  directory; a named `--env` that is missing and a search that found nothing are
+  reported differently, because one is a typo and the other a wrong root.
+
+**Alpha has its own CrowPanel firmware, and the two are told apart on the wire.**
+`hardware/examples/crowpanel_alpha_*` in the Alpha repository holds no
+credential, polls `/panel/crowpanel/public-state` on Alpha's backend, and takes
+bare-word `STATUS` / `WIFI` / `ALPHA` commands. Same board family, so it is the
+mistake that actually happens. `converseOver` records whether anything
+*non-JSON* arrived, and `describeSilence()` turns that into the difference
+between "nothing on COM3 answered" (bootloader, wrong port, no board) and
+"something on COM3 is talking but not in this protocol" with what it said. A
+timeout that blames the cable for the other firmware costs an evening.
+
+The panel reads `GET /stats` and draws it, so it reads the host's own key names
+— `queue.byStatus.leased` is what it calls *running* — and a test pins those
+names against a real host. A key the sketch invents is not an error in
+ArduinoJson: it reads as zero, and a screen of zeroes looks like an idle fleet
+rather than like a display reading the wrong endpoint. Same failure as
+`alpha-devices.js`'s `serialPorts`, on a device with no way to report it.
+
+`codex-exec.js` is the sixth external-*program* handler — the sequence
+`alpha-coordination`, `alpha-update`, `alpha-render`, `alpha-devices`,
+`alpha-panel`, and now this, distinct from the external-*facing* count above —
+and the one that breaks the pattern the other five hold. `codex.exec` hands a prompt to the Codex CLI on the machine that has
+it and returns what Codex said, so another coding agent is reachable by task
+rather than by a person carrying messages between two laptops. Every other
+handler here narrows a payload until what is left is data; this one hands a
+string to an agent with a shell on that machine, which is the category
+`handlers/index.js` refuses outright. It stays a handler and not a remote shell
+with extra steps on four counts, and each is load-bearing:
+
+- **The payload is a prompt and nothing else.** Not the executable, the
+  directory, the model, the sandbox mode or any flag — all of those are the
+  machine's configuration. `rejectUnsupportedKeys` refuses the extra key rather
+  than dropping it, for the reason `alpha-devices` refuses arguments: someone who
+  sent `{ prompt, sandbox: 'danger-full-access' }` should be told it meant
+  nothing, not left believing it widened.
+- **The sandbox defaults to `read-only`,** and widening it is done on the laptop
+  rather than by the task that arrived over the network.
+- **The working directory is `cwd`, not a flag.** Every CLI honours it and no
+  version can rename it, so the one part of the contract that cannot drift
+  doesn't. `buildArgs` holds the part that can, pinned by tests — the
+  `alpha-coordination` rule: if the CLI changes, both change together.
+- **`available()` refuses a machine that cannot do it,** including one whose root
+  is not a git checkout, because Codex refuses to run outside one and every task
+  would fail on a machine that looks perfectly configured.
+
+Two failures it will not report as success, both borrowed from `alpha.render`: a
+non-zero exit (Codex did not answer) and a *clean* exit with no output, which
+would otherwise hand back a successful conversation with nothing in it. A long
+answer comes back as its tail with `truncated: true`, because the answer is at
+the end of a transcript. Like a render, a Codex call outlives
+`DEFAULT_LEASE_MS`, so `alpha-admin codex` leases ten minutes for you and
+`--prompt-file` exists because these prompts are paragraphs and a shell that ate
+a newline would change the question without saying so. On Windows, `ALPHA_CODEX`
+must be the native binary: the npm install puts a `.cmd` shim on PATH, a `.cmd`
+cannot be spawned without a shell, and a shell is exactly what must not stand
+between a prompt and the process — so PATH resolution tries native extensions
+first and refuses a shim with the remedy in the reason.
+
+`alpha-music.js` is the seventh, and the second that returns a recipe.
+`alpha.music` takes exactly what Alpha's Music Creator panel collects —
+genre, subgenre, bpm, key, vocals, seed, durationSec — checks the names against
+`src/common/musicGenres.js` (the vocabulary the panel's `musicGenres.ts`
+mirrors), and hands them to a Python generator. Three rules it adds:
+
+- **A genre suggests a BPM, never pins one.** A missing `bpm` takes the
+  subgenre's `defaultBpm`; a given one always wins. `bpmTypical` in the
+  result is informational and nothing reads it.
+- **`vocals: true` is refused unless `ALPHA_MUSIC_VOCALS=1`.** The obvious
+  local generator (MusicGen) cannot sing, and a recipe saying "vocals" for an
+  instrumental track is the `alpha.render` `params` mistake again. `vocals`
+  must be stated either way, so the recipe always says which it is.
+- **Unknown payload keys are refused, not dropped**, for the same reason.
+- **On a ComfyUI machine, the image models leave the GPU first.** ComfyUI keeps
+  its checkpoint in VRAM between images (2.6 GB of the Host's 4 GB RTX 3050),
+  and MusicGen beside it did not fail: the driver spilled it into system RAM
+  and a track went from a minute to past twelve. `run()` posts ComfyUI's
+  `/free` before generating, best-effort and bounded at 5 s, so a ComfyUI that
+  is down never costs a track. `ALPHA_MUSIC_FREE_GPU=0` turns it off.
+
+Unlike `alpha.render`, the generator contract is defined *here*
+(`buildArgs`, pinned by tests), and so is the generator:
+`scripts/generate_music.py` (MusicGen via `transformers`, imported lazily).
+A test runs the handler against the real script in its `ALPHA_MUSIC_DRY_RUN`
+mode, so the two cannot drift apart; if either changes, change both together.
+The sidecar's `engine` field is part of that contract: the handler reads it
+into `stats`, which is one of the three keys a trimmed result keeps, so the
+ledger, `/music/tasks/:id`, `/music/recipes` and the live test all say what
+made each track. It used to travel only in the generator's stdout, which
+`summarizeResult` drops -- so when Worker1 timed out at 721s twice on
+2026-10-06 while the Host made a track in 38s, nothing durable said whether
+either of them had run MusicGen on a GPU or on a CPU.
+The script refuses `--vocals` itself too, and every failure path exits
+non-zero, because a clean exit is what the handler reads as success.
+
+Alpha's Generate button reaches it through `src/bridge/music.js`
+(`scripts/music-bridge.mjs`), because a tunnel token in a web page is readable
+by anyone who can open the page. The bridge holds a `tasks:read,tasks:write`
+key server-side and narrows it further than any scope can: it queues
+`alpha.music` only, with lease and target machine from its own configuration,
+validates with the handler's own `validateSettings`, reads back music tasks
+only, binds loopback and sends no CORS header. It leaves `vocals` to the agent,
+since it cannot know which machine will run the task.
+
+Its two read-only routes hold to the same rules. `/music/recipes` reads the
+receipt ledger with `type=alpha.music` (tasks:read, already held), filters by
+type again itself, and passes on recipe, status, machine name, output
+names/sizes and times — no paths, no agent ids. `/music/fleet` reads `/agents`,
+which needs `agents:read`; that scope is optional, and a key without it makes
+that one route a 502 `bridge_key_rejected` naming the scope while the rest keep
+working. It lists only machines offering `alpha.music`, with name, idle time
+and in-flight count (and `stale` when the registry reports one), never ids,
+addresses, owners or other capabilities.
+
+`alpha-music-audio.js` (`alpha.music.audio`) is how a track gets heard
+somewhere other than the machine that made it, and it is shaped by two facts:
+nothing can reach into an agent, and the coordinator keeps every task result
+in memory for as long as it runs. So the audio comes back as task results, in
+512 KB slices (a result body is capped at 1 MB), and the **bridge fetches each
+track once** into `ALPHA_MUSIC_BRIDGE_CACHE` and serves every later play, with
+Range support for seeking, from its own disk. Re-fetching per play would grow
+the coordinator by the size of the track every time. The slice handler takes a
+genre and a file name, never a path, and looks only at
+`<output>/<genre folder>/<name>`; the bridge only asks for a name the
+generating task itself reported. Every slice carries the file's size and
+mtime, and the bridge restarts a download whose file changed underneath it,
+because a re-run with the same recipe replaces the file in place. Slices go to
+the task's `targetAgent`, so playback needs `ALPHA_MUSIC_AGENT` on the bridge:
+an untargeted task names no machine the bridge could ask. Its `available()`
+needs only the output directory, as `alpha-render-inventory`'s does.
+
+`alpha-music-stems.js` (`alpha.music.stems`) removes the vocals from a track
+`alpha.music` already made, by stem-separating it with Demucs and keeping
+everything but the vocal stem. It is named and shaped exactly like
+`alpha.music.audio` on purpose: the payload is `{ genre, name }`, never a
+path, resolved the same way at `<output>/<genre folder>/<name>`, because a
+handler that could be told where to look is a file server with a task queue
+in front of it. The instrumental it writes — `<name's stem>.novocals<ext>` —
+lands in that same genre folder, which is the only reason this needs no new
+way to get audio back to a browser: `alpha.music.audio`'s slice pipeline
+already serves any file there by name, so the bridge's existing
+`/music/tasks/:id/audio` route plays it with no changes to that handler.
+**The track never leaves the machine that holds it.** `src/bridge/music.js`'s
+`POST /music/tasks/:id/remove-vocals` queues `alpha.music.stems` targeted at
+that same track's `targetAgent` — there is nowhere else the separation could
+run — and hands back a second task id the panel polls and plays back through
+the same two routes a generated track uses, rather than inventing a parallel
+set. Two failures it refuses to call success, both borrowed from
+`alpha.music`: a non-zero exit, and a clean exit that wrote nothing. Its
+`available()` checks the script and the output directory, the same two things
+`alpha.music`'s does, and nothing about any one track — that is `run()`'s
+question. `ALPHA_MUSIC_DRY_RUN=1` makes `scripts/remove_vocals.py` copy the
+input through unchanged instead of loading Demucs: there is no way to prove
+separation itself without a real voice to remove, so the dry run only proves
+the file moved through the pipeline, the same honesty `generate_music.py`'s
+click track has about BPM and key rather than musicality. Demucs is a second,
+separate dependency file (`scripts/requirements-stems.txt`) from MusicGen's,
+so a machine can offer either capability without the other.
 
 **`device.inventory` and `alpha.panel Ports` overlap, and both stay.** They are
 the same shape of question asked of two different authorities, which is why one
@@ -427,8 +1256,9 @@ correctness, so it is spent on the two `description` strings, which is what
 pinned script that must resolve inside `ALPHA_REPO_ROOT`, allowlisted action,
 and arguments passed to `execFile` as an argv array so a message containing
 shell metacharacters is data, not syntax. Its contract is **verified against the
-real script** — all five actions and `-Paths` as one comma-joined token. The
-tests pin the exact argv, so if the script's contract changes, update
+real script** — the five original actions and `-Paths` as one comma-joined
+token on the host, and `Ack` (`-EventId`, `-Stage`) under PowerShell 7 off it.
+The tests pin the exact argv, so if the script's contract changes, update
 `buildArgs` and the expectation together.
 
 ## Testing conventions
@@ -441,6 +1271,42 @@ over stubs — most of the bugs above were only findable that way.
 builds an ephemeral auth service with that token as its only credential. Both
 exist for tests.
 
+**The PowerShell suites need `pwsh`, not Windows.** Fifteen suites skip when
+`PWSH` names nothing runnable — `agent-setup`, `alpha-data-in`,
+`alpha-standdown`, `autopilot`, `comfyui-off`, `coord-post`, `enable-image`,
+`enable-music`, `install-always-on`, `laptop41-doctor`, `ollama-keepalive`,
+`panel-endpoint`, `python-one-liners`, `repair-alpha-host`, `songs-check` —
+and reading that as "they run only on the two laptops" is what left `.ps1`
+work merged with nothing behind the rule against it. They do not touch
+Windows: each stands in for the cmdlets it needs, over a JSON file —
+`alpha-standdown.test.js` fakes the scheduled tasks, the service, the process
+table, the listeners and both URLs — so PowerShell 7 on Linux runs them. In a
+cloud container:
+
+```bash
+curl -sSLo pwsh.tar.gz https://github.com/PowerShell/PowerShell/releases/download/v7.4.6/powershell-7.4.6-linux-x64.tar.gz
+mkdir -p ~/pwsh && tar -xzf pwsh.tar.gz -C ~/pwsh && chmod +x ~/pwsh/pwsh
+PATH=~/pwsh:$PATH npm test
+```
+
+On **PATH**, not only `PWSH`: `test/login-checks.test.js:21` and
+`test/apply-alpha-update.test.js:293` look it up by name, and the second is
+right to — `apply-alpha-update.mjs:430` resolves `pwsh` from PATH itself, so a
+test that took it from an environment variable would stop testing what the
+script does. `PWSH` stays the override for an install that is not on PATH.
+
+That is how the no-Alpha heartbeat page turned out to be untested rather than
+passing: its test ran the script under a machine name `-ExpectHost` refuses,
+so every run exited 3 at `autopilot.ps1:519` having asserted nothing about the
+page it was written for.
+
+What it does **not** prove is the half the fakes replace. A real
+`Get-NetTCPConnection`, `Get-ScheduledTask`, `mode.com` or `schtasks` is still
+only exercised on Windows, and `$env:COMPUTERNAME` is unset here unless a test
+sets it. So pwsh-on-Linux is the gate for parse errors, argv contracts and
+pure logic — most of what these scripts are — and a laptop is still the only
+place a cmdlet's own behaviour is checked.
+
 ## Working with other sessions
 
 Several Claude sessions push to this repo, and `main` moves under you.
@@ -452,3 +1318,7 @@ Several Claude sessions push to this repo, and `main` moves under you.
 - Coordination happens through commits and PRs. Sessions in cloud containers
   cannot reach the Alpha host's tailnet, so anything needing the live
   coordinator has to run on the host or the laptop.
+- **Read `docs/ASKS.md` before you pick work.** V's rule (2026-10-08): Claude
+  respects and does what Codex and Alpha ask. Claim a line (`[~]` and your
+  name) before starting, close it with a receipt. An ask that would cross one
+  of V's standing rules listed there waits for V's yes.

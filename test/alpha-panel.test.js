@@ -5,11 +5,24 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
+import { createHost } from '../src/host/server.js';
+import { fetchJson } from '../src/common/http.js';
+import { TaskStatus } from '../src/common/protocol.js';
 import * as panel from '../src/agent/handlers/alpha-panel.js';
 import {
   ALLOWED_ACTIONS,
   available,
+  buildProvisionCommands,
+  describeSilence,
+  PANEL_PAGES,
+  validateNetworks,
+  validatePage,
   buildArgs,
+  converseOver,
+  devicePath,
+  summarizePorts,
+  portConfigArgs,
+  portConfigAttempts,
   redact,
   run,
   validateAction,
@@ -61,7 +74,15 @@ async function fixture() {
 }
 
 test('the allowlist is exactly what is documented, and nothing else runs', () => {
-  assert.deepEqual([...ALLOWED_ACTIONS], ['Ports', 'Status', 'Compile', 'Flash', 'Provision']);
+  assert.deepEqual([...ALLOWED_ACTIONS], [
+    'Ports',
+    'Status',
+    'Scan',
+    'Page',
+    'Compile',
+    'Flash',
+    'Provision',
+  ]);
   for (const action of ALLOWED_ACTIONS) assert.equal(validateAction(action), action);
 
   // Ports is the harmless one, so it is what an empty payload means.
@@ -140,11 +161,21 @@ test('credentials are bounded, and a newline can never split the line protocol',
 });
 
 test('the report target is a plain http URL and carries no credentials', () => {
-  assert.deepEqual(validateAlphaTarget({}), { host: null, key: '' });
+  assert.deepEqual(validateAlphaTarget({}), { host: null, standbyHost: null, key: '' });
   assert.deepEqual(validateAlphaTarget({ host: 'http://100.1.2.3:8787' }), {
     host: 'http://100.1.2.3:8787',
+    standbyHost: null,
     key: '',
   });
+
+  // The standby is where Alpha runs while the host is off, and it is held to
+  // exactly the same rules as the primary.
+  assert.deepEqual(
+    validateAlphaTarget({ host: 'http://100.1.2.3:8787', standbyHost: 'http://192.168.1.50:8787/' }),
+    { host: 'http://100.1.2.3:8787', standbyHost: 'http://192.168.1.50:8787', key: '' },
+  );
+  assert.throws(() => validateAlphaTarget({ host: 'http://h:1', standbyHost: 'ftp://x/' }), /"standbyHost" must be an http/);
+  assert.throws(() => validateAlphaTarget({ standbyHost: 'http://h:1' }), /without a "host"/);
 
   // A trailing slash would make the sketch request "//stats".
   assert.equal(validateAlphaTarget({ host: 'http://100.1.2.3:8787/' }).host, 'http://100.1.2.3:8787');
@@ -342,4 +373,496 @@ test('the registry leaves the handler out rather than advertising it', async () 
       assert.equal(registry.has('alpha.panel'), true);
     },
   );
+});
+
+/**
+ * A board on the other end of the port, without a board.
+ *
+ * It is written to like a file handle and read from like one, and it answers
+ * only what it is told to answer — including, in the test that matters most,
+ * nothing at all. `silentWrites` is how many opening commands it ignores: a
+ * real ESP32 is reset by the port being opened and spends the first seconds of
+ * every conversation deaf, which is the case this whole handshake exists for.
+ */
+function fakeBoard({ silentWrites = 0, noise = '', respond } = {}) {
+  const writes = [];
+  let pending = Buffer.from(noise, 'utf8');
+
+  return {
+    writes,
+    commands: () => writes.map((line) => JSON.parse(line)),
+    /** Puts a line on the wire out of band — a reply that arrives late. */
+    say(answer) {
+      pending = Buffer.concat([pending, Buffer.from(`${JSON.stringify(answer)}\n`, 'utf8')]);
+    },
+    async write(text) {
+      writes.push(text);
+      if (writes.length <= silentWrites) return { bytesWritten: text.length };
+      const command = JSON.parse(text);
+      const answer = respond(command, writes.length);
+      // The sketch names the command in every reply; so does this.
+      if (answer !== null && answer !== undefined) this.say({ cmd: command.cmd, ...answer });
+      return { bytesWritten: text.length };
+    },
+    // Modelled on the tty this runs against once `min 0 time 1` is set: a read
+    // with nothing to give comes back empty rather than waiting forever.
+    async read(buffer, offset, length) {
+      if (pending.length === 0) {
+        await new Promise((r) => setTimeout(r, 5));
+        return { bytesRead: 0 };
+      }
+      const n = Math.min(length, pending.length);
+      pending.copy(buffer, offset, 0, n);
+      pending = pending.subarray(n);
+      return { bytesRead: n };
+    },
+  };
+}
+
+const FAST = { readyTimeoutMs: 1000, probeIntervalMs: 80, replyTimeoutMs: 500 };
+
+test('a read on the port can always time out', () => {
+  const posix = portConfigArgs('/dev/ttyUSB0', 'linux');
+  assert.equal(posix.exe, 'stty');
+  // `raw` sets min 1 time 0 — a read that waits for a byte a silent board never
+  // sends. The override has to come after it, or the deadline is never reached.
+  assert.deepEqual(posix.args, ['-F', '/dev/ttyUSB0', '115200', 'raw', '-echo', '-hupcl', 'min', '0', 'time', '1']);
+  assert.ok(posix.args.indexOf('min') > posix.args.indexOf('raw'));
+
+  const win = portConfigArgs('COM3', 'win32');
+  assert.equal(win.exe, 'mode.com');
+  assert.equal(win.args[0], 'COM3');
+  assert.ok(win.args.includes('BAUD=115200'));
+});
+
+test('mode.com is asked by the plain name first, and the device path second', () => {
+  // One run on Worker1 had `mode.com COM4 ...` work and `mode.com \\.\COM20 ...`
+  // fail, which is the opposite way round from `fs.open`. So the plain name leads
+  // and the device path is the fallback; neither spelling is assumed to be the
+  // only one that works, because the evidence against the second is two held
+  // ports on one machine.
+  const attempts = portConfigAttempts('COM20', 'win32');
+  assert.deepEqual(attempts.map((a) => a.args[0]), ['COM20', '\\\\.\\COM20']);
+  assert.ok(attempts.every((a) => a.exe === 'mode.com' && a.args.includes('BAUD=115200')));
+  // The first attempt is what portConfigArgs has always returned.
+  assert.deepEqual(attempts[0], portConfigArgs('COM20', 'win32'));
+  // Off Windows there is one way to say it and stty is it.
+  assert.deepEqual(portConfigAttempts('/dev/ttyUSB0', 'linux'), [portConfigArgs('/dev/ttyUSB0', 'linux')]);
+  // A name that is not a COM port has no second spelling to try.
+  assert.equal(portConfigAttempts('\\\\.\\COM20', 'win32').length, 1);
+});
+
+test('credentials wait for the board to come back from the reset opening the port caused', async () => {
+  // Two writes into the void: the board is rebooting, exactly as it does when
+  // DTR drops on open. Only the third probe finds it.
+  const board = fakeBoard({
+    silentWrites: 2,
+    noise: 'rst:0x1 (POWERON_RESET),boot:0x13\nets Jun  8 2016 00:22:57\n',
+    respond: (command) => {
+      if (command.cmd === 'status') return { ok: true, ssid: '', host: '', keyed: false };
+      if (command.cmd === 'alpha') return { ok: true, host: command.host };
+      if (command.cmd === 'wifi') return { ok: true, ssid: command.ssid, ip: '100.1.2.3' };
+      return { error: 'unknown cmd' };
+    },
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'alpha', host: 'http://100.9.9.9:8787', key: 'alpha_key_x' }, { cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    FAST,
+  );
+
+  assert.equal(outcome.ready, true);
+  assert.equal(outcome.replies.length, 2);
+  assert.equal(outcome.replies.at(-1).reply.ip, '100.1.2.3');
+  assert.equal(outcome.replies.some((entry) => entry.timedOut), false);
+
+  const sent = board.commands();
+  // The first three are probes; the password goes out only once something has
+  // answered, and only after the probes it was waiting on.
+  assert.deepEqual(sent.slice(0, 3).map((c) => c.cmd), ['status', 'status', 'status']);
+  assert.deepEqual(sent.slice(3).map((c) => c.cmd), ['alpha', 'wifi']);
+
+  // The board's boot banner is not a reply and must not be read as one.
+  assert.match(outcome.transcript, /POWERON_RESET/);
+  assert.equal(outcome.transcript.includes('hunter22x'), false);
+});
+
+test('a board that never answers times out instead of hanging, and is told nothing', async () => {
+  const board = fakeBoard({ silentWrites: Number.MAX_SAFE_INTEGER, respond: () => null });
+
+  const started = Date.now();
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    { readyTimeoutMs: 400, probeIntervalMs: 80, replyTimeoutMs: 500 },
+  );
+
+  assert.equal(outcome.ready, false);
+  assert.deepEqual(outcome.replies, []);
+  // The whole point: this returns. A read that blocks forever holds the lease
+  // until the sweeper takes it away, and the task never answers at all.
+  assert.ok(Date.now() - started < 4000);
+
+  // Nothing but status queries reached a board that is not there — no
+  // credential was written into the dark.
+  assert.deepEqual([...new Set(board.commands().map((c) => c.cmd))], ['status']);
+  assert.equal(board.writes.join('').includes('hunter22x'), false);
+});
+
+test('a failed command stops the sequence before the next one is sent', async () => {
+  const board = fakeBoard({
+    respond: (command) => {
+      if (command.cmd === 'status') return { ok: true, ssid: '' };
+      if (command.cmd === 'alpha') return { error: 'host required' };
+      return { ok: true };
+    },
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'alpha', host: 'http://h:1', key: '' }, { cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    FAST,
+  );
+
+  assert.equal(outcome.ready, true);
+  assert.deepEqual(outcome.replies.map((entry) => entry.cmd), ['alpha']);
+  assert.equal(board.commands().some((c) => c.cmd === 'wifi'), false);
+});
+
+test('each command reads its own reply, not the one before it', async () => {
+  const board = fakeBoard({
+    respond: (command) => (command.cmd === 'status' ? { ok: true, ssid: '' } : { ok: true, cmd: command.cmd }),
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'alpha', host: 'http://h:1', key: '' }, { cmd: 'wifi', ssid: 'net', password: '' }],
+    '',
+    FAST,
+  );
+
+  assert.deepEqual(outcome.replies.map((entry) => entry.reply.cmd), ['alpha', 'wifi']);
+});
+
+/**
+ * The panel is the one consumer of `/stats` that cannot report a mistake.
+ *
+ * `crowpanel.ino` reads the summary by key, and a key that does not exist
+ * reads as zero — so a sketch reaching for a plausible name shows a confident
+ * row of zeroes and looks like an idle fleet rather than like a bug. That is
+ * the failure this pins, against a real host rather than a fixture.
+ */
+test('the sketch reads /stats by the names the host actually answers with', async () => {
+  const token = 'panel-stats-token-long-enough';
+  const host = createHost({ token });
+  await new Promise((resolve) => host.server.listen(0, '127.0.0.1', resolve));
+  const url = `http://127.0.0.1:${host.server.address().port}`;
+
+  try {
+    // One task, so the status bucket the panel calls "queued" is populated
+    // rather than absent — an empty byStatus would pass a check that a wrong
+    // key name also passes.
+    await fetchJson(`${url}/tasks`, { method: 'POST', token, body: { type: 'echo', payload: {} } });
+    const { body: stats } = await fetchJson(`${url}/stats`, { token });
+
+    assert.equal(typeof stats.version, 'string');
+    assert.equal(typeof stats.agents, 'number');
+    assert.equal(stats.queue.byStatus[TaskStatus.QUEUED], 1);
+    assert.equal(typeof stats.memory.blockedTasks, 'number');
+
+    // The names the sketch maps onto its four counters are task statuses, not
+    // words chosen for the screen.
+    assert.equal(TaskStatus.LEASED, 'leased');
+    assert.equal(TaskStatus.SUCCEEDED, 'succeeded');
+    assert.equal(TaskStatus.FAILED, 'failed');
+
+    const sketch = await readFile(new URL('../firmware/crowpanel/crowpanel.ino', import.meta.url), 'utf8');
+    assert.match(sketch, /doc\["queue"\]\["byStatus"\]/);
+    assert.match(sketch, /byStatus\["leased"\]/);
+    // The shape it used to guess at, which no endpoint here has ever returned.
+    assert.equal(/doc\["tasks"\]/.test(sketch), false);
+  } finally {
+    await host.close();
+  }
+});
+
+test('a late answer to the readiness probe is not read as the next reply', async () => {
+  // The probe that went unanswered at 80ms comes back at 200ms — after the
+  // credentials have gone out. Untagged, that stale `status` reply is the next
+  // thing in the buffer when the wifi reply is being waited for, and `ok:true`
+  // would be reported as a provisioned panel that never joined anything.
+  let board;
+  board = fakeBoard({
+    respond: (command, n) => {
+      if (command.cmd === 'status' && n === 1) return null;
+      if (command.cmd === 'status') return { ok: true, ssid: '' };
+      // The wifi command: the board goes away instead of answering, and the
+      // first probe's reply turns up in its place.
+      setTimeout(() => board.say({ cmd: 'status', ok: true, ssid: '' }), 20);
+      return null;
+    },
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    { readyTimeoutMs: 1000, probeIntervalMs: 80, replyTimeoutMs: 300 },
+  );
+
+  assert.equal(outcome.ready, true);
+  assert.deepEqual(outcome.replies, [{ cmd: 'wifi', reply: null, timedOut: true }]);
+});
+
+test('a port past COM9 is opened by the path Windows actually has for it', () => {
+  // COM1..COM9 are DOS device names; COM10 and up only exist as \\.\COMn, and
+  // opening the bare name fails with ENOENT — "the board is not there" for a
+  // board that is plugged in. Windows renumbers ports on re-enumeration, so a
+  // few replugs is all it takes to get there.
+  // Every number, not only the ones above COM9: `fs.open('COM4')` resolves
+  // against the working directory like any other relative path, which is how the
+  // first real run on Worker1 failed with
+  // `ENOENT ... open 'C:\\services\\alpha-tunnel\\COM4'` on a board that was
+  // plugged in and sitting on the desk.
+  assert.equal(devicePath('COM3', 'win32'), '\\\\.\\COM3');
+  assert.equal(devicePath('COM9', 'win32'), '\\\\.\\COM9');
+  assert.equal(devicePath('COM10', 'win32'), '\\\\.\\COM10');
+  assert.equal(devicePath('COM12', 'win32'), '\\\\.\\COM12');
+  // Not a COM name at all: left alone rather than prefixed into nonsense.
+  assert.equal(devicePath('\\\\.\\COM12', 'win32'), '\\\\.\\COM12');
+  // Nothing changes off Windows, and nothing changes for arduino-cli's argv.
+  assert.equal(devicePath('/dev/ttyUSB0', 'linux'), '/dev/ttyUSB0');
+  assert.equal(devicePath('COM12', 'linux'), 'COM12');
+  assert.equal(portConfigArgs('COM12', 'win32').args[0], 'COM12', 'mode.com takes the plain name');
+  assert.deepEqual(buildArgs({ action: 'Flash', sketch: '/s', fqbn: 'esp32:esp32:esp32', port: 'COM12' }).slice(3, 5), [
+    '--port',
+    'COM12',
+  ]);
+});
+
+test('a sketch directory arduino-cli would reject is never advertised', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'alpha-panel-noino-'));
+  const sketch = join(root, 'firmware', 'crowpanel');
+  await mkdir(sketch, { recursive: true });
+  // A directory, but not a sketch: arduino-cli needs <dirname>.ino inside it.
+  await writeFile(join(sketch, 'display.h'), '// only a header\n');
+
+  await withEnv(
+    {
+      ALPHA_PANEL_ROOT: root,
+      ALPHA_PANEL_SKETCH: join('firmware', 'crowpanel'),
+      ALPHA_PANEL_FQBN: 'esp32:esp32:esp32',
+      ALPHA_ARDUINO_CLI: undefined,
+    },
+    async () => {
+      const check = available();
+      assert.equal(check.ok, false);
+      assert.match(check.reason, /has no crowpanel\.ino/);
+      // run() refuses on exactly the same footing, which is the rule the check
+      // follows: what available() asks is what run() asks.
+      await assert.rejects(run({ action: 'Compile' }), /has no crowpanel\.ino/);
+    },
+  );
+});
+
+test('Ports answers which address the board is on, whichever CLI is installed', () => {
+  // arduino-cli 1.x.
+  const v1 = summarizePorts({
+    detected_ports: [
+      {
+        matching_boards: [],
+        port: {
+          address: 'COM3',
+          label: 'COM3',
+          protocol: 'serial',
+          protocol_label: 'Serial Port (USB)',
+          properties: { vid: '0x1a86', pid: '0x7523', serialNumber: '' },
+        },
+      },
+    ],
+  });
+  assert.deepEqual(v1, [
+    {
+      address: 'COM3',
+      protocol: 'serial',
+      label: 'Serial Port (USB)',
+      // The CH340 evidence the board choice rests on, on the result rather
+      // than in somebody's memory of a device panel.
+      vid: '0x1a86',
+      pid: '0x7523',
+      serialNumber: '',
+      boards: [],
+    },
+  ]);
+
+  // arduino-cli 0.x, which answers a flat array and spells it FQBN.
+  const v0 = summarizePorts([
+    { address: '/dev/ttyUSB0', protocol: 'serial', protocol_label: 'Serial Port (USB)', boards: [{ name: 'ESP32 Dev Module', FQBN: 'esp32:esp32:esp32' }] },
+  ]);
+  assert.equal(v0[0].address, '/dev/ttyUSB0');
+  assert.deepEqual(v0[0].boards, [{ name: 'ESP32 Dev Module', fqbn: 'esp32:esp32:esp32' }]);
+
+  // Neither shape: say nothing rather than an empty list, which would read as
+  // "no ports" on a machine whose CLI simply printed a table.
+  assert.equal(summarizePorts(null), null);
+  assert.equal(summarizePorts('COM3 serial'), null);
+});
+
+test('a panel may be told about several networks, and a bad one fails the lot', () => {
+  // One network is still a list of one: that is what every existing caller
+  // sends, and what one WiFi actually needs.
+  assert.deepEqual(validateNetworks({ ssid: 'house', password: 'hunter22x' }), [
+    { ssid: 'house', password: 'hunter22x' },
+  ]);
+
+  assert.deepEqual(
+    validateNetworks({
+      networks: [
+        { ssid: 'house', password: 'hunter22x' },
+        { ssid: 'hotspot', password: '' },
+      ],
+    }),
+    [
+      { ssid: 'house', password: 'hunter22x' },
+      { ssid: 'hotspot', password: '' },
+    ],
+  );
+
+  // A bad entry fails the command rather than being dropped: a panel holding
+  // three of the four networks somebody meant is a half-success nobody notices
+  // until they are in the wrong room.
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'house', password: 'hunter22x' }, { ssid: '', password: 'x' }] }),
+    /"ssid" is required/,
+  );
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'a', password: 'hunter22x' }, { ssid: 'a', password: 'other-one' }] }),
+    /names "a" twice/,
+  );
+  assert.throws(() => validateNetworks({ networks: [] }), /at least one network/);
+  assert.throws(() => validateNetworks({ networks: 'house' }), /must be an array/);
+  assert.throws(
+    () =>
+      validateNetworks({
+        networks: [1, 2, 3, 4, 5].map((n) => ({ ssid: `net${n}`, password: 'hunter22x' })),
+      }),
+    /at most 4/,
+  );
+
+  // The newline rule holds for every entry, not just the first: one would
+  // split the line protocol and leave half a password in the board's buffer.
+  assert.throws(
+    () => validateNetworks({ networks: [{ ssid: 'a', password: 'ok-password' }, { ssid: 'b\nc', password: '' }] }),
+    /must not contain a newline/,
+  );
+});
+
+test('every password in a provision is taken out of the transcript', () => {
+  // Four networks is four secrets, and a transcript is only redacted if all of
+  // them are.
+  assert.equal(
+    redact('joined with hunter22x after trying swordfish99', ['hunter22x', 'swordfish99']),
+    'joined with *** after trying ***',
+  );
+  // A password that contains another must not be left half visible by the
+  // shorter one being replaced inside it.
+  assert.equal(redact('secret-longer', ['secret', 'secret-longer']), '***');
+  assert.equal(redact('nothing here', ['', null, undefined]), 'nothing here');
+});
+
+test('the provisioning conversation is the shape the firmware agrees to', () => {
+  const networks = [
+    { ssid: 'house', password: 'hunter22x' },
+    { ssid: 'hotspot', password: '' },
+  ];
+
+  assert.deepEqual(
+    buildProvisionCommands({ networks, host: 'http://h:8787', standbyHost: 'http://l:8787', key: 'alpha_key_x' }),
+    [
+      { cmd: 'alpha', host: 'http://h:8787', host2: 'http://l:8787', key: 'alpha_key_x' },
+      { cmd: 'wifi', networks },
+    ],
+  );
+
+  // No host is a legitimate provision: the panel joins the network and waits.
+  assert.deepEqual(buildProvisionCommands({ networks, host: null }), [{ cmd: 'wifi', networks }]);
+
+  // The networks go last, because the reply to that one is the answer.
+  const commands = buildProvisionCommands({ networks, host: 'http://h:1' });
+  assert.equal(commands.at(-1).cmd, 'wifi');
+});
+
+test('the pages a task may turn to are the ones the firmware has', () => {
+  // Mirrored from PAGE_NAMES in crowpanel.ino. A typo is answerable here, where
+  // it comes back on the task, rather than on a board that silently keeps
+  // showing whatever it was showing.
+  assert.deepEqual([...PANEL_PAGES], ['fleet', 'machines', 'work', 'receipts', 'panel']);
+
+  assert.deepEqual(validatePage({ page: 'machines' }), { page: 'machines', hold: undefined });
+  assert.deepEqual(validatePage({ page: 'next', hold: true }), { page: 'next', hold: true });
+  // Hold where it is, with no page named, is the other half of standing in
+  // front of it reading.
+  assert.deepEqual(validatePage({ hold: false }), { page: null, hold: false });
+
+  assert.throws(() => validatePage({ page: 'agents' }), /must be one of fleet, machines/);
+  assert.throws(() => validatePage({ page: 2 }), /must be one of/);
+  assert.throws(() => validatePage({ hold: 'yes' }), /"hold" must be true or false/);
+  // Neither a page nor a hold is refused rather than quietly doing nothing.
+  assert.throws(() => validatePage({}), /needs "page".*or "hold"/);
+});
+
+test('a port that is talking is not reported as an absent board', () => {
+  // Alpha has its own CrowPanel firmware on the same board family: no
+  // credential, polls /panel/crowpanel/public-state, bare-word STATUS/WIFI/ALPHA
+  // commands. It answers nothing this protocol recognises, and blaming the
+  // cable for that costs an evening.
+  const quiet = describeSilence('COM3', { ready: false, spoke: false });
+  assert.match(quiet, /nothing on COM3 answered/);
+  assert.match(quiet, /held in bootloader/);
+
+  const noisy = describeSilence('COM3', { ready: false, spoke: true, heard: 'ERR unknown command' });
+  assert.match(noisy, /talking but not in this protocol/);
+  assert.match(noisy, /STATUS\/WIFI\/ALPHA/);
+  assert.match(noisy, /It said: ERR unknown command/);
+
+  // And with nothing quotable, it still names the right suspicion.
+  assert.match(describeSilence('/dev/ttyUSB0', { spoke: true }), /not in this protocol/);
+});
+
+test('a board that talks in another protocol is reported as such, not as absent', async () => {
+  // Alpha's deck firmware on the same board: it prints its own lines and
+  // answers none of ours. The conversation must come back saying the port is
+  // busy rather than empty, and must not have sent any credential into it.
+  const board = fakeBoard({
+    silentWrites: Number.MAX_SAFE_INTEGER,
+    noise: 'alpha deck panel ready\nERR unknown command\n',
+    respond: () => null,
+  });
+
+  const outcome = await converseOver(
+    board,
+    [{ cmd: 'wifi', ssid: 'net', password: 'hunter22x' }],
+    'hunter22x',
+    { readyTimeoutMs: 300, probeIntervalMs: 80, replyTimeoutMs: 300 },
+  );
+
+  assert.equal(outcome.ready, false);
+  assert.equal(outcome.spoke, true);
+  assert.match(outcome.heard, /ERR unknown command/);
+  assert.deepEqual(outcome.replies, []);
+  assert.equal(board.writes.join('').includes('hunter22x'), false);
+
+  // A board that says nothing at all is the other case, and stays so.
+  const silent = fakeBoard({ silentWrites: Number.MAX_SAFE_INTEGER, respond: () => null });
+  const quiet = await converseOver(silent, [], '', {
+    readyTimeoutMs: 200,
+    probeIntervalMs: 60,
+    replyTimeoutMs: 200,
+  });
+  assert.equal(quiet.ready, false);
+  assert.equal(quiet.spoke, false);
 });

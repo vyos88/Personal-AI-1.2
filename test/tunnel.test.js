@@ -16,6 +16,13 @@ import { ALPHA_VERSION } from '../src/common/version.js';
 
 const TOKEN = 'test-token-that-is-long-enough';
 
+// The CPU load these agents report, in place of the machine's real one. None
+// of these tests is about load, but an agent reading the real figure stands
+// aside for up to LOAD_THROTTLE_MAX_MS whenever the box running the suite is
+// busy (the suite itself, run in parallel, is enough), and every task deadline
+// here is shorter than that. load.test.js is where throttling is exercised.
+const IDLE_LOAD = { snapshot: () => ({ cpus: 1, busy: 0, loadAverage1: 0, loadFactor: 0 }) };
+
 async function startHost(options = {}) {
   const host = createHost({ token: TOKEN, ...options });
   await new Promise((resolve) => host.server.listen(0, '127.0.0.1', resolve));
@@ -69,7 +76,7 @@ test('host rejects a wrong token', async (t) => {
 
 test('agent registers, runs an echo task, and reports the result', async (t) => {
   const host = await startHost();
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, name: 'test-agent', pollWaitMs: 1_000 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, name: 'test-agent', pollWaitMs: 1_000 });
   const running = agent.start();
 
   t.after(async () => {
@@ -100,7 +107,7 @@ test('agent runs a task enqueued before it attached', async (t) => {
   const { body: created } = await enqueue(host.url, { type: 'sysinfo' });
   assert.equal(created.agentAvailable, false);
 
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, pollWaitMs: 1_000 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, pollWaitMs: 1_000 });
   const running = agent.start();
   t.after(async () => {
     await agent.stop();
@@ -122,7 +129,7 @@ test('an agent started before its host connects once the host comes up', async (
   await new Promise((resolve) => probe.close(resolve));
 
   const url = `http://127.0.0.1:${port}`;
-  const agent = new TunnelAgent({ hostUrl: url, token: TOKEN, name: 'early-agent', pollWaitMs: 1_000 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: url, token: TOKEN, name: 'early-agent', pollWaitMs: 1_000 });
   const running = agent.start();
 
   // Long enough for the connection to be refused and a backoff nap to start.
@@ -155,7 +162,7 @@ test('a failing handler is retried and then marked failed', async (t) => {
   const handlers = new HandlerRegistry([
     { type: 'always-fails', run: async () => { calls += 1; throw new Error('boom'); } },
   ]);
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 1_000 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, handlers, pollWaitMs: 1_000 });
   const running = agent.start();
 
   t.after(async () => {
@@ -175,7 +182,7 @@ test('a failing handler is retried and then marked failed', async (t) => {
 
 test('a task nobody can run stays queued instead of failing', async (t) => {
   const host = await startHost();
-  const agent = new TunnelAgent({ hostUrl: host.url, token: TOKEN, capabilities: ['echo'], pollWaitMs: 500 });
+  const agent = new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: host.url, token: TOKEN, capabilities: ['echo'], pollWaitMs: 500 });
   const running = agent.start();
 
   t.after(async () => {
@@ -374,7 +381,7 @@ test('handler registry refuses a duplicate or malformed handler', () => {
 
 test('agent refuses to advertise a capability it cannot run', () => {
   assert.throws(
-    () => new TunnelAgent({ hostUrl: 'http://127.0.0.1:1', token: TOKEN, capabilities: ['nope'] }),
+    () => new TunnelAgent({ loadSampler: IDLE_LOAD, hostUrl: 'http://127.0.0.1:1', token: TOKEN, capabilities: ['nope'] }),
     /no handler registered/,
   );
 });

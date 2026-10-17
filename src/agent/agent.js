@@ -13,14 +13,31 @@ import {
   DEFAULT_MEMORY_RESERVE_BYTES,
   DEFAULT_MAX_LOAD,
   DEFAULT_AGENT_CONCURRENCY,
+  EXPRESS_TASK_TYPES,
   LOAD_BACKOFF_MS,
   LOAD_THROTTLE_MAX_MS,
   SHUTDOWN_DRAIN_MS,
+  HANDLER_ABORT_GRACE_MS,
   loadReportToQuery,
   memoryReportToQuery,
   MB,
+  HEARTBEAT_INTERVAL_MS,
 } from '../common/protocol.js';
 import { ALPHA_VERSION } from '../common/version.js';
+
+// How often an agent that failed over to a standby looks to see whether the
+// primary is back. Long, and only checked while the agent is holding no tasks:
+// coming home costs a re-registration, and doing that during work would leave
+// leases with a coordinator the agent has walked away from.
+const PRIMARY_RECHECK_MS = 60_000;
+// Consecutive unanswered heartbeats before the agent warns that it has lost
+// the coordinator. At the host's default 20s beat, a minute of silence.
+export const HEARTBEAT_WARN_AFTER = 3;
+
+// How often the express lane looks to see whether the slots have filled, and
+// how long it waits after a failed poll (the main loop does the reconnecting).
+const EXPRESS_IDLE_CHECK_MS = 500;
+const EXPRESS_RETRY_MS = 2_000;
 
 const log = createLogger('agent');
 
@@ -43,6 +60,9 @@ const log = createLogger('agent');
  */
 export class TunnelAgent {
   #agentId = null;
+  // Which of hostUrls this agent is attached to. 0 is the primary.
+  #hostIndex = 0;
+  #lastPrimaryCheck = 0;
   #abort = new AbortController();
   #heartbeatTimer = null;
   #running = false;
@@ -52,12 +72,23 @@ export class TunnelAgent {
   // behaviour: poll, run it, poll again.
   #inFlight = 0;
   #slotWaiters = [];
+  // The express lane: light work run beside a full set of slots, one task at
+  // a time (see #expressLoop), and what the coordinator said it understands.
+  #expressInFlight = 0;
+  #hostFeatures = new Set();
   #throttledSince = null;
   #readMemory;
   #stoodDown = false;
+  // Heartbeats in a row that got no answer from the coordinator. See
+  // `#startHeartbeat`: this is what lets a laptop say it is cut off.
+  #heartbeatFailures = 0;
 
   constructor({
     hostUrl,
+    // The standbys, if this fleet has any: a laptop running the coordinator
+    // while the host is off is only useful if the workers can find it. Given
+    // as an array, or as one comma-separated string.
+    hostUrls,
     token,
     name = os.hostname(),
     // Which worker this is, stably across restarts — see identity.js. Passed
@@ -68,22 +99,41 @@ export class TunnelAgent {
     handlers = new HandlerRegistry(),
     pollWaitMs = MAX_POLL_WAIT_MS,
     memoryReserveBytes = DEFAULT_MEMORY_RESERVE_BYTES,
+    // The same reserve as a share of the machine, for the case a copied
+    // .env.agent cannot cover: see memory.js. The larger of the two applies.
+    memoryReservePercent = 0,
     maxLoad = DEFAULT_MAX_LOAD,
     concurrency = DEFAULT_AGENT_CONCURRENCY,
+    // Types this agent still takes while its slots are full. See
+    // EXPRESS_TASK_TYPES; [] turns the lane off.
+    expressTypes = EXPRESS_TASK_TYPES,
     loadBackoffMs = LOAD_BACKOFF_MS,
     throttleMaxMs = LOAD_THROTTLE_MAX_MS,
     // Injectable so a test can put this machine under a load it does not
     // actually have. Anything with a snapshot() will do.
+    // How often an agent working off a standby looks to see whether the
+    // primary is back. Only checked while it is holding no tasks.
+    primaryRecheckMs = PRIMARY_RECHECK_MS,
     loadSampler = new LoadSampler(),
     // The same seam for memory. The interesting case — the host places work on
     // a reading that has since moved — is temporal, so it cannot be reached
     // with a machine's real figures.
     memoryReader = memorySnapshot,
+    // How long an aborted handler gets before its slot is taken back. A seam
+    // for tests; see HANDLER_ABORT_GRACE_MS.
+    abortGraceMs = HANDLER_ABORT_GRACE_MS,
+    // How many heartbeats in a row may go unanswered before this agent says,
+    // at warn, that it has lost the coordinator. One miss is a blip; three is
+    // a minute of a laptop working for nobody.
+    heartbeatWarnAfter = HEARTBEAT_WARN_AFTER,
   }) {
-    if (!hostUrl) throw new Error('TunnelAgent requires hostUrl');
+    if (!hostUrl && !hostUrls) throw new Error('TunnelAgent requires hostUrl');
     if (!token) throw new Error('TunnelAgent requires token');
 
-    this.hostUrl = hostUrl.replace(/\/+$/, '');
+    // Primary first, then anywhere else a coordinator might be answering. One
+    // entry is the ordinary case and behaves exactly as it always did.
+    this.hostUrls = normalizeHosts(hostUrls ?? hostUrl);
+    if (this.hostUrls.length === 0) throw new Error('TunnelAgent requires hostUrl');
     this.token = token;
     this.name = name;
     this.instanceId = instanceId ?? instanceIdFor({ name });
@@ -91,14 +141,18 @@ export class TunnelAgent {
     this.pollWaitMs = pollWaitMs;
     // Held back for this machine's own use and never offered to the host.
     this.memoryReserveBytes = memoryReserveBytes;
+    this.memoryReservePercent = memoryReservePercent;
     // The CPU equivalent of the memory reserve: above this share of its own
     // cores, this machine stops asking for work.
+    this.primaryRecheckMs = primaryRecheckMs;
     this.maxLoad = maxLoad;
     this.concurrency = Math.max(1, concurrency);
     this.loadBackoffMs = loadBackoffMs;
     this.throttleMaxMs = throttleMaxMs;
     this.#load = loadSampler;
     this.#readMemory = memoryReader;
+    this.abortGraceMs = abortGraceMs;
+    this.heartbeatWarnAfter = Math.max(1, heartbeatWarnAfter);
 
     // An explicit capability list may only narrow what this agent advertises;
     // claiming a type with no handler would strand every task of that type.
@@ -116,6 +170,7 @@ export class TunnelAgent {
     if (this.capabilities.length === 0) {
       throw new Error('agent has no handlers registered, so it has nothing to offer the host');
     }
+    this.expressTypes = expressTypes.filter((type) => this.capabilities.includes(type));
   }
 
   get agentId() {
@@ -135,12 +190,29 @@ export class TunnelAgent {
   memory() {
     return this.#readMemory({
       reserveBytes: this.memoryReserveBytes,
+      reservePercent: this.memoryReservePercent,
       // Budget this agent's own handlers are holding. Read per call rather
       // than once at startup: a memory.store that has filled up is holding
       // real heap, which the machine's free figure already reflects, so only
       // its remaining headroom should still be withheld.
       committedBytes: this.handlers.committedBytes?.() ?? 0,
     });
+  }
+
+  /**
+   * The coordinator this agent is talking to right now.
+   *
+   * A getter rather than a field because the answer changes: when the primary
+   * stops answering the agent registers with the next host on the list, and
+   * every URL it builds has to follow it there.
+   */
+  get hostUrl() {
+    return this.hostUrls[this.#hostIndex];
+  }
+
+  /** Whether this agent is working off a standby rather than the primary. */
+  get onStandby() {
+    return this.#hostIndex > 0;
   }
 
   /** How busy this machine's CPUs are, sampled at most every couple of seconds. */
@@ -150,7 +222,7 @@ export class TunnelAgent {
 
   /** Tasks this agent is running right now. */
   get inFlight() {
-    return this.#inFlight;
+    return this.#inFlight + this.#expressInFlight;
   }
 
   /** Runs until stop() is called. Reconnects on its own across host restarts. */
@@ -167,6 +239,7 @@ export class TunnelAgent {
       maxLoad: this.maxLoad,
     });
 
+    const express = this.#expressLoop();
     let failures = 0;
     while (this.#running) {
       try {
@@ -179,6 +252,11 @@ export class TunnelAgent {
         // towards an expiry the host will read as a dead worker.
         await this.#awaitSlot();
         if (!this.#running) break;
+        // Working off a standby? Look in on the primary now and then, and go
+        // back to it the moment it answers. Failover with no way home is a
+        // fleet that quietly stays on the laptop after the host comes back.
+        if (await this.#returnToPrimary()) continue;
+
         // Too busy to be a good target — nap instead of asking, so the task
         // goes to the other machine.
         if (await this.#napIfOverloaded()) continue;
@@ -208,6 +286,15 @@ export class TunnelAgent {
           throw error;
         }
 
+        // Not an answer at all — the coordinator is unreachable rather than
+        // unhappy. With somewhere else to try, drop the registration so the
+        // next pass goes back through the list from the primary down; without
+        // one, this is the ordinary reconnect it has always been.
+        if (!(error instanceof HttpError) && this.hostUrls.length > 1 && this.#agentId) {
+          log.warn('lost the coordinator, will look for one', { host: this.hostUrl });
+          this.#agentId = null;
+        }
+
         const delay = backoffDelay(failures++);
         log.warn('reconnecting after error', { message: error.message, delayMs: delay, failures });
         try {
@@ -218,7 +305,46 @@ export class TunnelAgent {
       }
     }
 
+    await express;
     log.info('stopped');
+  }
+
+  /**
+   * Takes light work (EXPRESS_TASK_TYPES) while the regular slots are full,
+   * one task at a time.
+   *
+   * A machine making a song holds its only slot for minutes, and every slice
+   * of every track it made earlier waited behind it until the bridge gave up:
+   * playing a song depended on the laptop that made it being idle. This lane
+   * polls for those types only, and only while the slots are full; with a
+   * free slot the main loop takes them like anything else, so an idle agent
+   * parks one poll, as before. It needs a coordinator that honours `types`
+   * (`poll-types` in its registration answer): an older one would hand this
+   * poll any task at all, and a second song on a 4 GB card is the thing this
+   * must never cause.
+   *
+   * Registration, reconnecting and standing down stay with the main loop;
+   * this one waits while there is no registration and retries quietly.
+   */
+  async #expressLoop() {
+    if (this.expressTypes.length === 0) return;
+    while (this.#running) {
+      const ready = this.#agentId && this.#hostFeatures.has('poll-types') && this.#inFlight >= this.concurrency;
+      try {
+        if (!ready) {
+          await sleep(EXPRESS_IDLE_CHECK_MS, { signal: this.#abort.signal });
+          continue;
+        }
+        await this.#pollOnce({ types: this.expressTypes });
+      } catch {
+        if (!this.#running) return;
+        try {
+          await sleep(EXPRESS_RETRY_MS, { signal: this.#abort.signal });
+        } catch {
+          return; // stopping
+        }
+      }
+    }
   }
 
   async stop({ drainMs = SHUTDOWN_DRAIN_MS } = {}) {
@@ -242,26 +368,56 @@ export class TunnelAgent {
 
     // Best effort: let the host drop us immediately rather than waiting for the
     // stale sweep, so queued work is not offered to a process that has exited.
-    if (this.#agentId) {
-      try {
-        await fetchJson(`${this.hostUrl}/agent/${this.#agentId}`, {
-          method: 'DELETE',
-          token: this.token,
-          timeoutMs: 3_000,
-        });
-      } catch {
-        // The host may already be gone; nothing useful to do here.
-      }
-    }
+    await this.#deregister();
   }
 
+  /**
+   * Registers with the first coordinator that answers, primary first.
+   *
+   * Always from the top of the list, so an agent that failed over to a laptop
+   * comes home the moment the host is back — there is no separate demotion to
+   * get wrong. A host that *answers* and refuses is not failed over from: a bad
+   * token or a protocol mismatch will say the same thing on the standby, and
+   * moving on would bury the reason under a second, less useful error.
+   */
   async #register() {
+    let lastError = null;
+    for (let index = 0; index < this.hostUrls.length; index++) {
+      this.#hostIndex = index;
+      try {
+        await this.#registerWith();
+        if (this.onStandby) {
+          log.warn('registered with a standby coordinator, not the primary', {
+            host: this.hostUrl,
+            primary: this.hostUrls[0],
+          });
+        }
+        return;
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        lastError = error;
+        if (this.hostUrls.length > 1) {
+          log.warn('coordinator did not answer, trying the next one', {
+            host: this.hostUrl,
+            message: error.message,
+          });
+        }
+      }
+    }
+    this.#hostIndex = 0;
+    throw lastError;
+  }
+
+  async #registerWith() {
     const memory = this.memory();
     const load = this.load();
     const { body } = await fetchJson(`${this.hostUrl}/agent/register`, {
       method: 'POST',
       token: this.token,
-      retries: 4,
+      // With somewhere else to try, spend the patience on the next host rather
+      // than on this one: four retries against a laptop that is off is four
+      // minutes of a fleet with no coordinator.
+      retries: this.hostUrls.length > 1 ? 1 : 4,
       body: {
         protocolVersion: PROTOCOL_VERSION,
         name: this.name,
@@ -274,6 +430,7 @@ export class TunnelAgent {
     });
 
     this.#agentId = body.agentId;
+    this.#hostFeatures = new Set(Array.isArray(body.features) ? body.features : []);
     log.info('registered with host', {
       agentId: this.#agentId,
       instanceId: this.instanceId,
@@ -292,7 +449,7 @@ export class TunnelAgent {
         hint: 'git pull on this machine so both run the same version',
       });
     }
-    this.#startHeartbeat(body.heartbeatIntervalMs ?? 20_000);
+    this.#startHeartbeat(body.heartbeatIntervalMs ?? HEARTBEAT_INTERVAL_MS);
   }
 
   /**
@@ -315,22 +472,22 @@ export class TunnelAgent {
    * out is left to the host's lease sweeper, which is exactly what it is for.
    */
   async #drain(drainMs) {
-    if (this.#inFlight === 0 || drainMs <= 0) return;
+    if (this.inFlight === 0 || drainMs <= 0) return;
     log.info('waiting for running tasks to report before disconnecting', {
-      inFlight: this.#inFlight,
+      inFlight: this.inFlight,
       drainMs,
     });
 
     const deadline = Date.now() + drainMs;
-    while (this.#inFlight > 0 && Date.now() < deadline) {
+    while (this.inFlight > 0 && Date.now() < deadline) {
       // Ref'd on purpose: this nap is the whole of what is in flight during a
       // shutdown, and unref'ing it would let the process exit mid-report.
       await new Promise((resolve) => setTimeout(resolve, 25));
     }
 
-    if (this.#inFlight > 0) {
+    if (this.inFlight > 0) {
       log.warn('tasks still running at shutdown; their leases will expire and be retried', {
-        inFlight: this.#inFlight,
+        inFlight: this.inFlight,
       });
     }
   }
@@ -399,7 +556,7 @@ export class TunnelAgent {
     return true;
   }
 
-  async #pollOnce() {
+  async #pollOnce({ types = null } = {}) {
     // The poll carries this machine's current load and memory. It is the most
     // frequent thing the agent says, and it is said at the moment work is
     // being asked for — so the host places against what this machine is like
@@ -410,6 +567,7 @@ export class TunnelAgent {
       loadReportToQuery(new URLSearchParams({ wait: String(this.pollWaitMs) }), this.load()),
       this.memory(),
     );
+    if (types) query.set('types', types.join(','));
     const url = `${this.hostUrl}/agent/${this.#agentId}/tasks/next?${query}`;
     const { status, body } = await fetchJson(url, {
       token: this.token,
@@ -420,6 +578,18 @@ export class TunnelAgent {
     });
 
     if (status === 204 || !body) return; // no work this round
+
+    // The express lane runs its one task inline: it holds no slot, and the
+    // next express poll waits until this one has reported.
+    if (types) {
+      this.#expressInFlight += 1;
+      try {
+        await this.#execute(body);
+      } finally {
+        this.#expressInFlight -= 1;
+      }
+      return;
+    }
 
     // Not awaited: the loop goes straight back to #awaitSlot, which parks
     // until this task frees its slot. At concurrency 1 that is the same
@@ -479,15 +649,46 @@ export class TunnelAgent {
     const budgetMs = Math.max(1_000, (task.leaseMs ?? 60_000) - 2_000);
     const timer = setTimeout(() => controller.abort(new Error('task exceeded its lease')), budgetMs);
 
+    // Every built-in handler stops when its signal fires, but one loaded with
+    // ALPHA_EXTRA_HANDLERS might not, and awaiting it regardless kept this
+    // task's slot — at concurrency 1, the whole worker — forever. Past the
+    // grace the task is reported failed and the slot is freed; whatever the
+    // handler is still doing is left to it, and logged, because this process
+    // has no way to stop code that will not stop.
+    let abandonTimer = null;
+    const abandoned = new Promise((_, reject) => {
+      controller.signal.addEventListener(
+        'abort',
+        () => {
+          // Ref'd on purpose: until it fires, this is the pending work that
+          // frees the slot.
+          abandonTimer = setTimeout(() => {
+            const error = new Error(
+              `handler did not stop within ${this.abortGraceMs}ms of being aborted`,
+            );
+            error.code = 'handler_unresponsive';
+            reject(error);
+          }, this.abortGraceMs);
+        },
+        { once: true },
+      );
+    });
+
     const startedAt = Date.now();
     try {
-      const result = await handler.run(task.payload ?? {}, {
-        signal: controller.signal,
-        taskId: task.id,
-        attempt: task.attempt,
-        log: taskLog,
-      });
+      const running = (async () =>
+        handler.run(task.payload ?? {}, {
+          signal: controller.signal,
+          taskId: task.id,
+          attempt: task.attempt,
+          log: taskLog,
+        }))();
+      // If the race is lost to `abandoned`, a later rejection from the handler
+      // has nobody awaiting it and would crash the process as unhandled.
+      running.catch(() => {});
+      const result = await Promise.race([running, abandoned]);
       clearTimeout(timer);
+      clearTimeout(abandonTimer);
 
       if (controller.signal.aborted) throw controller.signal.reason;
 
@@ -495,6 +696,13 @@ export class TunnelAgent {
       await this.#report(task.id, true, result ?? null, null);
     } catch (error) {
       clearTimeout(timer);
+      clearTimeout(abandonTimer);
+      if (error?.code === 'handler_unresponsive') {
+        taskLog.error('handler ignored its abort; freeing the slot while it may still be running', {
+          taskId: task.id,
+          graceMs: this.abortGraceMs,
+        });
+      }
       taskLog.warn('task failed', { taskId: task.id, message: error.message, ms: Date.now() - startedAt });
       await this.#report(task.id, false, null, {
         message: error.message,
@@ -552,6 +760,58 @@ export class TunnelAgent {
    * registration they were leased to is gone, and the host's sweeper will
    * requeue the work.
    */
+  /**
+   * Goes back to the primary coordinator once it is answering again.
+   *
+   * Only while idle: a re-registration mid-task leaves the lease with a
+   * coordinator this agent has stopped talking to, and the task is re-run
+   * somewhere else while it is still running here.
+   *
+   * `/healthz` is the right question — it is the one endpoint that needs no
+   * credential, so "is it back" never depends on this agent's token being
+   * valid on the primary.
+   */
+  async #returnToPrimary() {
+    if (!this.onStandby || this.inFlight > 0) return false;
+    if (Date.now() - this.#lastPrimaryCheck < this.primaryRecheckMs) return false;
+    this.#lastPrimaryCheck = Date.now();
+
+    const primary = this.hostUrls[0];
+    try {
+      const { body } = await fetchJson(`${primary}/healthz`, { timeoutMs: 5_000 });
+      if (!body?.ok) return false;
+    } catch {
+      return false; // still down, stay where the work is
+    }
+
+    log.info('primary coordinator is back, moving off the standby', {
+      standby: this.hostUrl,
+      primary,
+    });
+    await this.#deregister();
+    this.#agentId = null;
+    this.#hostIndex = 0;
+    return true;
+  }
+
+  /**
+   * Best effort "I am gone" to whichever coordinator this agent is attached to.
+   * It may already have vanished — that is the usual reason for saying it.
+   */
+  async #deregister() {
+    if (!this.#agentId) return;
+    try {
+      await fetchJson(`${this.hostUrl}/agent/${this.#agentId}`, {
+        method: 'DELETE',
+        token: this.token,
+        timeoutMs: 3_000,
+      });
+    } catch {
+      // Nothing useful to do: the point of the call is to save the host a
+      // stale sweep, not to be sure it heard.
+    }
+  }
+
   async #standDown() {
     if (this.#stoodDown) return;
     this.#stoodDown = true;
@@ -590,11 +850,53 @@ export class TunnelAgent {
         // the id is exactly what would make the next pass register straight
         // back in and evict the process that just took over.
         if (isStandDown(error)) void this.#standDown().catch(() => {});
-        else if (error instanceof HttpError && error.status === 410) this.#agentId = null;
-        else log.debug('heartbeat failed', { message: error.message });
+        else if (error instanceof HttpError && error.status === 410) {
+          // The coordinator answered — it just does not know this id, which
+          // is what a restarted host says. That is reachability, not loss.
+          this.#heartbeatAnswered();
+          this.#agentId = null;
+        } else this.#heartbeatMissed(error);
+        return;
       }
+      this.#heartbeatAnswered();
     }, intervalMs);
     this.#heartbeatTimer.unref?.();
+  }
+
+  /**
+   * Counting is all this does. It never clears the id or re-registers: those
+   * belong to the 410 branches above, and a heartbeat that cannot reach the
+   * host has learned nothing about whether this registration is still good.
+   * Debug for the first misses, because a single dropped beat is routine on a
+   * laptop changing networks; warn once at the threshold, so a fleet that has
+   * lost its coordinator says so without repeating it every beat.
+   */
+  #heartbeatMissed(error) {
+    this.#heartbeatFailures += 1;
+    if (this.#heartbeatFailures === this.heartbeatWarnAfter) {
+      log.warn('lost the coordinator: heartbeats are not being answered', {
+        host: this.hostUrl,
+        missed: this.#heartbeatFailures,
+        message: error.message,
+      });
+    } else {
+      log.debug('heartbeat failed', { message: error.message, missed: this.#heartbeatFailures });
+    }
+  }
+
+  #heartbeatAnswered() {
+    if (this.#heartbeatFailures >= this.heartbeatWarnAfter) {
+      log.info('coordinator is answering heartbeats again', {
+        host: this.hostUrl,
+        missed: this.#heartbeatFailures,
+      });
+    }
+    this.#heartbeatFailures = 0;
+  }
+
+  /** Heartbeats missed in a row since the coordinator last answered one. */
+  get heartbeatFailures() {
+    return this.#heartbeatFailures;
   }
 
   #stopHeartbeat() {
@@ -617,4 +919,23 @@ function isStandDown(error) {
 /** Load figures are for humans reading logs; full float precision is noise. */
 function round2(value) {
   return value === null ? null : Math.round(value * 100) / 100;
+}
+
+/**
+ * The coordinators to try, in order, with no duplicates and no trailing
+ * slashes. Accepts an array or one comma-separated string, because
+ * `ALPHA_HOST_URL` is a single value in every `.env.agent` that already exists
+ * and adding a standby should not mean rewriting it.
+ */
+export function normalizeHosts(input) {
+  const list = Array.isArray(input) ? input : String(input ?? '').split(',');
+  const seen = new Set();
+  const hosts = [];
+  for (const entry of list) {
+    const url = String(entry ?? '').trim().replace(/\/+$/, '');
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    hosts.push(url);
+  }
+  return hosts;
 }
