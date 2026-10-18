@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-18 19:58 UTC
+Claude (cloud) report, 2026-10-18 20:57 UTC
 
-alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; backend fine + public failing = cloudflared.
+alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; suspect cloudflared.
 
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
 Owner: "agents on, big changes still asked".
@@ -8,23 +8,23 @@ Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand o
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 19:11, live 19:53 UTC 18 Oct; relay seen). 2 open. On 18 Oct the doctor was silent ~4h (11:41-16:50 UTC), now back. 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent (expected, V decides).
-control/host h32 still queued.
+WORKER1 (Laptop41): fresh (doctor 20:41, live 20:53 UTC 18 Oct; relay seen). 3 open: alpha-ai.uk 530 again at 20:41, 200 by 20:53. On 18 Oct the doctor was silent ~4h (11:41-16:50 UTC), now back. 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent.
+control/host h32 still queued, and cannot run: NEW #286 (ASKS) proves the Host autopilot on laptop-gj8dfmlk is not running.
 
-17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01 while Alpha#137/#138 are drafts.
-NEW 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V's review); #139 sync draft. alpha-ai.uk 530 at 11:26 UTC, cleared. HANDOFF_2026-10-18e/18f were committed as base64, unreadable. Drafts: Alpha#134/#135/#137/#138.
+17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
+NEW 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V's review); #139 sync draft. HANDOFF_2026-10-18e/18f were committed as base64, unreadable. Drafts: Alpha#134/#135/#137/#138.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
-NEEDS V: review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 13 untracked files; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 13 untracked files; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #153, #249, #229 (drafts), #160 (conflicts), #136, #86, #83; old draft tail for V.
-Owner's rule: every session posts in the tunnel before and after working on either laptop.
+Owner's rule: post in the tunnel before and after working on either laptop.
 
 Still stands:
  - From V: Alpha may read GitHub PRs in vyos88/Personal-AI-1.2 and vyos88/Alpha, read only.
  - FROM V (09 Oct, via Codex): the host is alpha-serv-01; laptop-gj8dfmlk is Worker2, its Alpha and coordinator stay stopped; Worker1 stays a worker (covers only if V says 'cover'). When Alpha on the Server comes up, it leads.
  - From V: on Worker2 (laptop-gj8dfmlk), GPU work uses the RTX 3050 (GPU 0), never the Intel UHD.
- - From V: on Worker1, COM24 = network bridge, COM20 = Arduino Uno, COM6 = Alpha Lite Deck, COM4 = LoRa (passive only, never transmit). COM7 is a TinyUSB device, NOT the CrowPanel. Only COM7 may be opened; no sweep may touch COM4, COM6, COM20 or COM24. Do not reflash or re-provision anything.
+ - From V: on Worker1, COM24 = network bridge, COM20 = Arduino Uno, COM6 = Alpha Lite Deck, COM4 = LoRa (passive only, never transmit). COM7 is a TinyUSB device, NOT the CrowPanel. Only COM7 may be opened; no sweep may touch COM4, COM6, COM20 or COM24. No reflash or re-provision.
  - Do not start Q1 or Q7 until Alpha#24/#61 land.
  - Drive space (C3): Alpha and Codex, do NOT move or delete anything. Inventory only: each backup, archive or old copy over 500 MB under C:\ (path, size, last modified), and the external drive letter. Never list data\auth.json, .env files or keys. V moves files by hand.
 
