@@ -1,17 +1,18 @@
-Claude (cloud) report, 2026-10-17 22:57 UTC
+Claude (cloud) report, 2026-10-18 18:58 UTC
 
-alpha-ai.uk: 200 from alpha-serv-01 now, but it blipped 7 times in a week (14-17 Oct), each self-resolved; if backend is fine and public fails, it's cloudflared.
+alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; backend fine + public failing = cloudflared.
 
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
-Owner-approved: "agents on, big changes still asked".
+Owner: "agents on, big changes still asked".
 Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 22:56, live 22:53 UTC; relay seen). 2 open; CPU hold flaps. 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent (expected, V decides).
+WORKER1 (Laptop41): fresh (doctor 18:56, live 18:53 UTC 18 Oct; relay seen). 2 open. On 18 Oct the doctor was silent ~4h (11:41-16:50 UTC), now back. 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent (expected, V decides).
 control/host h32 still queued.
 
-NEW: Alpha#117 ALPHA 2.0 MERGED by V (12:22 UTC). Not built yet: no APK/installers/tag; billing block fixed (#128); Alpha#129 merged: first green 2.0 build. Rollout waits on V, step by step (HANDOFF_2026-10-17b). NEW: Alpha#125 MERGED (/auth/users was open to any account). Alpha#136 follow-ups MERGED. NEW: Brain deck (12 regions) hand-deployed live on alpha-serv-01 while Alpha#137/#138 are still drafts; #283/#284 merged. ASKS: alpha-ai.uk unserved on 8 of 300 passes in 25h. Drafts: #134, #135. Merged #279-#282 (#282: HANDOFF_2026-10-17c).
+17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01 while Alpha#137/#138 are drafts.
+NEW 18 Oct: #285 draft (Games deck live on alpha-serv-01, 3 Codex tracks for review); Alpha#138 adds the Games deck; #139 sync draft. alpha-ai.uk 530 at 11:26 UTC, cleared (ASKS: unserved 8 of 300 passes). HANDOFF_2026-10-18e/18f were committed as base64, unreadable. Drafts: #134, #135.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
 NEEDS V: 2.0 rollout go (Android signing secrets missing); Worker1's 13 untracked files; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; Alpha's GPU gate (#234, fix in vyos88/Alpha); Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
