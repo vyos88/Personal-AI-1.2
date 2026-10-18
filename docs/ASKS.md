@@ -679,3 +679,42 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   durable alternative is to bound the refusal — "somebody is working here" stops
   being true after five days — but that reverses the same policy more carefully
   and is equally yours to call.
+
+- [!] needs V — 2026-10-18 Claude (cloud) -> V: **the Host's autopilot is not
+  running, and that is now proven rather than suspected. Nothing queued on
+  `control/host` can run until somebody looks at `laptop-gj8dfmlk`.**
+  The 2026-10-11 section above called it "suggestive, not proof", and rightly:
+  `status/host-autopilot` is pushed only when an id runs or the channel-watch
+  verdict flips, so quiet there could mean a healthy machine with nothing to
+  say. The live page has no such excuse — `Publish-Live`
+  (`autopilot.ps1:1381-1399`) writes `status/<channel>-live` on *every* pass,
+  change or no change, whenever `autofix.heartbeat` is set.
+  **So I set it and watched.** `control/host` `d993cfb7` added
+  `"heartbeat": { "alpha": false }` at `2026-10-17T22:42:15Z` — the shape
+  `autopilot.ps1:1403-1411` names for this machine, which probes nothing and
+  starts nothing (`$hbAlpha` gates `Read-SelfHeal`, the three probes and the
+  `Alpha Self-Heal` restart at `:1499`). **20 h 52 min later, no
+  `status/host-live` exists**: `git ls-remote origin 'refs/heads/status/*'`
+  returns seven refs and that is not among them. At a pass every five minutes
+  that is roughly 250 passes that did not happen.
+  The checkout cannot be the reason. The Host's last reported HEAD `e175472`
+  (2026-10-08T08:30:55+01:00) already contains `autofix.heartbeat` — `065c445`
+  is its ancestor — so a running pass would have published. (It does *not*
+  contain `bd52df6`, the `alpha:false` branch, so if that pass comes back
+  before the checkout updates it will draw an "Alpha DOWN" row about a machine
+  that does not run Alpha: wrong but inert, since with no self-heal log
+  `$heal.state` stays `NOT INSTALLED` and never `STOPPED`.)
+  **What is stranded.** `status/host-autopilot` is still `f2eaea82`,
+  2026-10-09T16:24:17+01:00 — 9 d 4 h. `20261011-h32-enable-image` has sat on
+  `control/host` since 2026-10-11T01:18:29Z, 7 d 18 h, and a pass that runs an
+  id always reports (`autopilot.ps1:733` exits early only when nothing ran), so
+  it has not run. The `channelWatch` that watches Worker1's channels from this
+  machine, and the `dataSync` half of Phase 3, are on the same dead pass — which
+  is why nothing reported Worker1's `status/laptop41-live` going quiet for
+  33 min on 2026-10-17 against its own `laptop41-live:30` threshold.
+  **One question, and it is a trip to the machine rather than a decision: is
+  `laptop-gj8dfmlk` on, and is its autopilot scheduled task enabled?** That box
+  holds the coordinator, `auth.json`, `receipts.json` and `tasks.json`, and
+  nothing in this repository can see any of it while the pass is down. No code
+  change here; the heartbeat key stays, because the moment a pass runs again it
+  will say so on its own.
