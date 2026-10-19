@@ -1,4 +1,4 @@
-laptop41-doctor 20261019-075646 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261019-081114 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,25 @@ laptop41-doctor 20261019-075646 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 6708 pythonw.exe: ), but its listener did not return a successful /health response; not counted as a second Alpha
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 13376 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 13390 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.9 of 15.8 GB RAM free
+  ok: 3.7 of 15.8 GB RAM free
   ok: C: 119.5 GB free
-  PROBLEM: CPU 97% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  python                          644 MB  pid 22412
+  ok: CPU 56% (Alpha holds GPU admission at 90%)
+  python                          647 MB  pid 22412
   claude                          584 MB  pid 22060
   python                          506 MB  pid 22968
-  MsMpEng                         465 MB  pid 4320
-  ChatGPT                         347 MB  pid 23304
-  codex                           341 MB  pid 4356
-  ChatGPT                         329 MB  pid 18644
-  Memory Compression              324 MB  pid 3828
-  --- using the CPU, over 3.2s across 8 logical core(s): the processes it could measure account for 30.5% of the machine
-  msedge                        14.5% CPU   3.73s  pid 18336
-  msedge                         4.8% CPU   1.23s  pid 23348
-  ChatGPT                        3.9% CPU   1.02s  pid 23304
-  powershell                     1.6% CPU   0.42s  pid 21344
-  explorer                       1.3% CPU   0.34s  pid 24036
-  OneDrive.Sync.Service          0.8% CPU   0.22s  pid 13304
-  150 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, WUDFHost x3, csrss x2, conhost x2, fontdrvhost x2, tailscaled x2 (run the doctor as Administrator to see other accounts' process times)
+  MsMpEng                         433 MB  pid 4320
+  explorer                        389 MB  pid 24036
+  Memory Compression              370 MB  pid 3828
+  ChatGPT                         356 MB  pid 23304
+  codex                           340 MB  pid 4356
 
 === SUMMARY ===
-  this pass took 80s
-  - NEEDS A PERSON - automatic cover last ran 13376 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 646 run(s), since 2026-10-11T04:41:17)
-  - CPU 97% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-19T07:58:02)
+  this pass took 52s
+  - NEEDS A PERSON - automatic cover last ran 13390 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 647 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: CPU 97% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
