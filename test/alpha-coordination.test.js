@@ -153,6 +153,70 @@ test('malformed or missing status evidence never becomes an empty ownership resu
   assert.equal(result.status.tunnelIdentity, null);
 });
 
+test('a status parse failure says where it broke and shows the text around it', () => {
+  const raw = '﻿{\r\n  "schema": "alpha.coordination.status.v1",\r\n  "claims": {} WARNING here\r\n}';
+  const result = statusEvidence(raw);
+  assert.equal(result.status, null);
+  assert.match(result.statusError, /ownership is unknown/);
+  const detail = result.statusParseError;
+  const text = raw.slice(1);
+  assert.equal(detail.positionKnown, true);
+  assert.equal(detail.length, text.length);
+  assert.equal(detail.position, text.indexOf('WARNING'));
+  assert.equal(detail.line, 3);
+  assert.equal(detail.column, '  "claims": {} '.length + 1);
+  assert.match(detail.after, /^WARNING here/);
+  assert.match(detail.before, /"claims": \{\} $/);
+  assert.match(detail.message, /JSON/);
+});
+
+test('a status that ends early reports the end of the text as the failure point', () => {
+  const raw = '{"schema":"alpha.coordination.status.v1","claims":{';
+  const detail = statusEvidence(raw).statusParseError;
+  assert.equal(detail.position, raw.length);
+  assert.equal(detail.after, '');
+  assert.equal(detail.before, raw);
+});
+
+test('parse context stays bounded however large the output is', () => {
+  const raw = '{"pad":"' + 'x'.repeat(50_000) + '"} trailing' + 'y'.repeat(50_000);
+  const detail = statusEvidence(raw).statusParseError;
+  assert.ok(detail.before.length <= 240);
+  assert.ok(detail.after.length <= 120);
+  assert.match(detail.after, /^trailing/);
+});
+
+test('valid status carries no parse error', () => {
+  const result = statusEvidence(JSON.stringify({
+    schema: 'alpha.coordination.status.v1', claims: {}, claims_lifecycle: {},
+  }));
+  assert.equal(result.statusParseError, undefined);
+});
+
+test('a large status that breaks mid-document reports the break, not just its clean tail', async () => {
+  const snapshot = {
+    schema: 'alpha.coordination.status.v1',
+    claims: {},
+    claims_lifecycle: { records: 0 },
+    padding: 'p'.repeat(20_000),
+  };
+  const valid = JSON.stringify(snapshot, null, 2);
+  const cut = valid.indexOf('"claims"');
+  const raw = valid.slice(0, cut) + 'WARNING: stray host output\r\n' + valid.slice(cut);
+  const { root, stub } = await fixture({ stdout: raw });
+  await withEnv({ ALPHA_REPO_ROOT: root, ALPHA_POWERSHELL: stub }, async () => {
+    const result = await run({ action: 'Status', actor: 'codex' });
+    assert.equal(result.exitCode, 0);
+    assert.equal(result.stdoutTruncated, true);
+    assert.ok(result.stdout.trimEnd().endsWith('}'));
+    assert.equal(result.statusComplete, false);
+    assert.equal(result.statusCompletenessError, 'invalid_status');
+    assert.equal(result.status, null);
+    assert.match(result.statusParseError.after, /^WARNING: stray host output/);
+    assert.equal(result.statusParseError.position, cut);
+  });
+});
+
 test('bounded status claims explicitly report incomplete lists and retain exact counts', () => {
   const claims = Object.fromEntries(Array.from({ length: 65 }, (_, i) => ['file' + i, { actor: 'claude' }]));
   const result = statusEvidence(JSON.stringify({
