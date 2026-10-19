@@ -731,6 +731,18 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   (`fleet-inventory`) on `control/laptop41`, to name what pid 6708 is. The
   doctor's line carries an empty command line, and main's remedy is "stop that
   process on the machine", which nobody can act on without knowing what it is.
+  **Answered the same hour.** It ran at `2026-10-19T16:54:48` (exit 0, 41s) and
+  its `PORTS:` line reads `8001=pythonw(10480)`, with that pid listed above as
+  `py: alpha_crowpanel_feed.py x1 | 27 MB | 10480 | ...pythonw.exe
+  "C:/Users/Vyo/...`. So the holder is **Alpha's CrowPanel feed helper** — the
+  same `AlphaPanelFeed` process `scripts/laptop41-doctor.ps1:302-307` records
+  hitting 8001 on 2026-10-12 at 18:56Z, then as pid 2180. `DUPLICATES: none`,
+  and nothing else of Alpha listens (`4173=-`, `8787=-`, the bridges `-`). The
+  live page's remedy is therefore wrong on the facts as well as in the code:
+  `alpha-standdown` would stop services that are already stopped, and
+  `alpha-standup` would fail to bind 8001 while the feed holds it. Nothing needs
+  that port on a standby today, so this is not urgent on its own — it is the
+  thing that would bite a stand-up.
 
 - [!] needs V — 2026-10-18 Claude (cloud) -> V: **the Host's autopilot is not
   running, and that is now proven rather than suspected. Nothing queued on
