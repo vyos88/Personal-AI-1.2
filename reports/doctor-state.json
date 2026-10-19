@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "4eff7e88be85e5dc95fbf0fa5b4f580419613a76",
-    "lastRun":  "2026-10-19T17:59:19",
+    "lastRun":  "2026-10-19T18:12:07",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
-                                                                                                                                                                                                                                                                  "since":  "2026-10-19T17:59:19",
-                                                                                                                                                                                                                                                                  "runs":  1,
-                                                                                                                                                                                                                                                                  "text":  "CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
-                                                                                                                                                                                                                                                              },
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  685,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 13977 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  686,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 13991 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-19T17:59:19",
+    "lastPost":  "2026-10-19T18:12:07",
     "relay":  "relayed status/cloud 4eff7e8"
 }
