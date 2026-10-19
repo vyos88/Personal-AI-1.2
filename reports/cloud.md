@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-19 18:57 UTC
+Claude (cloud) report, 2026-10-19 19:56 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), self-resolved; suspect cloudflared.
 
@@ -8,14 +8,14 @@ Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 17:56, live 18:48 UTC, fresh. CPU high at times. Open: cover task 'Alpha Standby' absent. Still on on c1aa435 (12 Oct), 32 behind, so #277 can't land; self-update refuses: 13 untracked files plus, NEW, 2 tracked edits (local doctor+test variant). #287 MERGED (ASKS): ASKS suggests V commit them to a branch from Worker1; V decides. Live page's 'STANDBY BUT SERVING' is false, old code (#288 MERGED: 8001 is Alpha's CrowPanel feed helper): no alpha-standdown; an alpha-standup would fail to bind 8001.
-control/host h32 still queued, and cannot run: NEW #286 (ASKS) proves the Host autopilot on laptop-gj8dfmlk is not running.
+WORKER1 (Laptop41): doctor 19:11, live 19:54 UTC, fresh. NEW (HANDOFF_19b): CPU 100% since 17:58 UTC, NEEDS A PERSON; no clear cause, WindowsTerminal RAM climbing (1.4->3 GB). Open: cover task 'Alpha Standby' absent. Still on c1aa435 (12 Oct), 32 behind; self-update refuses: 13 untracked files + 2 tracked edits (#287: V could commit them to a branch from Worker1; V decides). Live page's 'STANDBY BUT SERVING' is false, old code (8001 is Alpha's CrowPanel feed, #288): no alpha-standdown; an alpha-standup would fail to bind 8001.
+control/host h32 queued, cannot run: #286 proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125, #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V). Drafts: Alpha#134/#135/#137/#138.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
-NEEDS V: NEW #289 MERGED (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #153, #249, #229, #160 (conflicts), #136, #86, #83; old drafts: V.
 Owner: post in the tunnel before/after work on either laptop.
