@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261019-045909
+﻿# laptop41 autopilot 20261019-050416
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 109 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261019-050416  live-sync (standing)  ->  1 (could not run)   (2026-10-19T05:11:46, 256s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs fb2401e of claude/frie...(30)
+STOP: could not check out claude/frie...(30) to capture into: git fetch --filter=blob:none origin gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
+```
 
 ## auto-home-wifi-20261019-045909  home-wifi (standing)  ->  0 (none)   (2026-10-19T05:01:03, 29s)
 ```
@@ -135,13 +142,6 @@ CAPTURED: nothing; every source file here matches 114ffeb
 ```
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs 114ffeb of claude/frie...(30)
-CAPTURED: 6 changed and 2 new source file(s) from DESKTOP-41HPLCN, pushed as 114ffeb on claude/frie...(30)
-```
-
-## auto-live-sync-20261015-213339  live-sync (standing)  ->  0 (in sync)   (2026-10-15T21:35:55, 167s)
-```
-KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
-IN SYNC: this machine runs 867bed9 of claude/frie...(30)
 CAPTURED: 6 changed and 2 new source file(s) from DESKTOP-41HPLCN, pushed as 114ffeb on claude/frie...(30)
 ```
 
