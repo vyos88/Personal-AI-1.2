@@ -1,4 +1,4 @@
-laptop41-doctor 20261019-165642 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261019-174139 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,25 @@ laptop41-doctor 20261019-165642 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 10480 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 13916 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 13961 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 6.5 of 15.8 GB RAM free
-  ok: C: 118.9 GB free
-  PROBLEM: CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  msedge                          597 MB  pid 8864
-  ChatGPT                         520 MB  pid 11352
-  ChatGPT                         414 MB  pid 1924
-  WindowsTerminal                 347 MB  pid 888
-  MsMpEng                         346 MB  pid 5244
-  explorer                        340 MB  pid 5408
-  ChatGPT                         273 MB  pid 11916
-  msedge                          258 MB  pid 13604
-  --- using the CPU, over 5.3s across 8 logical core(s): the processes it could measure account for 21.3% of the machine
-  powershell                     8.9% CPU   3.77s  pid 5748
-  msedge                         8.1% CPU   3.44s  pid 8864
-  msedge                         1.9% CPU   0.81s  pid 15484
-  msedge                         1.0% CPU   0.41s  pid 14616
-  powershell                     0.5% CPU   0.22s  pid 6996
-  ChatGPT                        0.1% CPU   0.03s  pid 11916
-  148 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x79, WUDFHost x3, tailscaled x2, node x2, fontdrvhost x2, csrss x2 (run the doctor as Administrator to see other accounts' process times)
+  ok: 7 of 15.8 GB RAM free
+  ok: C: 118.2 GB free
+  ok: CPU 84% (Alpha holds GPU admission at 90%)
+  WindowsTerminal                 972 MB  pid 888
+  ChatGPT                         516 MB  pid 11352
+  ChatGPT                         415 MB  pid 1924
+  MsMpEng                         384 MB  pid 5244
+  explorer                        341 MB  pid 5408
+  msedge                          326 MB  pid 12688
+  ChatGPT                         269 MB  pid 11916
+  msedge                          255 MB  pid 13604
 
 === SUMMARY ===
-  this pass took 62s
-  - NEEDS A PERSON - automatic cover last ran 13916 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 681 run(s), since 2026-10-11T04:41:17)
-  - CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 2 run(s), since 2026-10-19T16:45:20)
+  this pass took 57s
+  - NEEDS A PERSON - automatic cover last ran 13961 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 684 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: CPU 90% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
