@@ -23,7 +23,7 @@ import { describeAgent, parsePool, pickMachine } from './pick.js';
  *                            (poll and play it back with the same two routes above)
  *   GET  /music/recipes      → { recipes: [...] } recent alpha.music receipts
  *   GET  /music/fleet        → { machines: [...] } who offers alpha.music now
- *   /music/billing/*         → subscriptions, when billing is configured (billing.js)
+ *   /music/billing/*         → plans (from Alpha) and the free allowance, when billing is configured (billing.js)
  *
  * Why a bridge rather than the browser calling the coordinator: queueing a task
  * needs a bearer token, and a token in a web page is a token anyone who can
@@ -261,8 +261,8 @@ export function createMusicBridge({
   // one, so an evicted track only costs a re-fetch; an unbounded cache costs
   // the bridge's disk, a few MB per track, for as long as it runs.
   cacheMaxTracks = 50,
-  // Music Creator subscriptions (src/bridge/billing.js). Null: every click
-  // generates, as before billing existed.
+  // Music Creator plans (src/bridge/billing.js), asked of Alpha. Null: every
+  // click generates, as before billing existed.
   billing = null,
 }) {
   if (!hostUrl) throw new Error('the music bridge needs the coordinator URL (ALPHA_HOST_URL)');
@@ -294,7 +294,7 @@ export function createMusicBridge({
     const recipe = validateSettings(settings, { allowVocals: true });
     // Spent only once the settings are known good, and handed back if the
     // coordinator never takes the task: a refused click costs no free track.
-    const refund = billing ? billing.reserve(billing.account(req, res)) : () => {};
+    const refund = billing ? await billing.reserve(billing.account(req, res), req, recipe) : () => {};
     let body;
     try {
       const machine = await machineForTrack();

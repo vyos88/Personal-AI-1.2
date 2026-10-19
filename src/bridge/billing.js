@@ -1,42 +1,53 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 
 import { ProtocolError } from '../common/protocol.js';
 
 /**
- * Music Creator subscriptions, paid through Stripe.
+ * Music Creator plans. Alpha decides them; the bridge counts free tracks.
  *
- * Every browser gets an account: a random id in a signed, HttpOnly cookie. A
- * free account may make `freeTracksPerMonth` tracks a calendar month (UTC);
- * past that, Generate answers 402 `subscription_required` and the panel offers
- * Upgrade. Upgrade opens Stripe Checkout for `priceId` with the account id as
- * `client_reference_id`; Stripe's webhook then ties the subscription to the
- * account, and every later subscription change arrives the same way. Nothing
- * the browser says about its plan is believed: the plan is only ever what
- * Stripe's signed webhooks and Stripe's own API said.
+ * V decided on 2026-10-05 that Alpha's own plans (Start, Plus, Pro, Power) are
+ * the source of truth, so the bridge asks Alpha which plan a listener has —
+ * `GET <alphaApiUrl>/monetization/entitlements/music`, with the listener's own
+ * `Authorization` header passed through — and uses its `plan` ("free" or
+ * "pro") and `long_tracks`. The mapping lives in Alpha (MUSIC_PLAN_MAPPING.md
+ * on alpha-full): no plan or Start is free, Plus and above or the owner is pro.
  *
- *   GET  /music/billing           → { billingEnabled, plan, usedThisMonth, remaining, ... }
- *   POST /music/billing/checkout  → { url }  (Stripe Checkout)
- *   POST /music/billing/portal    → { url }  (Stripe Billing Portal: cancel, change card)
- *   POST /music/billing/webhook   ← Stripe, verified with the endpoint's signing secret
+ * Fails closed: no Alpha session, Alpha unreachable, slower than
+ * `alphaTimeoutMs`, an error status or an answer in another shape all mean
+ * "free" (with a warning for everything but a missing session). Never "pro".
+ * A good answer is cached for `alphaCacheMs` per session, so a burst of clicks
+ * is one lookup; failures are not cached, so Alpha coming back is seen at once.
+ *
+ * Every browser still gets an account: a random id in a signed, HttpOnly
+ * cookie. That account is what the free allowance is counted against —
+ * `freeTracksPerMonth` tracks a calendar month (UTC) — because Alpha does not
+ * count tracks. Past that, Generate answers 402 `subscription_required`; a
+ * free listener asking for a track over `longTrackSec` gets 402
+ * `long_tracks_need_pro`.
+ *
+ *   GET  /music/billing           → { billingEnabled, plan, planSource, upgradeTo, upgradeUrl, ... }
+ *   POST /music/billing/checkout  → { url }  Alpha's Subscriptions page (no Stripe Checkout)
+ *   POST /music/billing/portal    → { url }  Alpha's Subscriptions page (no Stripe Portal)
+ *   POST /music/billing/webhook   ← Stripe, only while the legacy Stripe settings are present
+ *
+ * The bridge's own Stripe plan no longer grants anything. If the old Stripe
+ * settings are still configured, the webhook keeps recording what Stripe says
+ * into the accounts file, so whoever paid the bridge directly can be found and
+ * moved to an Alpha plan; that record is never read to decide a plan.
  *
  * Accounts live in one JSON file, written whole and renamed into place, so a
- * crash mid-write leaves the previous file rather than half of one. That is
- * plenty for one bridge on one machine; it is not a database for many.
- *
- * What it does not do: let someone sign in on a second device. The account is
- * the cookie, so a subscriber on a new browser starts as free there. The
- * Billing Portal still lets them manage (and cancel) what they pay for.
+ * crash mid-write leaves the previous file rather than half of one.
  */
 
 const COOKIE = 'alpha_music_account';
 const ACCOUNT_ID = /^[A-Za-z0-9_-]{22}$/;
 const MAX_WEBHOOK_BYTES = 512 * 1024;
 const SIGNATURE_TOLERANCE_S = 300;
-// past_due keeps access while Stripe retries the card; Stripe moves it to
-// canceled or unpaid when it gives up, and that ends it.
-const PAID_STATUSES = new Set(['active', 'trialing', 'past_due']);
+const MUSIC_PLAN_SCHEMA = 'alpha.monetization.music-plan.v1';
+const MAX_CACHED_PLANS = 1000;
+const FREE_PLAN = Object.freeze({ plan: 'free', longTracks: false, alphaPlan: null, owner: false, upgradeTo: null });
 
 function sign(secret, value) {
   return createHmac('sha256', secret).update(value).digest('base64url');
@@ -86,38 +97,80 @@ function monthOf(nowMs) {
   return new Date(nowMs).toISOString().slice(0, 7);
 }
 
+/**
+ * Alpha's answer from `/monetization/entitlements/music`, in the bridge's
+ * words, or null for anything that is not one. Only an exact "pro" is pro.
+ */
+export function parseMusicPlan(body) {
+  if (!body || typeof body !== 'object') return null;
+  if (body.schema !== MUSIC_PLAN_SCHEMA || body.source !== 'alpha') return null;
+  if (body.plan !== 'pro' && body.plan !== 'free') return null;
+  const upgrade = body.upgrade_to && typeof body.upgrade_to === 'object' ? body.upgrade_to : null;
+  return {
+    plan: body.plan,
+    longTracks: body.long_tracks === true,
+    alphaPlan: body.alpha_plan ?? null,
+    owner: body.owner === true,
+    upgradeTo: upgrade ? { id: upgrade.id ?? null, name: upgrade.name ?? null, monthlyGbp: upgrade.monthly_gbp ?? null } : null,
+  };
+}
+
 /** When a subscription's paid period ends, wherever this API version puts it. */
 function periodEnd(subscription) {
   return subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end ?? null;
 }
 
 export function createBilling({
-  secretKey,
-  webhookSecret,
-  priceId,
   cookieSecret,
   publicUrl,
   storePath,
+  alphaApiUrl,
+  // Where Upgrade and Manage send people: Alpha's Subscriptions page.
+  upgradeUrl = null,
+  alphaTimeoutMs = 3_000,
+  alphaCacheMs = 30_000,
   freeTracksPerMonth = 3,
+  // Tracks longer than this need Alpha's `long_tracks` (Plus and above).
+  longTrackSec = 60,
+  // Legacy: the bridge's own Stripe plan. Optional, and grants nothing; with
+  // all three set, the webhook keeps recording subscriptions (see above).
+  secretKey = null,
+  webhookSecret = null,
+  priceId = null,
   stripeApi = 'https://api.stripe.com',
   fetch: fetchImpl = fetch,
   now = Date.now,
+  log = console,
 }) {
   const missing = Object.entries({
-    STRIPE_SECRET_KEY: secretKey,
-    STRIPE_WEBHOOK_SECRET: webhookSecret,
-    STRIPE_PRICE_ID: priceId,
+    ALPHA_API_URL: alphaApiUrl,
     ALPHA_MUSIC_COOKIE_SECRET: cookieSecret,
     ALPHA_PUBLIC_URL: publicUrl,
     ALPHA_MUSIC_BILLING_STORE: storePath,
   }).filter(([, value]) => !value).map(([name]) => name);
   if (missing.length) throw new Error(`Music Creator billing needs ${missing.join(', ')}`);
+  const stripeSettings = { STRIPE_SECRET_KEY: secretKey, STRIPE_WEBHOOK_SECRET: webhookSecret, STRIPE_PRICE_ID: priceId };
+  const stripeMissing = Object.entries(stripeSettings).filter(([, value]) => !value).map(([name]) => name);
+  if (stripeMissing.length > 0 && stripeMissing.length < 3) {
+    throw new Error(`the legacy Stripe settings are all or none; missing ${stripeMissing.join(', ')}`);
+  }
+  const legacyStripe = stripeMissing.length === 0;
   if (cookieSecret.length < 32) throw new Error('ALPHA_MUSIC_COOKIE_SECRET must be at least 32 characters');
   if (!Number.isInteger(freeTracksPerMonth) || freeTracksPerMonth < 0) {
     throw new Error('the free allowance must be a whole number of tracks, 0 or more');
   }
+  if (!/^https?:\/\//i.test(alphaApiUrl)) throw new Error('ALPHA_API_URL must be an http(s) URL');
+  if (!Number.isInteger(alphaTimeoutMs) || alphaTimeoutMs < 100 || alphaTimeoutMs > 60_000) {
+    throw new Error('ALPHA_MUSIC_PLAN_TIMEOUT_MS must be 100-60000 milliseconds');
+  }
+  if (!Number.isInteger(alphaCacheMs) || alphaCacheMs < 0) throw new Error('ALPHA_MUSIC_PLAN_CACHE_MS must be 0 or more milliseconds');
   const site = publicUrl.replace(/\/+$/, '');
+  const alphaBase = alphaApiUrl.replace(/\/+$/, '');
+  const upgradeTarget = upgradeUrl || `${site}/#/hub/admin/subscriptions`;
   const secureCookie = site.startsWith('https://');
+  // sha256(Authorization) -> { at, plan }. Keyed by a digest so the cache
+  // never holds a session token itself.
+  const planCache = new Map();
 
   let store = { accounts: {}, customers: {} };
   if (existsSync(storePath)) store = JSON.parse(readFileSync(storePath, 'utf8'));
@@ -136,11 +189,38 @@ export function createBilling({
     return entry;
   }
 
-  function isPaid(entry) {
-    const subscription = entry.subscription;
-    if (!subscription || !PAID_STATUSES.has(subscription.status)) return false;
-    // A missed cancellation webhook must not mean free music forever.
-    return subscription.currentPeriodEnd === null || subscription.currentPeriodEnd * 1000 > now();
+  /**
+   * The listener's plan, as Alpha says it. Never throws, and never answers
+   * "pro" unless Alpha did, for this session, within `alphaCacheMs`.
+   */
+  async function planFor(req) {
+    const authorization = String(req.headers.authorization ?? '').trim();
+    // No Alpha session on the request: nothing to ask Alpha about.
+    if (!/^Bearer\s+\S+$/i.test(authorization)) return { ...FREE_PLAN, source: 'anonymous' };
+    const key = createHash('sha256').update(authorization).digest('base64url');
+    const cached = planCache.get(key);
+    if (cached && now() - cached.at < alphaCacheMs) return cached.plan;
+    planCache.delete(key);
+
+    let plan;
+    try {
+      const response = await fetchImpl(`${alphaBase}/monetization/entitlements/music`, {
+        headers: { authorization, accept: 'application/json' },
+        signal: AbortSignal.timeout(alphaTimeoutMs),
+      });
+      const body = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      plan = parseMusicPlan(body);
+      if (!plan) throw new Error('the answer is not an alpha.monetization.music-plan.v1');
+    } catch (error) {
+      log.warn?.(`music bridge: could not get the plan from Alpha (${error.message}); treating this listener as free`);
+      return { ...FREE_PLAN, source: 'fallback' };
+    }
+    plan = { ...plan, source: 'alpha' };
+    planCache.set(key, { at: now(), plan });
+    // Oldest first: Map keeps insertion order.
+    while (planCache.size > MAX_CACHED_PLANS) planCache.delete(planCache.keys().next().value);
+    return plan;
   }
 
   /** The caller's account id, minting one (and its cookie) on a first visit. */
@@ -159,15 +239,24 @@ export function createBilling({
 
   /**
    * Takes one track from the account's allowance before the task is queued,
-   * so two clicks at once cannot both spend the last free track. Returns the
-   * refund to call if queueing then fails.
+   * so two clicks at once cannot both spend the last free track (the check and
+   * the spend run with no await between them). Returns the refund to call if
+   * queueing then fails.
    */
-  function reserve(accountId) {
+  async function reserve(accountId, req, recipe = {}) {
+    const plan = await planFor(req);
+    if (Number(recipe.durationSec) > longTrackSec && !plan.longTracks) {
+      const name = plan.upgradeTo?.name ?? 'a higher Alpha plan';
+      throw new ProtocolError(
+        `Tracks over ${longTrackSec}s need ${name}. Upgrade in Alpha's Subscriptions.`,
+        { status: 402, code: 'long_tracks_need_pro' },
+      );
+    }
     const entry = record(accountId);
-    if (isPaid(entry)) return () => {};
+    if (plan.plan === 'pro') return () => {};
     if (entry.usage.count >= freeTracksPerMonth) {
       throw new ProtocolError(
-        `Free accounts make ${freeTracksPerMonth} tracks a month, and this month's are used. Upgrade for unlimited tracks.`,
+        `Free accounts make ${freeTracksPerMonth} tracks a month, and this month's are used. Upgrade your Alpha plan for unlimited tracks.`,
         { status: 402, code: 'subscription_required' },
       );
     }
@@ -182,18 +271,26 @@ export function createBilling({
     };
   }
 
-  function summary(accountId) {
+  async function summary(accountId, req) {
+    const plan = await planFor(req);
     const entry = record(accountId);
-    const paid = isPaid(entry);
+    const pro = plan.plan === 'pro';
     return {
       billingEnabled: true,
-      plan: paid ? 'pro' : 'free',
+      plan: plan.plan,
+      planSource: plan.source,
+      alphaPlan: plan.alphaPlan,
+      longTracks: plan.longTracks,
+      longTrackSec,
       freeTracksPerMonth,
       usedThisMonth: entry.usage.count,
-      remaining: paid ? null : Math.max(0, freeTracksPerMonth - entry.usage.count),
-      renewsAt: paid && entry.subscription.currentPeriodEnd ? new Date(entry.subscription.currentPeriodEnd * 1000).toISOString() : null,
-      cancelAtPeriodEnd: paid ? Boolean(entry.subscription.cancelAtPeriodEnd) : false,
-      canManage: Boolean(entry.customerId),
+      remaining: pro ? null : Math.max(0, freeTracksPerMonth - entry.usage.count),
+      // Renewal and cancellation are Alpha's to show now.
+      renewsAt: null,
+      cancelAtPeriodEnd: false,
+      canManage: pro,
+      upgradeTo: plan.upgradeTo,
+      upgradeUrl: upgradeTarget,
     };
   }
 
@@ -275,6 +372,7 @@ export function createBilling({
 
   async function handle(req, res, pathname, send) {
     if (req.method === 'POST' && pathname === '/music/billing/webhook') {
+      if (!legacyStripe) return send(res, 404, { error: 'not_found' });
       const raw = await readRaw(req);
       if (!verifyStripeSignature(raw, req.headers['stripe-signature'], webhookSecret, now())) {
         return send(res, 400, { error: 'bad_signature' });
@@ -289,33 +387,24 @@ export function createBilling({
       return send(res, 200, { received: true });
     }
     if (req.method === 'GET' && pathname === '/music/billing') {
-      return send(res, 200, summary(account(req, res)));
+      return send(res, 200, await summary(account(req, res), req));
     }
+    // Upgrade and Manage both go to Alpha: one thing to buy, bought there.
+    // Neither touches Stripe, so neither can grant a plan from here.
     if (req.method === 'POST' && pathname === '/music/billing/checkout') {
       requireJson(req);
-      const accountId = account(req, res);
-      const entry = record(accountId);
-      if (isPaid(entry)) return send(res, 409, { error: 'already_subscribed', message: 'This account already has unlimited tracks.' });
-      const session = await stripe('POST', '/v1/checkout/sessions', {
-        mode: 'subscription',
-        line_items: [{ price: priceId, quantity: 1 }],
-        client_reference_id: accountId,
-        ...(entry.customerId ? { customer: entry.customerId } : {}),
-        success_url: `${site}/?music_billing=success`,
-        cancel_url: `${site}/?music_billing=cancelled`,
-        allow_promotion_codes: true,
-      });
-      return send(res, 200, { url: session.url });
+      account(req, res);
+      const plan = await planFor(req);
+      if (plan.plan === 'pro') return send(res, 409, { error: 'already_subscribed', message: 'Your Alpha plan already has unlimited tracks.' });
+      return send(res, 200, { url: upgradeTarget, upgradeTo: plan.upgradeTo, source: 'alpha' });
     }
     if (req.method === 'POST' && pathname === '/music/billing/portal') {
       requireJson(req);
-      const entry = record(account(req, res));
-      if (!entry.customerId) return send(res, 409, { error: 'no_subscription', message: 'This account has never subscribed.' });
-      const session = await stripe('POST', '/v1/billing_portal/sessions', { customer: entry.customerId, return_url: `${site}/` });
-      return send(res, 200, { url: session.url });
+      account(req, res);
+      return send(res, 200, { url: upgradeTarget, source: 'alpha' });
     }
     return send(res, 404, { error: 'not_found' });
   }
 
-  return { account, reserve, summary, handle };
+  return { account, planFor, reserve, summary, handle };
 }
