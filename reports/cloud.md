@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-19 16:57 UTC
+Claude (cloud) report, 2026-10-19 17:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; suspect cloudflared.
 
@@ -8,7 +8,7 @@ Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor+live fresh (16:43 UTC 19 Oct). CPU high on and off. 1 open: cover task 'Alpha Standby' absent. Still on on c1aa435 (12 Oct), 32 behind, so #277 can't land; self-update refuses: 13 untracked files plus, NEW, 2 tracked edits (local doctor+test variant). #287 MERGED (ASKS): ASKS suggests V commit them to a branch from Worker1; V decides. Live page's 'STANDBY BUT SERVING' is a false alarm from old code (8001 is pid 6708 pythonw, not Alpha): no alpha-standdown. Read-only c1-port-8001-holder queued on control/laptop41.
+WORKER1 (Laptop41): doctor 17:11, live 17:48 UTC 19 Oct, fresh. CPU high on and off. 1 open: cover task 'Alpha Standby' absent. Still on on c1aa435 (12 Oct), 32 behind, so #277 can't land; self-update refuses: 13 untracked files plus, NEW, 2 tracked edits (local doctor+test variant). #287 MERGED (ASKS): ASKS suggests V commit them to a branch from Worker1; V decides. Live page's 'STANDBY BUT SERVING' is false, old code (#288 MERGED: 8001 is Alpha's CrowPanel feed helper): no alpha-standdown; an alpha-standup would fail to bind 8001.
 control/host h32 still queued, and cannot run: NEW #286 (ASKS) proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
