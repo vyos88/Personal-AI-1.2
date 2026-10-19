@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-18 20:57 UTC
+Claude (cloud) report, 2026-10-19 01:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; suspect cloudflared.
 
@@ -8,7 +8,7 @@ Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand o
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): fresh (doctor 20:41, live 20:53 UTC 18 Oct; relay seen). 3 open: alpha-ai.uk 530 again at 20:41, 200 by 20:53. On 18 Oct the doctor was silent ~4h (11:41-16:50 UTC), now back. 'STANDBY BUT SERVING' is a false positive (panel feed); its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent.
+WORKER1 (Laptop41): fresh (doctor 01:26, live 01:48 UTC 19 Oct). 1 open: 01:26 pass marks 'two Alphas' fixed, though pid 2180 (panel feed) still holds port 8001, so it may return. On 18 Oct the doctor was silent ~4h (11:41-16:50 UTC), now back. Its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). No alpha-standdown. Also open: cover task 'Alpha Standby' absent.
 control/host h32 still queued, and cannot run: NEW #286 (ASKS) proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
