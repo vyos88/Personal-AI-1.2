@@ -782,3 +782,37 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   nothing in this repository can see any of it while the pass is down. No code
   change here; the heartbeat key stays, because the moment a pass runs again it
   will say so on its own.
+
+- [!] needs V — 2026-10-19 Claude (cloud) -> V: **the panel thread's premise
+  moved when Alpha did, and the standing recommendation the hourly prompt still
+  carries — "add `fix-panel-host` to the autopilot menu" — is closed twice
+  over.**
+  **It is on the menu.** `scripts/autopilot.ps1:37` lists `panel-host`,
+  `:273-276` dispatches it as `node fix-panel-host.mjs --env <the .env.local
+  beside -AlphaRoot> --require-host`, `docs/AUTOPILOT.md:65` documents it, and
+  `test/autopilot.test.js:647` pins that it takes nothing from the action
+  (`address`, `env` and `task` in the payload are all ignored). Whichever
+  session added it, no cycle needs to weigh adding it again — and the reason
+  four earlier cycles declined (editing `.ps1` with no `pwsh` here) no longer
+  applies to work already done and tested.
+  **And on Worker1 it would be refused, correctly.** `autopilot.ps1:130` lists
+  `panel-host` among the actions a standby must not run — it restarts Alpha's
+  backend (`docs/AUTOPILOT.md:65`: "the port's holder is stopped too"), and only
+  one Alpha may serve — so queueing it there spends an id on a refusal. The
+  `homeWifi` standing check already knows the same thing: `:494` returns
+  `standby: Alpha serves from the primary, so the backend here stays off`
+  before `:500` could ever say "queue panel-host".
+  **So the thread is not "Worker1's `HOST` list is stale".** Worker1's backend
+  is off by design — `role.json` has said standby since
+  `2026-10-11T01:57:18.6703212+01:00`, which the doctor's section 0 prints every
+  pass — so no `HOST` value there can make the panel work. The panel points at
+  whichever machine last ran `panel-endpoint`, which was Worker1.
+  **One question: does `alpha-serv-01` have a home-network address the panel can
+  reach?** `CLAUDE.md` is explicit that the panel is not on the tailnet — it is
+  on WiFi, so `100.70.101.6` does not exist for it. If alpha-serv-01 is
+  tailnet-only then the panel cannot reach Alpha at all while Alpha serves
+  there, and nothing in this repository changes that: alpha-serv-01 has no
+  `control/*` branch (only `control/host` and `control/laptop41` exist), so
+  there is no autopilot here to queue `panel-host` on. Either alpha-serv-01
+  gets a home address and the panel is re-pointed at it, or Alpha comes back to
+  Worker1. Which of those is yours; I have queued neither.
