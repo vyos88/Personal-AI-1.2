@@ -373,7 +373,7 @@ export function walk(recipe, symbols, { signal } = {}) {
   return { nodes, edges };
 }
 
-function boundsOf(nodes) {
+export function boundsOf(nodes) {
   const min = [Infinity, Infinity, Infinity];
   const max = [-Infinity, -Infinity, -Infinity];
   for (const n of nodes) {
