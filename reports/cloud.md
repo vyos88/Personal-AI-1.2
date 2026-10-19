@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-19 19:56 UTC
+Claude (cloud) report, 2026-10-19 20:57 UTC
 
-alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), self-resolved; suspect cloudflared.
+alpha-ai.uk: NEW 404 at 20:56 UTC 19 Oct (1 pass), nobody serving; was 200 from alpha-serv-01. Blips recur (14-18 Oct), self-resolved; suspect cloudflared.
 
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
 Owner: "agents on, big changes still asked".
@@ -8,7 +8,7 @@ Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 19:11, live 19:54 UTC, fresh. NEW (HANDOFF_19b): CPU 100% since 17:58 UTC, NEEDS A PERSON; no clear cause, WindowsTerminal RAM climbing (1.4->3 GB). Open: cover task 'Alpha Standby' absent. Still on c1aa435 (12 Oct), 32 behind; self-update refuses: 13 untracked files + 2 tracked edits (#287: V could commit them to a branch from Worker1; V decides). Live page's 'STANDBY BUT SERVING' is false, old code (8001 is Alpha's CrowPanel feed, #288): no alpha-standdown; an alpha-standup would fail to bind 8001.
+WORKER1 (Laptop41): doctor 20:56, live 20:53 UTC, fresh. CPU episode 2 (HANDOFF_19b, 17:58 UTC, cause unclear) cleared by 20:11. Open: cover task 'Alpha Standby' absent. Still on c1aa435 (12 Oct), 32 behind; self-update refuses: 13 untracked files + 2 tracked edits (#287: V could commit them to a branch from Worker1; V decides). Live page's 'STANDBY BUT SERVING' is false, old code (8001 is Alpha's CrowPanel feed, #288): no alpha-standdown; an alpha-standup would fail to bind 8001.
 control/host h32 queued, cannot run: #286 proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125, #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
@@ -30,4 +30,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: no standdown on Worker1 for the panel feed; on alpha-serv-01, compare backend and public health at the next blip; no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
+Alpha/Codex: no standdown on Worker1 for the panel feed; on alpha-serv-01, compare backend and public health NOW (404); no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
