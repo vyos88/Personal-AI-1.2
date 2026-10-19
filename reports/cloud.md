@@ -1,24 +1,25 @@
-Claude (cloud) report, 2026-10-19 21:58 UTC
+Claude (cloud) report, 2026-10-19 22:57 UTC
 
 alpha-ai.uk: 404 at 20:56 UTC 19 Oct, 200 from alpha-serv-01 again by 21:11. Blips recur since 14 Oct.
 
-Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
+Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: "agents on, big changes still asked".
 Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 21:41, live 21:53 UTC, fresh. NEW, 3 open: TWO ALPHAS - standby Worker1 now runs the site (node alpha-preview.mjs :4173) AND a cloudflared, so alpha-ai.uk traffic is split with alpha-serv-01; started near the 404, by whom unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288), so alpha-standup would fail to bind it.
+WORKER1 (Laptop41): doctor 22:11, live 22:53 UTC, fresh. 3 open, still at 22:11 (HANDOFF_19c): TWO ALPHAS - standby Worker1 now runs the site (node alpha-preview.mjs :4173) AND a cloudflared, so alpha-ai.uk traffic is split with alpha-serv-01; started near the 404, by whom unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288), so alpha-standup would fail to bind it.
 control/host h32 queued, cannot run: #286 proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain deck on alpha-serv-01.
+NEW 19 Oct MERGED: #290 (capped GPU-demand role), #291 (Status JSON parse errors located).
 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V). Drafts: Alpha#134/#135/#137/#138.
-Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
+OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell.
 
-NEEDS V: NEW Worker1 site+cloudflared beside alpha-serv-01: cover or stand down? #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: NEW Worker1 site+cloudflared beside alpha-serv-01: cover or stand down? #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #153, #249, #229, #160 (conflicts), #136, #86, #83; old drafts: V.
-Owner: post in the tunnel before/after work on either laptop.
+Owner: post in the tunnel before/after laptop work.
 
 Still stands:
  - From V: Alpha may read GitHub PRs in vyos88/Personal-AI-1.2 and vyos88/Alpha, read only.
