@@ -1,4 +1,4 @@
-laptop41-doctor 20261019-231109 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261019-235606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,44 @@ laptop41-doctor 20261019-231109 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 10480 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   PROBLEM: standby, but the site runs here (pid 16160 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   PROBLEM: standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines
-  PROBLEM: automatic cover last ran 14290 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 14336 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.5 of 15.8 GB RAM free
+  PROBLEM: only 1.5 of 15.8 GB RAM free
   ok: C: 123.6 GB free
-  ok: CPU 58% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               1,912 MB  pid 13984
-  Memory Compression              552 MB  pid 3456
-  claude                          472 MB  pid 1332
-  MsMpEng                         420 MB  pid 5244
-  explorer                        296 MB  pid 5408
-  claude                          237 MB  pid 6412
-  msedge                          221 MB  pid 13604
-  claude                          208 MB  pid 8452
+  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               1,871 MB  pid 13984
+  MsMpEng                         471 MB  pid 5244
+  claude                          450 MB  pid 1332
+  explorer                        260 MB  pid 5408
+  claude                          226 MB  pid 6412
+  codex                           213 MB  pid 12128
+  codex                           199 MB  pid 17264
+  msedge                          196 MB  pid 13604
+  --- using the CPU, over 5.1s across 8 logical core(s): the processes it could measure account for 19.6% of the machine
+  python                         5.2% CPU   2.11s  pid 32896
+  WindowsTerminal                3.3% CPU   1.36s  pid 13984
+  powershell                     2.8% CPU   1.14s  pid 29956
+  codex                          2.4% CPU   0.98s  pid 12128
+  powershell                     0.8% CPU   0.33s  pid 17924
+  OneDrive.Sync.Service          0.7% CPU   0.28s  pid 8952
+  152 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x82, node x3, WUDFHost x3, fontdrvhost x2, conhost x2, csrss x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 19s
-  - NEEDS A PERSON - automatic cover last ran 14290 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 706 run(s), since 2026-10-11T04:41:17)
-  - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 3 run(s), since 2026-10-19T22:41:29)
-  - standby, but the site runs here (pid 16160 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-10-19T22:41:29)
+  this pass took 79s
+  - NEEDS A PERSON - automatic cover last ran 14336 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 709 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 6 run(s), since 2026-10-19T22:41:29)
+  - NEEDS A PERSON - standby, but the site runs here (pid 16160 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-10-19T22:41:29)
+  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-10-19T23:57:24)
+  - only 1.5 of 15.8 GB RAM free  (open 1 run(s), since 2026-10-19T23:57:24)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
