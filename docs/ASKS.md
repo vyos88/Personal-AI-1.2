@@ -680,6 +680,58 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   being true after five days — but that reverses the same policy more carefully
   and is equally yours to call.
 
+  **Update 2026-10-19 15:40Z: the question has changed, because the stall list
+  has. It is no longer thirteen untracked paths — two of them are now *tracked*
+  edits**, and the newest pass says so (`status/laptop41-autopilot:reports/autopilot.md`,
+  pass `20261019-160416`): `local changes:  M scripts/laptop41-doctor.ps1,  M
+  test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ...` — the
+  same thirteen `??` paths, with two modified files ahead of them. So moving the
+  untracked paths aside would **not** unblock the fast-forward any more, and
+  `git checkout --` on the two is a discard of somebody's work, which is why I am
+  not recommending it either.
+  **What is in them, inferred from one line and no more.** The running doctor now
+  prints, every pass: `backend port 8001 is occupied (pid 6708 pythonw.exe: ), but
+  its listener did not return a successful /health response; not counted as a
+  second Alpha`. That string is in neither `c1aa4356` nor `origin/main` — `git
+  grep 'did not return a successful'` is empty on both — so it is a **third,
+  local variant** of the `/health` gate, not `72b8471` hand-applied. `main`'s
+  version (`scripts/laptop41-doctor.ps1:314-322`, `Get-StandbyPortVerdict`) words
+  it `standby, and the backend port 8001 is held by something that is not Alpha
+  (...): it answered <code>, so nothing of Alpha serves here ... stop that process
+  on the machine`, and raises it as a **PROBLEM**; Worker1's variant files it as a
+  note (the pass's only PROBLEM is the cover-task one). `M
+  test/laptop41-doctor.test.js` beside it means whoever wrote it wrote tests, and
+  that machine has `pwsh` to run them. **So the cheap answer is not "move" or
+  "discard" but "commit": from Worker1, `git checkout -b <branch>` those two
+  files, run `npm test`, push.** That preserves the work, unblocks the
+  fast-forward, and lets main's own version take the behaviour over.
+  **Why this is worth a pass now and not next week: the stall is printing a wrong
+  remedy on the page a reader is told to open first.** The doctor half of the
+  AlphaPanelFeed false positive is fixed on the machine, by the local edit above.
+  The live-page half is not: `c1aa4356:scripts/autopilot.ps1:1455` counts a bare
+  `Get-NetTCPConnection -LocalPort 8001 -State Listen` as `backend`, so `:1459`
+  sets `STANDBY BUT SERVING` and `:1462` prints `running HERE too: backend (two
+  Alphas: queue alpha-standdown again, or alpha-standup to serve here)`. Main's
+  copy (`scripts/autopilot.ps1:1478-1483`) probes `http://127.0.0.1:8001/health`
+  first and `:1491-1495` says `STANDBY, PORT HELD ... neither alpha-standdown nor
+  alpha-standup is the remedy -- stop that process on the machine` instead.
+  **The arithmetic:** I read `reports/live.json` out of all 400 commits on
+  `status/laptop41-live`, `2026-10-17T16:19:50+01:00` through
+  `2026-10-19T16:14:49+01:00` (47 h 55 m), and `alpha.verdict` is
+  `STANDBY BUT SERVING` in **400 of 400** — the triple
+  (verdict, role, data state) never changes once across the window. So the page
+  has asked for a stand-down 400 consecutive times against a port that its own
+  doctor says nothing of Alpha is behind.
+  The one mercy is that nothing automatic believes it: `scripts/alpha-standby.mjs`
+  — the only thing that would actually stand Alpha down — gates on
+  `probes.local.serving`, which is `ok2xx()` of `/health` (`:86`, `:97`, `:103`,
+  `:131`), so the cover task would refuse. The victim is the human reader. (And
+  the cover task is not installed anyway — the other open question above.)
+  **Queued meanwhile, read-only:** `20261019-c1-port-8001-holder`
+  (`fleet-inventory`) on `control/laptop41`, to name what pid 6708 is. The
+  doctor's line carries an empty command line, and main's remedy is "stop that
+  process on the machine", which nobody can act on without knowing what it is.
+
 - [!] needs V — 2026-10-18 Claude (cloud) -> V: **the Host's autopilot is not
   running, and that is now proven rather than suspected. Nothing queued on
   `control/host` can run until somebody looks at `laptop-gj8dfmlk`.**
