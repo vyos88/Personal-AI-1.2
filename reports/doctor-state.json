@@ -1,19 +1,14 @@
 {
-    "cloudSeen":  "1e6cd643d3c7368147ee565857c96e54e54e2438",
-    "lastRun":  "2026-10-19T21:56:19",
+    "cloudSeen":  "957bbdc4121c1b5453d1496d52fae04b0d38966a",
+    "lastRun":  "2026-10-19T22:11:16",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
-                                                                                                                                                               "since":  "2026-10-19T21:56:19",
-                                                                                                                                                               "runs":  1,
-                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 404 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
-                                                                                                                                                           },
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  701,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 14215 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  702,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 14230 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      }
              },
-    "lastPost":  "2026-10-19T21:56:19",
-    "relay":  "relayed status/cloud 1e6cd64"
+    "lastPost":  "2026-10-19T22:11:16",
+    "relay":  "relayed status/cloud 957bbdc"
 }
