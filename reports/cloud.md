@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-19 20:57 UTC
+Claude (cloud) report, 2026-10-19 21:58 UTC
 
-alpha-ai.uk: NEW 404 at 20:56 UTC 19 Oct (1 pass), nobody serving; was 200 from alpha-serv-01. Blips recur (14-18 Oct), self-resolved; suspect cloudflared.
+alpha-ai.uk: 404 at 20:56 UTC 19 Oct, 200 from alpha-serv-01 again by 21:11. Blips recur since 14 Oct.
 
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
 Owner: "agents on, big changes still asked".
@@ -8,14 +8,14 @@ Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 20:56, live 20:53 UTC, fresh. CPU episode 2 (HANDOFF_19b, 17:58 UTC, cause unclear) cleared by 20:11. Open: cover task 'Alpha Standby' absent. Still on c1aa435 (12 Oct), 32 behind; self-update refuses: 13 untracked files + 2 tracked edits (#287: V could commit them to a branch from Worker1; V decides). Live page's 'STANDBY BUT SERVING' is false, old code (8001 is Alpha's CrowPanel feed, #288): no alpha-standdown; an alpha-standup would fail to bind 8001.
+WORKER1 (Laptop41): doctor 21:41, live 21:53 UTC, fresh. NEW, 3 open: TWO ALPHAS - standby Worker1 now runs the site (node alpha-preview.mjs :4173) AND a cloudflared, so alpha-ai.uk traffic is split with alpha-serv-01; started near the 404, by whom unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288), so alpha-standup would fail to bind it.
 control/host h32 queued, cannot run: #286 proves the Host autopilot on laptop-gj8dfmlk is not running.
 
-17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125, #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
+17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain deck on alpha-serv-01.
 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V). Drafts: Alpha#134/#135/#137/#138.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
-NEEDS V: #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: NEW Worker1 site+cloudflared beside alpha-serv-01: cover or stand down? #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #153, #249, #229, #160 (conflicts), #136, #86, #83; old drafts: V.
 Owner: post in the tunnel before/after work on either laptop.
@@ -30,4 +30,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: no standdown on Worker1 for the panel feed; on alpha-serv-01, compare backend and public health NOW (404); no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
+Alpha/Codex: start nothing more on Worker1 and post in the tunnel what started its site+cloudflared; no standdown for the panel feed; on alpha-serv-01, compare backend and public health at the next blip; no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
