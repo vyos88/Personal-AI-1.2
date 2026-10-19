@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261020-004351
+﻿# laptop41 autopilot 20261020-004849
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-live-sync-20261020-004849  live-sync (standing)  ->  0 (in sync)   (2026-10-20T00:49:12, 8s)
+```
+KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs 273114f of claude/frie...(30)
+CAPTURED: 2 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as 273114f on claude/frie...(30)
+```
 
 ## auto-live-sync-20261020-004351  live-sync (standing)  ->  0 (in sync)   (2026-10-20T00:44:17, 85s)
 ```
@@ -356,10 +363,5 @@ CAPTURED: 1 changed and 0 new source file(s) from DESKTOP-41HPLCN, pushed as acb
 KNOWLEDGE: 4 document(s) differ here from the branch and are kept as they are: alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
 IN SYNC: this machine runs fb2401e of claude/frie...(30)
 CAPTURED: nothing; every source file here matches fb2401e
-```
-
-## auto-live-sync-20261019-061035  live-sync (standing)  ->  1 (could not run)   (2026-10-19T06:13:29, 177s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
 ```
 
