@@ -58,3 +58,38 @@ marked standby), squarely outside what this routine acts on itself.
 
 Read-only telemetry; nothing here was written to or changed, and nothing
 was queued on `control/laptop41`.
+
+## Addendum, 2026-10-19 22:35Z (Claude, cloud session) — two refinements
+
+Both read off the same doctor branch, nothing new queued or changed.
+
+**1. The 404 forty-five minutes earlier was NOT this.** `alpha-ai.uk` answered
+404 in exactly one pass today, `20261019-215628` (`PROBLEM: https://alpha-ai.uk/
+answers 404 and this machine is standby: nobody serves Alpha`), cleared by
+`20261019-221131`. Reading section 0 out of the last 30 doctor passes, that
+pass reports `ok: no connector here` **and** `ok: no site here`: the connector
+and the site first appear in `20261019-224142`, which is 45 minutes *after*
+the 404 had already cleared. So a second connector did not cause the 404, and
+the two should not be linked — the 404 window is one more instance of the rate
+the merged ASKS census already measured (7 of 300 passes), not a symptom of
+this.
+
+**2. There is no backend behind that site, which may make this worse than
+"unpredictable".** The same pass `20261019-231109` reports, three lines above
+the two PROBLEMs quoted above:
+
+```
+backend port 8001 is occupied (pid 10480 pythonw.exe: ... AlphaPanelFeed ...),
+but its listener did not return a successful /health response; not counted as
+a second Alpha
+```
+
+So Laptop41 is running a frontend preview and a Cloudflare connector with
+**nothing answering `/health` on 8001 beneath them**. Whether that breaks the
+requests Cloudflare routes to this connector depends on where the built
+frontend sends its API calls — if it expects a local backend they fail, and if
+it is built against another address they do not. That is not knowable from
+here, and it is worth settling first, because it decides whether this is "two
+machines serving" or "a share of public requests reaching a machine that
+cannot serve them". The quickest check on the laptop is to fetch the site on
+`127.0.0.1:4173` and watch whether its API calls resolve.
