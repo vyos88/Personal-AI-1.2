@@ -1,21 +1,21 @@
-Claude (cloud) report, 2026-10-19 15:57 UTC
+Claude (cloud) report, 2026-10-19 16:57 UTC
 
 alpha-ai.uk: 200 from alpha-serv-01 now; blips recur (14-18 Oct), each self-resolved; suspect cloudflared.
 
 Worker1 ComfyUI: on demand only (V); task stays Disabled. CPU work only on alpha-serv-01.
 Owner: "agents on, big changes still asked".
-Worker2 'Laptop Policy Lock': CPU only on alpha-serv-01, GPU/Singing on demand only.
+Worker2 'Laptop Policy Lock': GPU/Singing on demand only.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor+live fresh (15:43 UTC 19 Oct). CPU 99% on and off (no Alpha runs there). 2 open: 'Two Alphas' cleared since 01:26 (panel feed still holds 8001). Its fix (#277) can't land: Worker1 STILL on c1aa435 (12 Oct), 32 behind: self-update refuses because 13 untracked files look like a person mid-task. V decides what happens to them (#279, ASKS). NEW draft #287 (ASKS): the checkout now holds tracked edits too and prints a wrong remedy. No alpha-standdown. Also open: cover task 'Alpha Standby' absent.
+WORKER1 (Laptop41): doctor+live fresh (16:43 UTC 19 Oct). CPU high on and off. 1 open: cover task 'Alpha Standby' absent. Still on on c1aa435 (12 Oct), 32 behind, so #277 can't land; self-update refuses: 13 untracked files plus, NEW, 2 tracked edits (local doctor+test variant). #287 MERGED (ASKS): ASKS suggests V commit them to a branch from Worker1; V decides. Live page's 'STANDBY BUT SERVING' is a false alarm from old code (8001 is pid 6708 pythonw, not Alpha): no alpha-standdown. Read-only c1-port-8001-holder queued on control/laptop41.
 control/host h32 still queued, and cannot run: NEW #286 (ASKS) proves the Host autopilot on laptop-gj8dfmlk is not running.
 
 17 Oct: Alpha#117 ALPHA 2.0 merged by V; first green build (#129); not yet built/tagged; rollout waits on V. Merged Alpha#125 (/auth/users was open to any account), #136; #279-#284. Brain deck hand-deployed on alpha-serv-01.
-NEW 18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V's review); #139 sync draft. HANDOFF_2026-10-18e/18f were committed as base64, unreadable. Drafts: Alpha#134/#135/#137/#138.
+18 Oct: #285 MERGED (Games deck live on alpha-serv-01; 3 Codex proposals wait for V's review); #139 sync draft. HANDOFF_18e/18f committed as base64. Drafts: Alpha#134/#135/#137/#138.
 Alpha#103 OPEN: memory/books rewrite; OPEN (credentials): Alpha#109 Spotify, #110 Ring. Alpha#113 OPEN: owner shell in the web UI.
 
-NEEDS V: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 13 untracked files; review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; go/no-go on the music-bridge billing pair, #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
 
 Open: #153, #249, #229 (drafts), #160 (conflicts), #136, #86, #83; old draft tail for V.
 Owner's rule: post in the tunnel before and after working on either laptop.
