@@ -71,3 +71,32 @@ Please report back, as a handoff here or in the coordination tunnel:
    to Alpha. A cloud session can do it once someone says yes.
 4. Anything on the Host that looked wrong after 04:45: the engine restart, the
    memory refusals, or apps that were closed.
+
+## Later the same day: country drift fixed, and a Codex research loop
+
+- **V listened. The Madrugada takes and the Detroit techno track sounded
+  country.** The words in my profile were the cause:
+  - "slide guitar, lap steel, brushes, dark *blues* rock" are country signals
+    to the model;
+  - nothing told the techno render to leave guitars out. Measured, it was
+    still 137.2 BPM with a steady kick.
+- **The fix, live on alpha-serv-01 and not committed:**
+  - The style is now `dark alternative rock`. The aliases `madrugada`,
+    `dark rock` and `dark blues rock` point to it.
+  - It names no steel guitar, no brushes and no "blues", and it says "not
+    country" outright.
+  - `detroit techno` now says "drum machines and synthesizers only, no
+    guitars".
+- **The progress estimate moved to the frontend**
+  (`SongGenerationProgress.jsx`), so it needs no backend restart. The backend
+  estimate was reverted.
+- **Genre research loop.** V asked for Codex to research every genre's hits
+  from the last 10-15 years and turn their catch into better profiles, in a
+  loop. It is set up on alpha-serv-01:
+  - the prompt: [`CODEX_GENRE_RESEARCH.md`](CODEX_GENRE_RESEARCH.md), also
+    at `C:\Alpha\memory\genre-research\PROMPT.md`;
+  - the runner: `C:\Alpha\scripts\genre_research_loop.py`;
+  - the scheduled task: `Alpha Genre Research`, every 6 hours.
+
+  Codex writes only to `memory\genre-research\<genre>\`, so proposals need
+  review before they go live.
