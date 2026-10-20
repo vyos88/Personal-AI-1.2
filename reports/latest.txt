@@ -1,4 +1,4 @@
-laptop41-doctor 20261020-175608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261020-185613 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,29 +6,29 @@ laptop41-doctor 20261020-175608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 4672 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   PROBLEM: standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  PROBLEM: automatic cover last ran 15415 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 15475 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.5 of 15.8 GB RAM free
+  PROBLEM: only 0.6 of 15.8 GB RAM free
   ok: C: 131.9 GB free
-  ok: CPU 63% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               8,003 MB  pid 5576
-  python                          738 MB  pid 15488
-  Memory Compression              426 MB  pid 3868
-  MsMpEng                         418 MB  pid 6128
-  ChatGPT                         359 MB  pid 2844
-  dwm                             310 MB  pid 2032
-  codex                           301 MB  pid 3652
-  ChatGPT                         284 MB  pid 6828
+  ok: CPU 59% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               8,144 MB  pid 5576
+  python                          651 MB  pid 15488
+  MsMpEng                         426 MB  pid 6128
+  ChatGPT                         356 MB  pid 2844
+  dwm                             308 MB  pid 2032
+  codex                           300 MB  pid 3652
+  ChatGPT                         275 MB  pid 6828
+  Memory Compression              187 MB  pid 3868
 
 === SUMMARY ===
-  this pass took 16s
-  - NEEDS A PERSON - automatic cover last ran 15415 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 781 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 42 run(s), since 2026-10-20T07:41:22)
-  - NEEDS A PERSON - only 0.5 of 15.8 GB RAM free  (open 14 run(s), since 2026-10-20T14:41:21)
+  this pass took 15s
+  - NEEDS A PERSON - automatic cover last ran 15475 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 785 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 46 run(s), since 2026-10-20T07:41:22)
+  - NEEDS A PERSON - only 0.6 of 15.8 GB RAM free  (open 18 run(s), since 2026-10-20T14:41:21)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 14 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 18 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
