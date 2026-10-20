@@ -93,3 +93,39 @@ here, and it is worth settling first, because it decides whether this is "two
 machines serving" or "a share of public requests reaching a machine that
 cannot serve them". The quickest check on the laptop is to fetch the site on
 `127.0.0.1:4173` and watch whether its API calls resolve.
+
+## Addendum 2, 2026-10-20 00:36Z — the site comes back, so step 2 above needs amending
+
+The preview server is not a leftover process sitting still; it restarted
+between passes. Reading `the site runs here (pid N` out of the doctor's last
+twelve passes:
+
+```
+2026-10-19T22:41:42+01:00  pid 16160   (first appearance, with the connector)
+2026-10-19T23:11:38+01:00  pid 16160
+2026-10-19T23:58:04+01:00  pid 16160
+2026-10-20T00:11:39+01:00  pid 16160
+2026-10-20T00:42:19+01:00  pid 36852   <- new pid, same command line
+2026-10-20T01:11:33+01:00  pid 36852
+```
+
+Same `alpha-preview.mjs 4173` command line both times, so it died or was
+stopped somewhere between `00:11:39` and `00:42:19` and came back. Whether a
+scheduled task, a wrapper, Alpha's own always-on runtime or a person restarted
+it is not visible from here — but every one of those readings has the same
+consequence for the remedy:
+
+**"stop the frontend preview (pid 16160)" in step 2 will not hold, and that pid
+no longer exists.** Whatever stopping is done has to disable the thing that
+starts it, which is exactly what `alpha-standdown` does and a bare kill does
+not (`docs/AUTOPILOT.md:71`: it "stops and disables `Alpha Backend` and
+`Alpha`, stops their wrapper trees and the node/python holding 8001 and 4173").
+So of the two paths that step offers, the `alpha-standdown` one is the only one
+that ends this; killing the process by pid would clear a doctor pass or two and
+then read as a fresh split-brain an hour later.
+
+`CLAUDE.md`'s note on the keeper is the same rule from the other side: anything
+that respawns a worker has to be asked to stand down, not killed, or the
+supervisor simply starts it again.
+
+Still read-only: nothing queued or changed here either.
