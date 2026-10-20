@@ -1,32 +1,31 @@
-laptop41-doctor 20261020-071116 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261020-072606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  backend port 8001 is occupied (pid 10480 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
-  PROBLEM: standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines
-  PROBLEM: automatic cover last ran 14770 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  backend port 8001 is occupied (pid 4672 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
+  ok: no site here (port 4173 free)
+  ok: no connector here
+  PROBLEM: automatic cover last ran 14785 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.7 of 15.8 GB RAM free
-  ok: C: 123.3 GB free
-  ok: CPU 88% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               5,807 MB  pid 13984
-  Memory Compression              722 MB  pid 3456
-  MsMpEng                         446 MB  pid 5244
-  python                          294 MB  pid 32896
-  dwm                             257 MB  pid 1900
-  explorer                        206 MB  pid 5408
-  msedge                          199 MB  pid 21828
-  powershell                      194 MB  pid 29956
+  ok: 6.8 of 15.8 GB RAM free
+  ok: C: 126.2 GB free
+  ok: CPU 85% (Alpha holds GPU admission at 90%)
+  MsMpEng                       1,014 MB  pid 6128
+  ChatGPT                         465 MB  pid 2844
+  ChatGPT                         405 MB  pid 6828
+  explorer                        337 MB  pid 10000
+  ChatGPT                         261 MB  pid 3212
+  codex                           247 MB  pid 3652
+  WindowsTerminal                 231 MB  pid 5576
+  msedge                          202 MB  pid 3656
 
 === SUMMARY ===
-  this pass took 18s
-  - NEEDS A PERSON - automatic cover last ran 14770 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 738 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 35 run(s), since 2026-10-19T22:41:29)
-  - NEEDS A PERSON - standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 35 run(s), since 2026-10-19T22:41:29)
-  + fixed since last run: CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 13s
+  - NEEDS A PERSON - automatic cover last ran 14785 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 739 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  + fixed since last run: standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
