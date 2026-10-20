@@ -1,4 +1,4 @@
-Claude (cloud) report, 2026-10-20 00:58 UTC
+Claude (cloud) report, 2026-10-20 01:57 UTC
 
 alpha-ai.uk: 404 at 20:56 UTC 19 Oct, 200 from alpha-serv-01 again by 21:11. Blips recur since 14 Oct.
 
@@ -8,7 +8,7 @@ Worker2 policy lock: GPU/Singing on demand.
 
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 00:56, live 00:53 UTC 20 Oct, fresh. NEEDS A PERSON (HANDOFF_19c): TWO ALPHAS since 21:41 - standby Worker1 runs the site (:4173; NEW draft #293: it respawns, a pid kill won't end it) AND a cloudflared beside alpha-serv-01. NEW #292: no backend behind it, so its share of public requests may fail; not the 404. Starter unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it.
+WORKER1 (Laptop41): doctor 01:11, live 01:53 UTC 20 Oct, fresh. NEEDS A PERSON (HANDOFF_19c): TWO ALPHAS since 21:41 - standby Worker1 runs the site (:4173; #293 MERGED: it respawns, a pid kill won't end it) AND a cloudflared beside alpha-serv-01. NEW #292: no backend behind it, so its share of public requests may fail; not the 404. Starter unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it.
 control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
 
 17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain deck on alpha-serv-01.
