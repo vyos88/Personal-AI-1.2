@@ -1,4 +1,4 @@
-laptop41-doctor 20261020-115606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261020-131106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,25 +6,25 @@ laptop41-doctor 20261020-115606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 4672 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   PROBLEM: standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  PROBLEM: automatic cover last ran 15055 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 15130 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.1 of 15.8 GB RAM free
+  ok: 2 of 15.8 GB RAM free
   ok: C: 132 GB free
-  ok: CPU 23% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,435 MB  pid 5576
-  python                          696 MB  pid 15488
-  Memory Compression              487 MB  pid 3868
-  MsMpEng                         455 MB  pid 6128
-  ChatGPT                         380 MB  pid 2844
-  ChatGPT                         323 MB  pid 6828
-  codex                           322 MB  pid 3652
-  explorer                        276 MB  pid 10000
+  ok: CPU 12% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               5,434 MB  pid 5576
+  python                          717 MB  pid 15488
+  Memory Compression              478 MB  pid 3868
+  MsMpEng                         464 MB  pid 6128
+  ChatGPT                         379 MB  pid 2844
+  codex                           327 MB  pid 3652
+  ChatGPT                         320 MB  pid 6828
+  explorer                        278 MB  pid 10000
 
 === SUMMARY ===
-  this pass took 24s
-  - NEEDS A PERSON - automatic cover last ran 15055 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 757 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 18 run(s), since 2026-10-20T07:41:22)
+  this pass took 13s
+  - NEEDS A PERSON - automatic cover last ran 15130 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 762 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 23 run(s), since 2026-10-20T07:41:22)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
