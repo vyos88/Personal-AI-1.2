@@ -7,7 +7,10 @@
 > - The scheduled task `Alpha Genre Research` (alpha-serv-01, registered 2026-10-20, first scheduled run about 10:22 local; the first pass, Dark alternative rock, was started by hand at 04:22 UTC) runs it every 6 hours, 1 hour cap, never two at once. A full
 >   pass over the 43 genres takes about 11 days, then it starts over, so the
 >   research follows the market.
-> - Codex writes only into `C:\Alpha\memory\genre-research\<genre>\`. Live
+> - Codex runs read-only, with web search only, and returns one JSON answer.
+>   The runner writes it into `C:\Alpha\memory\genre-research\<genre>\`.
+>   Codex's Windows sandbox could not start commands in a background run, so
+>   it is given everything it needs up front instead. Live
 >   profiles change only after review: V listens to a test render, then a
 >   reviewed PR applies the proposal.
 > - The text below the line is the prompt itself. The runner appends GENRE
@@ -39,16 +42,16 @@ or be clearly labelled as your own inference.
     with country-ish guitars, because nothing said what to leave out.
   - So every profile needs strong positive words AND explicit exclusions,
     meaning the neighbouring genre the model drifts toward.
-- Alpha reads two tables in `C:\Alpha\software\backend`. Read both, but do
-  not edit them:
+- Alpha reads two tables in `C:\Alpha\software\backend`. Their current
+  entries for GENRE are given at the end of this prompt:
   - `creative_production_knowledge.py` → `MUSIC_GENRES[genre]` =
     `{bpm:(lo,hi), modes[], form[], harmony[], instrumentation[], mix[]}`.
     The creator starts at the middle of the BPM range.
   - `music_genre_identity.py` → `IDENTITY[genre]` =
     `(rhythm, low end, opening, transition, vocal delivery)`. Rhythm, low end,
     transition and delivery are written straight into the caption.
-- The previous run's research for this genre, if any, is in this folder. Read
-  it first and refresh it. Do not redo it from scratch.
+- The previous run's research for this genre, if any, is given at the end as
+  `PREVIOUS_RESEARCH`. Refresh it rather than redoing it from scratch.
 
 ## Method
 
@@ -153,9 +156,20 @@ like those hits, not like a generic or neighbouring genre:
 - Artist names belong in the research and in `reference_artists`, not in the
   caption fields. The model may not know them, and they can mislead it.
 
-## What to write (in this folder only)
+## What to return
 
-1. **`research.md`**, for V and the reviewers:
+This run is read-only. You have web search, but no shell and no file access.
+Return everything as ONE JSON object in your final message, with nothing
+before or after it and no code fence:
+
+```
+{"research_md": "<the full research.md text>", "profile_proposed": {...}, "sources": [...]}
+```
+
+The runner writes these out as `research.md`, `profile.proposed.json` and
+`sources.json`, then validates them. What each one holds:
+
+1. **`research_md`** (becomes `research.md`), for V and the reviewers:
    - the corpus table: song, artist, year, success evidence, BPM, key, intro
      seconds, first-hook seconds, hook type, and the source for each fact;
    - the aggregate findings;
@@ -166,7 +180,7 @@ like those hits, not like a generic or neighbouring genre:
      by point;
    - confidence (high, medium or low) with reasons, and open questions;
    - a short changelog, if this genre was researched before.
-2. **`profile.proposed.json`**, exactly this shape:
+2. **`profile_proposed`** (becomes `profile.proposed.json`), exactly this shape:
    ```json
    {
      "genre": "<the GENRE key, lower case>",
@@ -186,14 +200,14 @@ like those hits, not like a generic or neighbouring genre:
      in after review.
    - `bpm` low must be below high, and both between 30 and 220.
    - `form` must have at least 3 sections.
-3. **`sources.json`**: every URL you used, each as
+3. **`sources`** (becomes `sources.json`): every URL you used, each as
    `{url, title, what_it_supported, accessed}`.
 
 ## Rules (not negotiable)
 
-- **Write only inside this genre's folder.** Do not edit anything under
-  `C:\Alpha\software`. Do not restart, stop or start any service. Do not run
-  the singing engine or the GPU. Do not commit, push or post.
+- **Read-only run.** Do not try to run commands, change files, restart
+  services or touch the GPU. You are sandboxed read-only, and the runner
+  writes your answer.
   - A human, or a separate reviewed step, decides whether a proposal goes
     live. The backend must stay up. V's standing rule: no backend restarts for
     this.
@@ -215,10 +229,10 @@ like those hits, not like a generic or neighbouring genre:
 - [ ] The catch is stated in plain words and backed by named songs.
 - [ ] The exclusions name the genre the model drifts to.
 - [ ] No neighbouring-genre word in the proposal without a note explaining it.
-- [ ] `profile.proposed.json` parses and has every field.
-- [ ] Nothing written outside this folder.
+- [ ] `profile_proposed` has every field, with valid values.
+- [ ] The final message is the single JSON object and nothing else.
 
-**Final message:** one paragraph covering:
+**`research_md` must open with a summary paragraph** covering:
 - the genre and the corpus size;
 - the catch, in one sentence;
 - the top 3 proposed changes;
