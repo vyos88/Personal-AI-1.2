@@ -1,24 +1,29 @@
 {
     "cloudSeen":  "2b6ffa26e536c59213f893e779b1732c6571ddb7",
-    "lastRun":  "2026-10-20T06:41:29",
+    "lastRun":  "2026-10-20T06:56:31",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "standby, but the site runs here (pid # node.exe: \"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\scripts\\alpha-preview.mjs # ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                                                                                                                                                                "since":  "2026-10-19T22:41:29",
-                                                                                                                                                                                                                                                                                               "runs":  33,
+                                                                                                                                                                                                                                                                                               "runs":  34,
                                                                                                                                                                                                                                                                                                "text":  "standby, but the site runs here (pid 36852 node.exe: \"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\scripts\\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                                                                                                                                                            },
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  736,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 14740 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  737,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 14755 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      },
                  "standby, but # cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines":  {
                                                                                                                                    "since":  "2026-10-19T22:41:29",
-                                                                                                                                   "runs":  33,
+                                                                                                                                   "runs":  34,
                                                                                                                                    "text":  "standby, but 1 cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines"
-                                                                                                                               }
+                                                                                                                               },
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-10-20T06:56:31",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              }
              },
-    "lastPost":  "2026-10-20T06:41:29",
+    "lastPost":  "2026-10-20T06:56:31",
     "relay":  "relayed status/cloud 2b6ffa2"
 }
