@@ -129,3 +129,40 @@ that respawns a worker has to be asked to stand down, not killed, or the
 supervisor simply starts it again.
 
 Still read-only: nothing queued or changed here either.
+
+## Addendum 3, 2026-10-20 02:36Z — a 502 arrived, and it is NOT evidence of harm
+
+`alpha-ai.uk` answered 502 in the `20261020-031139` pass — the first public
+failure since the connector appeared — and cleared by `20261020-032639`. The
+tempting reading is that this is the split-brain biting: a request routed to
+Laptop41's connector, whose local backend (8001, held by the AlphaPanelFeed
+helper) cannot answer. **The rate says otherwise.**
+
+Reading `https://alpha-ai.uk/ answers <code>` out of all 200 doctor passes on
+`status/laptop41` (`2026-10-14T21:41:22+01:00` → `2026-10-20T03:26:39+01:00`),
+split at `2026-10-19T22:41:29` when the site and connector first appeared:
+
+| window | passes | non-200 | rate | codes |
+|---|---|---|---|---|
+| before the connector | 190 | 18 | **9.5%** | 502×7, 530×6, 404×4, no-answer×1 |
+| after the connector | 10 | 1 | **10%** | 502×1 |
+
+So 502 was already this tunnel's most common failure code, seven times over,
+days before Laptop41 had a connector at all — and the post-split rate is the
+same 1-in-10 to within one sample. **One 502 in ten passes is exactly what the
+baseline predicts**, and treating it as proof the second connector is serving
+broken responses would be reading noise as signal.
+
+What this does and does not settle, for the question Addendum 1 left open:
+
+- It **rules out** the quick inference. Nobody should cite this 502, or the next
+  one, as evidence the split-brain is breaking public traffic.
+- It does **not** clear the split-brain. At a 9.5% baseline, ten passes cannot
+  detect a change; distinguishing "the second connector adds failures" from
+  "the tunnel fails 1 pass in 10 anyway" needs on the order of a hundred passes
+  — roughly a day — which is far longer than this should be left running.
+- The direct check in Addendum 1 (fetch `127.0.0.1:4173` on the laptop and watch
+  whether its API calls resolve) still answers in seconds what the public rate
+  cannot answer in a day. That remains the thing to do first.
+
+Read-only as before: nothing queued or changed.
