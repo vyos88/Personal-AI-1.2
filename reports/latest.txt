@@ -1,0 +1,38 @@
+laptop41-doctor 20261021-004106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+
+=== 0. Standby: Alpha serves from alpha-serv-01 ===
+  role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
+  backend port 8001 is occupied (pid 11492 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
+  ok: no site here (port 4173 free)
+  ok: no connector here
+  PROBLEM: automatic cover last ran 15820 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+
+=== 7. Memory, disk, heaviest processes ===
+  ok: 8.7 of 15.8 GB RAM free
+  ok: C: 132.4 GB free
+  ok: CPU 44% (Alpha holds GPU admission at 90%)
+  ChatGPT                         458 MB  pid 10724
+  ChatGPT                         412 MB  pid 14120
+  MsMpEng                         342 MB  pid 5604
+  ChatGPT                         261 MB  pid 8988
+  explorer                        231 MB  pid 10276
+  msedge                          194 MB  pid 4192
+  StartMenuExperienceHost         173 MB  pid 10232
+  PhoneExperienceHost             162 MB  pid 14880
+
+=== SUMMARY ===
+  this pass took 17s
+  - NEEDS A PERSON - automatic cover last ran 15820 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 808 run(s), since 2026-10-11T04:41:17)
+  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  + fixed since last run: standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+
+=== RECOMMENDATIONS (ranked; re-ranked every run) ===
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
