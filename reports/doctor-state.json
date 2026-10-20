@@ -1,19 +1,19 @@
 {
     "cloudSeen":  "2b6ffa26e536c59213f893e779b1732c6571ddb7",
-    "lastRun":  "2026-10-20T21:11:29",
+    "lastRun":  "2026-10-20T22:11:37",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  794,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 15610 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  798,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 15670 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      },
                  "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                      "since":  "2026-10-20T07:41:22",
-                                                                                                                                                     "runs":  55,
+                                                                                                                                                     "runs":  59,
                                                                                                                                                      "text":  "standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                  }
              },
-    "lastPost":  "2026-10-20T21:11:29",
+    "lastPost":  "2026-10-20T22:11:37",
     "relay":  "relayed status/cloud 2b6ffa2"
 }
