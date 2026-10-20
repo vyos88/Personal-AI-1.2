@@ -1,4 +1,4 @@
-laptop41-doctor 20261020-092627 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261020-104108 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,26 +6,25 @@ laptop41-doctor 20261020-092627 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 4672 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   PROBLEM: standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  PROBLEM: automatic cover last ran 14906 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 14980 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.8 of 15.8 GB RAM free
-  ok: C: 124.5 GB free
-  ok: CPU 88% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,222 MB  pid 5576
-  python                          675 MB  pid 15488
-  python                          599 MB  pid 4024
-  python                          582 MB  pid 6752
-  Memory Compression              487 MB  pid 3868
-  MsMpEng                         460 MB  pid 6128
-  ChatGPT                         379 MB  pid 2844
-  ChatGPT                         318 MB  pid 6828
+  ok: 4.1 of 15.8 GB RAM free
+  ok: C: 132 GB free
+  ok: CPU 25% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,303 MB  pid 5576
+  python                          756 MB  pid 15488
+  Memory Compression              476 MB  pid 3868
+  MsMpEng                         446 MB  pid 6128
+  ChatGPT                         381 MB  pid 2844
+  ChatGPT                         329 MB  pid 6828
+  codex                           322 MB  pid 3652
+  explorer                        275 MB  pid 10000
 
 === SUMMARY ===
-  this pass took 35s
-  - NEEDS A PERSON - automatic cover last ran 14906 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 747 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 8 run(s), since 2026-10-20T07:41:22)
-  + fixed since last run: CPU 91% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 22s
+  - NEEDS A PERSON - automatic cover last ran 14980 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 752 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the site runs here (pid 10840 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 13 run(s), since 2026-10-20T07:41:22)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
