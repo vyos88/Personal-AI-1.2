@@ -1,4 +1,4 @@
-laptop41-doctor 20261020-032608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261020-041105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,27 +6,26 @@ laptop41-doctor 20261020-032608 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   backend port 8001 is occupied (pid 10480 pythonw.exe: "C:\Users\Vyo\AppData\Local\Programs\Python\Python312\pythonw.exe" "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/alpha_<redacted>" --policy "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/policy.json" --receipt "C:/Users/Vyo/AppData/Local/AlphaPanelFeed/latest.json"), but its listener did not return a successful /health response; not counted as a second Alpha
   PROBLEM: standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   PROBLEM: standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines
-  PROBLEM: automatic cover last ran 14545 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  PROBLEM: automatic cover last ran 14590 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 4.7 of 15.8 GB RAM free
-  ok: C: 123.4 GB free
-  ok: CPU 42% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,314 MB  pid 13984
-  python                          603 MB  pid 32896
-  MsMpEng                         477 MB  pid 5244
-  claude                          378 MB  pid 1332
-  node                            217 MB  pid 37668
-  dwm                             216 MB  pid 1900
-  powershell                      203 MB  pid 29956
-  codex                           196 MB  pid 17264
+  ok: 4.2 of 15.8 GB RAM free
+  ok: C: 123.3 GB free
+  ok: CPU 52% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,881 MB  pid 13984
+  python                          575 MB  pid 32896
+  MsMpEng                         488 MB  pid 5244
+  claude                          388 MB  pid 1332
+  dwm                             229 MB  pid 1900
+  node                            221 MB  pid 37668
+  powershell                      193 MB  pid 29956
+  codex                           191 MB  pid 15296
 
 === SUMMARY ===
   this pass took 20s
-  - NEEDS A PERSON - automatic cover last ran 14545 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 723 run(s), since 2026-10-11T04:41:17)
-  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 20 run(s), since 2026-10-19T22:41:29)
-  - NEEDS A PERSON - standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 20 run(s), since 2026-10-19T22:41:29)
-  + fixed since last run: https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
+  - NEEDS A PERSON - automatic cover last ran 14590 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 726 run(s), since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 23 run(s), since 2026-10-19T22:41:29)
+  - NEEDS A PERSON - standby, but the site runs here (pid 36852 node.exe: "C:\Program Files\nodejs\node.exe" C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend\scripts\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 23 run(s), since 2026-10-19T22:41:29)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
