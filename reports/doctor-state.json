@@ -1,24 +1,29 @@
 {
-    "cloudSeen":  "c93dd68e61b7a3b9ee90baac172a50adb2c8ae76",
-    "lastRun":  "2026-10-20T02:11:24",
+    "cloudSeen":  "9b40c004d956f93fe25c99008c54bccf8571e8aa",
+    "lastRun":  "2026-10-20T03:11:20",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "standby, but the site runs here (pid # node.exe: \"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\scripts\\alpha-preview.mjs # ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                                                                                                                                                                "since":  "2026-10-19T22:41:29",
-                                                                                                                                                                                                                                                                                               "runs":  15,
+                                                                                                                                                                                                                                                                                               "runs":  19,
                                                                                                                                                                                                                                                                                                "text":  "standby, but the site runs here (pid 36852 node.exe: \"C:\\Program Files\\nodejs\\node.exe\" C:\\Users\\Vyo\\Downloads\\VyoS-advance-tech-ai\\software\\frontend\\scripts\\alpha-preview.mjs 4173 ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                                                                                                                                                            },
                  "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
                                                                                                                                                                                                          "since":  "2026-10-11T04:41:17",
-                                                                                                                                                                                                         "runs":  718,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 14470 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                         "runs":  722,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 14530 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
                                                                                                                                                                                                      },
+                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
+                                                                                                                                                               "since":  "2026-10-20T03:11:20",
+                                                                                                                                                               "runs":  1,
+                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
+                                                                                                                                                           },
                  "standby, but # cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines":  {
                                                                                                                                    "since":  "2026-10-19T22:41:29",
-                                                                                                                                   "runs":  15,
+                                                                                                                                   "runs":  19,
                                                                                                                                    "text":  "standby, but 1 cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines"
                                                                                                                                }
              },
-    "lastPost":  "2026-10-20T01:56:33",
-    "relay":  "relayed status/cloud c93dd68"
+    "lastPost":  "2026-10-20T03:11:20",
+    "relay":  "relayed status/cloud 9b40c00"
 }
