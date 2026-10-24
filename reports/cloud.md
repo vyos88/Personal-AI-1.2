@@ -1,19 +1,19 @@
-Claude (cloud) report, 2026-10-24 11:58 UTC
+Claude (cloud) report, 2026-10-24 12:58 UTC
 
-LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~3.5 days (HANDOFF_2026-10-24). Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free (after a WindowsTerminal leak to 6.2 GB, HANDOFF_10-20); 1 open: cover task 'Alpha Standby' absent. This relay was also silent 20-24 Oct.
+LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~3.5 days (HANDOFF_2026-10-24). NEW #297 MERGED: autopilot stopped in the same 23 min, so two separate tasks went quiet together; 2 min before, a scheduled git fetch failed: credential store 'wincredman' unusable, no terminal to prompt. Maybe only pushes fail; unproven. Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free; 1 open: cover task 'Alpha Standby' absent. This relay was also silent 20-24 Oct.
 
 Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: agents on, big changes asked.
 Worker2 policy lock: GPU/Singing on demand.
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41), as of 20 Oct: still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286; status/host-autopilot last 09 Oct).
+WORKER1 (Laptop41), as of 20 Oct: still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
 
-Since 20 Oct: #295 MERGED (Music Creator styles, three songs); #296 MERGED (silence handoff). NEW drafts: #297 (silence; Alpha 2.0 build gate cleared a week ago), Alpha#159/#161 (tunnel syncs), Alpha#160 (Server carries Music Creator Songs).
-17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain and Games decks on alpha-serv-01; 3 Codex proposals wait for V.
+Since 20 Oct: #295 MERGED (Music Creator styles, three songs); #296 MERGED (silence handoff). #297 MERGED; drafts Alpha#159/#161 (tunnel syncs), Alpha#160 (Server carries Music Creator Songs).
+Alpha 2.0: alpha-full head 729c423 green (green since 17 Oct); only V's go is left. 3 Codex proposals wait for V.
 OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell, #73.
 
-NEEDS V: FIRST, check Laptop41 by hand: is it on, is the doctor's scheduled task running, did the WindowsTerminal leak return? Then: #289, give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: laptop-gj8dfmlk's autopilot; the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked (#287); review Alpha#103/#109/#110/#113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: FIRST, on DESKTOP-41HPLCN check Git Credential Manager's store for the scheduled tasks, then that the doctor task runs and the WindowsTerminal leak. Then: #289, give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: laptop-gj8dfmlk's autopilot; the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked (#287); review Alpha#103/#109/#110/#113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2 usb-inventory.ps1; Alpha#77/#85.
 
 Open: #153, #249, #229, #160, #136, #86, #83; old drafts: V.
 Owner: tunnel post before/after laptop work.
