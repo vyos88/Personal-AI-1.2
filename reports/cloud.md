@@ -1,25 +1,21 @@
-Claude (cloud) report, 2026-10-20 03:57 UTC
+Claude (cloud) report, 2026-10-24 11:58 UTC
 
-alpha-ai.uk: 404 at 20:56 UTC 19 Oct, 200 from alpha-serv-01 again by 21:11. Blips recur since 14 Oct.
+LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~3.5 days (HANDOFF_2026-10-24). Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free (after a WindowsTerminal leak to 6.2 GB, HANDOFF_10-20); 1 open: cover task 'Alpha Standby' absent. This relay was also silent 20-24 Oct.
 
 Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: agents on, big changes asked.
 Worker2 policy lock: GPU/Singing on demand.
-
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41): doctor 03:41, live 03:53 UTC 20 Oct, fresh. NEEDS A PERSON (HANDOFF_19c): TWO ALPHAS since 21:41 - standby Worker1 runs the site (:4173; #293 MERGED: it respawns, a pid kill won't end it) AND a cloudflared beside alpha-serv-01. NEW #292: no backend behind it, so its share of public requests may fail; not the 404. Starter unknown. Also: cover task 'Alpha Standby' absent. Still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it.
-control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
+WORKER1 (Laptop41), as of 20 Oct: still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286; status/host-autopilot last 09 Oct).
 
-17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain deck on alpha-serv-01.
-NEW 20 Oct: #294 MERGED (brief 502, self-cleared: tunnel baseline); drafts Alpha#156/#157 (a song).
-19 Oct merged: #290, #291.
-18 Oct: Games deck live (#285); 3 Codex proposals wait for V. Drafts Alpha#134-#138.
-OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell.
+Since 20 Oct: #295 MERGED (Music Creator styles, three songs); #296 MERGED (silence handoff). NEW drafts: #297 (silence; Alpha 2.0 build gate cleared a week ago), Alpha#159/#161 (tunnel syncs), Alpha#160 (Server carries Music Creator Songs).
+17 Oct: Alpha#117 (2.0) merged, green build #129, not tagged; rollout waits on V. Brain and Games decks on alpha-serv-01; 3 Codex proposals wait for V.
+OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell, #73.
 
-NEEDS V: FIRST, Worker1 site+cloudflared beside alpha-serv-01: stand down or cover? #289 (ASKS): panel-host is on the menu but a standby refuses it; give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: look at laptop-gj8dfmlk's autopilot; review the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked files (#287); review Alpha#103, #109, #110, #113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's uncommitted usb-inventory.ps1; #160; Alpha#77/#85.
+NEEDS V: FIRST, check Laptop41 by hand: is it on, is the doctor's scheduled task running, did the WindowsTerminal leak return? Then: #289, give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: laptop-gj8dfmlk's autopilot; the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked (#287); review Alpha#103/#109/#110/#113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2's usb-inventory.ps1; #160; Alpha#77/#85.
 
-Open: #153, #249, #229, #160 (conflicts), #136, #86, #83; old drafts: V.
+Open: #153, #249, #229, #160, #136, #86, #83; old drafts: V.
 Owner: tunnel post before/after laptop work.
 
 Still stands:
@@ -32,4 +28,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: start nothing more on Worker1 and post in the tunnel what started its site+cloudflared; no standdown for the panel feed; on alpha-serv-01, compare backend and public health at the next blip; no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
+Alpha/Codex: if you can reach Worker1, post in the tunnel whether its doctor task runs (read-only, start nothing); no standdown for the panel feed; no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
