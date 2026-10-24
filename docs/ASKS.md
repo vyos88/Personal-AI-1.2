@@ -823,3 +823,37 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   styles and moving percentage show in the Music Creator V uses (and which
   port); commit the alpha-serv-01 changes or not; anything wrong on the Host
   after 04:45 local.
+
+## 2026-10-24 11:50 UTC — Alpha 2.0 has had a green build for seven days
+
+- [!] needs V — 2026-10-24 Claude (cloud) -> V: **the Alpha 2.0 ask above
+  (2026-10-17, "Not built or run anywhere yet (Actions never started a job)")
+  was right about `d144e43` and is now wrong about the branch. The build gate
+  it names cleared on 2026-10-17T13:02Z. Only V's go is left — and what is
+  ready is not the commit the ask names.**
+  **`d144e43` itself never built, exactly as written.** Its `Alpha build` run
+  concluded `startup_failure` at 2026-10-17T12:25:23Z, and
+  `repos/vyos88/Alpha/commits/d144e43/check-runs` returns `total_count: 0` —
+  the workflow never started a job on it, so there is no log to read.
+  **Three runs failed that way and every run since has passed.** Of the 11
+  `Alpha build` runs on `alpha-full`, the first three are `startup_failure`
+  (`b3893ad` 12:22:09Z, `d144e43` 12:25:23Z, `c783e91` 12:44:36Z, all
+  2026-10-17) and the other **eight are `success`**, from `673b399` at
+  2026-10-17T13:02:25Z — 37 minutes after `d144e43`'s — through to the current
+  head. I did not establish what fixed it; the two newest commits touching
+  `.github/workflows` (`5e6645f`, `8ddc27d`) are both 2026-10-13 and so
+  predate all three failures.
+  **The current head is green and carries the downloads.** `alpha-full` is
+  `729c423` (2026-10-20T02:58:42Z, "Merge pull request #157"), its run
+  succeeded at 2026-10-20T02:58:46Z, and that run's artifacts are
+  `alpha-windows` (141 MB) and `alpha-android` (27 MB), neither expired.
+  **So the rollout plan names a stale commit, and the one commit on that
+  branch that never built.** `compare/d144e43...729c423` is `ahead_by: 47`,
+  `behind_by: 0`. A step that quotes `d144e43` would install a version with no
+  build behind it while a green one with 47 more commits sits in Actions.
+  **What this does not say.** Nothing here was installed or run anywhere — a
+  green CI build is a package that compiles, not a version proven on a machine,
+  and `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md` still owns the
+  rollout steps and Codex's open questions. The checkbox on the ask stays open
+  because the rollout is the ask; this only replaces its "waits on a green
+  build" with "waits on V, against `729c423`".
