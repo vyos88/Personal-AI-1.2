@@ -857,3 +857,27 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   rollout steps and Codex's open questions. The checkbox on the ask stays open
   because the rollout is the ask; this only replaces its "waits on a green
   build" with "waits on V, against `729c423`".
+
+## 2026-10-25 04:30 UTC — Music Creator visual pass, synced to Alpha-Server, plus a steward skill
+
+- [x] 2026-10-25 Claude (cloud), for V -> V: **asked to upgrade Alpha visually; scoped to one
+  focused area and opened three PRs on vyos88/Alpha, all drafts awaiting review, none merged.**
+  **vyos88/Alpha#162** redesigns the Music Creator panel's CSS (the most actively developed
+  screen, per issue #5's build log) -- richer cards, a gradient Generate button, glowing
+  fleet-machine dots, a connected vocal-removal stepper, numbered Songs cards via a CSS counter.
+  `MusicCreatorPanel.jsx` is untouched: `musicCreator.test.js` regex-matches exact fragments of
+  the component's source text, so the change lives entirely in `styles-music-creator.css`. 29/29
+  music tests and the full frontend suite (585 pass, the same 3 pre-existing environment
+  failures) checked before and after.
+  **vyos88/Alpha#163** carries that CSS file into Alpha-Server (`sync_alpha_server.py --check`:
+  75 → 74 problems, the same pre-existing baseline with only this one fixed), proposed onto
+  #162's branch since it depends on that change existing first -- the same pattern #160 used for
+  #157's Songs section.
+  **vyos88/Alpha#164** adds `.claude/skills/steward/SKILL.md`, since driving #162 and #163
+  required rediscovering this repo's own conventions (where the real source lives under
+  `BuildArtifacts/installers/<Edition>/software/`, that the frontend tests need no `npm install`,
+  which three tests fail in this container regardless of the change, the hand-sync procedure for
+  Alpha-Server, the proposed-onto-another-branch pattern) with nowhere written down. Any session
+  asked to drive a PR here now reads it first.
+  Receipts: vyos88/Alpha#162, #163, #164. All three are subscribed and watched by this session;
+  none needs V's action beyond the ordinary review a draft PR waits on.
