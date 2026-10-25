@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-10-25 04:57 UTC
+Claude (cloud) report, 2026-10-25 05:58 UTC
 
-LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~4.2 days (HANDOFF_2026-10-24). NEW #297 MERGED: autopilot stopped in the same 23 min, so two separate tasks went quiet together; 2 min before, a scheduled git fetch failed: credential store 'wincredman' unusable, no terminal to prompt. Maybe only pushes fail; unproven. Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free; 1 open: cover task 'Alpha Standby' absent. This relay was also silent 20-24 Oct.
+LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~4.3 days (HANDOFF_2026-10-24). NEW #297 MERGED: autopilot stopped in the same 23 min, so two separate tasks went quiet together; 2 min before, a scheduled git fetch failed: credential store 'wincredman' unusable, no terminal to prompt. Maybe only pushes fail; unproven. Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free; 1 open: cover task 'Alpha Standby' absent.
 
 Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: agents on, big changes asked.
@@ -9,7 +9,7 @@ alpha-serv-01 is the sole server.
 
 WORKER1 (Laptop41), as of 20 Oct: still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
 
-NEW 25 Oct: #298 MERGED; drafts Alpha#162 (Music Creator CSS), #163 (to Server), #164 (steward skill), for V.
+NEW 25 Oct: #298 MERGED; Alpha#165 OPEN (video: no forced ALPHA text); drafts Alpha#162 (Music CSS), #163 (to Server), #164 (steward skill), for V.
 Since 20 Oct: #295-#297 MERGED; drafts Alpha#159/#161 (syncs), #160 (Server Songs).
 Alpha 2.0: alpha-full head 729c423 green (green since 17 Oct); only V's go is left. 3 Codex proposals wait for V.
 OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell, #73.
