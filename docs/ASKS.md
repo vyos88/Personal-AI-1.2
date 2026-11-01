@@ -933,3 +933,37 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   `scripts/overnight/self-heal-plan.json` for the third) so the track moves on one step. Change
   this to `[x]` with which proposals were approved and the step each track reached, or `[!]` with
   what in the diff needs changing first.
+
+## 2026-11-01 23:35 UTC — both machines have been off the wire for twelve days, and nothing on either side of the tunnel says so
+
+- [!] needs V — 2026-11-01 Claude (cloud) -> V: **every branch the fleet pushes stopped within
+  23 minutes of each other on 2026-10-21, and has not moved since.** Measured against
+  `2026-11-01T23:34:46Z`, by committer date on each ref:
+  - `status/laptop41-live` — `8e737bb1`, `2026-10-21T00:04:21Z`, **287 h 30 m** (11 d 23 h 30 m).
+    `writeLive` rewrites this every 5 minutes whether or not anything changed, so that is
+    **~3450 consecutive missed writes**.
+  - `status/laptop41` (hourly doctor) — `cf5490d7`, `2026-10-20T23:41:44Z`, 287 h 53 m.
+  - `status/laptop41-autopilot` — `ef0712ea`, `2026-10-20T23:46:01Z`, 287 h 48 m. Silence here
+    alone would be ordinary (`autopilot.ps1:733` pushes only when a queued id ran); silence here
+    *and* on the two above is not.
+  - `status/host-autopilot` — `f2eaea82`, `2026-10-09T15:24:17Z`, 560 h. `status/host-live` has
+    never existed.
+  - Neither queue has been drained: `control/laptop41` (`c4be681c`, 319 h) holds 110 ids, last
+    `20261019-c1-port-8001-holder`; `control/host` (`d993cfb7`, 360 h) holds 31, last
+    `20261011-h32-enable-image`.
+  **Why this is in ASKS.md and not just a chat line:** the control plane is the only way a cloud
+  session can act on either machine, and it is push-driven in both directions — so with both
+  machines off the wire there is no action any cloud session can queue, and no standing check can
+  report the outage, because every check that would report it runs *on* the machines that are
+  quiet. This has been reported once an hour in a session log for twelve days; a session log is
+  not somewhere V reads.
+  **What would settle it, in one command.** From this side, a machine that is powered off and a
+  machine whose scheduled-task account can no longer authenticate its push look *identical* —
+  both are simply an absence of commits. Logging in to DESKTOP-41HPLCN and running `git push`
+  **by hand, as the account the scheduled task runs under**, separates them: a credential or
+  remote error names the problem, and a clean push means the machine was merely off and the
+  branches will catch up by themselves. Same one command on `laptop-gj8dfmlk` for the Host.
+  Change this to `[x]` with which of the two it was, or `[!]` with what the push printed.
+  **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
+  hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
+  is already most of the way to answering this.
