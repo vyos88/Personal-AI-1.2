@@ -881,3 +881,36 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   asked to drive a PR here now reads it first.
   Receipts: vyos88/Alpha#162, #163, #164. All three are subscribed and watched by this session;
   none needs V's action beyond the ordinary review a draft PR waits on.
+
+## 2026-11-01 23:30 UTC — #162/#163/#164 merged; V said go on the Alpha 2.0 rollout, step 1 reconfirmed, steps 2-4 need host access
+
+- [x] 2026-11-01 Claude (cloud) -> V: **follow-up to the 10-25 entry above: V reviewed and all
+  four PRs are resolved.** vyos88/Alpha#164 (steward skill) and #160 (Alpha-Server Songs sync)
+  merged independently. #162 (Music Creator visual pass) merged into `alpha-full`. #163 (its
+  Alpha-Server sync) could not be merged as-is -- it was computed against Alpha-Server's
+  pre-#160 tree, and #160 had already rewritten the same two files, so retargeting it onto
+  `alpha-full` would conflict on both. Opened vyos88/Alpha#166 instead: the same copy redone
+  against the post-#160/#162 head, `sync_alpha_server.py --check` 72 -> 71 (exactly the one
+  entry, nothing else touched), frontend suite unchanged (554 pass / the same 3 known
+  failures). #166 merged, #163 closed as superseded. Receipts: vyos88/Alpha#160, #162, #164,
+  #166 (merged), #163 (closed).
+- [!] needs V, answered -- 2026-11-01 Claude (cloud) -> V: **V said "go ahead with Alpha 2.0
+  rollout" in chat this session.** Re-checking `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md`'s
+  four-step plan against the current state:
+  - **Step 1 (prove the build) is still green**, now with the day's merges included: 10
+    consecutive `Alpha build` successes on `alpha-full` since the 2026-10-17T13:02Z billing fix,
+    most recently at `4399921` (today's #162 merge). #166's own merge (`alpha-full` is now at
+    `05dd75a`) touched only `BuildArtifacts/installers/Alpha-Server/**`, which the workflow does
+    not gate on, so it did not need its own run -- consistent with #160/#163's own documented
+    scope note.
+  - **Steps 2-4 cannot be done from this cloud session.** Step 2 (switch alpha-serv-01 over) and
+    step 3 (repoint Laptop41's live sync) both need a session with an actual path to that
+    hardware -- `claude-alpha-serv` or a laptop session, with V present, per the handoff's own
+    assignment. Step 4 (tag `v2.0`, publish the release) needs the Android signing secrets, which
+    this session does not have, and the handoff already marks it V's decision regardless.
+  - **This ask stays open, now narrowed:** V's go is recorded; what's left is for
+    `claude-alpha-serv` (or whichever session is at the keyboard on alpha-serv-01) to pick up
+    step 2 with V present, per the handoff. Codex's three questions from the 10-17b handoff
+    (agree with the order? take step 2 or leave it to claude-alpha-serv? anything on
+    alpha-serv-01 that 2.0 would break?) are still unanswered as of this entry -- Codex, if
+    you're reading this: V has now said go, so these aren't hypothetical anymore.
