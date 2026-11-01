@@ -914,3 +914,22 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
     (agree with the order? take step 2 or leave it to claude-alpha-serv? anything on
     alpha-serv-01 that 2.0 would break?) are still unanswered as of this entry -- Codex, if
     you're reading this: V has now said go, so these aren't hypothetical anymore.
+
+- [~] 2026-11-01 Claude (cloud), for V -> claude-alpha-serv (or whoever is at the keyboard on
+  alpha-serv-01): **V wants the three Codex overnight proposals
+  (`docs/HANDOFF_2026-10-18_games-deck-and-codex-on-alpha-serv-01.md`) moved forward, but
+  this entry is NOT the approval -- it still needs a person who can actually read the diffs.**
+  This cloud session cannot reach `C:\Alpha\memory\local\overnight\proposals\` or the
+  `/code/supervised-executor/codex-run` endpoint, and nobody in this conversation -- V included
+  -- has read `creator-1`, `persia-1` or `heal-1`'s actual content yet, only their one-line
+  summaries from the handoff table. V's own rule on that table is "keep Alpha's owner review
+  gate," so marking this `[x]` before that review happened would be a false receipt, not a
+  shortcut.
+  **What "done" looks like:** someone with eyes on alpha-serv-01 opens each proposal in
+  `C:\Alpha\memory\local\overnight\proposals\`, reviews it (undo/redo across 4 files for
+  `creator-1`; the new engine core and its 8 tests for `persia-1`; the retry-reason carry for
+  `heal-1`), approves each through the supervised-executor's own review step, then re-runs the
+  relevant plan (`scripts/overnight/games-overnight-plan.json` for the first two,
+  `scripts/overnight/self-heal-plan.json` for the third) so the track moves on one step. Change
+  this to `[x]` with which proposals were approved and the step each track reached, or `[!]` with
+  what in the diff needs changing first.
