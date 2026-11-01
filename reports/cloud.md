@@ -1,22 +1,22 @@
-Claude (cloud) report, 2026-10-25 05:58 UTC
+Claude (cloud) report, 2026-11-01 23:58 UTC
 
-LAPTOP41 HAS GONE QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~4.3 days (HANDOFF_2026-10-24). NEW #297 MERGED: autopilot stopped in the same 23 min, so two separate tasks went quiet together; 2 min before, a scheduled git fetch failed: credential store 'wincredman' unusable, no terminal to prompt. Maybe only pushes fail; unproven. Its last pass: alpha-ai.uk 200 from alpha-serv-01; the Worker1 site+cloudflared split-brain had CLEARED; RAM 8.7 GB free; 1 open: cover task 'Alpha Standby' absent.
+LAPTOP41 STILL QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~12 days (HANDOFF_2026-10-24). Autopilot stopped too; just before, git fetch failed: credential store 'wincredman' unusable. Last pass: alpha-ai.uk 200 from alpha-serv-01; 1 open: cover task 'Alpha Standby' absent.
 
 Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: agents on, big changes asked.
 Worker2 policy lock: GPU/Singing on demand.
 alpha-serv-01 is the sole server.
 
-WORKER1 (Laptop41), as of 20 Oct: still on c1aa435, 32 behind: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
+WORKER1 (Laptop41), as of 20 Oct: on c1aa435: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
 
-NEW 25 Oct: #298 MERGED; Alpha#165 OPEN (video: no forced ALPHA text); drafts Alpha#162 (Music CSS), #163 (to Server), #164 (steward skill), for V.
-Since 20 Oct: #295-#297 MERGED; drafts Alpha#159/#161 (syncs), #160 (Server Songs).
-Alpha 2.0: alpha-full head 729c423 green (green since 17 Oct); only V's go is left. 3 Codex proposals wait for V.
-OPEN: Alpha#103 memory/books, #109 Spotify, #110 Ring, #113 owner shell, #73.
+NEW 1 Nov: #299 and #300 MERGED (docs/ASKS.md). Alpha#160, #162, #164, #166 merged; #163 closed (superseded by #166); #167 closed.
+V SAID GO on the Alpha 2.0 rollout. Step 1 (build) still green: alpha-full 05dd75a, 10 green runs since 17 Oct. Steps 2-3 need claude-alpha-serv at alpha-serv-01 with V present; step 4 (tag v2.0) needs Android signing secrets. Plan: HANDOFF_2026-10-17b.
+V wants the 3 Codex overnight proposals (creator-1, persia-1, heal-1, HANDOFF_2026-10-18) moved forward, but nobody has read the diffs: someone at alpha-serv-01 must review and approve each. Not approved.
+Open: Alpha#165 (video text); drafts #159/#161 (syncs); #103 books, #109 Spotify, #110 Ring, #113 shell, #73.
 
-NEEDS V: FIRST, on DESKTOP-41HPLCN check Git Credential Manager's store for the scheduled tasks, then that the doctor task runs and the WindowsTerminal leak. Then: #289, give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: laptop-gj8dfmlk's autopilot; the 3 Codex proposals; 2.0 rollout go (Android signing secrets missing); Worker1's 2 edits + 13 untracked (#287); review Alpha#103/#109/#110/#113; billing pair #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234; Worker2 usb-inventory.ps1; Alpha#77/#85.
+NEEDS V: FIRST, on DESKTOP-41HPLCN check Git Credential Manager's store for the scheduled tasks, then the doctor task. Then: be present for 2.0 step 2 on alpha-serv-01; review the 3 Codex proposals there; #289, give alpha-serv-01 a home-WiFi address for the panel, or bring Alpha back to Worker1? Also: laptop-gj8dfmlk's autopilot; Android signing secrets; Worker1's 2 edits + 13 untracked (#287); review Alpha#103/#109/#110/#113/#165; billing #274 + Alpha#95; re-issue agent keys; .env.local to alpha-serv-01 by USB; GPU gate #234.
 
-Open: #153, #249, #229, #160, #136, #86, #83; old drafts: V.
+Open: #153, #249, #229, #136, #86, #83; old drafts: V.
 Owner: tunnel post before/after laptop work.
 
 Still stands:
@@ -29,4 +29,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status.
 
-Alpha/Codex: if you can reach Worker1, post in the tunnel whether its doctor task runs (read-only, start nothing); no standdown for the panel feed; no 2.0 rollout until V says go; leave Alpha#103/#109/#110/#113 for V. Alpha: ASKS line 1; C3 and C5, read-only.
+Alpha/Codex: Codex, answer the 3 questions in HANDOFF_2026-10-17b; 2.0 step 2 only with V present; do not approve the Codex proposals unread; if you can reach Worker1, post whether its doctor task runs (read-only); leave Alpha#103/#109/#110/#113 for V. Alpha: C3 and C5, read-only.
