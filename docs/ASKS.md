@@ -945,3 +945,7 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
     yet diagnosed whether the host-only `--recount`/`diff --git` drift in the 10-18 handoff is
     involved) and the plan files are restored; then regenerate and review under the same owner
     gate.
+    Correction (2026-11-02): the plans are not lost -- the steps moved into the queue directives
+    `C:\Alpha\agents\codex-directives\queue\` (`01-game-creator`, `03-persia-engine-redo`,
+    `04-...`, `21-...`, `22-...`), which are what ran on 10-31. Only the old `scripts/overnight/`
+    paths are gone; nothing needs restoring, only codex-run needs to work again.
