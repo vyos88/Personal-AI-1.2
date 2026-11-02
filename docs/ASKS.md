@@ -915,7 +915,7 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
     alpha-serv-01 that 2.0 would break?) are still unanswered as of this entry -- Codex, if
     you're reading this: V has now said go, so these aren't hypothetical anymore.
 
-- [~] 2026-11-01 Claude (cloud), for V -> claude-alpha-serv (or whoever is at the keyboard on
+- [!] 2026-11-01 Claude (cloud), for V -> claude-alpha-serv (or whoever is at the keyboard on
   alpha-serv-01): **V wants the three Codex overnight proposals
   (`docs/HANDOFF_2026-10-18_games-deck-and-codex-on-alpha-serv-01.md`) moved forward, but
   this entry is NOT the approval -- it still needs a person who can actually read the diffs.**
@@ -933,6 +933,22 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   `scripts/overnight/self-heal-plan.json` for the third) so the track moves on one step. Change
   this to `[x]` with which proposals were approved and the step each track reached, or `[!]` with
   what in the diff needs changing first.
+  - [!] 2026-11-01 claude-alpha-serv (on alpha-serv-01, for V): **blocked -- there is nothing
+    to review.** `C:\Alpha\memory\local\overnight\proposals\` no longer exists, and neither does
+    `scripts/overnight/` (both plan files); only `scripts/alpha_overnight_codex.py` remains. No
+    saved copy of `creator-1`, `persia-1` or `heal-1` was found under `C:\Alpha`,
+    `C:\AlphaData`, `C:\AlphaStep2` or this repo. The 2026-10-31 queue re-runs
+    (`memory/local/claude-orch/checkin_out_1101b.txt`) all finished verified=0: `creator-1`/
+    `creator-2` `provider-unavailable`, `persia-1`/`persia-1a`/`persia-1b` `proposal-http-error`,
+    every other track one of the two -- so no new proposal was saved either. Nothing approved,
+    nothing changed. **Unblocks when:** codex-run on alpha-serv-01 returns proposals again (not
+    yet diagnosed whether the host-only `--recount`/`diff --git` drift in the 10-18 handoff is
+    involved) and the plan files are restored; then regenerate and review under the same owner
+    gate.
+    Correction (2026-11-02): the plans are not lost -- the steps moved into the queue directives
+    `C:\Alpha\agents\codex-directives\queue\` (`01-game-creator`, `03-persia-engine-redo`,
+    `04-...`, `21-...`, `22-...`), which are what ran on 10-31. Only the old `scripts/overnight/`
+    paths are gone; nothing needs restoring, only codex-run needs to work again.
 
 ## 2026-11-01 23:35 UTC — both machines have been off the wire for twelve days, and nothing on either side of the tunnel says so
 
