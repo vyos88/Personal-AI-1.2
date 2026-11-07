@@ -10,7 +10,7 @@
  *
  * Each rendering machine enables ALPHA_EXTRA_HANDLERS=alpha-image,alpha-image-file
  * and runs its own generator (ALPHA_IMAGE_BACKEND, see alpha-image.js). The
- * bridge's port is not 7860, so a local A1111 can keep that one.
+ * The default bridge port is 7861; the Windows task can override it in the checkout's .env.
  *
  * Configuration (.env beside the checkout, or the environment):
  *   ALPHA_HOST_URL             coordinator (default http://127.0.0.1:8787)
@@ -31,24 +31,63 @@
 
 import { loadEnv } from '../src/common/env.js';
 import { fleetExecutionPolicy } from '../src/common/fleet-execution-policy.js';
-const ownerFleet = fleetExecutionPolicy();
-if (ownerFleet) {
- process.env.ALPHA_IMAGE_AGENT = ownerFleet.gpuAgent;
- process.env.ALPHA_IMAGE_ON_DEMAND = '1';
- process.env.ALPHA_IMAGE_DIRECT_URL = 'disabled';
-}
 import { createImageBridge, DEFAULT_LEASE_MS } from '../src/bridge/image.js';
 
-loadEnv();
+const ownerConfigKeys = [
+  'ALPHA_IMAGE_AGENT',
+  'ALPHA_IMAGE_ON_DEMAND',
+  'ALPHA_IMAGE_DIRECT_URL',
+  'ALPHA_IMAGE_BRIDGE_BIND',
+  'ALPHA_IMAGE_BRIDGE_PORT',
+  'ALPHA_IMAGE_MIN_MEMORY_MB',
+  'ALPHA_IMAGE_LEASE_MS',
+  'ALPHA_HOST_URL',
+];
+if (process.platform === 'win32') {
+  for (const name of ownerConfigKeys) delete process.env[name];
+}
+const ownerConfigLoaded = loadEnv();
+if (process.platform === 'win32' && !ownerConfigLoaded) {
+  console.error('Owner image bridge .env is unavailable; refusing to start');
+  process.exit(1);
+}
 
 const env = (name, fallback) => {
   const raw = process.env[name];
   return raw === undefined || raw.trim() === '' ? fallback : raw.trim();
 };
 
+let ownerFleet = null;
+if (process.platform === 'win32') {
+  try {
+    ownerFleet = fleetExecutionPolicy({
+      requestedGpuAgent: env('ALPHA_IMAGE_AGENT', null),
+    });
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
+  if (!ownerFleet) {
+    console.error('Owner fleet execution policy is unavailable; refusing to start');
+    process.exit(1);
+  }
+  if (ownerFleet.gpuAgent !== 'Worker2RTX') {
+    console.error('Alpha image bridge is fixed to Worker2RTX under owner policy');
+    process.exit(1);
+  }
+  process.env.ALPHA_IMAGE_AGENT = ownerFleet.gpuAgent;
+  // Keep GPU runtimes available. Each render still uses the authorized task
+  // queue and fresh resource admission; an absent worker is not woken on demand.
+  process.env.ALPHA_IMAGE_ON_DEMAND = '0';
+  process.env.ALPHA_IMAGE_DIRECT_URL = 'disabled';
+}
 const leaseMs = Number(env('ALPHA_IMAGE_LEASE_MS', DEFAULT_LEASE_MS));
 const port = Number(env('ALPHA_IMAGE_BRIDGE_PORT', 7861));
 const bind = env('ALPHA_IMAGE_BRIDGE_BIND', '127.0.0.1');
+if (ownerFleet && bind !== '127.0.0.1') {
+  console.error('Owner image bridge must bind to 127.0.0.1');
+  process.exit(1);
+}
 const hostUrl = env('ALPHA_HOST_URL', 'http://127.0.0.1:8787');
 if (!Number.isInteger(leaseMs) || leaseMs < 1_000 || leaseMs > 3_600_000) {
   console.error('ALPHA_IMAGE_LEASE_MS must be 1000-3600000 milliseconds');

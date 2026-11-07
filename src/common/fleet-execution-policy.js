@@ -2,12 +2,15 @@ import { readFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 
 const PATH = 'C:/Alpha/memory/local/device-execution-policy.json';
-// Roles the owner has granted. 'cpu-capped-gpu-demand' (owner instruction
-// 2026-10-17) keeps GPU and Singing on queued demand and also lends capped CPU.
-// An unknown role still refuses to start: the file is the owner's word.
+// Accept only roles that the owner has granted. An unknown role stops the
+// worker instead of widening its capabilities.
 const ROLES = new Set(['gpu-demand-only', 'cpu-capped-gpu-demand']);
+// The image bridge uses a stable, owner-allowlisted target rather than an
+// arbitrary machine from the fleet.
+const STABLE_GPU_TARGETS = new Set(['AlphaServer', 'Worker2RTX', 'JackRTX3050']);
 export function fleetExecutionPolicy({ path = PATH, platform = process.platform,
-  machine = hostname(), read = readFileSync } = {}) {
+  machine = hostname(), read = readFileSync,
+  requestedGpuAgent = undefined } = {}) {
   if (platform !== 'win32') return null;
   let raw;
   try { raw = read(path, 'utf8'); }
@@ -18,13 +21,41 @@ export function fleetExecutionPolicy({ path = PATH, platform = process.platform,
   const policies = Object.values(data.devices);
   if (policies.some((p) => !p || !ROLES.has(p.role))) throw new Error('Owner fleet role invalid');
   const targets = [...new Set(policies.map((p) => p.gpu_agent_name))];
-  if (targets.length !== 1 || typeof targets[0] !== 'string' || !targets[0].trim()) {
+  if (targets.some((target) => typeof target !== 'string' || !target.trim())) {
     throw new Error('Owner GPU execution identity is invalid or ambiguous');
   }
-  const isCpuHost = typeof data.cpu_host === 'string' && data.cpu_host.toLowerCase() === machine.toLowerCase();
-  if (isCpuHost && (typeof data.cpu_agent_name !== 'string' || !data.cpu_agent_name.trim())) {
-    throw new Error('Owner CPU execution identity invalid');
+  let gpuAgent;
+  if (requestedGpuAgent === undefined) {
+    // The general agent may know several GPU targets; keep CPU identity
+    // resolution independent and make GPU callers select an owner target.
+    gpuAgent = targets.length === 1 ? targets[0] : null;
+  } else {
+    if (typeof requestedGpuAgent !== 'string' || !requestedGpuAgent.trim()) {
+      throw new Error('Owner GPU target is missing or invalid');
+    }
+    if (!STABLE_GPU_TARGETS.has(requestedGpuAgent)) {
+      throw new Error('Owner GPU target is not allowlisted');
+    }
+    gpuAgent = requestedGpuAgent;
   }
-  return { gpuAgent: targets[0], cpuAgent: isCpuHost ? data.cpu_agent_name : null };
+  if (requestedGpuAgent !== undefined) {
+    const selected = policies.filter((p) => p.gpu_agent_name === gpuAgent);
+    if (!selected.length) throw new Error('Owner GPU target is absent from the protected policy');
+    if (selected.some((p) => p.gpu_mode !== 'always-available' || p.idle_seconds !== 0)) {
+      throw new Error('Owner GPU target must remain always-available with zero idle timeout');
+    }
+  }
+  const isCpuHost = typeof data.cpu_host === 'string' && data.cpu_host.toLowerCase() === machine.toLowerCase();
+  let cpuAgent = null;
+  if (isCpuHost) {
+    if (data.cpu_agent_name === undefined) {
+      cpuAgent = 'AlphaServer';
+    } else if (typeof data.cpu_agent_name !== 'string' || !data.cpu_agent_name.trim()) {
+      throw new Error('Owner CPU execution identity invalid');
+    } else {
+      cpuAgent = data.cpu_agent_name.trim();
+    }
+  }
+  return { gpuAgent, cpuAgent };
 }
 

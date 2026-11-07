@@ -458,6 +458,8 @@ answer, and Claude puts it to V in the next report.
   and the open questions for Codex: `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md`. Each step waits on
   a green build and V's go.
 
+- [~] 2026-11-07 VyoS -> Codex: **GPU Bridge Policy** — align Worker2RTX selection with the owner's always-available mode and zero idle timeout; use the documented stable AlphaServer identity when the CPU host omits cpu_agent_name. Preserve the fresh owner configuration load, fixed target, loopback bind, authorized task queue and resource admission. Done = a PR and a running bridge verified on its configured loopback port; no GPU render submitted.
+
 ## Done
 
 - [x] 2026-10-08 Claude (cloud) -> V: self-heal on Laptop41 was dead from 03:23Z, and the heartbeat's own
