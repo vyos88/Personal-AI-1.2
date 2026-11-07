@@ -807,10 +807,16 @@ test('a reserve said as a share of the machine scales with the machine', () => {
   // The case the MB figure cannot cover: .env.agent is copied from one laptop
   // to the next, and 512 MB is a tenth of one machine and a thirty-second of
   // another. A percentage means the same thing wherever the file lands.
+  // Every figure about free memory is read from the machine at the moment of
+  // the call, so two snapshots disagree by whatever the machine did in
+  // between: under the full suite this one failed on 94,208 bytes of drift
+  // (16,127,229,952 against 16,127,135,744). `totalBytes` is stable and may be
+  // compared across calls; anything derived from free memory is asserted
+  // inside the snapshot it came from.
   const plain = memorySnapshot({ reserveBytes: 0 });
   const tenth = memorySnapshot({ reserveBytes: 0, reservePercent: 10 });
   assert.equal(tenth.reserveBytes, Math.floor(plain.totalBytes * 0.1));
-  assert.equal(tenth.offerableBytes, Math.max(0, plain.freeBytes - tenth.reserveBytes));
+  assert.equal(tenth.offerableBytes, Math.max(0, tenth.freeBytes - tenth.reserveBytes));
 
   // The larger of the two wins: the MB figure is a floor, not an alternative.
   // A machine told to keep 1% still never lends its last half gigabyte.
@@ -818,9 +824,15 @@ test('a reserve said as a share of the machine scales with the machine', () => {
   assert.equal(both.reserveBytes, Math.max(gb(1), Math.floor(plain.totalBytes * 0.01)));
 
   // 100% is a machine that is here for pinned work and nothing else.
-  assert.equal(memorySnapshot({ reserveBytes: 0, reservePercent: 100 }).offerableBytes, 0);
-  // And the report stays honest about what the machine actually has.
-  assert.equal(memorySnapshot({ reservePercent: 100 }).freeBytes, plain.freeBytes);
+  const all = memorySnapshot({ reserveBytes: 0, reservePercent: 100 });
+  assert.equal(all.reserveBytes, all.totalBytes);
+  assert.equal(all.offerableBytes, 0);
+  // And the report stays honest about what the machine actually has: the
+  // reserve is held back from what is *offered*, never subtracted from what is
+  // reported free. A reserve of the whole machine taken off `freeBytes` would
+  // leave it at zero, which is the shape this catches.
+  assert.ok(all.freeBytes > 0);
+  assert.ok(all.freeBytes <= all.totalBytes);
 });
 
 test('the reserve percentage is read from the environment, or refused', () => {

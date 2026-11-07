@@ -55,6 +55,22 @@ export const DEFAULT_AGENT_CONCURRENCY = 1;
 // after a minute). Only types that cost almost nothing belong here.
 export const EXPRESS_TASK_TYPES = Object.freeze(['alpha.music.audio']);
 
+// Task types that hold one thing a machine has only one of: its GPU (renders,
+// images, songs, stems, the singing engine), the CrowPanel's serial port, or
+// Alpha itself (an update restarts it). An agent runs at most one of these at
+// a time whatever its concurrency, and fills its other slots with the rest.
+// That is what makes raising ALPHA_AGENT_CONCURRENCY safe on a machine that
+// also offers GPU work: two songs on a 4 GB card is the failure this prevents.
+export const EXCLUSIVE_TASK_TYPES = Object.freeze([
+  'alpha.render',
+  'alpha.image',
+  'alpha.music',
+  'alpha.music.stems',
+  'alpha.singing.wake',
+  'alpha.panel',
+  'alpha.update',
+]);
+
 // How long a stopping agent gives its running tasks to report before it tells
 // the host it is gone. Kept under the entrypoint's 3s force-exit budget.
 export const SHUTDOWN_DRAIN_MS = 2_000;

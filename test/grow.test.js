@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 
 import { PRESETS, expand, normalizeRecipe, run, walk } from '../src/agent/handlers/grow.js';
 import { HandlerRegistry } from '../src/agent/handlers/index.js';
-import { ProtocolError } from '../src/common/protocol.js';
 import { createLogger } from '../src/common/log.js';
+import { ProtocolError } from '../src/common/protocol.js';
 
 /** Every axis has real extent, which is the difference between 3D and a drawing. */
 function spansAllAxes(bounds, min = 0.2) {

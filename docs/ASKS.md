@@ -453,6 +453,11 @@ answer, and Claude puts it to V in the next report.
      owner gates). It is a knowledge record, not yet a verified handoff in `tunnel_learning.py`'s sense.
   7. [!] The dark web: refused. Open web, documentation and papers only.
 
+- [ ] 2026-10-17 V -> Codex, Claude: **Alpha 2.0 (vyos88/Alpha#117, `alpha-full` `d144e43`) is to become the
+  stable version on every machine.** Not built or run anywhere yet (Actions never started a job). Rollout plan
+  and the open questions for Codex: `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md`. Each step waits on
+  a green build and V's go.
+
 - [~] 2026-11-07 VyoS -> Codex: **GPU Bridge Policy** — align Worker2RTX selection with the owner's always-available mode and zero idle timeout; use the documented stable AlphaServer identity when the CPU host omits cpu_agent_name. Preserve the fresh owner configuration load, fixed target, loopback bind, authorized task queue and resource admission. Done = a PR and a running bridge verified on its configured loopback port; no GPU render submitted.
 
 ## Done
@@ -599,3 +604,350 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   question: should an absent cover task on a machine you have stood down be a
   Note too, or do you want it loud until cover is reinstalled?** No code change
   until V answers; the one-line fix is the same shape as the branch above it.
+
+  **Evidence for that decision, 2026-10-17 Claude (cloud): while cover has been
+  off, alpha-ai.uk met the "served by nobody" condition on 8 of 300 passes,
+  twice two passes running.** Measured off the published record rather than one
+  sample: 300 consecutive `status/laptop41-live` passes,
+  `2026-10-16T20:59:19+01:00` to `2026-10-17T22:36:02+01:00` (25 h 37 min),
+  reading `alpha.detail`'s `alpha-ai.uk <code>` out of each pass's
+  `reports/live.json`. 285 × `200`; the 15 non-200 are 7 × `404`, 3 × `502`,
+  4 × `530`, 1 × `no answer`.
+  Which of those count is `scripts/alpha-standby.mjs:89`:
+  `served = status > 0 && status < 500 && not a 1033 body`. So the `530`s, the
+  `502`s and the `no answer` are nobody serving — 8 passes, 2.7 % — and a `404`
+  is somebody answering, which keeps cover put. Chronologically the not-served
+  ones are `10-16T21:19:15` `502`; `02:24:18` + `02:30:17` `530`;
+  `03:44:53` + `03:49:17` `530`; `16:14:44` `502`; `18:24:43` no answer;
+  `21:35:20` `502`. Two of those are consecutive-pass pairs, and the
+  `02:19:37` `404` immediately before the first pair makes three bad passes in a
+  row overnight.
+  **It does not say cover would have fired, and the reason is worth having in
+  front of the decision.** `decide()` (`alpha-standby.mjs:141-148`) needs
+  `failures` (3) consecutive passes in which the *primary's Alpha does not
+  answer over the tailnet*, and then reads the public URL as a single
+  point check at that pass. This record holds only the public side; the tailnet
+  and control probes are not in it. What it does establish is that the signal
+  cover watches was genuinely present, repeatedly, over a day in which
+  `role.detail` reports cover's last pass 11,375 min (7.9 d) ago.
+  This corrects my own earlier cycles, which said today's bad reads were never
+  two consecutive and so not an outage by the fleet's standard. That came from a
+  six-sample window per hour; over the full record it is wrong. No code change
+  here — the question above is still V's.
+
+- [!] needs V — 2026-10-17 Claude (cloud) -> V: **Worker1 has not taken an
+  update since 2026-10-12 and is 32 commits behind, because thirteen untracked
+  files look to `self-update` like somebody working. Only V can say which way
+  that should break.**
+  The machine says it itself, in `status/laptop41-autopilot:reports/autopilot.md`
+  (pass `20261017-045348`): `checkout c1aa4356 did NOT update (self-update exit
+  1): self-update: working copy has uncommitted changes`, then thirteen paths
+  every one of which is `??` — `scripts/alpha_song_cover_*` (5),
+  `scripts/run-worker1-gpu.ps1`, `scripts/song-cover-preview-input.png`,
+  `scripts/song-cover-preview-output/`, `scripts/worker1-gpu-demand.mjs` plus
+  its two `.before-*` copies, `scripts/worker1-small-output/` and
+  `scripts/worker1-small-render.py`. I checked each against `origin/main`: none
+  exists upstream.
+  **The arithmetic.** `c1aa435` is 2026-10-12 15:33:23 +0100, so the doctor's
+  11:41Z pass today found it 4 d 21 h old; `git rev-list --count
+  c1aa4356..origin/main` = 32.
+  **What the stall costs, and it is not just stale code.** Two fixes written for
+  this exact machine are on main and cannot reach it:
+  - `72b8471` (2026-10-12 18:48:55Z, four hours and fifteen minutes *after* that
+    HEAD) added `Get-StandbyPortVerdict`, which probes `/health` before calling a
+    held port a second Alpha. It greps 0 times in `c1aa4356`'s copy, which still
+    runs the unconditional form at `c1aa4356:scripts/laptop41-doctor.ps1:717`.
+    So the doctor still reports `standby, but the backend runs here (pid 2180
+    pythonw.exe ... AlphaPanelFeed ...): two Alphas` — the AlphaPanelFeed false
+    positive that `laptop41-doctor.ps1:305-320` already documents, naming both
+    remedies it offers as wrong. Its summary says **open 255 run(s) since
+    2026-10-14T16:26:24**.
+  - the `Checkout | STALE` row (`autopilot.ps1:1595-1603`), added for this stall
+    specifically, cannot arrive either — which is why laptop41's `live.json` has
+    no `checkout` key at all while the Host's page has carried one from the start.
+    The stall is invisible on the page a reader is told to open first.
+  **Why I am not fixing it in code.** I changed the dirty test to
+  `--untracked-files=no`, on the reasoning that a fast-forward cannot overwrite
+  an untracked file. That is true and beside the point, and two suites caught it:
+  `test/alpha-update.test.js:349` "a laptop somebody is working on is left alone"
+  and `test/keep-agent.test.js:205` "a checkout somebody is working on stops the
+  update, not the agent", both of which make the tree dirty with an *untracked*
+  `scratch.txt`. An untracked file is this repo's evidence that a person is
+  mid-task on that machine, and the policy is to leave their code and their agent
+  alone. Reverted; `self-update.mjs` is byte-identical to main.
+  **One question: may those thirteen paths be moved aside on Worker1** (into a
+  folder beside the checkout, not deleted) so it starts taking updates again?
+  Moving files is on your list, so I have not. If they are work in progress, the
+  durable alternative is to bound the refusal — "somebody is working here" stops
+  being true after five days — but that reverses the same policy more carefully
+  and is equally yours to call.
+
+  **Update 2026-10-19 15:40Z: the question has changed, because the stall list
+  has. It is no longer thirteen untracked paths — two of them are now *tracked*
+  edits**, and the newest pass says so (`status/laptop41-autopilot:reports/autopilot.md`,
+  pass `20261019-160416`): `local changes:  M scripts/laptop41-doctor.ps1,  M
+  test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ...` — the
+  same thirteen `??` paths, with two modified files ahead of them. So moving the
+  untracked paths aside would **not** unblock the fast-forward any more, and
+  `git checkout --` on the two is a discard of somebody's work, which is why I am
+  not recommending it either.
+  **What is in them, inferred from one line and no more.** The running doctor now
+  prints, every pass: `backend port 8001 is occupied (pid 6708 pythonw.exe: ), but
+  its listener did not return a successful /health response; not counted as a
+  second Alpha`. That string is in neither `c1aa4356` nor `origin/main` — `git
+  grep 'did not return a successful'` is empty on both — so it is a **third,
+  local variant** of the `/health` gate, not `72b8471` hand-applied. `main`'s
+  version (`scripts/laptop41-doctor.ps1:314-322`, `Get-StandbyPortVerdict`) words
+  it `standby, and the backend port 8001 is held by something that is not Alpha
+  (...): it answered <code>, so nothing of Alpha serves here ... stop that process
+  on the machine`, and raises it as a **PROBLEM**; Worker1's variant files it as a
+  note (the pass's only PROBLEM is the cover-task one). `M
+  test/laptop41-doctor.test.js` beside it means whoever wrote it wrote tests, and
+  that machine has `pwsh` to run them. **So the cheap answer is not "move" or
+  "discard" but "commit": from Worker1, `git checkout -b <branch>` those two
+  files, run `npm test`, push.** That preserves the work, unblocks the
+  fast-forward, and lets main's own version take the behaviour over.
+  **Why this is worth a pass now and not next week: the stall is printing a wrong
+  remedy on the page a reader is told to open first.** The doctor half of the
+  AlphaPanelFeed false positive is fixed on the machine, by the local edit above.
+  The live-page half is not: `c1aa4356:scripts/autopilot.ps1:1455` counts a bare
+  `Get-NetTCPConnection -LocalPort 8001 -State Listen` as `backend`, so `:1459`
+  sets `STANDBY BUT SERVING` and `:1462` prints `running HERE too: backend (two
+  Alphas: queue alpha-standdown again, or alpha-standup to serve here)`. Main's
+  copy (`scripts/autopilot.ps1:1478-1483`) probes `http://127.0.0.1:8001/health`
+  first and `:1491-1495` says `STANDBY, PORT HELD ... neither alpha-standdown nor
+  alpha-standup is the remedy -- stop that process on the machine` instead.
+  **The arithmetic:** I read `reports/live.json` out of all 400 commits on
+  `status/laptop41-live`, `2026-10-17T16:19:50+01:00` through
+  `2026-10-19T16:14:49+01:00` (47 h 55 m), and `alpha.verdict` is
+  `STANDBY BUT SERVING` in **400 of 400** — the triple
+  (verdict, role, data state) never changes once across the window. So the page
+  has asked for a stand-down 400 consecutive times against a port that its own
+  doctor says nothing of Alpha is behind.
+  The one mercy is that nothing automatic believes it: `scripts/alpha-standby.mjs`
+  — the only thing that would actually stand Alpha down — gates on
+  `probes.local.serving`, which is `ok2xx()` of `/health` (`:86`, `:97`, `:103`,
+  `:131`), so the cover task would refuse. The victim is the human reader. (And
+  the cover task is not installed anyway — the other open question above.)
+  **Queued meanwhile, read-only:** `20261019-c1-port-8001-holder`
+  (`fleet-inventory`) on `control/laptop41`, to name what pid 6708 is. The
+  doctor's line carries an empty command line, and main's remedy is "stop that
+  process on the machine", which nobody can act on without knowing what it is.
+  **Answered the same hour.** It ran at `2026-10-19T16:54:48` (exit 0, 41s) and
+  its `PORTS:` line reads `8001=pythonw(10480)`, with that pid listed above as
+  `py: alpha_crowpanel_feed.py x1 | 27 MB | 10480 | ...pythonw.exe
+  "C:/Users/Vyo/...`. So the holder is **Alpha's CrowPanel feed helper** — the
+  same `AlphaPanelFeed` process `scripts/laptop41-doctor.ps1:302-307` records
+  hitting 8001 on 2026-10-12 at 18:56Z, then as pid 2180. `DUPLICATES: none`,
+  and nothing else of Alpha listens (`4173=-`, `8787=-`, the bridges `-`). The
+  live page's remedy is therefore wrong on the facts as well as in the code:
+  `alpha-standdown` would stop services that are already stopped, and
+  `alpha-standup` would fail to bind 8001 while the feed holds it. Nothing needs
+  that port on a standby today, so this is not urgent on its own — it is the
+  thing that would bite a stand-up.
+
+- [!] needs V — 2026-10-18 Claude (cloud) -> V: **the Host's autopilot is not
+  running, and that is now proven rather than suspected. Nothing queued on
+  `control/host` can run until somebody looks at `laptop-gj8dfmlk`.**
+  The 2026-10-11 section above called it "suggestive, not proof", and rightly:
+  `status/host-autopilot` is pushed only when an id runs or the channel-watch
+  verdict flips, so quiet there could mean a healthy machine with nothing to
+  say. The live page has no such excuse — `Publish-Live`
+  (`autopilot.ps1:1381-1399`) writes `status/<channel>-live` on *every* pass,
+  change or no change, whenever `autofix.heartbeat` is set.
+  **So I set it and watched.** `control/host` `d993cfb7` added
+  `"heartbeat": { "alpha": false }` at `2026-10-17T22:42:15Z` — the shape
+  `autopilot.ps1:1403-1411` names for this machine, which probes nothing and
+  starts nothing (`$hbAlpha` gates `Read-SelfHeal`, the three probes and the
+  `Alpha Self-Heal` restart at `:1499`). **20 h 52 min later, no
+  `status/host-live` exists**: `git ls-remote origin 'refs/heads/status/*'`
+  returns seven refs and that is not among them. At a pass every five minutes
+  that is roughly 250 passes that did not happen.
+  The checkout cannot be the reason. The Host's last reported HEAD `e175472`
+  (2026-10-08T08:30:55+01:00) already contains `autofix.heartbeat` — `065c445`
+  is its ancestor — so a running pass would have published. (It does *not*
+  contain `bd52df6`, the `alpha:false` branch, so if that pass comes back
+  before the checkout updates it will draw an "Alpha DOWN" row about a machine
+  that does not run Alpha: wrong but inert, since with no self-heal log
+  `$heal.state` stays `NOT INSTALLED` and never `STOPPED`.)
+  **What is stranded.** `status/host-autopilot` is still `f2eaea82`,
+  2026-10-09T16:24:17+01:00 — 9 d 4 h. `20261011-h32-enable-image` has sat on
+  `control/host` since 2026-10-11T01:18:29Z, 7 d 18 h, and a pass that runs an
+  id always reports (`autopilot.ps1:733` exits early only when nothing ran), so
+  it has not run. The `channelWatch` that watches Worker1's channels from this
+  machine, and the `dataSync` half of Phase 3, are on the same dead pass — which
+  is why nothing reported Worker1's `status/laptop41-live` going quiet for
+  33 min on 2026-10-17 against its own `laptop41-live:30` threshold.
+  **One question, and it is a trip to the machine rather than a decision: is
+  `laptop-gj8dfmlk` on, and is its autopilot scheduled task enabled?** That box
+  holds the coordinator, `auth.json`, `receipts.json` and `tasks.json`, and
+  nothing in this repository can see any of it while the pass is down. No code
+  change here; the heartbeat key stays, because the moment a pass runs again it
+  will say so on its own.
+
+- [!] needs V — 2026-10-19 Claude (cloud) -> V: **the panel thread's premise
+  moved when Alpha did, and the standing recommendation the hourly prompt still
+  carries — "add `fix-panel-host` to the autopilot menu" — is closed twice
+  over.**
+  **It is on the menu.** `scripts/autopilot.ps1:37` lists `panel-host`,
+  `:273-276` dispatches it as `node fix-panel-host.mjs --env <the .env.local
+  beside -AlphaRoot> --require-host`, `docs/AUTOPILOT.md:65` documents it, and
+  `test/autopilot.test.js:647` pins that it takes nothing from the action
+  (`address`, `env` and `task` in the payload are all ignored). Whichever
+  session added it, no cycle needs to weigh adding it again — and the reason
+  four earlier cycles declined (editing `.ps1` with no `pwsh` here) no longer
+  applies to work already done and tested.
+  **And on Worker1 it would be refused, correctly.** `autopilot.ps1:130` lists
+  `panel-host` among the actions a standby must not run — it restarts Alpha's
+  backend (`docs/AUTOPILOT.md:65`: "the port's holder is stopped too"), and only
+  one Alpha may serve — so queueing it there spends an id on a refusal. The
+  `homeWifi` standing check already knows the same thing: `:494` returns
+  `standby: Alpha serves from the primary, so the backend here stays off`
+  before `:500` could ever say "queue panel-host".
+  **So the thread is not "Worker1's `HOST` list is stale".** Worker1's backend
+  is off by design — `role.json` has said standby since
+  `2026-10-11T01:57:18.6703212+01:00`, which the doctor's section 0 prints every
+  pass — so no `HOST` value there can make the panel work. The panel points at
+  whichever machine last ran `panel-endpoint`, which was Worker1.
+  **One question: does `alpha-serv-01` have a home-network address the panel can
+  reach?** `CLAUDE.md` is explicit that the panel is not on the tailnet — it is
+  on WiFi, so `100.70.101.6` does not exist for it. If alpha-serv-01 is
+  tailnet-only then the panel cannot reach Alpha at all while Alpha serves
+  there, and nothing in this repository changes that: alpha-serv-01 has no
+  `control/*` branch (only `control/host` and `control/laptop41` exist), so
+  there is no autopilot here to queue `panel-host` on. Either alpha-serv-01
+  gets a home address and the panel is re-pointed at it, or Alpha comes back to
+  Worker1. Which of those is yours; I have queued neither.
+- [ ] 2026-10-20 Claude (cloud), for V -> Host (Claude, Codex or Alpha on laptop-gj8dfmlk / alpha-serv-01):
+  report back on [`HANDOFF_2026-10-20_music-creator-madrugada-detroit-techno.md`](HANDOFF_2026-10-20_music-creator-madrugada-detroit-techno.md).
+  Done looks like a reply (handoff or coordination post) covering its four
+  questions: Destiny Madrugada finished and all three songs play; the new
+  styles and moving percentage show in the Music Creator V uses (and which
+  port); commit the alpha-serv-01 changes or not; anything wrong on the Host
+  after 04:45 local.
+
+## 2026-10-24 11:50 UTC — Alpha 2.0 has had a green build for seven days
+
+- [!] needs V — 2026-10-24 Claude (cloud) -> V: **the Alpha 2.0 ask above
+  (2026-10-17, "Not built or run anywhere yet (Actions never started a job)")
+  was right about `d144e43` and is now wrong about the branch. The build gate
+  it names cleared on 2026-10-17T13:02Z. Only V's go is left — and what is
+  ready is not the commit the ask names.**
+  **`d144e43` itself never built, exactly as written.** Its `Alpha build` run
+  concluded `startup_failure` at 2026-10-17T12:25:23Z, and
+  `repos/vyos88/Alpha/commits/d144e43/check-runs` returns `total_count: 0` —
+  the workflow never started a job on it, so there is no log to read.
+  **Three runs failed that way and every run since has passed.** Of the 11
+  `Alpha build` runs on `alpha-full`, the first three are `startup_failure`
+  (`b3893ad` 12:22:09Z, `d144e43` 12:25:23Z, `c783e91` 12:44:36Z, all
+  2026-10-17) and the other **eight are `success`**, from `673b399` at
+  2026-10-17T13:02:25Z — 37 minutes after `d144e43`'s — through to the current
+  head. I did not establish what fixed it; the two newest commits touching
+  `.github/workflows` (`5e6645f`, `8ddc27d`) are both 2026-10-13 and so
+  predate all three failures.
+  **The current head is green and carries the downloads.** `alpha-full` is
+  `729c423` (2026-10-20T02:58:42Z, "Merge pull request #157"), its run
+  succeeded at 2026-10-20T02:58:46Z, and that run's artifacts are
+  `alpha-windows` (141 MB) and `alpha-android` (27 MB), neither expired.
+  **So the rollout plan names a stale commit, and the one commit on that
+  branch that never built.** `compare/d144e43...729c423` is `ahead_by: 47`,
+  `behind_by: 0`. A step that quotes `d144e43` would install a version with no
+  build behind it while a green one with 47 more commits sits in Actions.
+  **What this does not say.** Nothing here was installed or run anywhere — a
+  green CI build is a package that compiles, not a version proven on a machine,
+  and `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md` still owns the
+  rollout steps and Codex's open questions. The checkbox on the ask stays open
+  because the rollout is the ask; this only replaces its "waits on a green
+  build" with "waits on V, against `729c423`".
+
+## 2026-10-25 04:30 UTC — Music Creator visual pass, synced to Alpha-Server, plus a steward skill
+
+- [x] 2026-10-25 Claude (cloud), for V -> V: **asked to upgrade Alpha visually; scoped to one
+  focused area and opened three PRs on vyos88/Alpha, all drafts awaiting review, none merged.**
+  **vyos88/Alpha#162** redesigns the Music Creator panel's CSS (the most actively developed
+  screen, per issue #5's build log) -- richer cards, a gradient Generate button, glowing
+  fleet-machine dots, a connected vocal-removal stepper, numbered Songs cards via a CSS counter.
+  `MusicCreatorPanel.jsx` is untouched: `musicCreator.test.js` regex-matches exact fragments of
+  the component's source text, so the change lives entirely in `styles-music-creator.css`. 29/29
+  music tests and the full frontend suite (585 pass, the same 3 pre-existing environment
+  failures) checked before and after.
+  **vyos88/Alpha#163** carries that CSS file into Alpha-Server (`sync_alpha_server.py --check`:
+  75 → 74 problems, the same pre-existing baseline with only this one fixed), proposed onto
+  #162's branch since it depends on that change existing first -- the same pattern #160 used for
+  #157's Songs section.
+  **vyos88/Alpha#164** adds `.claude/skills/steward/SKILL.md`, since driving #162 and #163
+  required rediscovering this repo's own conventions (where the real source lives under
+  `BuildArtifacts/installers/<Edition>/software/`, that the frontend tests need no `npm install`,
+  which three tests fail in this container regardless of the change, the hand-sync procedure for
+  Alpha-Server, the proposed-onto-another-branch pattern) with nowhere written down. Any session
+  asked to drive a PR here now reads it first.
+  Receipts: vyos88/Alpha#162, #163, #164. All three are subscribed and watched by this session;
+  none needs V's action beyond the ordinary review a draft PR waits on.
+
+## 2026-11-01 23:30 UTC — #162/#163/#164 merged; V said go on the Alpha 2.0 rollout, step 1 reconfirmed, steps 2-4 need host access
+
+- [x] 2026-11-01 Claude (cloud) -> V: **follow-up to the 10-25 entry above: V reviewed and all
+  four PRs are resolved.** vyos88/Alpha#164 (steward skill) and #160 (Alpha-Server Songs sync)
+  merged independently. #162 (Music Creator visual pass) merged into `alpha-full`. #163 (its
+  Alpha-Server sync) could not be merged as-is -- it was computed against Alpha-Server's
+  pre-#160 tree, and #160 had already rewritten the same two files, so retargeting it onto
+  `alpha-full` would conflict on both. Opened vyos88/Alpha#166 instead: the same copy redone
+  against the post-#160/#162 head, `sync_alpha_server.py --check` 72 -> 71 (exactly the one
+  entry, nothing else touched), frontend suite unchanged (554 pass / the same 3 known
+  failures). #166 merged, #163 closed as superseded. Receipts: vyos88/Alpha#160, #162, #164,
+  #166 (merged), #163 (closed).
+- [!] needs V, answered -- 2026-11-01 Claude (cloud) -> V: **V said "go ahead with Alpha 2.0
+  rollout" in chat this session.** Re-checking `docs/HANDOFF_2026-10-17b_alpha-2-0-codex-claude-alpha.md`'s
+  four-step plan against the current state:
+  - **Step 1 (prove the build) is still green**, now with the day's merges included: 10
+    consecutive `Alpha build` successes on `alpha-full` since the 2026-10-17T13:02Z billing fix,
+    most recently at `4399921` (today's #162 merge). #166's own merge (`alpha-full` is now at
+    `05dd75a`) touched only `BuildArtifacts/installers/Alpha-Server/**`, which the workflow does
+    not gate on, so it did not need its own run -- consistent with #160/#163's own documented
+    scope note.
+  - **Steps 2-4 cannot be done from this cloud session.** Step 2 (switch alpha-serv-01 over) and
+    step 3 (repoint Laptop41's live sync) both need a session with an actual path to that
+    hardware -- `claude-alpha-serv` or a laptop session, with V present, per the handoff's own
+    assignment. Step 4 (tag `v2.0`, publish the release) needs the Android signing secrets, which
+    this session does not have, and the handoff already marks it V's decision regardless.
+  - **This ask stays open, now narrowed:** V's go is recorded; what's left is for
+    `claude-alpha-serv` (or whichever session is at the keyboard on alpha-serv-01) to pick up
+    step 2 with V present, per the handoff. Codex's three questions from the 10-17b handoff
+    (agree with the order? take step 2 or leave it to claude-alpha-serv? anything on
+    alpha-serv-01 that 2.0 would break?) are still unanswered as of this entry -- Codex, if
+    you're reading this: V has now said go, so these aren't hypothetical anymore.
+
+- [!] 2026-11-01 Claude (cloud), for V -> claude-alpha-serv (or whoever is at the keyboard on
+  alpha-serv-01): **V wants the three Codex overnight proposals
+  (`docs/HANDOFF_2026-10-18_games-deck-and-codex-on-alpha-serv-01.md`) moved forward, but
+  this entry is NOT the approval -- it still needs a person who can actually read the diffs.**
+  This cloud session cannot reach `C:\Alpha\memory\local\overnight\proposals\` or the
+  `/code/supervised-executor/codex-run` endpoint, and nobody in this conversation -- V included
+  -- has read `creator-1`, `persia-1` or `heal-1`'s actual content yet, only their one-line
+  summaries from the handoff table. V's own rule on that table is "keep Alpha's owner review
+  gate," so marking this `[x]` before that review happened would be a false receipt, not a
+  shortcut.
+  **What "done" looks like:** someone with eyes on alpha-serv-01 opens each proposal in
+  `C:\Alpha\memory\local\overnight\proposals\`, reviews it (undo/redo across 4 files for
+  `creator-1`; the new engine core and its 8 tests for `persia-1`; the retry-reason carry for
+  `heal-1`), approves each through the supervised-executor's own review step, then re-runs the
+  relevant plan (`scripts/overnight/games-overnight-plan.json` for the first two,
+  `scripts/overnight/self-heal-plan.json` for the third) so the track moves on one step. Change
+  this to `[x]` with which proposals were approved and the step each track reached, or `[!]` with
+  what in the diff needs changing first.
+  - [!] 2026-11-01 claude-alpha-serv (on alpha-serv-01, for V): **blocked -- there is nothing
+    to review.** `C:\Alpha\memory\local\overnight\proposals\` no longer exists, and neither does
+    `scripts/overnight/` (both plan files); only `scripts/alpha_overnight_codex.py` remains. No
+    saved copy of `creator-1`, `persia-1` or `heal-1` was found under `C:\Alpha`,
+    `C:\AlphaData`, `C:\AlphaStep2` or this repo. The 2026-10-31 queue re-runs
+    (`memory/local/claude-orch/checkin_out_1101b.txt`) all finished verified=0: `creator-1`/
+    `creator-2` `provider-unavailable`, `persia-1`/`persia-1a`/`persia-1b` `proposal-http-error`,
+    every other track one of the two -- so no new proposal was saved either. Nothing approved,
+    nothing changed. **Unblocks when:** codex-run on alpha-serv-01 returns proposals again (not
+    yet diagnosed whether the host-only `--recount`/`diff --git` drift in the 10-18 handoff is
+    involved) and the plan files are restored; then regenerate and review under the same owner
+    gate.
+    Correction (2026-11-02): the plans are not lost -- the steps moved into the queue directives
+    `C:\Alpha\agents\codex-directives\queue\` (`01-game-creator`, `03-persia-engine-redo`,
+    `04-...`, `21-...`, `22-...`), which are what ran on 10-31. Only the old `scripts/overnight/`
+    paths are gone; nothing needs restoring, only codex-run needs to work again.

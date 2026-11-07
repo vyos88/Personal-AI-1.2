@@ -14,6 +14,7 @@ import {
   DEFAULT_MAX_LOAD,
   DEFAULT_AGENT_CONCURRENCY,
   EXPRESS_TASK_TYPES,
+  EXCLUSIVE_TASK_TYPES,
   LOAD_BACKOFF_MS,
   LOAD_THROTTLE_MAX_MS,
   SHUTDOWN_DRAIN_MS,
@@ -75,6 +76,8 @@ export class TunnelAgent {
   // The express lane: light work run beside a full set of slots, one task at
   // a time (see #expressLoop), and what the coordinator said it understands.
   #expressInFlight = 0;
+  // How many exclusive-type tasks (EXCLUSIVE_TASK_TYPES) are running: 0 or 1.
+  #exclusiveInFlight = 0;
   #hostFeatures = new Set();
   #throttledSince = null;
   #readMemory;
@@ -107,6 +110,9 @@ export class TunnelAgent {
     // Types this agent still takes while its slots are full. See
     // EXPRESS_TASK_TYPES; [] turns the lane off.
     expressTypes = EXPRESS_TASK_TYPES,
+    // Types this agent runs one at a time, whatever its concurrency. See
+    // EXCLUSIVE_TASK_TYPES; [] lets every slot take anything, as before.
+    exclusiveTypes = EXCLUSIVE_TASK_TYPES,
     loadBackoffMs = LOAD_BACKOFF_MS,
     throttleMaxMs = LOAD_THROTTLE_MAX_MS,
     // Injectable so a test can put this machine under a load it does not
@@ -171,6 +177,9 @@ export class TunnelAgent {
       throw new Error('agent has no handlers registered, so it has nothing to offer the host');
     }
     this.expressTypes = expressTypes.filter((type) => this.capabilities.includes(type));
+    this.exclusiveTypes = exclusiveTypes.filter((type) => this.capabilities.includes(type));
+    // What a free slot may take while an exclusive task is running.
+    this.sharedTypes = this.capabilities.filter((type) => !this.exclusiveTypes.includes(type));
   }
 
   get agentId() {
@@ -261,7 +270,9 @@ export class TunnelAgent {
         // goes to the other machine.
         if (await this.#napIfOverloaded()) continue;
 
-        await this.#pollOnce();
+        // While an exclusive task holds this machine's GPU, port or Alpha, a
+        // free slot asks only for the other types.
+        await this.#pollOnce({ types: this.#exclusiveInFlight > 0 ? this.sharedTypes : null });
         failures = 0;
       } catch (error) {
         if (!this.#running) break;
@@ -335,7 +346,7 @@ export class TunnelAgent {
           await sleep(EXPRESS_IDLE_CHECK_MS, { signal: this.#abort.signal });
           continue;
         }
-        await this.#pollOnce({ types: this.expressTypes });
+        await this.#pollOnce({ types: this.expressTypes, express: true });
       } catch {
         if (!this.#running) return;
         try {
@@ -457,7 +468,8 @@ export class TunnelAgent {
    * concurrency of 1 this is simply "the previous task has finished".
    */
   #awaitSlot() {
-    if (!this.#running || this.#inFlight < this.concurrency) return Promise.resolve();
+    if (!this.#running) return Promise.resolve();
+    if (this.#inFlight < this.concurrency && !this.#exclusiveBlocksSlots()) return Promise.resolve();
     // No timer here, so nothing to keep ref'd: the promise is settled by a task
     // finishing or by stop(), both of which are already pending work.
     return new Promise((resolve) => this.#slotWaiters.push(resolve));
@@ -490,6 +502,17 @@ export class TunnelAgent {
         inFlight: this.inFlight,
       });
     }
+  }
+
+  /**
+   * True while an exclusive task is running and no free slot could take
+   * anything else: every type this agent offers is exclusive, or the
+   * coordinator does not honour `types` and would hand the slot any task,
+   * including a second exclusive one.
+   */
+  #exclusiveBlocksSlots() {
+    if (this.#exclusiveInFlight === 0) return false;
+    return this.sharedTypes.length === 0 || !this.#hostFeatures.has('poll-types');
   }
 
   #releaseSlotWaiters() {
@@ -556,7 +579,7 @@ export class TunnelAgent {
     return true;
   }
 
-  async #pollOnce({ types = null } = {}) {
+  async #pollOnce({ types = null, express = false } = {}) {
     // The poll carries this machine's current load and memory. It is the most
     // frequent thing the agent says, and it is said at the moment work is
     // being asked for — so the host places against what this machine is like
@@ -581,7 +604,7 @@ export class TunnelAgent {
 
     // The express lane runs its one task inline: it holds no slot, and the
     // next express poll waits until this one has reported.
-    if (types) {
+    if (express) {
       this.#expressInFlight += 1;
       try {
         await this.#execute(body);
@@ -596,9 +619,12 @@ export class TunnelAgent {
     // sequence as awaiting here; above 1 it is what lets a machine with cores
     // to spare actually use them. #execute never rejects — it reports failures
     // to the host itself — so nothing is lost by letting it run detached.
+    const exclusive = this.exclusiveTypes.includes(body.type);
     this.#inFlight += 1;
+    if (exclusive) this.#exclusiveInFlight += 1;
     this.#execute(body).finally(() => {
       this.#inFlight -= 1;
+      if (exclusive) this.#exclusiveInFlight -= 1;
       this.#releaseSlotWaiters();
     });
   }

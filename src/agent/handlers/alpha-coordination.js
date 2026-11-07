@@ -72,13 +72,51 @@ const MAX_PATHS = 64;
 const MAX_OUTPUT_CHARS = 16_000;
 const DEFAULT_SCRIPT = 'scripts/alpha_coordination_tunnel.ps1';
 
+// How much of the text around a parse failure travels back. Enough to show the
+// offending construct and what preceded it, small next to MAX_OUTPUT_CHARS.
+const PARSE_CONTEXT_BEFORE = 240;
+const PARSE_CONTEXT_AFTER = 120;
+
+/**
+ * Where and why Status stdout failed to parse.
+ *
+ * Without this the result kept only the last MAX_OUTPUT_CHARS of stdout, so an
+ * output that ended in a clean `}` but broke in the middle was undiagnosable
+ * from any other machine: the tail looked valid and the cause was discarded.
+ * V8 reports a character position for most failures; "Unexpected end of JSON
+ * input" has none, and the end of the text is where it happened.
+ */
+export function describeParseError(text, error) {
+  const message = String(error?.message ?? error);
+  const match = /position (\d+)/.exec(message);
+  const position = match ? Math.min(Number(match[1]), text.length) : text.length;
+  const preceding = text.slice(0, position);
+  const line = (preceding.match(/\n/g) ?? []).length + 1;
+  const column = position - (preceding.lastIndexOf('\n') + 1) + 1;
+  return {
+    message,
+    position,
+    positionKnown: Boolean(match),
+    line,
+    column,
+    length: text.length,
+    before: text.slice(Math.max(0, position - PARSE_CONTEXT_BEFORE), position),
+    after: text.slice(position, position + PARSE_CONTEXT_AFTER),
+  };
+}
+
 /** Parse before clipping stdout: a tail of JSON cannot establish ownership. */
 export function statusEvidence(stdout) {
   let status;
+  const text = stdout.replace(/^\uFEFF/, '');
   try {
-    status = JSON.parse(stdout.replace(/^\uFEFF/, ''));
-  } catch {
-    return { status: null, statusError: 'Status output is not complete JSON; ownership is unknown.' };
+    status = JSON.parse(text);
+  } catch (error) {
+    return {
+      status: null,
+      statusError: 'Status output is not complete JSON; ownership is unknown.',
+      statusParseError: describeParseError(text, error),
+    };
   }
   if (!status || status.schema !== 'alpha.coordination.status.v1'
       || !status.claims || typeof status.claims !== 'object' || Array.isArray(status.claims)

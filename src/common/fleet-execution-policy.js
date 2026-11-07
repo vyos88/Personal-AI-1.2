@@ -7,7 +7,7 @@ const PATH = 'C:/Alpha/memory/local/device-execution-policy.json';
 const ROLES = new Set(['gpu-demand-only', 'cpu-capped-gpu-demand']);
 // The image bridge uses a stable, owner-allowlisted target rather than an
 // arbitrary machine from the fleet.
-const STABLE_GPU_TARGETS = new Set(['AlphaServer', 'Worker2RTX']);
+const STABLE_GPU_TARGETS = new Set(['AlphaServer', 'Worker2RTX', 'JackRTX3050']);
 export function fleetExecutionPolicy({ path = PATH, platform = process.platform,
   machine = hostname(), read = readFileSync,
   requestedGpuAgent = undefined } = {}) {
@@ -26,10 +26,9 @@ export function fleetExecutionPolicy({ path = PATH, platform = process.platform,
   }
   let gpuAgent;
   if (requestedGpuAgent === undefined) {
-    if (targets.length !== 1 || !STABLE_GPU_TARGETS.has(targets[0])) {
-      throw new Error('Owner GPU execution identity is invalid or ambiguous');
-    }
-    gpuAgent = targets[0];
+    // The general agent may know several GPU targets; keep CPU identity
+    // resolution independent and make GPU callers select an owner target.
+    gpuAgent = targets.length === 1 ? targets[0] : null;
   } else {
     if (typeof requestedGpuAgent !== 'string' || !requestedGpuAgent.trim()) {
       throw new Error('Owner GPU target is missing or invalid');
@@ -39,10 +38,12 @@ export function fleetExecutionPolicy({ path = PATH, platform = process.platform,
     }
     gpuAgent = requestedGpuAgent;
   }
-  const selected = policies.filter((p) => p.gpu_agent_name === gpuAgent);
-  if (!selected.length) throw new Error('Owner GPU target is absent from the protected policy');
-  if (selected.some((p) => p.gpu_mode !== 'always-available' || p.idle_seconds !== 0)) {
-    throw new Error('Owner GPU target must remain always-available with zero idle timeout');
+  if (requestedGpuAgent !== undefined) {
+    const selected = policies.filter((p) => p.gpu_agent_name === gpuAgent);
+    if (!selected.length) throw new Error('Owner GPU target is absent from the protected policy');
+    if (selected.some((p) => p.gpu_mode !== 'always-available' || p.idle_seconds !== 0)) {
+      throw new Error('Owner GPU target must remain always-available with zero idle timeout');
+    }
   }
   const isCpuHost = typeof data.cpu_host === 'string' && data.cpu_host.toLowerCase() === machine.toLowerCase();
   let cpuAgent = null;

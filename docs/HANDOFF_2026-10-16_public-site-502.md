@@ -1,1 +1,103 @@
-IyMjIFVQREFURSAoMTI6MTEgcGFzcyk6IDV0aCBvY2N1cnJlbmNlIChhIDQwNCB0aGlzIHRpbWUpLCBzZWxmLXJlc29sdmVkIGFnYWluCgpUaGUgZG9jdG9yJ3MgYDIwMjYxMDE2LTEyMTEwNWAgcGFzcyBzaG93cyBgKyBmaXhlZCBzaW5jZSBsYXN0IHJ1bjoKaHR0cHM6Ly9hbHBoYS1haS51ay8gYW5zd2VycyA0MDQgYW5kIHRoaXMgbWFjaGluZSBpcyBzdGFuZGJ5Li4uYCDigJQgYW5vdGhlcgpibGlwLCB0aGlzIHRpbWUgYSA0MDQgcmF0aGVyIHRoYW4gNTAyLCBoYXBwZW5lZCBhbmQgcmVjb3ZlcmVkIGJldHdlZW4gdGhlCjEwOjExIGNoZWNrIGFuZCB0aGlzIG9uZS4gVGhhdCBpcyBmaXZlIHNlbGYtcmVzb2x2aW5nIG9jY3VycmVuY2VzIG9mIHRoaXMKc2FtZSBmYWlsdXJlIHNoYXBlIGluIG9uZSB3ZWVrLiBTdGlsbCBubyBmaXggcHVzaGVkLCBzaXRlIGN1cnJlbnRseSAyMDAsCm5vdGhpbmcgbmV3bHkgYWN0aW9uYWJsZSDigJQgdGhlIHJlY3VycmVuY2UgYW5kIHRoZSByZWNvbW1lbmRhdGlvbiB0byBjaGVjawphbHBoYS1zZXJ2LTAxJ3MgY29ubmVjdG9yL2JhY2tlbmQgZGlyZWN0bHkgd2VyZSBhbHJlYWR5IHJhaXNlZCBhYm92ZTsgbm90CnJlcGVhdGluZyB0aGF0IG5vdGlmaWNhdGlvbiwganVzdCBrZWVwaW5nIHRoZSByZWNvcmQgY3VycmVudC4KCiMjIyBVUERBVEUgKDEwOjExIHBhc3MpOiBoYXBwZW5lZCBhZ2Fpbiwgc2VsZi1yZXNvbHZlZCBhZ2FpbiAoNHRoIHRpbWUgdGhpcyB3ZWVrKQoKVGhlIGRvY3RvcidzIGAyMDI2MTAxNi0xMDExMDVgIHBhc3Mgc2hvd3MgdGhlIHNhbWUgYCsgZml4ZWQgc2luY2UgbGFzdCBydW46Cmh0dHBzOi8vYWxwaGEtYWkudWsvIGFuc3dlcnMgNTAyLi4uYCBsaW5lIGFnYWluIOKAlCBtZWFuaW5nIHRoZSBzaXRlIDUwMidkIGFuZApyZWNvdmVyZWQgYXQgbGVhc3Qgb25jZSBtb3JlIGJldHdlZW4gdGhlIDA4OjQxIGNoZWNrIGFuZCB0aGlzIG9uZSAoZXhhY3QKdGltaW5nIG5vdCBjYXVnaHQgbGl2ZSwgc2luY2UgdGhpcyBzZXNzaW9uIG9ubHkgcG9sbHMgb25jZSBhbiBob3VyKS4gVGhhdAptYWtlcyBmb3VyIHNlbGYtcmVzb2x2aW5nIG9jY3VycmVuY2VzIG9mIHRoaXMgc2FtZSBmYWlsdXJlIHNoYXBlIGluIGEgc2luZ2xlCndlZWsgKG9uZSA0MDQsIHRocmVlIDUwMnMpLiBTdGlsbCBub3RoaW5nIGFjdGlvbmFibGUgZnJvbSB0aGlzIHNlc3Npb24g4oCUCm5vIGZpeCBwdXNoZWQsIHNpdGUgY3VycmVudGx5IDIwMCDigJQgYnV0IHRoZSBncm93aW5nIGZyZXF1ZW5jeSByZWluZm9yY2VzIHRoZQpvcmlnaW5hbCByZWNvbW1lbmRhdGlvbjogd29ydGggYSBwZXJzb24gY29tcGFyaW5nIGFscGhhLXNlcnYtMDEncyBiYWNrZW5kCmFuZCBjb25uZWN0b3IgaGVhbHRoIGRpcmVjdGx5IHJhdGhlciB0aGFuIHdhaXRpbmcgZm9yIHRoaXMgdG8gZXNjYWxhdGUgcGFzdAoic2VsZi1yZXNvbHZpbmcuIgoKIyMjIFJFU09MVkVEICgwODo0MSBwYXNzKTogc2l0ZSBpcyBiYWNrIHRvIDIwMAoKVGhlIHZlcnkgbmV4dCBkb2N0b3IgcGFzcyAoYDIwMjYxMDE2LTA4NDEwNWAsIDE1IG1pbiBsYXRlcikgcmVwb3J0cwpgb2s6IGh0dHBzOi8vYWxwaGEtYWkudWsvIGFuc3dlcnMgMjAwLCBzZXJ2ZWQgZnJvbSBhbHBoYS1zZXJ2LTAxYCBhbmQgbGlzdHMKdGhlIGZpeCBleHBsaWNpdGx5OiBgKyBmaXhlZCBzaW5jZSBsYXN0IHJ1bjogaHR0cHM6Ly9hbHBoYS1haS51ay8gYW5zd2VycyA1MDIKYW5kIHRoaXMgbWFjaGluZSBpcyBzdGFuZGJ5OiBub2JvZHkgc2VydmVzIEFscGhhLi4uYC4gU28gdGhpcyB3YXMgYW5vdGhlcgpzaW5nbGUtcGFzcyBibGlwLCBzYW1lIGFzIHRoZSBwcmlvciB0d28gdGhpcyB3ZWVrIOKAlCBubyBmaXggd2FzIHB1c2hlZCBmcm9tCnRoaXMgc2Vzc2lvbiwgYW5kIG5vdGhpbmcgZnVydGhlciBpcyBuZWVkZWQgaGVyZSByaWdodCBub3cuIFRoZSByZXBlYXRlZApwYXR0ZXJuICh0aHJlZSBzZWxmLXJlc29sdmluZyBpbmNpZGVudHMgaW4gYSB3ZWVrKSBpcyBzdGlsbCB3b3J0aCBzb21lb25lCmxvb2tpbmcgYXQgdGhlIGNvbm5lY3Rvci9vcmlnaW4gb24gYGFscGhhLXNlcnYtMDFgIHdoZW4gdGhleSBoYXZlIGEgbW9tZW50LApidXQgaXMgbm90IGFuIGFjdGl2ZSBvdXRhZ2UuIExlYXZpbmcgdGhlIG9yaWdpbmFsIHdyaXRlLXVwIGJlbG93IGFzIGFuCmFjY3VyYXRlIHJlY29yZCBvZiB3aGF0IHdhcyBzZWVuIGF0IHRoZSB0aW1lLgoKIyBIYW5kb2ZmOiBwdWJsaWMgc2l0ZSA1MDIgb24gYWxwaGEtYWkudWsgKDIwMjYtMTAtMTYsIDA4OjI2IHBhc3MpCgpMYXB0b3A0MSdzIGRvY3RvciAocGFzcyBgMjAyNjEwMTYtMDgyNjA1YCkgcmVwb3J0czoKCmBgYAo9PT0gMC4gU3RhbmRieTogQWxwaGEgc2VydmVzIGZyb20gYWxwaGEtc2Vydi0wMSA9PT0KICByb2xlLmpzb24gc2F5cyBzdGFuZGJ5IHNpbmNlIDIwMjYtMTAtMTFUMDE6NTc6MTguNjcwMzIxMiswMTowMCAoYWxwaGEtc3RhbmRkb3duLnBzMTsKICB0aGUgYWxwaGEtc3RhbmR1cCBqb2Igc2VydmVzIEFscGhhIGhlcmUgYWdhaW4pCiAgUFJPQkxFTTogaHR0cHM6Ly9hbHBoYS1haS51ay8gYW5zd2VycyA1MDIgYW5kIHRoaXMgbWFjaGluZSBpcyBzdGFuZGJ5OgogIG5vYm9keSBzZXJ2ZXMgQWxwaGEuIElmIGFscGhhLXNlcnYtMDEgc3RheXMgZG93biwgcXVldWUgYWxwaGEtc3RhbmR1cCBoZXJlCiAgUFJPQkxFTTogc3RhbmRieSwgYnV0IHRoZSBiYWNrZW5kIHJ1bnMgaGVyZSAocGlkIDIxODAgcHl0aG9udy5leGUgLi4uKTogdHdvCiAgQWxwaGFzLiBRdWV1ZSBhbHBoYS1zdGFuZGRvd24gYWdhaW4sIG9yIGFscGhhLXN0YW5kdXAgdG8gc2VydmUgaGVyZQogIG9rOiBubyBzaXRlIGhlcmUgKHBvcnQgNDE3MyBmcmVlKQogIG9rOiBubyBjb25uZWN0b3IgaGVyZQogIFBST0JMRU06IGF1dG9tYXRpYyBjb3ZlciBsYXN0IHJhbiA5MDg1IG1pbiBhZ28gYW5kIGl0cyB0YXNrICdBbHBoYSBTdGFuZGJ5JwogIGlzIG5vdCBvbiB0aGlzIG1hY2hpbmU6IG5vdGhpbmcgd2lsbCBydW4gaXQgYWdhaW4gKHF1ZXVlIHN0YW5kYnktaW5zdGFsbCwKICBvciBzdGFuZCB0aGlzIG1hY2hpbmUgZG93bikKCj09PSBTVU1NQVJZID09PQogIHRoaXMgcGFzcyB0b29rIDE0cwogIC0gTkVFRFMgQSBQRVJTT04gLSBhdXRvbWF0aWMgY292ZXIgbGFzdCByYW4gOTA4NSBtaW4gYWdvIC4uLiAob3BlbiAzODEgcnVuKHMpLAogIHNpbmNlIDIwMjYtMTAtMTFUMDQ6NDE6MTcpCiAgLSBORUVEUyBBIFBFUlNPTiAtIHN0YW5kYnksIGJ1dCB0aGUgYmFja2VuZCBydW5zIGhlcmUgLi4uIChvcGVuIDE0NiBydW4ocyksCiAgc2luY2UgMjAyNi0xMC0xNFQxNjoyNjoyNCkKICAtIGh0dHBzOi8vYWxwaGEtYWkudWsvIGFuc3dlcnMgNTAyIGFuZCB0aGlzIG1hY2hpbmUgaXMgc3RhbmRieTogbm9ib2R5CiAgc2VydmVzIEFscGhhLiBJZiBhbHBoYS1zZXJ2LTAxIHN0YXlzIGRvd24sIHF1ZXVlIGFscGhhLXN0YW5kdXAgaGVyZSAob3BlbgogIDEgcnVuKHMpLCBzaW5jZSAyMDI2LTEwLTE2VDA4OjI2OjE3KQoKPT09IFJFQ09NTUVOREFUSU9OUyA9PT0KICAxLiBbbmV3XSBBbiBlbmRwb2ludCBpcyBkb3duOiBjb21wYXJlIHNlY3Rpb24gMSAoYmFja2VuZCkgYW5kIHNlY3Rpb24gNAogIChwdWJsaWMpOyBpZiBvbmx5IHB1YmxpYyBmYWlscyBhbmQgdGhlIG9yaWdpbiBpcyBmaW5lLCB0aGUgY29ubmVjdG9yIGlzIHRoZQogIGZhdWx0LgpgYGAKClRoaXMgaXMgYSAqKmxpdmUsIGN1cnJlbnRseSBvcGVuKiogaW5jaWRlbnQgYXMgb2YgdGhpcyBwYXNzIC1gYWxwaGEtYWkudWtgCmFuc3dlcnMgNTAyIHJpZ2h0IG5vdywgb3BlbiBvbmx5IDEgcnVuIChzaW5jZSAwODoyNjoxNyBVVEMpLiBUaGlzIGlzIHRoZSBzYW1lCmZhaWx1cmUgc2hhcGUgYXMgcHJpb3Igc2ltaWxhciBpbmNpZGVudHMgdGhpcyBtb250aCAoKHB1YmxpYyBzaXRlIGRvd24gd2hpbGUKTGFwdG9wNDEgaXMgc3RhbmRieSBhbmQgdGhlcmVmb3JlIG5vdCBzZXJ2aW5nLCBhbmQgbm9ib2R5IGVsc2UgdmlzaWJseSBpcwplaXRoZXIpOiBhIDQwNCBvbiAyMDI2LTEwLTE0IHRoYXQgc2VsZi1yZXNvbHZlZCBvbiB0aGUgdmVyeSBuZXh0IHBhc3MsIGFuZCBhCjUwMiBibGlwIGNhdWdodCBvbmx5IGFmdGVyLXRoZS1mYWN0IG9uIHRoZSAwNjoyNiBwYXNzIG9uIHRoaXMgc2FtZSBkYXkKKHdoaWNoIGhhZCBhbHJlYWR5IHNlbGYtcmVzb2x2ZWQgYnkgdGhlIHRpbWUgaXQgd2FzIGNoZWNrZWQpLgoKKipUaGUgc3RhbmRpbmcgImF1dG9tYXRpYyBjb3ZlciIgLyAiQWxwaGEgU3RhbmRieSIgYW5kICJ0d28gQWxwaGFzIiBsaW5lcyBhcmUKbm90IG5ldyBhbmQgYXJlIG5vdCBiZWluZyByZS1mbGFnZ2VkIGFzIHByb2JsZW1zLioqIFBlciBlYXJsaWVyIGhhbmRvZmZzCihWJ3MgaW5zdHJ1Y3Rpb24sIHJlbGF5ZWQgYnkgQ29kZXgpOiBgYWxwaGEtc2Vydi0wMWAgaXMgdGhlIGRlbGliZXJhdGUgc29sZQpzZXJ2ZXIsIExhcHRvcDQxL1dvcmtlcjEgc3RheXMgYSB3b3JrZXIsIGFuZCB0aGUgc3RhbmRieS1jb3ZlciB0YXNrIGlzCmRpc2FibGVkIG9uIHB1cnBvc2UuIFRob3NlIGxpbmVzIHdpbGwga2VlcCBhcHBlYXJpbmcgYW5kIGFyZSBleHBlY3RlZC4KCioqV2hhdCBpcyBuZXcgYW5kIG5lZWRzIGEgcGVyc29uKio6IGBhbHBoYS1haS51a2AgaXMgYW5zd2VyaW5nIDUwMiByaWdodCBub3cuClRoaXMgaXMgdGhlIHRoaXJkIG9jY3VycmVuY2Ugb2YgdGhpcyBleGFjdCBmYWlsdXJlIHNoYXBlIGluIGEgd2VlayAob25lIDQwNCwKdHdvIDUwMnMpLiBUaGUgcHJldmlvdXMgb25lcyBlYWNoIHNlbGYtcmVzb2x2ZWQgd2l0aGluIG9uZSAxNS0yMCBtaW51dGUgcGFzcywKc28gdGhpcyBtYXkgZG8gdGhlIHNhbWUtIGJ1dCB0aGUgcmVjdXJyZW5jZSBpdHNlbGYgKHRocmVlIHRpbWVzIGluIGEgd2VlaykgaXMKd29ydGggYSBwZXJzb24ncyBhdHRlbnRpb246IGl0IHN1Z2dlc3RzIHNvbWV0aGluZyBvbiBhbHBoYS1zZXJ2LTAxIG9yIGl0cwpjb25uZWN0b3IgaXMgZmxhcHBpbmcgcmF0aGVyIHRoYW4gYSBvbmUtb2ZmLiBQZXIgdGhlIGRvY3RvcidzIG93bgpyZWNvbW1lbmRhdGlvbjogImNvbXBhcmUgc2VjdGlvbiAxIChiYWNrZW5kKSBhbmQgc2VjdGlvbiA0IChwdWJsaWMpOyBpZiBvbmx5CnB1YmxpYyBmYWlscyBhbmQgdGhlIG9yaWdpbiBpcyBmaW5lLCB0aGUgY29ubmVjdG9yIGlzIHRoZSBmYXVsdCIgLSB0aG9zZQpzZWN0aW9ucyBhcmVuJ3QgaW4gdGhpcyBzdGFuZGJ5LWZvcm1hdCByZXBvcnQsIHNvIHRoYXQgY29tcGFyaXNvbiBuZWVkcyBkb2luZwpvbiBhbHBoYS1zZXJ2LTAxIGl0c2VsZiBvciBmcm9tIGEgbWFjaGluZSB0aGF0IGNhbiByZWFjaCBpdHMgdGFpbG5ldC4gVGhpcwpjbG91ZCBzZXNzaW9uIGNhbm5vdCByZWFjaCBpdCBkaXJlY3RseS4KCioqVGhpcyB3aWxsIGJlIHVwZGF0ZWQgd2l0aCByZXNvbHV0aW9uIHN0YXR1cyBvbiB0aGUgbmV4dCBjaGVjay4qKgoKIyMjIE5vIG5ldyBQUnMgdGhpcyBwYXNzCgpTYW1lIHNldCBhcyB0aGUgcmVzdCBvZiB0aGlzIHdpbmRvdyBvbiBib3RoIHJlcG9zOyBub3RoaW5nIG5ldyB0byBtZXJnZSBvcgpmbGFnIHRoZXJlLgo=
+### UPDATE (12:11 pass): 5th occurrence (a 404 this time), self-resolved again
+
+The doctor's `20261016-121105` pass shows `+ fixed since last run:
+https://alpha-ai.uk/ answers 404 and this machine is standby...` — another
+blip, this time a 404 rather than 502, happened and recovered between the
+10:11 check and this one. That is five self-resolving occurrences of this
+same failure shape in one week. Still no fix pushed, site currently 200,
+nothing newly actionable — the recurrence and the recommendation to check
+alpha-serv-01's connector/backend directly were already raised above; not
+repeating that notification, just keeping the record current.
+
+### UPDATE (10:11 pass): happened again, self-resolved again (4th time this week)
+
+The doctor's `20261016-101105` pass shows the same `+ fixed since last run:
+https://alpha-ai.uk/ answers 502...` line again — meaning the site 502'd and
+recovered at least once more between the 08:41 check and this one (exact
+timing not caught live, since this session only polls once an hour). That
+makes four self-resolving occurrences of this same failure shape in a single
+week (one 404, three 502s). Still nothing actionable from this session —
+no fix pushed, site currently 200 — but the growing frequency reinforces the
+original recommendation: worth a person comparing alpha-serv-01's backend
+and connector health directly rather than waiting for this to escalate past
+"self-resolving."
+
+### RESOLVED (08:41 pass): site is back to 200
+
+The very next doctor pass (`20261016-084105`, 15 min later) reports
+`ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01` and lists
+the fix explicitly: `+ fixed since last run: https://alpha-ai.uk/ answers 502
+and this machine is standby: nobody serves Alpha...`. So this was another
+single-pass blip, same as the prior two this week — no fix was pushed from
+this session, and nothing further is needed here right now. The repeated
+pattern (three self-resolving incidents in a week) is still worth someone
+looking at the connector/origin on `alpha-serv-01` when they have a moment,
+but is not an active outage. Leaving the original write-up below as an
+accurate record of what was seen at the time.
+
+# Handoff: public site 502 on alpha-ai.uk (2026-10-16, 08:26 pass)
+
+Laptop41's doctor (pass `20261016-082605`) reports:
+
+```
+=== 0. Standby: Alpha serves from alpha-serv-01 ===
+  role.json says standby since 2026-10-11T01:57:18.6703212+01:00 (alpha-standdown.ps1;
+  the alpha-standup job serves Alpha here again)
+  PROBLEM: https://alpha-ai.uk/ answers 502 and this machine is standby:
+  nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
+  PROBLEM: standby, but the backend runs here (pid 2180 pythonw.exe ...): two
+  Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no site here (port 4173 free)
+  ok: no connector here
+  PROBLEM: automatic cover last ran 9085 min ago and its task 'Alpha Standby'
+  is not on this machine: nothing will run it again (queue standby-install,
+  or stand this machine down)
+
+=== SUMMARY ===
+  this pass took 14s
+  - NEEDS A PERSON - automatic cover last ran 9085 min ago ... (open 381 run(s),
+  since 2026-10-11T04:41:17)
+  - NEEDS A PERSON - standby, but the backend runs here ... (open 146 run(s),
+  since 2026-10-14T16:26:24)
+  - https://alpha-ai.uk/ answers 502 and this machine is standby: nobody
+  serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here (open
+  1 run(s), since 2026-10-16T08:26:17)
+
+=== RECOMMENDATIONS ===
+  1. [new] An endpoint is down: compare section 1 (backend) and section 4
+  (public); if only public fails and the origin is fine, the connector is the
+  fault.
+```
+
+This is a **live, currently open** incident as of this pass -`alpha-ai.uk`
+answers 502 right now, open only 1 run (since 08:26:17 UTC). This is the same
+failure shape as prior similar incidents this month ((public site down while
+Laptop41 is standby and therefore not serving, and nobody else visibly is
+either): a 404 on 2026-10-14 that self-resolved on the very next pass, and a
+502 blip caught only after-the-fact on the 06:26 pass on this same day
+(which had already self-resolved by the time it was checked).
+
+**The standing "automatic cover" / "Alpha Standby" and "two Alphas" lines are
+not new and are not being re-flagged as problems.** Per earlier handoffs
+(V's instruction, relayed by Codex): `alpha-serv-01` is the deliberate sole
+server, Laptop41/Worker1 stays a worker, and the standby-cover task is
+disabled on purpose. Those lines will keep appearing and are expected.
+
+**What is new and needs a person**: `alpha-ai.uk` is answering 502 right now.
+This is the third occurrence of this exact failure shape in a week (one 404,
+two 502s). The previous ones each self-resolved within one 15-20 minute pass,
+so this may do the same- but the recurrence itself (three times in a week) is
+worth a person's attention: it suggests something on alpha-serv-01 or its
+connector is flapping rather than a one-off. Per the doctor's own
+recommendation: "compare section 1 (backend) and section 4 (public); if only
+public fails and the origin is fine, the connector is the fault" - those
+sections aren't in this standby-format report, so that comparison needs doing
+on alpha-serv-01 itself or from a machine that can reach its tailnet. This
+cloud session cannot reach it directly.
+
+**This will be updated with resolution status on the next check.**
+
+### No new PRs this pass
+
+Same set as the rest of this window on both repos; nothing new to merge or
+flag there.
