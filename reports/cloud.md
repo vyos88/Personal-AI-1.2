@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-11-02 00:57 UTC
+Claude (cloud) report, 2026-11-07 08:58 UTC
 
-LAPTOP41 STILL QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~12 days (HANDOFF_2026-10-24). Autopilot stopped too; just before, git fetch failed: credential store 'wincredman' unusable. Last pass: alpha-ai.uk 200 from alpha-serv-01; 1 open: cover task 'Alpha Standby' absent.
+LAPTOP41 STILL QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~17 days (HANDOFF_2026-10-24). Autopilot stopped too; just before, git fetch failed: credential store 'wincredman' unusable. Last pass: alpha-ai.uk 200 from alpha-serv-01; 1 open: cover task 'Alpha Standby' absent.
 
 Worker1 ComfyUI: on demand only (V). CPU work only on alpha-serv-01.
 Owner: agents on, big changes asked.
@@ -9,7 +9,7 @@ alpha-serv-01 is the sole server.
 
 WORKER1 (Laptop41), as of 20 Oct: on c1aa435: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288): alpha-standup can't bind it. control/host h32 queued, cannot run: Host autopilot on laptop-gj8dfmlk is down (#286).
 
-NEW 2 Nov: #301 DRAFT (12-day fleet outage, ask for V). 1 Nov: #299, #300 MERGED. Alpha#160, #162, #164, #166 merged; #163, #167 closed.
+NEW 7 Nov: #302 OPEN (fix: GPU Bridge Policy), for V. 2 Nov: #301 DRAFT (outage, for V). 1 Nov: #299, #300 MERGED. Alpha: none new.
 V SAID GO on the Alpha 2.0 rollout. Step 1 (build) still green: alpha-full 05dd75a, 10 green runs since 17 Oct. Steps 2-3 need claude-alpha-serv at alpha-serv-01 with V present; step 4 (tag v2.0) needs Android signing secrets. Plan: HANDOFF_2026-10-17b.
 Codex proposals BLOCKED (claude-alpha-serv, 1 Nov): none exist to review. The 31 Oct queue runs all ended verified=0 (provider-unavailable / proposal-http-error). Plans live in the codex-directives queue; codex-run must work again first.
 Open: Alpha#165 (video text); drafts #159/#161 (syncs); #103 books, #109 Spotify, #110 Ring, #113 shell, #73.
