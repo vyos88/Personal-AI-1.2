@@ -41,7 +41,8 @@ Tasks
                                                          Queue a task, await result
                                                          --agent runs it on that machine and no other
                                                          (the NAME from \`agents\`), e.g. renders on the host
-  coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>]
+                                                         --expires-ms <n> drops it if still queued after n ms
+  coord --action <a> [--actor <n>] [--message <m>] [--paths <a,b>] [--expires-ms <n>]
                                                          Drive the coordination tunnel
   tasks [--status queued|leased|succeeded|failed]        List recent tasks
 
@@ -183,6 +184,7 @@ const OPTIONS = {
   paths: { type: 'string' },
   'lease-ms': { type: 'string' },
   'min-memory-mb': { type: 'string' },
+  'expires-ms': { type: 'string' },
   agent: { type: 'string' },
   key: { type: 'string' },
   value: { type: 'string' },
@@ -354,6 +356,8 @@ export async function main(argv = process.argv.slice(2)) {
       // one box — a render needs the GPU and the generator beside it, wherever
       // else the handler happens to be enabled.
       if (flags.agent) body.targetAgent = flags.agent;
+      // Drop it if no agent has picked it up by then; for periodic reports.
+      if (flags['expires-ms']) body.expiresInMs = Number.parseInt(flags['expires-ms'], 10);
 
       const queued = await api('/tasks', { method: 'POST', body });
 

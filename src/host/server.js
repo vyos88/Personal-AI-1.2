@@ -130,6 +130,8 @@ export function createHost({
 
     // Releases every parked waiter, so each handler resumes and answers 204.
     queue.stop();
+    // Whatever changed since the last background save goes to disk before exit.
+    await queue.flush().catch((error) => log.error('could not save tasks on close', { message: error.message }));
     // Give those responses a turn of the loop to flush before reaping sockets.
     await new Promise((resolve) => setImmediate(resolve));
     for (const entry of servers) entry.closeIdleConnections();
@@ -502,11 +504,22 @@ async function handle(req, res, ctx) {
         }
 
         const succeeded = body.ok === true;
+        const repeat = Boolean(ctx.queue.get(taskId)?.receiptId);
         const task = succeeded
           ? ctx.queue.complete(taskId, agentId, body.result ?? null)
           : ctx.queue.fail(taskId, agentId, body.error ?? { message: 'agent reported failure' });
-        ctx.registry.recordOutcome(agentId, succeeded);
-        return sendJson(res, 200, { ok: true, status: task.status });
+        if (!repeat) ctx.registry.recordOutcome(agentId, succeeded);
+
+        // The agent is only told its report arrived once it is on disk. A 503
+        // makes it retry, and the retry is answered from the stored result
+        // with the same receipt instead of a 409.
+        try {
+          await ctx.queue.flush();
+        } catch (error) {
+          log.error('could not persist a task result', { taskId, message: error.message });
+          return sendJson(res, 503, { error: 'not_persisted', message: 'result not stored yet; retry' });
+        }
+        return sendJson(res, 200, { ok: true, status: task.status, receiptId: task.receiptId });
       }
     }
 

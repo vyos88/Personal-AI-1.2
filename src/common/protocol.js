@@ -152,8 +152,12 @@ export function validateTaskInput(body) {
   // 0 means "no memory requirement", which is what almost every task wants.
   const minMemoryMB = clampInt(body.minMemoryMB, 0, 0, 1024 * 1024, 'minMemoryMB');
   const targetAgent = validateTargetAgent(body.targetAgent);
+  // How long the task may wait for an agent before it is dropped. Absent means
+  // the host's default (ALPHA_TASK_TTL_MS). A periodic report should set a
+  // short one: its next run supersedes it anyway.
+  const expiresInMs = clampInt(body.expiresInMs, null, 1_000, 30 * 24 * 3_600_000, 'expiresInMs');
 
-  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts, minMemoryMB, targetAgent };
+  return { type, payload: body.payload ?? {}, leaseMs, maxAttempts, minMemoryMB, targetAgent, expiresInMs };
 }
 
 /**

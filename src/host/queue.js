@@ -46,10 +46,61 @@ export class TaskQueue {
   #waiters = new Set();
   #sweeper = null;
 
-  constructor({ sweepIntervalMs = 5_000, now = () => Date.now(), admission = OPEN_ADMISSION } = {}) {
+  /**
+   * `store` persists tasks across restarts (see TaskStore); without one the
+   * queue is memory-only, as it always was. `defaultTtlMs` is how long a task
+   * may wait in the queue for an agent before it is dropped, for tasks that do
+   * not name their own `expiresInMs`; null keeps them waiting forever.
+   */
+  constructor({
+    sweepIntervalMs = 5_000,
+    now = () => Date.now(),
+    admission = OPEN_ADMISSION,
+    store = null,
+    defaultTtlMs = null,
+  } = {}) {
     this.sweepIntervalMs = sweepIntervalMs;
     this.now = now;
     this.admission = admission;
+    this.store = store;
+    this.defaultTtlMs = defaultTtlMs;
+  }
+
+  /**
+   * Loads the tasks a previous process saved. Call once, before the host
+   * starts serving.
+   *
+   * A task that was leased when the old process died goes back in the queue:
+   * the agent holding it reports to a registration that no longer exists, so
+   * its result would be refused anyway. The attempt it spent stays spent, so a
+   * task that takes the coordinator down with it cannot do so forever.
+   */
+  async restore() {
+    if (!this.store) return 0;
+    const saved = await this.store.load();
+    for (const task of saved) {
+      if (this.#tasks.has(task.id)) continue;
+      this.#tasks.set(task.id, task);
+      if (task.status === TaskStatus.LEASED) {
+        task.status = TaskStatus.QUEUED;
+        task.agentId = null;
+        task.leasedAt = null;
+        task.leaseExpiresAt = null;
+      }
+      if (task.status === TaskStatus.QUEUED) this.#pending.push(task);
+    }
+    this.#pending.sort((a, b) => a.createdAt - b.createdAt);
+    log.info('tasks restored', { total: saved.length, pending: this.#pending.length });
+    return saved.length;
+  }
+
+  /**
+   * Resolves once every change made so far is on disk. The result endpoint
+   * awaits it, so an agent is only told its work was received after it is.
+   */
+  flush() {
+    if (!this.store) return Promise.resolve();
+    return this.store.save(() => [...this.#tasks.values()]);
   }
 
   start() {
@@ -69,7 +120,9 @@ export class TaskQueue {
     }
   }
 
-  enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0, targetAgent = null }) {
+  enqueue({ type, payload, leaseMs, maxAttempts, minMemoryMB = 0, targetAgent = null, expiresInMs = null }) {
+    const ttl = expiresInMs ?? this.defaultTtlMs;
+    const createdAt = this.now();
     const task = {
       id: newId('task'),
       type,
@@ -96,7 +149,15 @@ export class TaskQueue {
       agentId: null,
       result: null,
       error: null,
-      createdAt: this.now(),
+      // Set when the task reaches succeeded or failed: the id an agent is
+      // handed back as proof its report was stored.
+      receiptId: null,
+      createdAt,
+      // When a still-queued task is dropped instead of waiting on. Only
+      // queued tasks expire; one an agent is running is never cut off by it.
+      // Without this, a reporter posting every three minutes to a host with
+      // no agent built a backlog that would all run at once on reattach.
+      expiresAt: ttl ? createdAt + ttl : null,
       leasedAt: null,
       leaseExpiresAt: null,
       finishedAt: null,
@@ -115,6 +176,7 @@ export class TaskQueue {
     }
 
     log.info('task enqueued', { taskId: task.id, type: task.type, dispatched: Boolean(waiter) });
+    this.#changed();
     return task;
   }
 
@@ -136,6 +198,7 @@ export class TaskQueue {
     if (index !== -1) {
       const [task] = this.#pending.splice(index, 1);
       this.#assign(task, agentId);
+      this.#changed();
       return Promise.resolve(task);
     }
 
@@ -163,6 +226,12 @@ export class TaskQueue {
   }
 
   complete(taskId, agentId, result) {
+    // The same agent reporting the same outcome again — its first reply was
+    // lost, or the host could not store it and asked it to retry — gets the
+    // receipt it was already given rather than a 409.
+    const repeat = this.#repeatReport(taskId, agentId, TaskStatus.SUCCEEDED);
+    if (repeat) return repeat;
+
     const task = this.#requireLeasedBy(taskId, agentId);
     this.admission.release(agentId, task);
     task.status = TaskStatus.SUCCEEDED;
@@ -170,11 +239,16 @@ export class TaskQueue {
     task.error = null;
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
-    log.info('task succeeded', { taskId, agentId, attempts: task.attempts });
+    task.receiptId = newId('rcpt');
+    log.info('task succeeded', { taskId, agentId, attempts: task.attempts, receiptId: task.receiptId });
+    this.#changed();
     return task;
   }
 
   fail(taskId, agentId, error) {
+    const repeat = this.#repeatReport(taskId, agentId, TaskStatus.FAILED);
+    if (repeat) return repeat;
+
     const task = this.#requireLeasedBy(taskId, agentId);
     const normalized = normalizeError(error);
     this.admission.release(agentId, task);
@@ -184,11 +258,13 @@ export class TaskQueue {
       task.error = normalized;
       task.finishedAt = this.now();
       task.leaseExpiresAt = null;
+      task.receiptId = newId('rcpt');
       log.warn('task failed permanently', { taskId, agentId, attempts: task.attempts });
     } else {
       task.error = normalized;
       this.#requeue(task, 'agent reported failure');
     }
+    this.#changed();
     return task;
   }
 
@@ -218,6 +294,7 @@ export class TaskQueue {
     // rather than leaving it looking like it was never picked up.
     task.error = normalizeError(reason);
     this.#requeue(task, `agent declined: ${task.error.message}`);
+    this.#changed();
     return task;
   }
 
@@ -234,12 +311,28 @@ export class TaskQueue {
     task.finishedAt = this.now();
     task.leaseExpiresAt = null;
     log.info('task cancelled', { taskId });
+    this.#changed();
     return task;
   }
 
-  /** Reclaims tasks whose holder never reported back. */
+  /** Reclaims tasks whose holder never reported back, and drops expired ones. */
   sweep() {
     const now = this.now();
+    let changed = false;
+
+    // Cancelled rather than failed: nothing ran, and "failed" would read as a
+    // machine having tried. The code says why, for `alpha-admin tasks`.
+    for (let i = this.#pending.length - 1; i >= 0; i--) {
+      const task = this.#pending[i];
+      if (task.expiresAt === null || task.expiresAt === undefined || task.expiresAt > now) continue;
+      this.#pending.splice(i, 1);
+      task.status = TaskStatus.CANCELLED;
+      task.error = { message: 'expired in the queue before any agent ran it', code: 'expired' };
+      task.finishedAt = now;
+      changed = true;
+      log.info('task expired', { taskId: task.id, type: task.type });
+    }
+
     for (const task of this.#tasks.values()) {
       if (task.status !== TaskStatus.LEASED) continue;
       if (task.leaseExpiresAt === null || task.leaseExpiresAt > now) continue;
@@ -257,7 +350,9 @@ export class TaskQueue {
       } else {
         this.#requeue(task, 'lease expired');
       }
+      changed = true;
     }
+    if (changed) this.#changed();
   }
 
   get(taskId) {
@@ -342,6 +437,18 @@ export class TaskQueue {
       waiter.signal.removeEventListener('abort', waiter.onAbort);
     }
     waiter.resolve(task);
+  }
+
+  /** Saves in the background; `flush()` is for callers that must wait. */
+  #changed() {
+    if (!this.store) return;
+    this.flush().catch((error) => log.error('could not save tasks', { message: error.message }));
+  }
+
+  #repeatReport(taskId, agentId, status) {
+    const task = this.#tasks.get(taskId);
+    if (task && task.status === status && task.agentId === agentId && task.receiptId) return task;
+    return null;
   }
 
   #requireLeasedBy(taskId, agentId) {

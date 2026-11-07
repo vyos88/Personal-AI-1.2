@@ -1,6 +1,9 @@
 import { createHost } from './server.js';
 import { AuthService } from './auth/service.js';
 import { AuthStore } from './auth/store.js';
+import { AgentRegistry } from './registry.js';
+import { TaskQueue } from './queue.js';
+import { TaskStore } from './task-store.js';
 import { loadEnv } from '../common/env.js';
 import { createLogger } from '../common/log.js';
 
@@ -55,7 +58,29 @@ if (auth.userCount() === 0 && !bootstrapToken) {
   process.exit(1);
 }
 
-const { servers, listen, close } = createHost({ auth });
+// Queued tasks and recent results survive a restart in this file. Empty
+// ALPHA_TASK_STORE keeps the queue in memory only, as it was before.
+const taskStorePath = process.env.ALPHA_TASK_STORE ?? './data/tasks.json';
+// A day by default: long enough for a render queued overnight to wait for the
+// laptop that runs it, short enough that reports nobody could deliver do not
+// pile up. 0 disables expiry.
+const taskTtlMs = Number.parseInt(process.env.ALPHA_TASK_TTL_MS ?? String(24 * 3_600_000), 10);
+
+const registry = new AgentRegistry();
+const queue = new TaskQueue({
+  admission: registry,
+  store: new TaskStore({ path: taskStorePath === '' ? null : taskStorePath }),
+  defaultTtlMs: Number.isFinite(taskTtlMs) && taskTtlMs > 0 ? taskTtlMs : null,
+});
+
+try {
+  await queue.restore();
+} catch (error) {
+  log.error('could not load the task store', { message: error.message, path: taskStorePath });
+  process.exit(1);
+}
+
+const { servers, listen, close } = createHost({ auth, registry, queue });
 
 // How long to keep retrying an address that does not exist on this machine yet.
 // At boot the coordinator usually starts before Tailscale has assigned its
