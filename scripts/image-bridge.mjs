@@ -10,7 +10,7 @@
  *
  * Each rendering machine enables ALPHA_EXTRA_HANDLERS=alpha-image,alpha-image-file
  * and runs its own generator (ALPHA_IMAGE_BACKEND, see alpha-image.js). The
- * The default bridge port is 7861; the Windows task can override it in image-runtime/.env.
+ * The default bridge port is 7861; the Windows task can override it in the checkout's .env.
  *
  * Configuration (.env beside the checkout, or the environment):
  *   ALPHA_HOST_URL             coordinator (default http://127.0.0.1:8787)
