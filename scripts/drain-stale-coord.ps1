@@ -2,8 +2,8 @@
 # coordination agent was attached. Dry run by default; -Apply cancels.
 # Needs a token with tasks:read (dry run) and tasks:cancel (-Apply, operator/admin).
 #
-#   powershell -ExecutionPolicy Bypass -File C:\Alpha\scripts\drain-stale-coord.ps1
-#   powershell -ExecutionPolicy Bypass -File C:\Alpha\scripts\drain-stale-coord.ps1 -Apply
+#   powershell -ExecutionPolicy Bypass -File scripts\drain-stale-coord.ps1
+#   powershell -ExecutionPolicy Bypass -File scripts\drain-stale-coord.ps1 -Apply
 param(
   [string]$HostUrl = $(if ($env:ALPHA_HOST_URL) { $env:ALPHA_HOST_URL } else { 'http://127.0.0.1:8787' }),
   [string]$Token = $env:ALPHA_ADMIN_TOKEN,
