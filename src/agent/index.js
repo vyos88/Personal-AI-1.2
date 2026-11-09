@@ -1,6 +1,14 @@
 import os from 'node:os';
 import { fleetExecutionPolicy } from '../common/fleet-execution-policy.js';
-const ownerFleet = fleetExecutionPolicy();
+// Name the GPU target, as scripts/image-bridge.mjs does. Called with none, the
+// policy reader demands exactly one target fleet-wide, so the agent stopped
+// starting (exit 1, "Owner GPU execution identity is invalid or ambiguous") on
+// 2026-11-09 when Alpha's device policy gained Jack's own GPU target next to
+// Worker2RTX. The agent only needs cpuAgent from it. ALPHA_GPU_AGENT must be set
+// in the process environment: .env files are loaded further down.
+const ownerFleet = fleetExecutionPolicy({
+  requestedGpuAgent: (process.env.ALPHA_GPU_AGENT || '').trim() || 'Worker2RTX',
+});
 if (ownerFleet?.cpuAgent) process.env.ALPHA_AGENT_NAME = ownerFleet.cpuAgent;
 
 import { TunnelAgent } from './agent.js';
