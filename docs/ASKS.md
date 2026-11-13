@@ -976,13 +976,19 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   report the outage, because every check that would report it runs *on* the machines that are
   quiet. This has been reported once an hour in a session log for twelve days; a session log is
   not somewhere V reads.
-  **What would settle it, in one command.** From this side, a machine that is powered off and a
-  machine whose scheduled-task account can no longer authenticate its push look *identical* —
-  both are simply an absence of commits. Logging in to DESKTOP-41HPLCN and running `git push`
-  **by hand, as the account the scheduled task runs under**, separates them: a credential or
-  remote error names the problem, and a clean push means the machine was merely off and the
-  branches will catch up by themselves. Same one command on `laptop-gj8dfmlk` for the Host.
-  Change this to `[x]` with which of the two it was, or `[!]` with what the push printed.
+  **Superseded 2026-11-13 — the cause is named, and it is not a powered-off machine.**
+  `status/cloud:reports/cloud.md` (rewritten `2026-11-13T03:57:54Z`, and carrying the same
+  sentence already at `2026-11-07T08:58:06Z`) records that Laptop41's last `git fetch` failed
+  with **credential store 'wincredman' unusable**, and that the autopilot stopped right after.
+  So the original framing of this ask — "powered off and credential failure look identical from
+  here, run `git push` by hand to tell them apart" — was wrong on both halves. It is the
+  credential failure, and a by-hand push would not even test it: run interactively it uses the
+  logged-in user's credentials and would succeed while the **scheduled-task account** still
+  cannot fetch. What V needs on DESKTOP-41HPLCN is Git Credential Manager's store *for the
+  account the scheduled tasks run under*, then the doctor task. `laptop-gj8dfmlk`'s autopilot
+  is a separate open item (#286), not the same fault. Change this to `[x]` once the task
+  account can fetch again. As of `2026-11-13T04:34:28Z` the live branch is **556 h 30 m**
+  (23 d 4 h 30 m) dark, ~6680 missed writes.
   **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
   hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
   is already most of the way to answering this.
