@@ -14,7 +14,9 @@ export function gpuDemand(tasks, name, types = GPU_TYPES) {
     && (!task.targetAgent || task.targetAgent === name));
 }
 
-/** One scheduler pass: no persistent process when there is no queued GPU work. */
+/** One scheduler pass: no persistent process when there is no queued GPU work.
+ * idleMs Infinity is the owner's always-available policy: once awake, the worker
+ * stays registered and its backends stay up until the signal aborts it. */
 export async function runGpuDemand({
   hostUrl, queueToken, workerToken, name, handlers,
   idleMs = 30_000, checkMs = 1_000, pollWaitMs = 1_000,
@@ -22,7 +24,8 @@ export async function runGpuDemand({
   maxLoad = 0.85,
   imageBackend = null, canStart = async () => ({ ok: true }), now = Date.now, log = () => {}, signal,
 }) {
-  if (!name || !Number.isFinite(idleMs) || idleMs <= 0 || !Number.isFinite(checkMs) || checkMs <= 0) {
+  const idleOk = idleMs === Infinity || (Number.isFinite(idleMs) && idleMs > 0);
+  if (!name || !idleOk || !Number.isFinite(checkMs) || checkMs <= 0) {
     throw new Error('GPU worker needs a machine name and positive idle/check intervals');
   }
   const types = handlers.map((handler) => handler.type);

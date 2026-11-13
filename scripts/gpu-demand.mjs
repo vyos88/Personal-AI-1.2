@@ -9,7 +9,7 @@ import { freemem } from 'node:os';
 import { resolveExecutable } from '../src/common/resolve-executable.js';
 import { runGpuDemand } from '../src/agent/gpu-demand.js';
 import { createSingingBackend } from '../src/agent/singing-backend.js';
-import { readExecutionPolicy } from '../src/agent/execution-policy.js';
+import { readExecutionPolicy, ownerGpuIdleMs } from '../src/agent/execution-policy.js';
 
 export async function main(argv = process.argv.slice(2)) {
 const { values } = parseArgs({ args: argv, options: { 'env-file': { type: 'string' } } });
@@ -17,11 +17,12 @@ if (!values['env-file']) throw new Error('--env-file is required');
 process.loadEnvFile(resolve(values['env-file']));
 const ownerPolicy = readExecutionPolicy();
 if (ownerPolicy) {
-  if (!ownerPolicy.gpu_agent_name || !Number.isFinite(ownerPolicy.idle_seconds) || ownerPolicy.idle_seconds <= 0) {
+  if (!ownerPolicy.gpu_agent_name) {
     throw new Error('Owner GPU identity/idle policy is invalid; inspect execution-policy.json');
   }
   process.env.ALPHA_AGENT_NAME = ownerPolicy.gpu_agent_name;
-  process.env.ALPHA_GPU_IDLE_MS = String(ownerPolicy.idle_seconds * 1000);
+  // 'Infinity' for the owner's always-available, zero-idle policy: Number() reads it back.
+  process.env.ALPHA_GPU_IDLE_MS = String(ownerGpuIdleMs(ownerPolicy));
 }
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const stateRoot = resolve(process.env.ALPHA_GPU_STATE_DIR ?? '.');
