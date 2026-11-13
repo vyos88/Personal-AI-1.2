@@ -39,7 +39,7 @@ export async function runGpuDemand({
     return { started: false, completed: 0 };
   }
   if (demand.some((task) => ['alpha.render', 'alpha.image', 'alpha.singing.wake'].includes(task.type))) {
-    const admission = await canStart();
+    const admission = await canStart(demand);
     if (!admission.ok) {
       log({ state: 'asleep', reason: 'waiting-for-resources', detail: admission.reason });
       return { started: false, completed: 0 };

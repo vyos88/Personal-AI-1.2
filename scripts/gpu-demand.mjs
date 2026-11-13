@@ -17,9 +17,11 @@ if (!values['env-file']) throw new Error('--env-file is required');
 process.loadEnvFile(resolve(values['env-file']));
 const ownerPolicy = readExecutionPolicy();
 if (ownerPolicy) {
- if (!ownerPolicy.gpu_agent_name || !Number.isFinite(ownerPolicy.idle_seconds) || ownerPolicy.idle_seconds <= 0) throw new Error('Owner GPU policy invalid');
- process.env.ALPHA_AGENT_NAME = ownerPolicy.gpu_agent_name;
- process.env.ALPHA_GPU_IDLE_MS = String(ownerPolicy.idle_seconds * 1000);
+  if (!ownerPolicy.gpu_agent_name || !Number.isFinite(ownerPolicy.idle_seconds) || ownerPolicy.idle_seconds <= 0) {
+    throw new Error('Owner GPU identity/idle policy is invalid; inspect execution-policy.json');
+  }
+  process.env.ALPHA_AGENT_NAME = ownerPolicy.gpu_agent_name;
+  process.env.ALPHA_GPU_IDLE_MS = String(ownerPolicy.idle_seconds * 1000);
 }
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const stateRoot = resolve(process.env.ALPHA_GPU_STATE_DIR ?? '.');
@@ -149,9 +151,17 @@ try {
     hostUrl: process.env.ALPHA_HOST_URL, queueToken: process.env.ALPHA_GPU_QUEUE_TOKEN,
     workerToken: process.env.ALPHA_AGENT_KEY, name: process.env.ALPHA_AGENT_NAME,
     handlers, imageBackend: backends, signal: abort.signal,
-    async canStart() {
+    async canStart(demand = []) {
       const reserve = Number(process.env.ALPHA_AGENT_MEMORY_RESERVE_MB ?? 2048) * 1024 ** 2;
       if (freemem() < reserve + 1024 ** 2 * 1024) return { ok: false, reason: 'Need 1 GiB free above the configured RAM reserve' };
+      if (demand.some((task) => task.type === 'alpha.singing.wake')) {
+        const python = join(process.env.ALPHA_GPU_SINGING_ROOT ?? 'C:/AlphaSinging', 'ACE-Step-1.5', '.venv', 'Scripts', 'python.exe');
+        const probe = await new Promise((done, reject) => execFile(python,
+          [join(root, 'scripts', 'singing_memory.py')], { windowsHide: true, timeout: 10_000 },
+          (error, output) => error ? reject(error) : done(output)));
+        const admission = JSON.parse(probe);
+        if (admission.reason) return { ok: false, reason: admission.reason };
+      }
       const binary = resolveExecutable('nvidia-smi');
       if (!binary) return { ok: false, reason: 'NVIDIA GPU probe unavailable' };
       const free = await new Promise((done, reject) => execFile(binary,

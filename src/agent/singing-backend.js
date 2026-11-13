@@ -3,6 +3,13 @@ import { readFile, realpath } from 'node:fs/promises';
 import { openSync, closeSync } from 'node:fs';
 import { join } from 'node:path';
 
+export function singingBusy(stats, activity, now = Date.now(), idleMs = 30_000) {
+  const counts = [stats?.jobs?.running, stats?.jobs?.queued, stats?.queue_size, activity?.active];
+  if (counts.some((n) => !Number.isInteger(n) || n < 0)
+      || !Number.isFinite(activity?.lastActivity) || activity.lastActivity <= 0) return true;
+  return counts.some((n) => n > 0) || now - activity.lastActivity * 1000 < idleMs;
+}
+
 // Only this session's child is owned. An unknown queue is never idle.
 export function createSingingBackend({ root, script, stateRoot, bind, idleMs = 30_000, log = () => {} }) {
   let child, exited, ready = false, key;
@@ -28,7 +35,6 @@ export function createSingingBackend({ root, script, stateRoot, bind, idleMs = 3
         child = spawn(python, [script], { cwd: engineRoot, windowsHide: true,
           detached: process.platform !== 'win32', stdio: ['ignore', fd, fd], env: {
             ...process.env, ALPHA_SINGING_ROOT: engineRoot, ALPHA_SINGING_BIND: bind,
-            ALPHA_SINGING_ACTIVITY: join(stateRoot, 'singing-activity.json'),
             ACESTEP_API_KEY: key, ACESTEP_CONFIG_PATH: 'acestep-v15-turbo',
             ACESTEP_INIT_LLM: 'false', ACESTEP_DEVICE: 'cuda', ACESTEP_LM_BACKEND: 'pt',
             // The installed 4 GiB CUDA profile stages weights in RAM between
@@ -70,9 +76,8 @@ export function createSingingBackend({ root, script, stateRoot, bind, idleMs = 3
       if (!child || child.exitCode !== null || !ready) return false;
       try {
         const stats = await json('/v1/stats');
-        const activity = JSON.parse(await readFile(join(stateRoot, 'singing-activity.json'), 'utf8'));
-        return stats.jobs.running > 0 || stats.jobs.queued > 0 || stats.queue_size > 0
-          || activity.active > 0 || Date.now() - activity.lastActivity * 1000 < idleMs;
+        const runtime = await json('/alpha/runtime');
+        return singingBusy(stats, runtime?.activity, Date.now(), idleMs);
       } catch { return true; }
     },
     async stop() {
