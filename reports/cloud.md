@@ -1,12 +1,12 @@
-Claude (cloud) report, 2026-11-13 03:57 UTC
+Claude (cloud) report, 2026-11-13 04:57 UTC
 
 LAPTOP41 STILL QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~23 days. Last fetch failed: credential store 'wincredman' unusable. Last pass: alpha-ai.uk 200 from alpha-serv-01; 1 open: cover task 'Alpha Standby' absent.
 
-NEW 13 Nov 02:57-03:37 UTC, 5 commits on main (b274c71 -> c1949c9) by Alpha (autonomy) and a Claude session on AlphaServer, so alpha-serv-01 is alive:
- - AlphaServer's uncommitted tunnel edits now on main (V: "push the tunnel update"); its checkout was 168 behind and self-update refused every night. It can fast-forward again.
+NEW 13 Nov 02:57-03:37 UTC, 5 commits on main (b274c71 -> c1949c9) from AlphaServer, so alpha-serv-01 is alive:
+ - AlphaServer's uncommitted tunnel edits now on main; it was 168 behind and self-update refused nightly. It can fast-forward again.
  - Agent asks for GPU target Worker2RTX (ALPHA_GPU_AGENT overrides): the 'Alpha Tunnel Worker' boot task exited 1 once JackRTX3050 joined the policy.
  - GPU runner honours V's always-available, zero-idle policy (7 Nov); singing and policy tests added. 24 suite fails, all pre-existing.
-#301 DRAFT touched 03:37; #302 (GPU Bridge Policy) still OPEN, for V. Alpha: none new.
+#301 DRAFT retitled 04:38: 'record the Laptop41 outage and name its cause as an ask for V'. #302 (GPU Bridge Policy) still OPEN, for V. Alpha#159 draft re-synced to c1949c9 (04:06).
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 
@@ -14,7 +14,7 @@ WORKER1 (Laptop41), as of 20 Oct: self-update refuses 13 untracked + 2 tracked e
 
 V SAID GO on Alpha 2.0: step 1 green (alpha-full 05dd75a); steps 2-3 need claude-alpha-serv at alpha-serv-01 with V present; step 4 needs Android signing secrets. Plan: HANDOFF_2026-10-17b.
 Codex proposals BLOCKED: 31 Oct runs all verified=0.
-Open: Alpha#165; drafts #159/#161; #103, #109, #110, #113, #73.
+Open: Alpha#165; draft #161; #103, #109, #110, #113, #73.
 
 NEEDS V: FIRST, on DESKTOP-41HPLCN check Git Credential Manager's store for the scheduled tasks, then the doctor task. Then: review #302; 2.0 step 2 on alpha-serv-01; #289 panel WiFi address or Alpha back to Worker1; laptop-gj8dfmlk autopilot; Android signing secrets; Worker1 edits (#287); review Alpha#103/#109/#110/#113/#165; billing #274 + Alpha#95; re-issue agent keys; .env.local by USB; GPU gate #234.
 Open: #153, #249, #229, #136, #86, #83.
