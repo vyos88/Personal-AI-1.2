@@ -8,6 +8,8 @@ import { fleetExecutionPolicy } from '../src/common/fleet-execution-policy.js';
 function policy(...roles) {
   const devices = Object.fromEntries(roles.map((role, i) => [`d${i}`, {
     schema: 1, machine: 'LAPTOP', role, gpu_agent_name: 'Worker2RTX',
+    // Owner request 2026-11-07: GPU targets stay always available, no idle teardown.
+    gpu_mode: 'always-available', idle_seconds: 0,
   }]));
   return JSON.stringify({ schema: 1, devices, cpu_host: 'alpha-serv-01', cpu_agent_name: 'AlphaServer' });
 }

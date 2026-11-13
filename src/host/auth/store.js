@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, open, readFile, rename } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import { createLogger } from '../../common/log.js';
@@ -112,9 +112,16 @@ export class AuthStore {
     const payload = JSON.stringify(this.#data, null, 2);
     const tmp = `${this.path}.tmp`;
     await mkdir(dirname(this.path), { recursive: true });
-    // Write-then-rename so a crash mid-write leaves the previous file intact;
-    // rename is atomic within a filesystem.
-    await writeFile(tmp, payload, { mode: 0o600 });
+    // Atomic replacement alone is not durable: the rename can reach disk
+    // before the new bytes do. Flush the complete snapshot before replacing
+    // the last good credential file, and refuse replacement if flushing fails.
+    const file = await open(tmp, 'w', 0o600);
+    try {
+      await file.writeFile(payload, 'utf8');
+      await file.sync();
+    } finally {
+      await file.close();
+    }
     await rename(tmp, this.path);
   }
 

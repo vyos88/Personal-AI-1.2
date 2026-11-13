@@ -1,5 +1,4 @@
 """Pinned CUDA-only Singing API with request activity for its owning worker."""
-import json
 import os
 from pathlib import Path
 import sys
@@ -7,6 +6,11 @@ import time
 
 
 def main():
+    from singing_memory import memory_snapshot, admission_reason
+    reason = admission_reason(memory_snapshot())
+    if reason:
+        raise RuntimeError(reason)
+    started_at = time.time()
     root = Path(os.environ['ALPHA_SINGING_ROOT']).resolve()
     engine = root / 'ACE-Step-1.5'
     sys.path.insert(0, str(engine))
@@ -26,6 +30,8 @@ def main():
     from acestep.api_server import app
     from fastapi import Depends
     from acestep.api.http.auth import verify_api_key
+    from singing_activity import Activity, RequestActivity
+    activity = Activity()
 
     @app.get('/alpha/runtime')
     async def runtime(_=Depends(verify_api_key)):
@@ -34,37 +40,27 @@ def main():
                          'cpu_offload': bool(getattr(handler, 'offload_to_cpu', True)),
                          'dit_offload': bool(getattr(handler, 'offload_dit_to_cpu', False)),
                          'vae_decode_policy': 'cuda-only',
+                         'pid': os.getpid(), 'started_at': started_at,
+                         'memory': memory_snapshot(),
+                         'activity': activity.snapshot(),
                          'cuda_available': torch.cuda.is_available()}}
 
-    activity = Path(os.environ['ALPHA_SINGING_ACTIVITY'])
-    state = {'active': 0, 'lastActivity': time.time()}
-
-    def save():
-        temporary = activity.with_suffix('.tmp')
-        temporary.write_text(json.dumps(state), encoding='utf-8')
-        temporary.replace(activity)
-
-    save()
-
-    class RequestActivity:
+    class MemoryAdmission:
         def __init__(self, app):
             self.app = app
 
         async def __call__(self, scope, receive, send):
-            tracked = scope['type'] == 'http' and scope.get('path') not in ('/health', '/v1/stats', '/alpha/runtime')
-            if tracked:
-                state['active'] += 1
-                state['lastActivity'] = time.time()
-                save()
-            try:
-                await self.app(scope, receive, send)
-            finally:
-                if tracked:
-                    state['active'] -= 1
-                    state['lastActivity'] = time.time()
-                    save()
+            if scope['type'] == 'http' and scope.get('path') == '/release_task':
+                reason = admission_reason(memory_snapshot(), loaded=True)
+                if reason:
+                    from starlette.responses import JSONResponse
+                    await JSONResponse({'error': reason}, status_code=503,
+                                       headers={'X-Alpha-Generation-Accepted': 'false'})(scope, receive, send)
+                    return
+            await self.app(scope, receive, send)
 
-    app.add_middleware(RequestActivity)
+    app.add_middleware(MemoryAdmission)
+    app.add_middleware(RequestActivity, activity=activity)
 
     import uvicorn
     uvicorn.run(app, host=os.environ['ALPHA_SINGING_BIND'], port=8003, log_level='info')

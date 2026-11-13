@@ -275,16 +275,24 @@ export function comfySampler(name) {
 }
 
 /** The smallest text-to-image graph ComfyUI's API format accepts. */
+export function compositionSize(recipe, checkpoint) {
+  const isSd15 = /v1-5|sd15|sd-v1|1\.5/i.test(checkpoint);
+  const scale = isSd15 ? Math.min(1, 512 / Math.max(recipe.width, recipe.height)) : 1;
+  return { width: Math.max(64, Math.round(recipe.width * scale / 8) * 8),
+    height: Math.max(64, Math.round(recipe.height * scale / 8) * 8) };
+}
+
 export function comfyWorkflow(recipe, checkpoint) {
   const mapped = comfySampler(recipe.sampler_name);
   const sampler = mapped.sampler;
   // A scheduler Alpha named wins over the one guessed from the sampler name.
   const scheduler = recipe.scheduler ?? mapped.scheduler;
-  return {
+  const composition = compositionSize(recipe, checkpoint);
+  const workflow = {
     4: { class_type: 'CheckpointLoaderSimple', inputs: { ckpt_name: checkpoint } },
     6: { class_type: 'CLIPTextEncode', inputs: { text: recipe.prompt, clip: ['4', 1] } },
     7: { class_type: 'CLIPTextEncode', inputs: { text: recipe.negative_prompt, clip: ['4', 1] } },
-    5: { class_type: 'EmptyLatentImage', inputs: { width: recipe.width, height: recipe.height, batch_size: 1 } },
+    5: { class_type: 'EmptyLatentImage', inputs: { ...composition, batch_size: 1 } },
     3: {
       class_type: 'KSampler',
       inputs: {
@@ -303,6 +311,12 @@ export function comfyWorkflow(recipe, checkpoint) {
     8: { class_type: 'VAEDecode', inputs: { samples: ['3', 0], vae: ['4', 2] } },
     9: { class_type: 'SaveImage', inputs: { filename_prefix: 'alpha-tunnel', images: ['8', 0] } },
   };
+  if (composition.width !== recipe.width || composition.height !== recipe.height) {
+    workflow[10] = { class_type: 'ImageScale', inputs: { image: ['8', 0],
+      upscale_method: 'lanczos', width: recipe.width, height: recipe.height, crop: 'disabled' } };
+    workflow[9].inputs.images = ['10', 0];
+  }
+  return workflow;
 }
 
 function wait(ms, signal) {
@@ -382,7 +396,10 @@ async function renderComfy(recipe, signal) {
   const view = await request(`${base}/view?${query}`, { signal }, 'ComfyUI');
   const data = Buffer.from(await view.arrayBuffer());
   if (!data.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) throw generatorError('ComfyUI did not return a PNG', 'not_png');
-  return { data, seed: recipe.seed };
+  return { data, seed: recipe.seed, generation: { checkpoint,
+    composition: compositionSize(recipe, checkpoint),
+    output: { width: recipe.width, height: recipe.height },
+    resize: compositionSize(recipe, checkpoint).width !== recipe.width || compositionSize(recipe, checkpoint).height !== recipe.height ? 'lanczos' : null } };
 }
 
 export async function run(payload, { signal, log } = {}) {
@@ -400,7 +417,7 @@ export async function run(payload, { signal, log } = {}) {
 
   log?.info?.('rendering image', { backend, width: recipe.width, height: recipe.height, steps: recipe.steps });
   const startedAt = Date.now();
-  const { data, seed: usedSeed } = backend === 'comfyui'
+  const { data, seed: usedSeed, generation } = backend === 'comfyui'
     ? await renderComfy(recipe, combined)
     : await renderA1111(recipe, combined);
   recipe.seed = usedSeed;
@@ -422,6 +439,7 @@ export async function run(payload, { signal, log } = {}) {
     recipe,
     outputs: [{ name, bytes: statSync(path).size }],
     backend,
+    ...(generation ? { generation } : {}),
     durationMs: Date.now() - startedAt,
   };
 }
