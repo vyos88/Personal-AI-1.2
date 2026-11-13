@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 
 import { fleetExecutionPolicy } from '../src/common/fleet-execution-policy.js';
 
-function policy(workerIdleSeconds = 30) {
+// Owner request 2026-11-07: GPU targets stay always available with zero idle
+// timeout. A queued-demand or idle-teardown policy is refused.
+function policy(workerIdleSeconds = 0, workerMode = 'always-available') {
   return JSON.stringify({
     schema: 1,
     devices: {
       laptop: {
         role: 'gpu-demand-only', gpu_agent_name: 'Worker2RTX',
-        gpu_mode: 'queued-demand', idle_seconds: workerIdleSeconds,
+        gpu_mode: workerMode, idle_seconds: workerIdleSeconds,
       },
       jack: {
         role: 'gpu-demand-only', gpu_agent_name: 'JackRTX3050',
@@ -37,8 +39,9 @@ test('rejects the separately restricted Jack fallback for the image bridge', () 
   assert.throws(() => run(policy(), 'JackRTX3050'), /not allowlisted/);
 });
 
-test('requires the selected GPU role to remain queued-demand with 30-second teardown', () => {
-  assert.throws(() => run(policy(60), 'Worker2RTX'), /queued-demand with 30-second/);
+test('requires the selected GPU target to stay always-available with zero idle timeout', () => {
+  assert.throws(() => run(policy(30), 'Worker2RTX'), /always-available with zero idle timeout/);
+  assert.throws(() => run(policy(0, 'queued-demand'), 'Worker2RTX'), /always-available with zero idle timeout/);
 });
 
 test('keeps ambiguous no-target policy fail-closed', () => {
