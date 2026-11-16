@@ -1005,3 +1005,30 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
   hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
   is already most of the way to answering this.
+
+## 2026-11-16 09:34 UTC — the CrowPanel moved machines with Alpha, so neither panel action may be queued on Laptop41
+
+- [!] needs V — 2026-11-16 Claude (cloud) -> V: **do not queue `panel-host` or
+  `panel-endpoint` on DESKTOP-41HPLCN while alpha-serv-01 serves Alpha.** Both read *this
+  machine's* address and act on *this machine's* Alpha, which was right while Worker1 served
+  Alpha and is wrong now:
+  - `scripts/panel-endpoint.ps1:116-121` enumerates this machine's own IPv4 addresses
+    (Tailscale and virtual adapters excluded) and sends the board `ALPHA http://<that>:8001`.
+    Its `param` block (`:41-46`) takes `Port`, `ParseStatus`, `DescribeHeard` — there is no
+    address argument, so it cannot point the panel at another machine.
+  - `scripts/fix-panel-host.mjs:405` edits this machine's `.env.local` with `homeAddresses()`,
+    and `docs/AUTOPILOT.md:65` records that it then **restarts the backend** and fails unless
+    the deck feed answers. On a standby machine that starts a second Alpha — which is exactly
+    the problem the doctor has open right now ("standby, but the backend runs here").
+  So the standing recommendation carried since 2026-10-07 — "the panel is dark because
+  Worker1's WiFi address moved; queue `fix-panel-host`" — no longer describes the fleet.
+  (It is also out of date on its own terms: the action **is** on the menu, as `panel-host`,
+  `docs/AUTOPILOT.md:65`.) The panel is on Laptop41's USB while Alpha serves from
+  alpha-serv-01, so the panel has to be told alpha-serv-01's home-network address, and nothing
+  in this repo can do that from Laptop41.
+  **What would settle it, and it is V's to choose:** either Alpha comes back to Worker1
+  (`alpha-standup`, which is the same decision as the two-Alpha item) and the old recipe
+  applies unchanged, or the panel is pointed at alpha-serv-01 — which needs either an address
+  argument added to `panel-endpoint.ps1` (a `.ps1` edit, so it needs a `pwsh` run before
+  merge; there is no PowerShell in a cloud container) or the board moved to alpha-serv-01's
+  USB. No session should pick between those on V's behalf.
