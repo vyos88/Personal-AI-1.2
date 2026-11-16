@@ -1,10 +1,14 @@
 {
     "cloudSeen":  "baffb8c3c16b420da72eec7b2272c54077c7866d",
-    "lastRun":  "2026-11-16T08:11:14",
+    "lastRun":  "2026-11-16T08:26:17",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-16T08:26:17",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 5640 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 }
              },
-    "lastPost":  "2026-11-16T08:11:14",
+    "lastPost":  "2026-11-16T08:26:17",
     "relay":  "relayed status/cloud baffb8c"
 }
