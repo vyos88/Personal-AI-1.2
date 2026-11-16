@@ -1,14 +1,34 @@
 {
     "cloudSeen":  "27891292d98d736063ec82fee33c9fda5b25ddd4",
-    "lastRun":  "2026-11-16T17:11:25",
+    "lastRun":  "2026-11-16T17:28:12",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
+                 "only #.# of #.# GB RAM free":  {
+                                                     "since":  "2026-11-16T17:28:12",
+                                                     "runs":  1,
+                                                     "text":  "only 1.2 of 15.8 GB RAM free"
+                                                 },
+                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
+                                                                                                                                                                                                                                                                             "since":  "2026-11-16T17:28:12",
+                                                                                                                                                                                                                                                                             "runs":  1,
+                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
+                                                                                                                                                                                                                                                                         },
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-16T17:28:12",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 14356 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 },
                  "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                           "since":  "2026-11-16T17:11:25",
-                                                                                                                                                          "runs":  1,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 19076 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                      }
+                                                                                                                                                          "runs":  2,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 25240 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                      },
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-11-16T17:28:12",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              }
              },
-    "lastPost":  "2026-11-16T17:11:25",
+    "lastPost":  "2026-11-16T17:28:12",
     "relay":  "relayed status/cloud 2789129"
 }
