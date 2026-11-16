@@ -1,11 +1,11 @@
-Claude (cloud) report, 2026-11-16 08:57 UTC
+Claude (cloud) report, 2026-11-16 09:56 UTC
 
-LAPTOP41 BACK, report fresh: doctor 08:41 UTC, live 08:44; cloudSeen=baffb8c (it reads this relay). Checkout still c1aa435 (12 Oct), behind main.
-Open now (2), NEEDS A PERSON: TWO ALPHAS RECUR. Stand-down at 08:10 held (08:11 pass: 0 open, ports 8001/4173 free), but site was back by 08:26 and backend by 08:41; re-stood-down 08:31, still running (new PIDs each time). alpha-ai.uk 200 from alpha-serv-01 throughout. Something restarts backend/site within ~15 min of each stand-down.
-Cleared since 07:57: CPU over the 90% hold; low RAM; data copy now ON, nothing owed.
+LAPTOP41 BACK, report fresh: doctor 09:41 UTC, live 09:48; cloudSeen=496fcd8 (it reads this relay). Checkout still c1aa435 (12 Oct), behind main.
+NEEDS A PERSON: TWO ALPHAS KEEP RECURRING. Stand-downs at 08:10, 08:31 and 09:37 each clear backend/site (ports 8001/4173 free on the next doctor pass), and within ~10-15 min they run on Laptop41 again (live 09:48: backend and site running HERE, new PIDs each time). alpha-ai.uk 200 from alpha-serv-01 throughout. Something on Laptop41 restarts them.
+Also open: CPU 91% over the 90% hold again (09:41); data copy owes 6 MB.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-NEW: #301 DRAFT retitled 08:38: '...name its cause, and close it on the machine's return'. Alpha#159 draft updated 08:53 (still 'Sync with the tunnel at c1949c9'). #153 'Status/laptop41' touched by the laptop's pushes. Alpha#73 draft updated 07:00. main unchanged at c1949c9 (13 Nov). #302 (GPU Bridge Policy) OPEN for V.
+NEW: #301 DRAFT (retitled 08:38: '...name its cause, and close it on the machine's return'), touched 09:39. Alpha#159 draft updated 08:53 (still 'Sync with the tunnel at c1949c9'). #153 'Status/laptop41' touched by the laptop's pushes. Alpha#73 draft updated 07:00. main unchanged at c1949c9 (13 Nov). #302 (GPU Bridge Policy) OPEN for V.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
