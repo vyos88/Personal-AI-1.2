@@ -952,3 +952,83 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
     `C:\Alpha\agents\codex-directives\queue\` (`01-game-creator`, `03-persia-engine-redo`,
     `04-...`, `21-...`, `22-...`), which are what ran on 10-31. Only the old `scripts/overnight/`
     paths are gone; nothing needs restoring, only codex-run needs to work again.
+
+## 2026-11-01 23:35 UTC — both machines have been off the wire for twelve days, and nothing on either side of the tunnel says so
+
+- [x] 2026-11-16 Claude (cloud): **closed — the task account can fetch again.** From
+  `2026-11-16T06:59:59Z` all three scheduled identities on DESKTOP-41HPLCN are pushing again
+  (`laptop41-autopilot` on `status/laptop41-live`, `laptop41-doctor` on `status/laptop41`, and
+  `status/laptop41-autopilot` for ran ids), which is the receipt this ask asked for: a push by
+  the *scheduled-task* account, not an interactive one. Total outage, by committer date on
+  `status/laptop41-live`: `2026-10-21T00:04:21Z` (`8e737bb1`) to `2026-11-16T06:59:59Z`
+  (`dbf8b794`) = **630 h 55 m** (26 d 6 h 55 m), ~7570 missed 5-minute writes. The credential
+  fault named below is therefore fixed or moot; nothing here says which, and that is V's
+  machine to tell. **What came back with it is not this ask:** the live page reports
+  `STANDBY BUT SERVING` — alpha-serv-01 serves alpha-ai.uk while Laptop41's own backend and
+  site run too — and CPU over the 90% hold. Both are in
+  `status/cloud:reports/cloud.md` (`2026-11-16T07:57:58Z`) as NEEDS-A-PERSON items and are not
+  reopened here. The original ask, for the record:
+  23 minutes of each other on 2026-10-21, and has not moved since.** Measured against
+  `2026-11-01T23:34:46Z`, by committer date on each ref:
+  - `status/laptop41-live` — `8e737bb1`, `2026-10-21T00:04:21Z`, **287 h 30 m** (11 d 23 h 30 m).
+    `writeLive` rewrites this every 5 minutes whether or not anything changed, so that is
+    **~3450 consecutive missed writes**.
+  - `status/laptop41` (hourly doctor) — `cf5490d7`, `2026-10-20T23:41:44Z`, 287 h 53 m.
+  - `status/laptop41-autopilot` — `ef0712ea`, `2026-10-20T23:46:01Z`, 287 h 48 m. Silence here
+    alone would be ordinary (`autopilot.ps1:733` pushes only when a queued id ran); silence here
+    *and* on the two above is not.
+  - `status/host-autopilot` — `f2eaea82`, `2026-10-09T15:24:17Z`, 560 h. `status/host-live` has
+    never existed.
+  - Neither queue has been drained: `control/laptop41` (`c4be681c`, 319 h) holds 110 ids, last
+    `20261019-c1-port-8001-holder`; `control/host` (`d993cfb7`, 360 h) holds 31, last
+    `20261011-h32-enable-image`.
+  **Why this is in ASKS.md and not just a chat line:** the control plane is the only way a cloud
+  session can act on either machine, and it is push-driven in both directions — so with both
+  machines off the wire there is no action any cloud session can queue, and no standing check can
+  report the outage, because every check that would report it runs *on* the machines that are
+  quiet. This has been reported once an hour in a session log for twelve days; a session log is
+  not somewhere V reads.
+  **Superseded 2026-11-13 — the cause is named, and it is not a powered-off machine.**
+  `status/cloud:reports/cloud.md` (rewritten `2026-11-13T03:57:54Z`, and carrying the same
+  sentence already at `2026-11-07T08:58:06Z`) records that Laptop41's last `git fetch` failed
+  with **credential store 'wincredman' unusable**, and that the autopilot stopped right after.
+  So the original framing of this ask — "powered off and credential failure look identical from
+  here, run `git push` by hand to tell them apart" — was wrong on both halves. It is the
+  credential failure, and a by-hand push would not even test it: run interactively it uses the
+  logged-in user's credentials and would succeed while the **scheduled-task account** still
+  cannot fetch. What V needs on DESKTOP-41HPLCN is Git Credential Manager's store *for the
+  account the scheduled tasks run under*, then the doctor task. `laptop-gj8dfmlk`'s autopilot
+  is a separate open item (#286), not the same fault. Change this to `[x]` once the task
+  account can fetch again. As of `2026-11-13T04:34:28Z` the live branch is **556 h 30 m**
+  (23 d 4 h 30 m) dark, ~6680 missed writes.
+  **Closed 2026-11-16** by the receipt in the `[x]` line at the top of this entry.
+  **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
+  hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
+  is already most of the way to answering this.
+
+## 2026-11-16 09:34 UTC — the CrowPanel moved machines with Alpha, so neither panel action may be queued on Laptop41
+
+- [!] needs V — 2026-11-16 Claude (cloud) -> V: **do not queue `panel-host` or
+  `panel-endpoint` on DESKTOP-41HPLCN while alpha-serv-01 serves Alpha.** Both read *this
+  machine's* address and act on *this machine's* Alpha, which was right while Worker1 served
+  Alpha and is wrong now:
+  - `scripts/panel-endpoint.ps1:116-121` enumerates this machine's own IPv4 addresses
+    (Tailscale and virtual adapters excluded) and sends the board `ALPHA http://<that>:8001`.
+    Its `param` block (`:41-46`) takes `Port`, `ParseStatus`, `DescribeHeard` — there is no
+    address argument, so it cannot point the panel at another machine.
+  - `scripts/fix-panel-host.mjs:405` edits this machine's `.env.local` with `homeAddresses()`,
+    and `docs/AUTOPILOT.md:65` records that it then **restarts the backend** and fails unless
+    the deck feed answers. On a standby machine that starts a second Alpha — which is exactly
+    the problem the doctor has open right now ("standby, but the backend runs here").
+  So the standing recommendation carried since 2026-10-07 — "the panel is dark because
+  Worker1's WiFi address moved; queue `fix-panel-host`" — no longer describes the fleet.
+  (It is also out of date on its own terms: the action **is** on the menu, as `panel-host`,
+  `docs/AUTOPILOT.md:65`.) The panel is on Laptop41's USB while Alpha serves from
+  alpha-serv-01, so the panel has to be told alpha-serv-01's home-network address, and nothing
+  in this repo can do that from Laptop41.
+  **What would settle it, and it is V's to choose:** either Alpha comes back to Worker1
+  (`alpha-standup`, which is the same decision as the two-Alpha item) and the old recipe
+  applies unchanged, or the panel is pointed at alpha-serv-01 — which needs either an address
+  argument added to `panel-endpoint.ps1` (a `.ps1` edit, so it needs a `pwsh` run before
+  merge; there is no PowerShell in a cloud container) or the board moved to alpha-serv-01's
+  USB. No session should pick between those on V's behalf.
