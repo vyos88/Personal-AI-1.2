@@ -1,9 +1,9 @@
 ﻿{
-    "at":  "2026-11-16T22:29:27.5478734+00:00",
+    "at":  "2026-11-16T22:35:31.2969735+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 255 file(s) to alpha-serv-01 at 2026-11-16T22:20:50Z (8 min ago) (6 MB still to send)"
+                 "detail":  "sent 255 file(s) to alpha-serv-01 at 2026-11-16T22:20:50Z (14 min ago) (6 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  943,
+                     "age_min":  949,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,13 +24,14 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "2 live, 1 stale, 2 down, 1 static, 1 no feed",
+                  "summary":  "1 degraded, 1 live, 2 stale, 1 down, 1 static, 1 no feed",
                   "not_live":  [
+                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: feed (/panel/crowpanel/state)",
+                                   "CrowPanel: display (LAN reads)",
                                    "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-16T22:19:40.937781+00:00"
+                  "checked_at":  "2026-11-16T22:35:18.755114+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
