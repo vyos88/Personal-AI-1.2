@@ -1032,3 +1032,33 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   argument added to `panel-endpoint.ps1` (a `.ps1` edit, so it needs a `pwsh` run before
   merge; there is no PowerShell in a cloud container) or the board moved to alpha-serv-01's
   USB. No session should pick between those on V's behalf.
+
+## 2026-11-16 10:34 UTC — the two Alphas on Laptop41: automatic cover is not what restarts them, and what has been knocking them down is about to stop
+
+- [!] needs V — 2026-11-16 Claude (cloud) -> V: two narrowings on the open "two Alphas"
+  item, so the search does not go to the wrong place.
+  **1. Automatic cover is not the restarter.** It is the opposite: while `role.json` says
+  standby and the primary answers, `scripts/alpha-standby.mjs:138` returns the action
+  **`standdown`** ("standby, but Alpha serves here while *primary* answers: two Alphas,
+  standing down again") — never `cover`. The doctor's own role line shows that happening on a
+  cadence: standby since `2026-11-16T09:06:26Z` in the 09:11 pass, since
+  `2026-11-16T10:09:31Z` in the 10:27 pass. Cover only promotes after `failures: 3`
+  consecutive passes in which the primary's Alpha does not answer
+  (`scripts/alpha-standby.mjs:59`), and alpha-ai.uk has answered 200 from alpha-serv-01
+  throughout. So "boot task **or cover**" should be read as boot task.
+  **2. What the restarter is not, by name.** `scripts/alpha-standdown.ps1:71-72` disables
+  `Alpha Self-Heal`, `Alpha Server - Health Guard`, `Alpha Backend` and `Alpha`, and `:311`
+  kills the `C:\ProgramData\AlphaBoot\run-alpha*` wrapper trees. The backend and site come
+  back anyway, with a new pid almost every pass — backend `17668` (07:29) → `11276`
+  (07:41, 07:59, 08:11) → absent (08:26) → `12568` (08:41) → `22184` (08:57) → `26872`
+  (09:11) → `24448` (09:41) → `13620` (09:59) → `14220` (10:11, 10:27) — so whatever starts
+  them is outside those four task names and outside those wrappers.
+  **3. New at 10:27, and it is the one that makes this urgent:** "automatic cover last ran
+  8 min ago and its task `Alpha Standby` is not on this machine: nothing will run it again".
+  The repeated stand-downs above are what has kept the second Alpha suppressed; with no task
+  to run them, that stops. **Why no session should fix this unasked:** the doctor's remedy is
+  `standby-install` (`docs/AUTOPILOT.md:73`), and by the policy above it would, today, only
+  stand this machine down. But it also arms the promote path for a real alpha-serv-01 outage,
+  and V's standing rule is that Worker1 "covers only if V says 'cover'". So it waits for V's
+  word, which is the same word as the two-Alpha decision: `alpha-standup` to serve here, or
+  stand down and install the cover that keeps it down.
