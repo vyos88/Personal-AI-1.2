@@ -1,42 +1,49 @@
-laptop41-doctor 20261116-144106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261116-145959 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-16T14:32:14.8767992+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-16T14:42:29.9824379+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 12424 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  ok: no site here (port 4173 free)
+  PROBLEM: standby, but the backend runs here (pid 4388 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 16348 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (0 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  PROBLEM: automatic cover last ran 10 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.4 of 15.8 GB RAM free
+  ok: 1.6 of 15.8 GB RAM free
   ok: C: 86.7 GB free
-  ok: CPU 40% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,337 MB  pid 21576
-  ChatGPT                         571 MB  pid 10612
-  MsMpEng                         397 MB  pid 12440
+  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               2,379 MB  pid 21576
+  ChatGPT                         576 MB  pid 10612
+  MsMpEng                         414 MB  pid 12440
   node                            282 MB  pid 19872
-  explorer                        263 MB  pid 10840
-  ChatGPT                         235 MB  pid 26832
+  explorer                        262 MB  pid 10840
+  ChatGPT                         237 MB  pid 26832
+  dwm                             230 MB  pid 1980
   claude                          228 MB  pid 16336
-  dwm                             226 MB  pid 1980
+  --- using the CPU, over 2.4s across 8 logical core(s): the processes it could measure account for 26.7% of the machine
+  ChatGPT                       11.4% CPU   2.20s  pid 22556
+  python                         6.8% CPU   1.33s  pid 4676
+  OneDrive.Sync.Service          3.3% CPU   0.64s  pid 26364
+  powershell                     3.0% CPU   0.58s  pid 14036
+  powershell                     0.8% CPU   0.16s  pid 4352
+  OneDrive                       0.6% CPU   0.12s  pid 21648
+  161 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, conhost x8, powershell x6, csrss x2, tailscaled x2, WUDFHost x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 22s
-  - NEEDS A PERSON - standby, but the backend runs here (pid 12424 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 8 run(s), since 2026-11-16T12:56:13)
-  - only 1.4 of 15.8 GB RAM free  (open 2 run(s), since 2026-11-16T14:32:02)
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 2 run(s), since 2026-11-16T14:32:02)
-  + fixed since last run: standby, but the site runs here (pid 27368 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 113s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 4388 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 9 run(s), since 2026-11-16T12:56:13)
+  - automatic cover last ran 10 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 1 run(s), since 2026-11-16T15:01:50)
+  - standby, but the site runs here (pid 16348 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-16T15:01:50)
+  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-16T15:01:50)
+  + fixed since last run: only 1.4 of 15.8 GB RAM free
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 2 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
