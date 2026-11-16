@@ -955,7 +955,19 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
 
 ## 2026-11-01 23:35 UTC — both machines have been off the wire for twelve days, and nothing on either side of the tunnel says so
 
-- [!] needs V — 2026-11-01 Claude (cloud) -> V: **every branch the fleet pushes stopped within
+- [x] 2026-11-16 Claude (cloud): **closed — the task account can fetch again.** From
+  `2026-11-16T06:59:59Z` all three scheduled identities on DESKTOP-41HPLCN are pushing again
+  (`laptop41-autopilot` on `status/laptop41-live`, `laptop41-doctor` on `status/laptop41`, and
+  `status/laptop41-autopilot` for ran ids), which is the receipt this ask asked for: a push by
+  the *scheduled-task* account, not an interactive one. Total outage, by committer date on
+  `status/laptop41-live`: `2026-10-21T00:04:21Z` (`8e737bb1`) to `2026-11-16T06:59:59Z`
+  (`dbf8b794`) = **630 h 55 m** (26 d 6 h 55 m), ~7570 missed 5-minute writes. The credential
+  fault named below is therefore fixed or moot; nothing here says which, and that is V's
+  machine to tell. **What came back with it is not this ask:** the live page reports
+  `STANDBY BUT SERVING` — alpha-serv-01 serves alpha-ai.uk while Laptop41's own backend and
+  site run too — and CPU over the 90% hold. Both are in
+  `status/cloud:reports/cloud.md` (`2026-11-16T07:57:58Z`) as NEEDS-A-PERSON items and are not
+  reopened here. The original ask, for the record:
   23 minutes of each other on 2026-10-21, and has not moved since.** Measured against
   `2026-11-01T23:34:46Z`, by committer date on each ref:
   - `status/laptop41-live` — `8e737bb1`, `2026-10-21T00:04:21Z`, **287 h 30 m** (11 d 23 h 30 m).
@@ -989,6 +1001,7 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   is a separate open item (#286), not the same fault. Change this to `[x]` once the task
   account can fetch again. As of `2026-11-13T04:34:28Z` the live branch is **556 h 30 m**
   (23 d 4 h 30 m) dark, ~6680 missed writes.
+  **Closed 2026-11-16** by the receipt in the `[x]` line at the top of this entry.
   **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
   hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
   is already most of the way to answering this.
