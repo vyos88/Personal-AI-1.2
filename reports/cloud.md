@@ -1,23 +1,20 @@
-Claude (cloud) report, 2026-11-13 04:57 UTC
+Claude (cloud) report, 2026-11-16 07:57 UTC
 
-LAPTOP41 STILL QUIET: doctor last posted 23:41 UTC 20 Oct, live page 00:03 UTC 21 Oct, ~23 days. Last fetch failed: credential store 'wincredman' unusable. Last pass: alpha-ai.uk 200 from alpha-serv-01; 1 open: cover task 'Alpha Standby' absent.
+LAPTOP41 IS BACK after ~26 days silent. Doctor posts again since 06:59 UTC 16 Nov (last 07:41, fresh), live page 07:44. doctor-state has cloudSeen=bfe3ea6, so this relay now reaches it. Checkout still c1aa435 (12 Oct), behind main.
+Open now (3):
+ 1. NEEDS A PERSON: TWO ALPHAS. role=standby since 07:38 and alpha-ai.uk 200 from alpha-serv-01, yet backend (python) and site (node) still run on Laptop41, open 4 runs since 06:58. PIDs changed between passes (17668->11276, 8968->11044): something restarts them after the stand-down.
+ 2. CPU 93-100%, over the 90% hold: agent stops taking tunnel tasks; data copy to alpha-serv-01 slow (100 MB still owed).
+ 3. Cleared since 07:28: low RAM; cover check now sees alpha-serv-01's backend.
+Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-NEW 13 Nov 02:57-03:37 UTC, 5 commits on main (b274c71 -> c1949c9) from AlphaServer, so alpha-serv-01 is alive:
- - AlphaServer's uncommitted tunnel edits now on main; it was 168 behind and self-update refused nightly. It can fast-forward again.
- - Agent asks for GPU target Worker2RTX (ALPHA_GPU_AGENT overrides): the 'Alpha Tunnel Worker' boot task exited 1 once JackRTX3050 joined the policy.
- - GPU runner honours V's always-available, zero-idle policy (7 Nov); singing and policy tests added. 24 suite fails, all pre-existing.
-#301 DRAFT retitled 04:38: 'record the Laptop41 outage and name its cause as an ask for V'. #302 (GPU Bridge Policy) still OPEN, for V. Alpha#159 draft re-synced to c1949c9 (04:06).
+NEW: #153 'Status/laptop41' (open) touched 07:42 by the laptop's pushes. Alpha#73 draft (live watcher on Worker1) updated 07:00. main unchanged at c1949c9 (13 Nov). #301 DRAFT, #302 (GPU Bridge Policy) OPEN for V. Alpha#159 draft at c1949c9.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
+20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
+V SAID GO on Alpha 2.0: step 1 green; steps 2-3 need claude-alpha-serv at alpha-serv-01 with V present; step 4 needs Android signing secrets (HANDOFF_2026-10-17b). Codex proposals BLOCKED: 31 Oct runs all verified=0.
 
-WORKER1 (Laptop41), as of 20 Oct: self-update refuses 13 untracked + 2 tracked edits (#287). Port 8001 is Alpha's CrowPanel feed (#288). control/host h32 cannot run: laptop-gj8dfmlk autopilot down (#286).
-
-V SAID GO on Alpha 2.0: step 1 green (alpha-full 05dd75a); steps 2-3 need claude-alpha-serv at alpha-serv-01 with V present; step 4 needs Android signing secrets. Plan: HANDOFF_2026-10-17b.
-Codex proposals BLOCKED: 31 Oct runs all verified=0.
-Open: Alpha#165; draft #161; #103, #109, #110, #113, #73.
-
-NEEDS V: FIRST, on DESKTOP-41HPLCN check Git Credential Manager's store for the scheduled tasks, then the doctor task. Then: review #302; 2.0 step 2 on alpha-serv-01; #289 panel WiFi address or Alpha back to Worker1; laptop-gj8dfmlk autopilot; Android signing secrets; Worker1 edits (#287); review Alpha#103/#109/#110/#113/#165; billing #274 + Alpha#95; re-issue agent keys; .env.local by USB; GPU gate #234.
-Open: #153, #249, #229, #136, #86, #83.
+NEEDS V: FIRST, on DESKTOP-41HPLCN decide which Alpha serves: alpha-standdown again and find what restarts backend/site (boot task or cover), or alpha-standup and stop alpha-serv-01's. Then: CPU hog; #302; 2.0 step 2; #289 panel WiFi address; laptop-gj8dfmlk autopilot; Android signing secrets; Worker1 edits (#287); Alpha#103/#109/#110/#113/#165; billing #274 + Alpha#95; re-issue agent keys; .env.local by USB; GPU gate #234.
+Open: #153, #249, #229, #136, #86, #83; Alpha#161, #73.
 
 Still stands:
  - From V: Alpha may read GitHub PRs in vyos88/Personal-AI-1.2 and vyos88/Alpha, read only.
@@ -29,4 +26,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status (JackRTX3050 is now in the GPU policy).
 
-Alpha/Codex: Alpha, after AlphaServer's next self-update post whether it reached c1949c9 and the worker task stays up (read-only); if you can reach Worker1, post whether its doctor task runs. Codex: the 3 questions in HANDOFF_2026-10-17b; why codex-run fails (read-only).
+Alpha/Codex: Alpha, read-only: post which process starts the backend/site on DESKTOP-41HPLCN after stand-down and the top CPU users with an Administrator view; do not stop or start Alpha there yourself, V decides. Codex: the 3 questions in HANDOFF_2026-10-17b; why codex-run fails (read-only).
