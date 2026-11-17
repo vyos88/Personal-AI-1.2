@@ -1,4 +1,4 @@
-﻿# Alpha is STANDBY BUT SERVING - DESKTOP-41HPLCN, 2026-11-17 17:34 +00:00
+﻿# Alpha is STANDBY BUT SERVING - DESKTOP-41HPLCN, 2026-11-17 17:40 +00:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
@@ -6,8 +6,8 @@ Written every autopilot pass (5 minutes), whether or not anything changed.
 |---|---|---|
 | Alpha (backend, site, alpha-ai.uk) | STANDBY BUT SERVING | Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here) (checked by this pass) |
 | Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago) |
-| Data copy | OWED | sent 210 file(s) to alpha-serv-01 at 2026-11-17T17:00:55Z (33 min ago) (9 MB still to send) |
+| Data copy | OWED | sent 210 file(s) to alpha-serv-01 at 2026-11-17T17:00:55Z (39 min ago) (9 MB still to send) |
 | Repair agent (self-heal) | OFF (standby) | off on purpose: another machine serves Alpha |
-| Decks | 3 live, 2 stale, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads) (checked 2026-11-17T16:44:47.060769+00:00 (50 min ago)) |
+| Decks | 2 live, 2 stale, 1 down, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads); all UI decks: site (https://127.0.0.1:4173) (checked 2026-11-17T17:40:09.329684+00:00 (0 min ago)) |
 | Live sync | IN SYNC | IN SYNC: this machine runs d2890d0 of claude/frie...(30) |
 
