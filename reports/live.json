@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T04:07:34.0135747+00:00",
+    "at":  "2026-11-17T04:15:10.5629938+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 21 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 230 file(s) to alpha-serv-01 at 2026-11-17T03:30:50Z (36 min ago)"
+                 "detail":  "sent 256 file(s) to alpha-serv-01 at 2026-11-17T04:10:46Z (4 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1281,
+                     "age_min":  1288,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,14 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 degraded, 1 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
                   "not_live":  [
-                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
                                    "network, hardware, atlas: devices (/devices/network/topology)",
                                    "CrowPanel: display (LAN reads)",
                                    "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-17T03:55:12.816277+00:00"
+                  "checked_at":  "2026-11-17T04:14:57.629098+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
