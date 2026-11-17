@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T17:45:09.7040300+00:00",
+    "at":  "2026-11-17T17:55:35.2334313+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 8 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 210 file(s) to alpha-serv-01 at 2026-11-17T17:00:55Z (44 min ago) (9 MB still to send)"
+                 "detail":  "sent 210 file(s) to alpha-serv-01 at 2026-11-17T17:00:55Z (54 min ago) (9 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  2098,
+                     "age_min":  2109,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -32,5 +32,5 @@
                                ],
                   "checked_at":  "2026-11-17T17:40:09.329684+00:00"
               },
-    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
 }
