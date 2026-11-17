@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-17T11:59:42.3446207+00:00",
+    "at":  "2026-11-17T12:05:36.5909266+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (0 min ago)"
              },
     "data":  {
-                 "state":  "ON",
-                 "detail":  "sent 242 file(s) to alpha-serv-01 at 2026-11-17T11:40:49Z (18 min ago)"
+                 "state":  "OWED",
+                 "detail":  "sent 276 file(s) to alpha-serv-01 at 2026-11-17T11:56:27Z (9 min ago) (14 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1753,
+                     "age_min":  1759,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,14 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
+                  "summary":  "1 degraded, 1 live, 2 stale, 1 down, 1 static, 1 no feed",
                   "not_live":  [
+                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
+                                   "CrowPanel: display (LAN reads)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-17T11:45:28.759447+00:00"
+                  "checked_at":  "2026-11-17T12:05:24.337215+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
