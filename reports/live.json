@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T14:57:07.8118217+00:00",
+    "at":  "2026-11-17T15:00:10.6785965+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 238 file(s) to alpha-serv-01 at 2026-11-17T14:40:48Z (16 min ago) (1 MB still to send) (1 file(s) not packed yet, tried again each pass)"
+                 "detail":  "sent 238 file(s) to alpha-serv-01 at 2026-11-17T14:40:48Z (19 min ago) (1 MB still to send) (1 file(s) not packed yet, tried again each pass)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1930,
+                     "age_min":  1933,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -28,5 +28,5 @@
                   "not_live":  "all decks: backend (/health)",
                   "checked_at":  "2026-11-17T14:56:19.521321+00:00"
               },
-    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
+    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
