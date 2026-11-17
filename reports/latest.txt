@@ -1,43 +1,35 @@
-laptop41-doctor 20261117-132630 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261117-134104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-17T13:09:29.0450488+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-17T13:37:28.1010070+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 10196 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 12200 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 20780 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 23876 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.2 of 15.8 GB RAM free
-  ok: C: 87.9 GB free
-  PROBLEM: CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               3,167 MB  pid 21576
-  MsMpEng                         455 MB  pid 12440
-  claude                          374 MB  pid 16336
-  chrome                          295 MB  pid 28524
-  dwm                             277 MB  pid 1980
-  explorer                        253 MB  pid 10840
-  ChatGPT                         237 MB  pid 26832
-  node                            219 MB  pid 19872
-  --- using the CPU, over 2.4s across 8 logical core(s): the processes it could measure account for 25.6% of the machine
-  git                           10.4% CPU   2.00s  pid 21228
-  OneDrive                       6.6% CPU   1.27s  pid 21648
-  node                           4.6% CPU   0.89s  pid 23340
-  OneDrive.Sync.Service          1.6% CPU   0.31s  pid 18576
-  powershell                     1.0% CPU   0.19s  pid 4916
-  ChatGPT                        0.5% CPU   0.09s  pid 22556
-  165 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x86, conhost x8, powershell x5, python x3, csrss x2, fontdrvhost x2 (run the doctor as Administrator to see other accounts' process times)
+  PROBLEM: only 0.4 of 15.8 GB RAM free
+  ok: C: 87.8 GB free
+  ok: CPU 66% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,224 MB  pid 21576
+  python                          439 MB  pid 20780
+  MsMpEng                         435 MB  pid 12440
+  claude                          377 MB  pid 16336
+  dwm                             297 MB  pid 1980
+  explorer                        254 MB  pid 10840
+  Memory Compression              253 MB  pid 3804
+  ChatGPT                         238 MB  pid 26832
 
 === SUMMARY ===
-  this pass took 60s
-  - NEEDS A PERSON - only 1.2 of 15.8 GB RAM free  (open 11 run(s), since 2026-11-17T10:56:39)
-  - NEEDS A PERSON - standby, but the site runs here (pid 12200 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-17T12:27:36)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 10196 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-17T12:27:36)
-  - CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-17T13:27:28)
+  this pass took 14s
+  - NEEDS A PERSON - only 0.4 of 15.8 GB RAM free  (open 12 run(s), since 2026-11-17T10:56:39)
+  - NEEDS A PERSON - standby, but the backend runs here (pid 20780 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-17T12:27:36)
+  - NEEDS A PERSON - standby, but the site runs here (pid 23876 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-17T12:27:36)
+  + fixed since last run: CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 11 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 12 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
