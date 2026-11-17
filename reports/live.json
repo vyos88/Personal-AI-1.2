@@ -1,9 +1,9 @@
 ﻿{
-    "at":  "2026-11-17T12:27:18.3647018+00:00",
+    "at":  "2026-11-17T12:30:06.8802341+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 276 file(s) to alpha-serv-01 at 2026-11-17T11:56:27Z (30 min ago) (14 MB still to send)"
+                 "detail":  "sent 276 file(s) to alpha-serv-01 at 2026-11-17T11:56:27Z (33 min ago) (14 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1780,
+                     "age_min":  1783,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -33,5 +33,5 @@
                                ],
                   "checked_at":  "2026-11-17T12:26:14.699577+00:00"
               },
-    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
+    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
