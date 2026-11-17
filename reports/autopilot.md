@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261117-100847
+﻿# laptop41 autopilot 20261117-101345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261117-101345  data-sync (task 'Alpha Data Copy', run at 2026-11-17T10:10:41)  ->  0 (in step)   (2026-11-17T10:14:18, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-17 10:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 257 file(s), 21.5 MB written since 2026-11-17T09:57:34Z, to alpha-serv-01
+```
 
 ## auto-deck-liveness-20261117-100847  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-17T10:10:06, 18s)
 ```
@@ -290,13 +297,5 @@ WORKING terminal: answers with data (logs 45)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 0, devices.connected_names 0, devices.disconnected_names 0, devices.statements 0)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-data-sync-task-20261117-085346  data-sync (task 'Alpha Data Copy', run at 2026-11-17T08:50:41)  ->  0 (in step)   (2026-11-17T08:55:55, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-17 08:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 251 file(s), 97.7 MB written since 2026-11-17T08:40:44Z, to alpha-serv-01
-  PART of a backlog: 17 file(s), 6.8 MB still to send, from 2026-11-17T08:51:13Z; the next pass carries on
 ```
 
