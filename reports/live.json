@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-17T15:55:16.6538558+00:00",
+    "at":  "2026-11-17T15:59:39.1759496+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "verdict":  "STANDBY",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 262 file(s) to alpha-serv-01 at 2026-11-17T14:51:42Z (63 min ago) (14 MB still to send) (1 file(s) not packed yet, tried again each pass)"
+                 "detail":  "sent 262 file(s) to alpha-serv-01 at 2026-11-17T14:51:42Z (67 min ago) (14 MB still to send) (1 file(s) not packed yet, tried again each pass)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1988,
+                     "age_min":  1993,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -31,5 +31,5 @@
                                ],
                   "checked_at":  "2026-11-17T15:44:54.425747+00:00"
               },
-    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
+    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
