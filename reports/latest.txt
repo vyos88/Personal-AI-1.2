@@ -1,33 +1,35 @@
-laptop41-doctor 20261117-055607 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261117-061105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-17T05:55:27.5380543+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-17T06:05:31.7278068+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  ok: no backend here (port 8001 free)
-  ok: no site here (port 4173 free)
+  PROBLEM: standby, but the backend runs here (pid 22020 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 22092 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (2 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 0.6 of 15.8 GB RAM free
   ok: C: 91.7 GB free
-  ok: CPU 53% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,627 MB  pid 21576
-  MsMpEng                         385 MB  pid 12440
-  claude                          266 MB  pid 16336
-  dwm                             264 MB  pid 1980
-  explorer                        235 MB  pid 10840
-  ChatGPT                         234 MB  pid 26832
-  chrome                          231 MB  pid 28524
-  node                            210 MB  pid 19872
+  ok: CPU 85% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,653 MB  pid 21576
+  python                          589 MB  pid 22020
+  MsMpEng                         397 MB  pid 12440
+  claude                          269 MB  pid 16336
+  Memory Compression              266 MB  pid 3804
+  chrome                          266 MB  pid 28524
+  dwm                             258 MB  pid 1980
+  ChatGPT                         237 MB  pid 26832
 
 === SUMMARY ===
-  this pass took 21s
-  - only 1 of 15.8 GB RAM free  (open 2 run(s), since 2026-11-17T05:41:28)
-  + fixed since last run: standby, but the backend runs here (pid 28516 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  this pass took 17s
+  - standby, but the backend runs here (pid 22020 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-17T06:11:21)
+  - standby, but the site runs here (pid 22092 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-17T06:11:21)
+  - only 0.6 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-17T06:11:21)
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 2 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
