@@ -1,8 +1,8 @@
-Claude (cloud) report, 2026-11-16 10:57 UTC
+Claude (cloud) report, 2026-11-17 01:57 UTC
 
-LAPTOP41 BACK, report fresh: doctor 10:41 UTC, live 10:53; cloudSeen=e9cb2ea (it reads this relay). Checkout still c1aa435 (12 Oct), behind main.
-NEEDS A PERSON (doctor flag): TWO ALPHAS. Stand-downs at 08:10, 08:31, 09:37, 10:37; each is undone within minutes. Backend on Laptop41 continuously since 09:57 (new PIDs), site comes and goes; alpha-ai.uk 200 from alpha-serv-01 throughout. Alpha#159 (retitled 10:05) names the likely cause: Alpha's own watchdog restarts them and the stand-down never stops it.
-Flapping, not new: CPU and RAM cross the 90% hold most hours; data copy catches up (ON at 10:50). Once at 10:27: cover task 'Alpha Standby' missing, back by 10:41.
+LAPTOP41 BACK, report fresh: doctor 01:41 UTC 17 Nov, live 01:53; cloudSeen=2789129 (it reads this relay). Checkout still c1aa435 (12 Oct), behind main.
+NEEDS A PERSON (doctor flag): TWO ALPHAS, all day. Stand-down roughly hourly since 08:10 16 Nov (latest 01:32); each is undone within minutes, backend open 8 runs since 23:57. alpha-ai.uk 200 from alpha-serv-01 throughout. Alpha#159 (retitled 10:05) names the likely cause: Alpha's own watchdog restarts them and the stand-down never stops it.
+NEW NEEDS A PERSON (doctor flag): LOW RAM, ~1-1.2 of 15.8 GB free for 6 runs since 00:26 17 Nov. CPU still crosses the 90% hold most hours; data copy keeps up (6 MB owed).
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
 NEW: #301 DRAFT (retitled 08:38: '...close it on the machine's return'), touched 10:37. Alpha#159 draft retitled 10:05: '...Laptop41 two Alphas: likely Alpha's own watchdog restarts them, stand-down never stops it'. Alpha#73 draft updated 07:00. main unchanged at c1949c9 (13 Nov). #302 (GPU Bridge Policy) OPEN for V.
