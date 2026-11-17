@@ -1,29 +1,19 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-17T18:26:33",
+    "lastRun":  "2026-11-17T18:41:21",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-11-17T14:27:46",
-                                                     "runs":  17,
-                                                     "text":  "only 0.9 of 15.8 GB RAM free"
+                                                     "runs":  18,
+                                                     "text":  "only 0.7 of 15.8 GB RAM free"
                                                  },
-                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
-                                                                                                                                                                                                                                                                             "since":  "2026-11-17T18:26:33",
-                                                                                                                                                                                                                                                                             "runs":  1,
-                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
-                                                                                                                                                                                                                                                                         },
-                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                     "since":  "2026-11-17T17:59:04",
-                                                                                                                                                     "runs":  3,
-                                                                                                                                                     "text":  "standby, but the site runs here (pid 26876 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                 },
                  "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                           "since":  "2026-11-17T17:59:04",
-                                                                                                                                                          "runs":  3,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 19208 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                          "runs":  4,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 20124 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                       }
              },
-    "lastPost":  "2026-11-17T18:26:33",
+    "lastPost":  "2026-11-17T18:41:21",
     "relay":  "relayed status/cloud b25683e"
 }
