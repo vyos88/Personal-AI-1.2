@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T12:14:57.8395821+00:00",
+    "at":  "2026-11-17T12:27:18.3647018+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 276 file(s) to alpha-serv-01 at 2026-11-17T11:56:27Z (18 min ago) (14 MB still to send)"
+                 "detail":  "sent 276 file(s) to alpha-serv-01 at 2026-11-17T11:56:27Z (30 min ago) (14 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1768,
+                     "age_min":  1780,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,14 +24,14 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 degraded, 1 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "summary":  "4 error, 1 live, 1 static, 1 no feed",
                   "not_live":  [
                                    "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
+                                   "command: deck (/command-center/summary)",
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)",
-                                   "all UI decks: site (https://127.0.0.1:4173)"
+                                   "CrowPanel: feed (/panel/crowpanel/state)"
                                ],
-                  "checked_at":  "2026-11-17T12:05:24.337215+00:00"
+                  "checked_at":  "2026-11-17T12:26:14.699577+00:00"
               },
-    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
 }
