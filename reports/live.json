@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T15:45:04.2438436+00:00",
+    "at":  "2026-11-17T15:55:16.6538558+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (1 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 262 file(s) to alpha-serv-01 at 2026-11-17T14:51:42Z (53 min ago) (14 MB still to send) (1 file(s) not packed yet, tried again each pass)"
+                 "detail":  "sent 262 file(s) to alpha-serv-01 at 2026-11-17T14:51:42Z (63 min ago) (14 MB still to send) (1 file(s) not packed yet, tried again each pass)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1978,
+                     "age_min":  1988,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -31,5 +31,5 @@
                                ],
                   "checked_at":  "2026-11-17T15:44:54.425747+00:00"
               },
-    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
 }
