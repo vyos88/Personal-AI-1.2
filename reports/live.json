@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-17T21:19:45.5215528+00:00",
+    "at":  "2026-11-17T21:25:28.0064261+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 222 file(s) to alpha-serv-01 at 2026-11-17T21:10:45Z (9 min ago) (5 MB still to send)"
+                 "detail":  "sent 36 file(s) to alpha-serv-01 at 2026-11-17T21:20:49Z (4 min ago) (86 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  2313,
+                     "age_min":  2319,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -30,7 +30,7 @@
                                    "CrowPanel: display (LAN reads)",
                                    "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-17T20:45:29.823192+00:00"
+                  "checked_at":  "2026-11-17T21:25:06.431552+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
