@@ -1,9 +1,34 @@
-﻿# laptop41 autopilot 20261117-103850
+﻿# laptop41 autopilot 20261117-104347
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261117-104347  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-17T10:44:56, 15s)
+```
+DECKS: 3 live, 2 stale, 1 down, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 79 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 6 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 3326460 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 13 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK DOWN: site (https://127.0.0.1:4173) -> the site does not answer (no answer)  [decks: all UI decks]
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-data-sync-task-20261117-104347  data-sync (task 'Alpha Data Copy', run at 2026-11-17T10:40:41)  ->  0 (in step)   (2026-11-17T10:45:16, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-17 10:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-deck-audit-20261117-103850  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-17T10:40:10, 0s)
 ```
@@ -273,19 +298,5 @@ WORKING terminal: answers with data (logs 45)
 WORKING hubs (deck evidence): answers with data (assistant_loop.latest.recommendations 0, devices.connected_names 0, devices.disconnected_names 0, devices.statements 0)
 WORKING music playlist: answers with data (songs 96)  [songs-mp3: 87 of 87 songs have their MP3; made 0 now, 0 failed, 0 waiting]
 WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diagnostics 4)
-```
-
-## auto-data-sync-task-20261117-093345  data-sync (task 'Alpha Data Copy', run at 2026-11-17T09:30:41)  ->  1 (failed)   (2026-11-17T09:34:28, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-17 09:22 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 264 file(s), 93.4 MB written since 2026-11-17T09:08:27Z, to alpha-serv-01
-  PART of a backlog: 16 file(s), 15.4 MB still to send, from 2026-11-17T09:29:23Z; the next pass carries on
-  NOT IN THIS PART: 1 file(s) could not be packed, and go with the next pass (first: memory/local/fleet-transport/watch-error.json: Exception calling "Copy" with "3" argument(s): "Could not find file 'C...)
-```
-
-## auto-live-sync-20261117-091847  live-sync (standing)  ->  1 (could not run)   (2026-11-17T09:20:01, 135s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
 ```
 
