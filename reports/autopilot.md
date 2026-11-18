@@ -1,9 +1,34 @@
-﻿# laptop41 autopilot 20261118-113345
+﻿# laptop41 autopilot 20261118-114346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261118-114346  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-18T11:44:36, 15s)
+```
+DECKS: 3 live, 2 stale, 1 down, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 11 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 2 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 3416439 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 3 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK DOWN: site (https://127.0.0.1:4173) -> the site does not answer (no answer)  [decks: all UI decks]
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-data-sync-task-20261118-114346  data-sync (task 'Alpha Data Copy', run at 2026-11-18T11:40:41)  ->  0 (in step)   (2026-11-18T11:44:56, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-18 11:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261118-113345  data-sync (task 'Alpha Data Copy', run at 2026-11-18T11:30:41)  ->  0 (in step)   (2026-11-18T11:34:59, 0s)
 ```
@@ -278,22 +303,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 DATA SYNC DESKTOP-41HPLCN 2026-11-18 10:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261118-100346  data-sync (task 'Alpha Data Copy', run at 2026-11-18T10:00:41)  ->  0 (in step)   (2026-11-18T10:05:34, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-18 09:57 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 87 file(s), 95.4 MB written since 2026-11-18T09:40:44Z, to alpha-serv-01
-  PART of a backlog: 207 file(s), 18.2 MB still to send, from 2026-11-18T09:59:01Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261118-094846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-18T09:57:53, 49s)
-```
-DECKS: 1 down, 1 static, 1 no feed
-DECK DOWN: backend (/health) -> the backend does not answer (no answer)  [decks: all decks]
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
