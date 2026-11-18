@@ -1,29 +1,19 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-18T23:42:17",
+    "lastRun":  "2026-11-18T23:56:33",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-11-18T23:18:05",
-                                                     "runs":  3,
-                                                     "text":  "only 1.1 of 15.8 GB RAM free"
+                                                     "runs":  4,
+                                                     "text":  "only 1.2 of 15.8 GB RAM free"
                                                  },
-                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
-                                                                                                                                                                                                                                                                  "since":  "2026-11-18T23:18:05",
-                                                                                                                                                                                                                                                                  "runs":  3,
-                                                                                                                                                                                                                                                                  "text":  "CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
-                                                                                                                                                                                                                                                              },
-                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                     "since":  "2026-11-18T23:42:17",
-                                                                                                                                                     "runs":  1,
-                                                                                                                                                     "text":  "standby, but the site runs here (pid 3960 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                 },
                  "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                           "since":  "2026-11-18T22:41:18",
-                                                                                                                                                          "runs":  5,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 15608 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                          "runs":  6,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 18112 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                       }
              },
-    "lastPost":  "2026-11-18T23:42:17",
+    "lastPost":  "2026-11-18T23:56:33",
     "relay":  "relayed status/cloud b25683e"
 }
