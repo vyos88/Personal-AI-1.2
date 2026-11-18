@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-18T12:10:29.4975664+00:00",
+    "at":  "2026-11-18T12:15:28.8627232+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (0 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
              },
     "data":  {
-                 "state":  "OWED",
-                 "detail":  "sent 64 file(s) to alpha-serv-01 at 2026-11-18T12:00:50Z (9 min ago) (11 MB still to send)"
+                 "state":  "ON",
+                 "detail":  "sent 252 file(s) to alpha-serv-01 at 2026-11-18T12:10:51Z (4 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  3204,
+                     "age_min":  3209,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,9 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 down, 1 static, 1 no feed",
-                  "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-18T11:59:47.342575+00:00"
+                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "network, hardware, atlas: devices (/devices/network/topology)",
+                                   "CrowPanel: display (LAN reads)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
+                               ],
+                  "checked_at":  "2026-11-18T12:15:10.533664+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
