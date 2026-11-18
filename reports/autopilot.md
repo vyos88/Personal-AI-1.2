@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261118-142850
+﻿# laptop41 autopilot 20261118-143346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261118-143346  data-sync (task 'Alpha Data Copy', run at 2026-11-18T14:30:41)  ->  0 (in step)   (2026-11-18T14:34:50, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-18 14:22 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 282 file(s), 24.4 MB written since 2026-11-18T14:09:40Z, to alpha-serv-01
+```
 
 ## auto-deck-liveness-20261118-142850  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-18T14:29:56, 1s)
 ```
@@ -318,13 +325,5 @@ HELD BACK: 1 file(s) with credential-looking lines, not pushed: scripts/alph...(
     scripts/alph...(30).ps1:1462  credential-looking environment variable  ALPHA_PASSWORD = ...
     If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:
 ALLOW WITH: scripts/alpha_autonomy_report_30_60_90.ps1:829,scripts/alpha_autonomy_report_30_60_90.ps1:830,scripts/alpha_autonomy_report_30_60_90.ps1:831,scripts/alpha_autonomy_report_30_60_90.ps1:832,scripts/alpha_autonomy_report_30_60_90.ps1:833,scripts/alpha_autonomy_report_30_60_90.ps1:1461,scripts/alpha_autonomy_report_30_60_90.ps1:1462
-```
-
-## auto-data-sync-task-20261118-125848  data-sync (task 'Alpha Data Copy', run at 2026-11-18T12:50:43)  ->  0 (in step)   (2026-11-18T13:00:23, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-18 12:51 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 246 file(s), 100.0 MB written since 2026-11-18T12:30:48Z, to alpha-serv-01
-  PART of a backlog: 46 file(s), 14.6 MB still to send, from 2026-11-18T12:53:25Z; the next pass carries on
 ```
 
