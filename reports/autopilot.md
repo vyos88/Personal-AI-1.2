@@ -1,9 +1,14 @@
-﻿# laptop41 autopilot 20261118-152346
+﻿# laptop41 autopilot 20261118-152847
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261118-152847  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-18T15:30:02, 1s)
+```
+DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
+```
 
 ## auto-data-sync-task-20261118-152346  data-sync (task 'Alpha Data Copy', run at 2026-11-18T15:20:41)  ->  0 (in step)   (2026-11-18T15:24:57, 0s)
 ```
@@ -316,12 +321,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-data-sync-task-20261118-134346  data-sync (task 'Alpha Data Copy', run at 2026-11-18T13:40:41)  ->  0 (in step)   (2026-11-18T13:44:59, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-18 13:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
 ```
 
