@@ -1,33 +1,30 @@
-laptop41-doctor 20261118-075721 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261118-081105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-18T07:53:07.2238844+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-18T08:09:31.0983295+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
   ok: no backend here (port 8001 free)
-  PROBLEM: standby, but the site runs here (pid 25200 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 1076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (0 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 1.8 of 15.8 GB RAM free
-  ok: C: 87.2 GB free
-  ok: CPU 77% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,361 MB  pid 21576
-  MsMpEng                         379 MB  pid 12440
-  dwm                             332 MB  pid 1980
-  claude                          248 MB  pid 16336
-  ChatGPT                         234 MB  pid 26832
-  Memory Compression              189 MB  pid 3804
-  explorer                        182 MB  pid 10840
-  ChatGPT                         167 MB  pid 10612
+  ok: 1.6 of 15.8 GB RAM free
+  ok: C: 87.1 GB free
+  ok: CPU 79% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,420 MB  pid 21576
+  dwm                             333 MB  pid 1980
+  MsMpEng                         329 MB  pid 12440
+  ChatGPT                         232 MB  pid 26832
+  explorer                        196 MB  pid 10840
+  ChatGPT                         166 MB  pid 10612
+  msedge                          157 MB  pid 2556
+  ChatGPT                         154 MB  pid 22556
 
 === SUMMARY ===
-  this pass took 25s
-  - standby, but the site runs here (pid 25200 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-18T07:41:44)
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 2 run(s), since 2026-11-18T07:41:44)
-  + fixed since last run: only 1.1 of 15.8 GB RAM free
-  + fixed since last run: standby, but the backend runs here (pid 10432 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  this pass took 11s
+  - standby, but the site runs here (pid 1076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-18T07:41:44)
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').

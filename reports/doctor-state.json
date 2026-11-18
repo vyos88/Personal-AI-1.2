@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-18T07:57:44",
+    "lastRun":  "2026-11-18T08:11:15",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
-                                                                                                                                                                                                                                                                             "since":  "2026-11-18T07:41:44",
-                                                                                                                                                                                                                                                                             "runs":  2,
-                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
-                                                                                                                                                                                                                                                                         },
                  "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                      "since":  "2026-11-18T07:41:44",
-                                                                                                                                                     "runs":  2,
-                                                                                                                                                     "text":  "standby, but the site runs here (pid 25200 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                     "runs":  3,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 1076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                  }
              },
-    "lastPost":  "2026-11-18T07:57:44",
+    "lastPost":  "2026-11-18T08:11:15",
     "relay":  "relayed status/cloud b25683e"
 }
