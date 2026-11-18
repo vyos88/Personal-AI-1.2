@@ -1,43 +1,34 @@
-laptop41-doctor 20261118-065740 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261118-071105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-18T06:41:28.9855639+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-18T07:08:26.7967825+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 6632 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 19896 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
+  PROBLEM: standby, but the site runs here (pid 8688 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (2 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 0.9 of 15.8 GB RAM free
   ok: C: 87.2 GB free
-  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               2,810 MB  pid 21576
-  claude                          596 MB  pid 16336
-  MsMpEng                         439 MB  pid 12440
-  dwm                             353 MB  pid 1980
+  ok: CPU 69% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,847 MB  pid 21576
+  claude                          597 MB  pid 16336
+  MsMpEng                         448 MB  pid 12440
+  dwm                             356 MB  pid 1980
+  Memory Compression              311 MB  pid 3804
   ChatGPT                         249 MB  pid 26832
-  node                            206 MB  pid 19872
-  ChatGPT                         204 MB  pid 10612
-  explorer                        198 MB  pid 10840
-  --- using the CPU, over 2.5s across 8 logical core(s): the processes it could measure account for 24.7% of the machine
-  git                           10.2% CPU   2.08s  pid 5640
-  powershell                     1.9% CPU   0.39s  pid 10328
-  ChatGPT                        1.7% CPU   0.34s  pid 22556
-  powershell                     1.6% CPU   0.33s  pid 13464
-  node                           1.5% CPU   0.30s  pid 6228
-  powershell                     1.2% CPU   0.25s  pid 6516
-  163 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, conhost x8, powershell x5, fontdrvhost x2, python x2, tailscaled x2 (run the doctor as Administrator to see other accounts' process times)
+  node                            202 MB  pid 19872
+  explorer                        194 MB  pid 10840
 
 === SUMMARY ===
-  this pass took 32s
-  - standby, but the backend runs here (pid 6632 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-18T06:26:27)
-  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-18T06:58:09)
-  - standby, but the site runs here (pid 19896 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-18T06:58:09)
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-18T06:58:09)
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 1 run(s), since 2026-11-18T06:58:09)
-  + fixed since last run: only 0.4 of 15.8 GB RAM free
+  this pass took 10s
+  - standby, but the site runs here (pid 8688 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-18T06:58:09)
+  - only 0.9 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-18T07:11:14)
+  + fixed since last run: only 1 of 15.8 GB RAM free
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  + fixed since last run: standby, but the backend runs here (pid 6632 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
