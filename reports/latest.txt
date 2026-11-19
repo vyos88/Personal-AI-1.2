@@ -1,31 +1,40 @@
-laptop41-doctor 20261119-111106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261119-114107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-19T11:08:30.4107320+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-19T11:39:34.6432963+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 15780 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.6 of 15.8 GB RAM free
-  ok: C: 77.3 GB free
-  ok: CPU 82% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,227 MB  pid 21576
-  MsMpEng                         396 MB  pid 12440
-  python                          392 MB  pid 15780
-  Memory Compression              390 MB  pid 3804
-  dwm                             367 MB  pid 1980
-  claude                          276 MB  pid 16336
-  ChatGPT                         242 MB  pid 26832
-  ChatGPT                         181 MB  pid 10612
+  PROBLEM: only 1 of 15.8 GB RAM free
+  ok: C: 77.2 GB free
+  PROBLEM: CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               3,055 MB  pid 21576
+  MsMpEng                         372 MB  pid 12440
+  dwm                             362 MB  pid 1980
+  Memory Compression              313 MB  pid 3804
+  ChatGPT                         240 MB  pid 26832
+  claude                          234 MB  pid 16336
+  ChatGPT                         178 MB  pid 10612
+  powershell                      159 MB  pid 14968
+  --- using the CPU, over 2.9s across 8 logical core(s): the processes it could measure account for 38.3% of the machine
+  git                           10.2% CPU   2.34s  pid 20520
+  OneDrive                       9.2% CPU   2.12s  pid 21648
+  ChatGPT                        6.9% CPU   1.58s  pid 22556
+  powershell                     6.7% CPU   1.53s  pid 10920
+  WindowsTerminal                2.4% CPU   0.55s  pid 21576
+  powershell                     0.7% CPU   0.17s  pid 26288
+  174 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x11, powershell x6, git x4, cmd x3, fontdrvhost x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 16s
-  - NEEDS A PERSON - standby, but the backend runs here (pid 15780 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-19T10:11:22)
-  - only 0.6 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-19T11:11:21)
-  + fixed since last run: only 1 of 15.8 GB RAM free
+  this pass took 20s
+  - CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-19T11:41:25)
+  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-19T11:41:25)
+  + fixed since last run: only 0.7 of 15.8 GB RAM free
+  + fixed since last run: standby, but the backend runs here (pid 6216 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
