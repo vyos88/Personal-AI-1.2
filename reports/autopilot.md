@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261119-030845
+﻿# laptop41 autopilot 20261119-031346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261119-031346  data-sync (task 'Alpha Data Copy', run at 2026-11-19T03:10:41)  ->  0 (in step)   (2026-11-19T03:14:58, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-19 03:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-deck-audit-20261119-030845  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-19T03:09:14, 0s)
 ```
@@ -272,10 +279,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 'alpha-image bridge' task was Ready; last run 05/19/2094 14:48:46, last result 0x41306
   no log at C:\Users\Vyo\AppData\Local\Temp\alpha-image-bridge.log
 'alpha-image bridge' was not listening on 7861: restarted, it answers now
-```
-
-## auto-home-wifi-20261119-013851  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-19T01:41:00, 7s)
-```
-on 'Starlink V'; the backend listens on 192.168.2.151
 ```
 
