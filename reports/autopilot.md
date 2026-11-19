@@ -1,9 +1,17 @@
-﻿# laptop41 autopilot 20261119-071847
+﻿# laptop41 autopilot 20261119-073346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261119-073346  data-sync (task 'Alpha Data Copy', run at 2026-11-19T07:30:41)  ->  0 (in step)   (2026-11-19T07:34:48, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-19 07:22 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 273 file(s), 97.9 MB written since 2026-11-19T07:09:55Z, to alpha-serv-01
+  PART of a backlog: 9 file(s), 9.0 MB still to send, from 2026-11-19T07:28:46Z; the next pass carries on
+```
 
 ## auto-deck-liveness-20261119-071847  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-19T07:28:10, 1s)
 ```
@@ -301,20 +309,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-19 05:50 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 87 file(s), 98.9 MB written since 2026-11-19T05:40:46Z, to alpha-serv-01
   PART of a backlog: 217 file(s), 18.5 MB still to send, from 2026-11-19T05:58:48Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261119-054845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-19T05:55:36, 134s)
-```
-NOTE: could not mint a local sign-in token; owner-only sources will read ERROR
-DECKS: 1 live, 4 error, 1 static, 1 no feed
-DECK ERROR: deck evidence (/hubs/pulse) -> the backend refused this check's sign-in (401)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-DECK ERROR: command deck (/command-center/summary) -> the backend refused this check's sign-in (401)  [decks: command]
-DECK ERROR: devices (/devices/network/topology) -> the backend refused this check's sign-in (401)  [decks: network, hardware, atlas]
-DECK ERROR: CrowPanel feed (/panel/crowpanel/state) -> the backend refused this check's sign-in (401)  [decks: CrowPanel]
-DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
-    7 asset(s) checked
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
