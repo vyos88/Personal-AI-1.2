@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-19T12:44:43.4074442+00:00",
+    "at":  "2026-11-19T12:59:46.2974140+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 10 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 269 file(s) to alpha-serv-01 at 2026-11-19T11:55:05Z (49 min ago) (15 MB still to send) (1 file(s) not packed yet, tried again each pass)"
+                 "detail":  "sent 269 file(s) to alpha-serv-01 at 2026-11-19T11:55:05Z (64 min ago) (15 MB still to send) (1 file(s) not packed yet, tried again each pass)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  628,
+                     "age_min":  643,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,9 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
-                               ],
-                  "checked_at":  "2026-11-19T12:34:57.646918+00:00"
+                  "summary":  "1 down, 1 static, 1 no feed",
+                  "not_live":  "all decks: backend (/health)",
+                  "checked_at":  "2026-11-19T12:59:18.635565+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
