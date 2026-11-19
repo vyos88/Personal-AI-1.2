@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261119-213849
+﻿# laptop41 autopilot 20261119-214346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261119-214346  data-sync (task 'Alpha Data Copy', run at 2026-11-19T21:40:41)  ->  0 (in step)   (2026-11-19T21:45:07, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-19 21:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-deck-audit-20261119-213849  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-19T21:40:15, 0s)
 ```
@@ -290,12 +297,5 @@ DECK DOWN: backend (/health) -> the backend does not answer (no answer)  [decks:
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-data-sync-task-20261119-201347  data-sync (task 'Alpha Data Copy', run at 2026-11-19T20:10:43)  ->  0 (in step)   (2026-11-19T20:15:35, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-19 20:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 260 file(s), 22.4 MB written since 2026-11-19T20:02:00Z, to alpha-serv-01
 ```
 
