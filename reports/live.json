@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-19T01:04:42.9766048+00:00",
+    "at":  "2026-11-19T01:10:27.1063883+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 255 file(s) to alpha-serv-01 at 2026-11-19T01:00:45Z (3 min ago)"
+                 "detail":  "sent 255 file(s) to alpha-serv-01 at 2026-11-19T01:00:45Z (9 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  3978,
+                     "age_min":  3984,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,9 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 down, 1 static, 1 no feed",
-                  "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-19T00:55:02.194750+00:00"
+                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "network, hardware, atlas: devices (/devices/network/topology)",
+                                   "CrowPanel: display (LAN reads)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
+                               ],
+                  "checked_at":  "2026-11-19T01:10:04.219090+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
