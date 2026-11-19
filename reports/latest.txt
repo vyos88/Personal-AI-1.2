@@ -1,39 +1,32 @@
-laptop41-doctor 20261119-115656 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261119-121111 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-19T11:52:10.2876620+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-19T12:09:32.9691136+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  ok: no backend here (port 8001 free)
+  PROBLEM: standby, but the backend runs here (pid 9692 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
   ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.2 of 15.8 GB RAM free
-  ok: C: 77.2 GB free
-  PROBLEM: CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               3,037 MB  pid 21576
-  MsMpEng                         408 MB  pid 12440
-  dwm                             362 MB  pid 1980
-  ChatGPT                         241 MB  pid 26832
-  claude                          189 MB  pid 16336
-  ChatGPT                         180 MB  pid 10612
-  explorer                        137 MB  pid 10840
-  powershell                      130 MB  pid 20436
-  --- using the CPU, over 2.5s across 8 logical core(s): the processes it could measure account for 23.9% of the machine
-  WindowsTerminal               11.1% CPU   2.22s  pid 21576
-  ChatGPT                        4.7% CPU   0.94s  pid 22556
-  python                         4.2% CPU   0.84s  pid 4676
-  powershell                     1.0% CPU   0.20s  pid 27360
-  node                           0.9% CPU   0.19s  pid 24920
-  sihost                         0.5% CPU   0.09s  pid 5432
-  170 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, conhost x9, powershell x5, cmd x3, tailscaled x2, csrss x2 (run the doctor as Administrator to see other accounts' process times)
+  PROBLEM: only 1 of 15.8 GB RAM free
+  ok: C: 77.4 GB free
+  ok: CPU 76% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,979 MB  pid 21576
+  MsMpEng                         373 MB  pid 12440
+  dwm                             357 MB  pid 1980
+  python                          345 MB  pid 9692
+  ChatGPT                         244 MB  pid 26832
+  Memory Compression              226 MB  pid 3804
+  claude                          193 MB  pid 16336
+  ChatGPT                         182 MB  pid 10612
 
 === SUMMARY ===
-  this pass took 39s
-  - CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 2 run(s), since 2026-11-19T11:41:25)
-  - only 1.2 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-19T11:57:33)
-  + fixed since last run: only 1 of 15.8 GB RAM free
+  this pass took 25s
+  - standby, but the backend runs here (pid 9692 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-19T12:11:34)
+  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-19T12:11:34)
+  + fixed since last run: only 1.2 of 15.8 GB RAM free
+  + fixed since last run: CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
