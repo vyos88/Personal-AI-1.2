@@ -1,9 +1,14 @@
-﻿# laptop41 autopilot 20261119-020347
+﻿# laptop41 autopilot 20261119-020846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-home-wifi-20261119-020846  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-19T02:09:59, 4s)
+```
+on 'Starlink V'; the backend listens on 192.168.2.151
+```
 
 ## auto-deck-liveness-20261119-020347  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-19T02:04:54, 30s)
 ```
@@ -290,13 +295,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-19 00:50 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 250 file(s), 95.8 MB written since 2026-11-19T00:44:50Z, to alpha-serv-01
   PART of a backlog: 7 file(s), 8.9 MB still to send, from 2026-11-19T00:52:03Z; the next pass carries on
-```
-
-## auto-data-sync-task-20261119-004851  data-sync (task 'Alpha Data Copy', run at 2026-11-19T00:40:42)  ->  0 (in step)   (2026-11-19T00:50:08, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-19 00:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 190 file(s), 93.3 MB written since 2026-11-19T00:31:54Z, to alpha-serv-01
-  PART of a backlog: 55 file(s), 7.5 MB still to send, from 2026-11-19T00:44:50Z; the next pass carries on
 ```
 
