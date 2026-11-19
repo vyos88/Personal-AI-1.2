@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-19T20:56:33.7070750+00:00",
+    "at":  "2026-11-19T21:01:16.0066398+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (3 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
              },
     "data":  {
-                 "state":  "OWED",
-                 "detail":  "sent 41 file(s) to alpha-serv-01 at 2026-11-19T20:40:45Z (15 min ago) (12 MB still to send)"
+                 "state":  "ON",
+                 "detail":  "sent 261 file(s) to alpha-serv-01 at 2026-11-19T20:51:02Z (10 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1120,
+                     "age_min":  1124,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
