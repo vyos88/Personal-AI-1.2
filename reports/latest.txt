@@ -1,42 +1,43 @@
-laptop41-doctor 20261119-181108 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261119-182706 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-19T18:03:43.5621507+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-19T18:14:29.7388052+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 1972 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  ok: no site here (port 4173 free)
+  PROBLEM: standby, but the backend runs here (pid 7728 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 19160 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (3 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.7 of 15.8 GB RAM free
-  ok: C: 79.5 GB free
-  PROBLEM: CPU 94% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               3,247 MB  pid 21576
-  Memory Compression            1,006 MB  pid 3804
-  MsMpEng                         384 MB  pid 12440
-  dwm                             366 MB  pid 1980
-  ChatGPT                         220 MB  pid 26832
-  ChatGPT                         144 MB  pid 10612
-  claude                          143 MB  pid 16336
-  ChatGPT                         139 MB  pid 22556
-  --- using the CPU, over 2.5s across 8 logical core(s): the processes it could measure account for 18.6% of the machine
-  git                           10.7% CPU   2.12s  pid 13720
-  ChatGPT                        3.0% CPU   0.59s  pid 22556
-  powershell                     2.0% CPU   0.41s  pid 15204
-  powershell                     1.0% CPU   0.20s  pid 25388
-  WindowsTerminal                0.7% CPU   0.14s  pid 21576
-  codex                          0.2% CPU   0.03s  pid 26664
-  168 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x8, powershell x5, python x4, cmd x3, WmiPrvSE x3 (run the doctor as Administrator to see other accounts' process times)
+  PROBLEM: only 0.6 of 15.8 GB RAM free
+  ok: C: 79.4 GB free
+  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               3,319 MB  pid 21576
+  Memory Compression              676 MB  pid 3804
+  MsMpEng                         419 MB  pid 12440
+  dwm                             374 MB  pid 1980
+  python                          270 MB  pid 7728
+  ChatGPT                         229 MB  pid 26832
+  ChatGPT                         151 MB  pid 10612
+  claude                          148 MB  pid 16336
+  --- using the CPU, over 4.3s across 8 logical core(s): the processes it could measure account for 21.1% of the machine
+  WindowsTerminal                8.5% CPU   2.97s  pid 21576
+  OneDrive                       3.9% CPU   1.36s  pid 21648
+  ChatGPT                        1.9% CPU   0.66s  pid 22556
+  powershell                     1.1% CPU   0.38s  pid 20016
+  powershell                     0.9% CPU   0.33s  pid 16440
+  powershell                     0.9% CPU   0.30s  pid 24120
+  175 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, conhost x12, powershell x5, node x5, cmd x3, tailscaled x2 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 25s
-  - standby, but the backend runs here (pid 1972 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-19T17:41:29)
-  - only 0.7 of 15.8 GB RAM free  (open 3 run(s), since 2026-11-19T17:41:29)
-  - CPU 94% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-19T18:11:31)
+  this pass took 34s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 7728 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 4 run(s), since 2026-11-19T17:41:29)
+  - NEEDS A PERSON - only 0.6 of 15.8 GB RAM free  (open 4 run(s), since 2026-11-19T17:41:29)
+  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 2 run(s), since 2026-11-19T18:11:31)
+  - standby, but the site runs here (pid 19160 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-19T18:27:38)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 3 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 4 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
