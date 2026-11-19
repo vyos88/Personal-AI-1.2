@@ -1,44 +1,34 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-19T02:12:11",
+    "lastRun":  "2026-11-19T02:27:29",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "https://alpha-ai.uk/ answers #":  {
-                                                        "since":  "2026-11-19T01:43:24",
-                                                        "runs":  3,
-                                                        "text":  "https://alpha-ai.uk/ answers 502"
-                                                    },
-                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
-                                                                                                                                                                                    "since":  "2026-11-19T01:43:24",
-                                                                                                                                                                                    "runs":  3,
-                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
-                                                                                                                                                                                },
-                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
-                                                                                                  "since":  "2026-11-19T01:43:24",
-                                                                                                  "runs":  3,
-                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
-                                                                                              },
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-11-19T02:12:11",
-                                                     "runs":  1,
+                                                     "runs":  2,
                                                      "text":  "only 1.3 of 15.8 GB RAM free"
                                                  },
-                 "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
-                                                                                                                                                         "since":  "2026-11-19T01:43:24",
-                                                                                                                                                         "runs":  3,
-                                                                                                                                                         "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
-                                                                                                                                                     },
-                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
-                                                                                                                                         "since":  "2026-11-19T01:43:24",
-                                                                                                                                         "runs":  3,
-                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
-                                                                                                                                     },
-                 "no machine offers alpha.music: a queued track waits forever":  {
-                                                                                     "since":  "2026-11-19T01:43:24",
-                                                                                     "runs":  3,
-                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
-                                                                                 }
+                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
+                                                                                                                                                               "since":  "2026-11-19T02:27:29",
+                                                                                                                                                               "runs":  1,
+                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
+                                                                                                                                                           },
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-19T02:27:29",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 26160 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 },
+                 "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                          "since":  "2026-11-19T02:27:29",
+                                                                                                                                                          "runs":  1,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 28288 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                      },
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-11-19T02:27:29",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              }
              },
-    "lastPost":  "2026-11-19T02:12:11",
+    "lastPost":  "2026-11-19T02:27:29",
     "relay":  "relayed status/cloud b25683e"
 }
