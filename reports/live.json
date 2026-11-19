@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-19T10:29:46.5361399+00:00",
+    "at":  "2026-11-19T10:34:53.7549336+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha did not answer (1 of 3) (0 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 38 file(s) to alpha-serv-01 at 2026-11-19T10:10:46Z (19 min ago) (10 MB still to send)"
+                 "detail":  "sent 114 file(s) to alpha-serv-01 at 2026-11-19T10:22:45Z (12 min ago) (15 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  493,
+                     "age_min":  498,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
+                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
                   "not_live":  [
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
+                                   "CrowPanel: display (LAN reads)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-19T09:35:39.377945+00:00"
+                  "checked_at":  "2026-11-19T10:34:40.503222+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
