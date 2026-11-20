@@ -1,4 +1,4 @@
-laptop41-doctor 20261120-014120 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261120-015615 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-20T01:38:07.0831636+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,39 +6,39 @@ laptop41-doctor 20261120-014120 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: standby, but the backend runs here (pid 25008 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (2 min ago)
+  PROBLEM: automatic cover last ran 17 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.2 of 15.8 GB RAM free
+  PROBLEM: only 1 of 15.8 GB RAM free
   ok: C: 79.4 GB free
   PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               3,106 MB  pid 21576
-  python                          452 MB  pid 25008
-  dwm                             394 MB  pid 1980
-  MsMpEng                         334 MB  pid 12440
-  Memory Compression              263 MB  pid 3804
-  explorer                        230 MB  pid 10840
-  ChatGPT                         226 MB  pid 26832
-  msedge                          189 MB  pid 9152
-  --- using the CPU, over 2.7s across 8 logical core(s): the processes it could measure account for 33.3% of the machine
-  WindowsTerminal               10.9% CPU   2.31s  pid 21576
-  powershell                     5.5% CPU   1.17s  pid 21956
-  python                         5.1% CPU   1.09s  pid 4676
-  powershell                     3.7% CPU   0.78s  pid 8484
-  git                            3.1% CPU   0.66s  pid 27736
-  git                            2.1% CPU   0.45s  pid 22844
-  168 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x83, conhost x9, python x4, powershell x3, WmiPrvSE x3, tailscaled x2 (run the doctor as Administrator to see other accounts' process times)
+  WindowsTerminal               3,184 MB  pid 21576
+  Memory Compression              508 MB  pid 3804
+  dwm                             413 MB  pid 1980
+  MsMpEng                         343 MB  pid 12440
+  explorer                        248 MB  pid 10840
+  ChatGPT                         227 MB  pid 26832
+  msedge                          190 MB  pid 9152
+  ChatGPT                         155 MB  pid 10612
+  --- using the CPU, over 2.6s across 8 logical core(s): the processes it could measure account for 24.8% of the machine
+  WindowsTerminal               10.7% CPU   2.27s  pid 21576
+  ChatGPT                        6.3% CPU   1.33s  pid 22556
+  powershell                     3.5% CPU   0.75s  pid 8592
+  powershell                     1.2% CPU   0.25s  pid 3136
+  powershell                     0.6% CPU   0.12s  pid 26284
+  git                            0.6% CPU   0.12s  pid 17016
+  175 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x10, python x5, cmd x3, node x3, powershell x3 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 44s
-  - NEEDS A PERSON - only 1.2 of 15.8 GB RAM free  (open 4 run(s), since 2026-11-20T00:56:32)
-  - standby, but the backend runs here (pid 25008 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-20T01:30:56)
-  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 2 run(s), since 2026-11-20T01:30:56)
-  + fixed since last run: automatic cover last ran 11 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
-  + fixed since last run: standby, but the site runs here (pid 17416 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  this pass took 50s
+  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 3 run(s), since 2026-11-20T01:30:56)
+  - standby, but the backend runs here (pid 25008 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-20T01:30:56)
+  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T01:57:02)
+  - automatic cover last ran 17 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 1 run(s), since 2026-11-20T01:57:02)
+  + fixed since last run: only 1.2 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 4 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
