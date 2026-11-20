@@ -1,11 +1,11 @@
-﻿# laptop41 autopilot 20261120-191907
+﻿# laptop41 autopilot 20261120-192345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
-checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError
+checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
+queue: 110 action(s) on control/laptop41, all of them already run
 
-
-## auto-deck-audit-20261120-191907  deck-audit (Alpha)  ->  2 (19 working, 1 empty, 1 broken)   (2026-11-20T19:19:58, 0s)
+## auto-deck-audit-20261120-192345  deck-audit (Alpha)  ->  2 (19 working, 1 empty, 1 broken)   (2026-11-20T19:24:24, 0s)
 ```
 DECK AUDIT by Alpha on DESKTOP-41HPLCN at 2026-11-20T19:15:58.379146+00:00: 19 working, 1 empty, 1 broken
 WORKING avatar: answers with data (animation_contract.animations 0, animation_contract.missing_actions 4, presence.available_channels 1, profile.visual_contract.palette 4)
