@@ -1,18 +1,18 @@
 ﻿{
-    "at":  "2026-11-20T03:14:31.7564312+00:00",
+    "at":  "2026-11-20T03:26:52.2833761+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
-                  "detail":  "backend 200, site 200, alpha-ai.uk 530; not answering: alpha-ai.uk",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 502; not answering: alpha-ai.uk",
                   "checked_by":  "self-heal, 2 min ago"
               },
     "role":  {
                  "role":  "COVERING",
-                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-20T03:05:13.366Z; automatic cover: covering for alpha-serv-01 since 2026-11-20T03:05:13.366Z (0 min ago)"
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-20T03:05:13.366Z; automatic cover: alpha-serv-01\u0027s Alpha answers again (1 of 2): handing back soon (3 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 280 file(s) to alpha-serv-01 at 2026-11-20T03:10:45Z (3 min ago) (92 MB still to send)"
+                 "detail":  "sent 280 file(s) to alpha-serv-01 at 2026-11-20T03:10:45Z (16 min ago) (92 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
@@ -24,13 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "summary":  "2 live, 3 stale, 1 static, 1 no feed",
                   "not_live":  [
+                                   "command: deck (/command-center/summary)",
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)",
-                                   "all UI decks: site (https://127.0.0.1:4173)"
+                                   "CrowPanel: display (LAN reads)"
                                ],
-                  "checked_at":  "2026-11-20T03:04:33.410482+00:00"
+                  "checked_at":  "2026-11-20T03:25:40.003848+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
