@@ -1,9 +1,32 @@
-﻿# laptop41 autopilot 20261120-211347
+﻿# laptop41 autopilot 20261120-211845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-brain-topology-20261120-211845  brain-topology (standing)  ->  0 (deck ok)   (2026-11-20T21:18:57, 1s)
+```
+OK: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+OK: the deck's source draws the links the backend sends and checks them (Region links)
+OK: the site serves the fixed deck (Brai...(25).js)
+```
+
+## auto-live-sync-20261120-211845  live-sync (standing)  ->  2 (needs a person)   (2026-11-20T21:18:58, 10s)
+```
+KNOWLEDGE: 5 document(s) differ here from the branch and are kept as they are: alpha_cloudflare_edge_repair_playbook.json, alpha_crowpanel_touch_hardware_verdict.json, alpha_deck_hub_repair_playbook.json, alph...(37).json, alph...(41).json
+IN SYNC: this machine runs d2890d0 of claude/frie...(30)
+HELD BACK: 1 file(s) with credential-looking lines, not pushed: scripts/alph...(30).ps1
+    scripts/alph...(30).ps1:829  credential-looking assignment  'blocΓÇª(30)' { $queueStatusKey = 'blocΓÇª(30)'; $workerQueueStatusCounts.blocked_by_current_sync_policy++ }
+    scripts/alph...(30).ps1:830  credential-looking assignment  'awaiΓÇª(37)' { $queueStatusKey = 'awaiΓÇª(37)'; $workerQueueStatusCounts.awaiting_authenticated_worker_channel++ }
+    scripts/alph...(30).ps1:831  credential-looking assignment  'sentΓÇª(21)' { $queueStatusKey = 'sentΓÇª(21)'; $workerQueueStatusCounts.sent_awaiting_receipt++ }
+    scripts/alph...(30).ps1:832  credential-looking assignment  'deliΓÇª(17)' { $queueStatusKey = 'deliΓÇª(17)'; $workerQueueStatusCounts.delivery_deferred++ }
+    scripts/alph...(30).ps1:833  credential-looking assignment  'locaΓÇª(28)' { $queueStatusKey = 'locaΓÇª(28)'; $workerQueueStatusCounts.local_queue_artifact_missing++ }
+    scripts/alph...(30).ps1:1461  credential-looking environment variable  ALPHA_AUDIT_TOKEN = ...
+    scripts/alph...(30).ps1:1462  credential-looking environment variable  ALPHA_PASSWORD = ...
+    If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:
+ALLOW WITH: scripts/alpha_autonomy_report_30_60_90.ps1:829,scripts/alpha_autonomy_report_30_60_90.ps1:830,scripts/alpha_autonomy_report_30_60_90.ps1:831,scripts/alpha_autonomy_report_30_60_90.ps1:832,scripts/alpha_autonomy_report_30_60_90.ps1:833,scripts/alpha_autonomy_report_30_60_90.ps1:1461,scripts/alpha_autonomy_report_30_60_90.ps1:1462
+```
 
 ## auto-brain-topology-20261120-211347  brain-topology (standing)  ->  -1073740791 (open)   (2026-11-20T21:14:26, 7s)
 ```
@@ -230,17 +253,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 DATA SYNC DESKTOP-41HPLCN 2026-11-20 20:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   SENT 245 file(s), 10.2 MB written since 2026-11-20T20:20:43Z, to alpha-serv-01
-```
-
-## auto-data-sync-task-20261120-202845  data-sync (task 'Alpha Data Copy', run at 2026-11-20T20:20:41)  ->  0 (in step)   (2026-11-20T20:29:35, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-20 20:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 256 file(s), 95.8 MB written since 2026-11-20T20:10:43Z, to alpha-serv-01
-```
-
-## auto-deck-liveness-20261120-202345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T20:24:25, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
