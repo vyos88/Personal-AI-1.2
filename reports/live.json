@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-20T09:58:05.0894145+00:00",
+    "at":  "2026-11-20T10:05:21.3712207+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (0 min ago)"
              },
     "data":  {
-                 "state":  "OWED",
-                 "detail":  "sent 38 file(s) to alpha-serv-01 at 2026-11-20T09:40:44Z (17 min ago) (10 MB still to send)"
+                 "state":  "ON",
+                 "detail":  "sent 53 file(s) to alpha-serv-01 at 2026-11-20T10:00:46Z (4 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  379,
+                     "age_min":  386,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
