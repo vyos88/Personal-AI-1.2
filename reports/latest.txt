@@ -1,8 +1,8 @@
-laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261120-032652 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Covering for alpha-serv-01 ===
   role.json says covering since 2026-11-20T03:05:13.366Z: alpha-serv-01's Alpha did not answer, so this machine serves Alpha; it hands back when alpha-serv-01's Alpha answers again
-  ok: automatic cover: covering for alpha-serv-01 since 2026-11-20T03:05:13.366Z (1 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha answers again (1 of 2): handing back soon (3 min ago)
 
 === 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
   top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
@@ -24,7 +24,7 @@ laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: backend ready (phase ready)
   ok: /chat is mounted and asks for a login (HTTP 401)
   Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
-  ok: chat model 'llama3.2:3b' answered in 15s (load 0.3s, 0.6 tokens/s): OK
+  ok: chat model 'llama3.2:3b' answered in 20.1s (load 0.1s, 0.3 tokens/s): OK
   ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
   not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
 
@@ -32,24 +32,24 @@ laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   dist built     2026-11-14 02:20
   newest source  2026-11-15 00:25  src\components\SupervisedCodexExecutor.jsx
   PROBLEM: the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship
-  frontend probed at https://127.0.0.1:4173/
+  frontend probed at http://127.0.0.1:4173/
   bundle in dist     /assets/index-DIYFzSa6.js
-  bundle on :4173   /assets/index-DIYFzSa6.js
+  bundle on :4173   
   bundle public      
   public headers: Server: cloudflare
-  ok: 4173 serves the build in dist
+  PROBLEM: nothing listens on 4173 (connection refused or timed out)
 
 === 4. Public alpha-ai.uk and the boot tasks ===
-  PROBLEM: https://alpha-ai.uk/ answers 530
-  task Alpha            Running  last run 2026-11-20 03:05 result 0x00041301 (still running)
-  task Alpha Backend    Running  last run 2026-11-20 03:05 result 0x00041301 (still running)
+  PROBLEM: https://alpha-ai.uk/ answers 502
+  task Alpha            Disabled last run 2026-11-20 03:05 result 0x00041306
+  task Alpha Backend    Disabled last run 2026-11-20 03:05 result 0x00041306
   ok: self-heal runs (task is SYSTEM, not visible here; its log was written 1 min ago)
-  cloudflared service: Running
-  cloudflared processes on this machine: 1
+  cloudflared service: Stopped
+  cloudflared processes on this machine: 0
   last self-heal entries:
-    {"at":"2026-11-20T03:06:54.878Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":530,"reason":"cloudflare 1033"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-11-20T03:08:56.867Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":530,"reason":"cloudflare 1033"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
-    {"at":"2026-11-20T03:10:56.656Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":530,"reason":"cloudflare 1033"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-11-20T03:21:40.228Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":false,"status":0,"reason":"timeout"},"public":{"ok":false,"status":502,"reason":"status 502"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":["self-heal: public failing, not repaired: origin-not-proven-healthy"]}
+    {"at":"2026-11-20T03:25:03.800Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":502,"reason":"status 502"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-11-20T03:26:57.475Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":502,"reason":"status 502"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[{"component":"public","action":"restart-connector","level":6,"reason":"status 502","code":0}],"events":["self-heal: restart-connector public (status 502) -> exit 0: cloudflared is Running"]}
 
 === 5. alpha-tunnel coordinator (http://100.70.101.6:8787) ===
   ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
@@ -65,7 +65,6 @@ laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 5b. Music Creator ===
   ok: music bridge answers on 127.0.0.1:8790
-  ok: the site routes /music to the bridge (port 4173)
   PROBLEM: no machine offers alpha.music: a queued track waits forever
 
 === 5c. Image creator ===
@@ -88,23 +87,29 @@ laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
   the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
   --- Alpha's deck feed (/panel/crowpanel/public-state)
-  ok: Alpha's deck feed is live (assistant heartbeat 7s old)
-  backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
-  ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
-  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
+  PROBLEM: Alpha's deck feed answered 000
+  nothing listens on port 8001 (section 1)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  ok: 2.4 of 15.8 GB RAM free
   ok: C: 79.2 GB free
-  ok: CPU 88% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,769 MB  pid 21576
-  Memory Compression            2,042 MB  pid 3804
-  llama-server                  1,005 MB  pid 19584
-  dwm                             379 MB  pid 1980
-  MsMpEng                         276 MB  pid 12440
-  ChatGPT                         222 MB  pid 26832
-  powershell                      180 MB  pid 17928
-  powershell                      133 MB  pid 3860
+  PROBLEM: CPU 100% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
+  WindowsTerminal               2,848 MB  pid 21576
+  llama-server                  1,004 MB  pid 19584
+  dwm                             375 MB  pid 1980
+  Memory Compression              294 MB  pid 3804
+  MsMpEng                         285 MB  pid 12440
+  ChatGPT                         223 MB  pid 26832
+  ChatGPT                         141 MB  pid 22556
+  ChatGPT                         138 MB  pid 10612
+  --- using the CPU, over 3.4s across 8 logical core(s): the processes it could measure account for 31.6% of the machine
+  ChatGPT                       10.5% CPU   2.81s  pid 22556
+  WindowsTerminal                8.0% CPU   2.16s  pid 21576
+  git                            7.1% CPU   1.91s  pid 19728
+  powershell                     1.9% CPU   0.52s  pid 21120
+  python                         1.2% CPU   0.33s  pid 4676
+  AMDRSServ                      1.2% CPU   0.33s  pid 28576
+  167 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x9, powershell x5, cmd x3, WmiPrvSE x3, node x3 (run the doctor as Administrator to see other accounts' process times)
 
 === 8. Image generation ===
   IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
@@ -112,27 +117,25 @@ laptop41-doctor 20261120-031107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   PROBLEM: image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)
 
 === SUMMARY ===
-  this pass took 56s
-  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 1 run(s), since 2026-11-20T03:12:02)
-  - image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)  (open 1 run(s), since 2026-11-20T03:12:02)
-  - no machine offers alpha.music: a queued track waits forever  (open 1 run(s), since 2026-11-20T03:12:02)
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T03:12:02)
-  - https://alpha-ai.uk/ answers 530  (open 1 run(s), since 2026-11-20T03:12:02)
-  - the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship  (open 1 run(s), since 2026-11-20T03:12:02)
-  - no machine offers alpha.image: the image bridge has nowhere to send work  (open 1 run(s), since 2026-11-20T03:12:02)
-  + fixed since last run: only 0.5 of 15.8 GB RAM free
-  + fixed since last run: https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
-  + fixed since last run: standby, but the site runs here (pid 6188 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  + fixed since last run: standby, but the backend runs here (pid 17268 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 100s
+  - image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)  (open 2 run(s), since 2026-11-20T03:12:02)
+  - https://alpha-ai.uk/ answers 502  (open 2 run(s), since 2026-11-20T03:12:02)
+  - no machine offers alpha.music: a queued track waits forever  (open 2 run(s), since 2026-11-20T03:12:02)
+  - the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship  (open 2 run(s), since 2026-11-20T03:12:02)
+  - no machine offers alpha.image: the image bridge has nowhere to send work  (open 2 run(s), since 2026-11-20T03:12:02)
+  - Alpha's deck feed answered 000  (open 1 run(s), since 2026-11-20T03:28:31)
+  - nothing listens on 4173 (connection refused or timed out)  (open 1 run(s), since 2026-11-20T03:28:31)
+  - CPU 100% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract  (open 1 run(s), since 2026-11-20T03:28:31)
+  + fixed since last run: only 1 of 15.8 GB RAM free
+  + fixed since last run: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
-  2. [new] Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.
-  3. [new] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
-  4. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  5. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
-  6. [new] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
-  7. [new] Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).
-  8. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  9. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  1. [open 2 runs] Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.
+  2. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  3. [open 2 runs] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
+  4. [open 2 runs] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  5. [open 2 runs] Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).
+  6. [new] Free CPU: Alpha refuses every local model call while system CPU is at or above its hold, so agent runs time out with a 502 and every receipt reads evidence-contract. Section 7's 'using the CPU' list names them with their share of the machine, measured over a two-second window while the hold is on; the MB list above it answers a different question. llama-server answering chat at a few tokens a second is running on CPU, not the GPU. The same hold also blocks the only GPU-telemetry probe, so a call landing just after CPU drops can still be refused for want of telemetry; whether that outlasts a sustained drop is not settled -- at 49% the probe is allowed to run.
+  7. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  8. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
