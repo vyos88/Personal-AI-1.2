@@ -1,41 +1,33 @@
-laptop41-doctor 20261120-015615 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261120-021111 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-20T01:38:07.0831636+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-20T02:08:30.1816984+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 25008 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 19504 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 17 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
-  ok: C: 79.4 GB free
-  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
-  WindowsTerminal               3,184 MB  pid 21576
-  Memory Compression              508 MB  pid 3804
-  dwm                             413 MB  pid 1980
-  MsMpEng                         343 MB  pid 12440
-  explorer                        248 MB  pid 10840
-  ChatGPT                         227 MB  pid 26832
+  PROBLEM: only 0.6 of 15.8 GB RAM free
+  ok: C: 79.3 GB free
+  ok: CPU 47% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,147 MB  pid 21576
+  python                          598 MB  pid 19504
+  Memory Compression              430 MB  pid 3804
+  dwm                             406 MB  pid 1980
+  MsMpEng                         360 MB  pid 12440
+  explorer                        239 MB  pid 10840
+  ChatGPT                         230 MB  pid 26832
   msedge                          190 MB  pid 9152
-  ChatGPT                         155 MB  pid 10612
-  --- using the CPU, over 2.6s across 8 logical core(s): the processes it could measure account for 24.8% of the machine
-  WindowsTerminal               10.7% CPU   2.27s  pid 21576
-  ChatGPT                        6.3% CPU   1.33s  pid 22556
-  powershell                     3.5% CPU   0.75s  pid 8592
-  powershell                     1.2% CPU   0.25s  pid 3136
-  powershell                     0.6% CPU   0.12s  pid 26284
-  git                            0.6% CPU   0.12s  pid 17016
-  175 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x10, python x5, cmd x3, node x3, powershell x3 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 50s
-  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 3 run(s), since 2026-11-20T01:30:56)
-  - standby, but the backend runs here (pid 25008 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-20T01:30:56)
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T01:57:02)
-  - automatic cover last ran 17 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 1 run(s), since 2026-11-20T01:57:02)
-  + fixed since last run: only 1.2 of 15.8 GB RAM free
+  this pass took 15s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 19504 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 4 run(s), since 2026-11-20T01:30:56)
+  - only 0.6 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T02:11:25)
+  + fixed since last run: only 1 of 15.8 GB RAM free
+  + fixed since last run: automatic cover last ran 17 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
