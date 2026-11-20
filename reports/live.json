@@ -1,10 +1,10 @@
 ﻿{
-    "at":  "2026-11-20T11:35:17.0527308+00:00",
+    "at":  "2026-11-20T11:40:02.6249443+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
                   "detail":  "backend 200, site 200, alpha-ai.uk 530; not answering: alpha-ai.uk",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "role":  {
                  "role":  "COVERING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 254 file(s) to alpha-serv-01 at 2026-11-20T10:51:01Z (44 min ago) (7 MB still to send)"
+                 "detail":  "sent 254 file(s) to alpha-serv-01 at 2026-11-20T10:51:01Z (49 min ago) (7 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
+                     "age_min":  1,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
