@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-20T18:45:57.6334381+00:00",
+    "at":  "2026-11-20T18:59:40.6772843+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 227 file(s) to alpha-serv-01 at 2026-11-20T17:20:46Z (85 min ago)"
+                 "detail":  "sent 227 file(s) to alpha-serv-01 at 2026-11-20T17:20:46Z (98 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  228,
+                     "age_min":  242,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "1 down, 1 static, 1 no feed",
                   "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-20T18:07:11.349860+00:00"
+                  "checked_at":  "2026-11-20T18:58:59.301310+00:00"
               },
-    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: bash: line 1: /dev/tty: No such device or address"
 }
