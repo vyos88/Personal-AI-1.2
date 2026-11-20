@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-20T21:09:58.3141384+00:00",
+    "at":  "2026-11-20T21:15:16.8017633+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 238 file(s) to alpha-serv-01 at 2026-11-20T21:00:51Z (9 min ago)"
+                 "detail":  "sent 253 file(s) to alpha-serv-01 at 2026-11-20T21:10:43Z (4 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  372,
+                     "age_min":  378,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -29,7 +29,7 @@
                                    "network, hardware, atlas: devices (/devices/network/topology)",
                                    "CrowPanel: display (LAN reads)"
                                ],
-                  "checked_at":  "2026-11-20T20:39:37.596020+00:00"
+                  "checked_at":  "2026-11-20T21:14:58.850794+00:00"
               },
-    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: bash: line 1: /dev/tty: No such device or address"
 }
