@@ -1,9 +1,15 @@
-﻿# laptop41 autopilot 20261120-225856
+﻿# laptop41 autopilot 20261120-230848
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-bridges-20261120-230848  bridges (standing)  ->  0 (off: standby)   (2026-11-20T23:09:19, 0s)
+```
+'alpha-image bridge' task was Ready; last run 11/19/2026 01:39:56, last result 0xC000013A
+'alpha-image bridge' was not listening on 7861: standby: Alpha serves from the primary, so its bridges stay off here
+```
 
 ## auto-deck-liveness-20261120-225856  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T23:02:11, 35s)
 ```
@@ -259,12 +265,5 @@ ALLOW WITH: scripts/alpha_autonomy_report_30_60_90.ps1:829,scripts/alpha_autonom
 ## auto-brain-topology-20261120-211347  brain-topology (standing)  ->  -1073740791 (open)   (2026-11-20T21:14:26, 7s)
 ```
 
-```
-
-## auto-live-sync-20261120-211347  live-sync (standing)  ->  1 (could not run)   (2026-11-20T21:14:33, 7s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: bash: line 1: /dev/tty: No such device or address
-error: failed to execute prompt script (exit code 1)
-fatal: could not read Username for 'https://github.com': No such file or directory
 ```
 
