@@ -1,9 +1,9 @@
 ﻿{
-    "at":  "2026-11-20T03:44:35.2514023+00:00",
+    "at":  "2026-11-20T03:59:32.7009880+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 502; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 257 file(s) to alpha-serv-01 at 2026-11-20T03:40:45Z (3 min ago)"
+                 "detail":  "sent 257 file(s) to alpha-serv-01 at 2026-11-20T03:40:45Z (18 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  6,
+                     "age_min":  20,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,13 +24,9 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "2 live, 3 stale, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "command: deck (/command-center/summary)",
-                                   "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
-                               ],
-                  "checked_at":  "2026-11-20T03:25:40.003848+00:00"
+                  "summary":  "1 down, 1 static, 1 no feed",
+                  "not_live":  "all decks: backend (/health)",
+                  "checked_at":  "2026-11-20T03:57:09.072724+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
