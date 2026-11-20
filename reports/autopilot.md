@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261120-230848
+﻿# laptop41 autopilot 20261120-231346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261120-231346  data-sync (task 'Alpha Data Copy', run at 2026-11-20T23:10:41)  ->  0 (in step)   (2026-11-20T23:14:28, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-20 23:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-bridges-20261120-230848  bridges (standing)  ->  0 (off: standby)   (2026-11-20T23:09:19, 0s)
 ```
@@ -260,10 +267,5 @@ HELD BACK: 1 file(s) with credential-looking lines, not pushed: scripts/alph...(
     scripts/alph...(30).ps1:1462  credential-looking environment variable  ALPHA_PASSWORD = ...
     If a line holds a real secret, move it to .env.local and rotate it. If the owner clears every line above, put this list in autofix.liveSync.allow:
 ALLOW WITH: scripts/alpha_autonomy_report_30_60_90.ps1:829,scripts/alpha_autonomy_report_30_60_90.ps1:830,scripts/alpha_autonomy_report_30_60_90.ps1:831,scripts/alpha_autonomy_report_30_60_90.ps1:832,scripts/alpha_autonomy_report_30_60_90.ps1:833,scripts/alpha_autonomy_report_30_60_90.ps1:1461,scripts/alpha_autonomy_report_30_60_90.ps1:1462
-```
-
-## auto-brain-topology-20261120-211347  brain-topology (standing)  ->  -1073740791 (open)   (2026-11-20T21:14:26, 7s)
-```
-
 ```
 
