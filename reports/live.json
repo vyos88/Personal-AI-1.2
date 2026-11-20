@@ -1,9 +1,9 @@
 ﻿{
-    "at":  "2026-11-20T18:59:40.6772843+00:00",
+    "at":  "2026-11-20T19:05:39.5148326+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "verdict":  "STANDBY",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
                   "checked_by":  "this pass"
               },
     "role":  {
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 227 file(s) to alpha-serv-01 at 2026-11-20T17:20:46Z (98 min ago)"
+                 "detail":  "sent 227 file(s) to alpha-serv-01 at 2026-11-20T17:20:46Z (104 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  242,
+                     "age_min":  248,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -28,5 +28,5 @@
                   "not_live":  "all decks: backend (/health)",
                   "checked_at":  "2026-11-20T18:58:59.301310+00:00"
               },
-    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: bash: line 1: /dev/tty: No such device or address"
+    "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
