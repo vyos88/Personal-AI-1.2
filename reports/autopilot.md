@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261120-202345
+﻿# laptop41 autopilot 20261120-202845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261120-202845  data-sync (task 'Alpha Data Copy', run at 2026-11-20T20:20:41)  ->  0 (in step)   (2026-11-20T20:29:35, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-20 20:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 256 file(s), 95.8 MB written since 2026-11-20T20:10:43Z, to alpha-serv-01
+```
 
 ## auto-deck-liveness-20261120-202345  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T20:24:25, 0s)
 ```
@@ -287,14 +294,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-20 19:00 (memory\ at C:\Users\Vyo\Downloads\Vy
 STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha failed: bash: line 1: /dev/tty: No such device or address
 error: failed to execute prompt script (exit code 1)
 fatal: could not read Username for 'https://github.com': No such file or directory
-```
-
-## auto-deck-liveness-20261120-185428  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T18:58:02, 74s)
-```
-DECKS: 1 down, 1 static, 1 no feed
-DECK DOWN: backend (/health) -> the backend does not answer (no answer)  [decks: all decks]
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
