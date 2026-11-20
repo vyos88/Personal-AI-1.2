@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-20T03:10:31.7825062+00:00",
+    "at":  "2026-11-20T03:14:31.7564312+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
@@ -11,8 +11,8 @@
                  "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-20T03:05:13.366Z; automatic cover: covering for alpha-serv-01 since 2026-11-20T03:05:13.366Z (0 min ago)"
              },
     "data":  {
-                 "state":  "ON",
-                 "detail":  "sent 255 file(s) to alpha-serv-01 at 2026-11-20T02:40:45Z (29 min ago)"
+                 "state":  "OWED",
+                 "detail":  "sent 280 file(s) to alpha-serv-01 at 2026-11-20T03:10:45Z (3 min ago) (92 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
