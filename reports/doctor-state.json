@@ -1,49 +1,19 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-20T03:28:31",
+    "lastRun":  "2026-11-20T03:41:22",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
-                                                                                                                                                                                    "since":  "2026-11-20T03:12:02",
-                                                                                                                                                                                    "runs":  2,
-                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
-                                                                                                                                                                                },
-                 "nothing listens on # (connection refused or timed out)":  {
-                                                                                "since":  "2026-11-20T03:28:31",
-                                                                                "runs":  1,
-                                                                                "text":  "nothing listens on 4173 (connection refused or timed out)"
-                                                                            },
-                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
-                                                                                                  "since":  "2026-11-20T03:12:02",
-                                                                                                  "runs":  2,
-                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
-                                                                                              },
-                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
-                                                                                                                                         "since":  "2026-11-20T03:12:02",
-                                                                                                                                         "runs":  2,
-                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
-                                                                                                                                     },
-                 "https://alpha-ai.uk/ answers #":  {
-                                                        "since":  "2026-11-20T03:12:02",
-                                                        "runs":  2,
-                                                        "text":  "https://alpha-ai.uk/ answers 502"
-                                                    },
-                 "CPU #% is at or above Alpha\u0027s #% GPU-admission hold: local model calls time out with a # and every agent receipt reads evidence-contract":  {
-                                                                                                                                                                       "since":  "2026-11-20T03:28:31",
-                                                                                                                                                                       "runs":  1,
-                                                                                                                                                                       "text":  "CPU 100% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
-                                                                                                                                                                   },
-                 "no machine offers alpha.music: a queued track waits forever":  {
-                                                                                     "since":  "2026-11-20T03:12:02",
-                                                                                     "runs":  2,
-                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
-                                                                                 },
-                 "Alpha\u0027s deck feed answered #":  {
-                                                           "since":  "2026-11-20T03:28:31",
-                                                           "runs":  1,
-                                                           "text":  "Alpha\u0027s deck feed answered 000"
-                                                       }
+                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
+                                                                                                                                                               "since":  "2026-11-20T03:41:22",
+                                                                                                                                                               "runs":  1,
+                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
+                                                                                                                                                           },
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-20T03:41:22",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 9680 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 }
              },
-    "lastPost":  "2026-11-20T03:28:31",
+    "lastPost":  "2026-11-20T03:41:22",
     "relay":  "relayed status/cloud b25683e"
 }
