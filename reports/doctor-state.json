@@ -1,14 +1,24 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-20T12:41:17",
+    "lastRun":  "2026-11-20T12:57:31",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-11-20T08:41:22",
-                                                     "runs":  17,
-                                                     "text":  "only 0.9 of 15.8 GB RAM free"
-                                                 }
+                                                     "runs":  18,
+                                                     "text":  "only 0.6 of 15.8 GB RAM free"
+                                                 },
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-11-20T12:57:31",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 93% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              },
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-20T12:57:31",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 6808 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 }
              },
-    "lastPost":  "2026-11-20T12:41:17",
+    "lastPost":  "2026-11-20T12:57:31",
     "relay":  "relayed status/cloud b25683e"
 }
