@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261120-032847
+﻿# laptop41 autopilot 20261120-033346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261120-033346  data-sync (task 'Alpha Data Copy', run at 2026-11-20T03:30:41)  ->  0 (in step)   (2026-11-20T03:34:25, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-20 03:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 244 file(s), 96.4 MB written since 2026-11-20T03:27:12Z, to alpha-serv-01
+```
 
 ## auto-home-wifi-20261120-032847  home-wifi (standing)  ->  0 (none)   (2026-11-20T03:29:47, 5s)
 ```
@@ -238,10 +245,5 @@ DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names lo
 DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
 DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
 receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
-```
-
-## auto-home-wifi-20261120-022349  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-20T02:26:39, 37s)
-```
-on 'Starlink V'; the backend listens on 192.168.2.151
 ```
 
