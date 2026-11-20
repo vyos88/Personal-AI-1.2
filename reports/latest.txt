@@ -1,41 +1,45 @@
-laptop41-doctor 20261120-024107 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261120-025922 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-20T02:37:38.8784104+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-20T02:47:33.8744000+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   PROBLEM: https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here
-  PROBLEM: standby, but the backend runs here (pid 2556 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  ok: no site here (port 4173 free)
+  PROBLEM: standby, but the backend runs here (pid 17268 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 6188 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (0 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (2 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.9 of 15.8 GB RAM free
+  PROBLEM: only 0.5 of 15.8 GB RAM free
   ok: C: 79.2 GB free
-  ok: CPU 79% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,849 MB  pid 21576
-  Memory Compression              890 MB  pid 3804
-  python                          632 MB  pid 2556
-  dwm                             387 MB  pid 1980
+  PROBLEM: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               3,037 MB  pid 21576
+  Memory Compression            1,036 MB  pid 3804
+  dwm                             417 MB  pid 1980
+  chrome                          361 MB  pid 23888
   MsMpEng                         346 MB  pid 12440
-  ChatGPT                         219 MB  pid 26832
-  explorer                        165 MB  pid 10840
-  ChatGPT                         148 MB  pid 10612
+  ChatGPT                         222 MB  pid 26832
+  python                          188 MB  pid 17268
+  explorer                        173 MB  pid 10840
+  --- using the CPU, over 3.2s across 8 logical core(s): the processes it could measure account for 26.2% of the machine
+  WindowsTerminal               10.2% CPU   2.59s  pid 21576
+  powershell                     2.2% CPU   0.56s  pid 2244
+  powershell                     2.1% CPU   0.53s  pid 20836
+  powershell                     1.5% CPU   0.38s  pid 26264
+  python                         1.4% CPU   0.36s  pid 4676
+  powershell                     1.2% CPU   0.31s  pid 21408
+  180 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x84, conhost x14, powershell x7, node x5, git x3, cmd x3 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 24s
-  - only 0.9 of 15.8 GB RAM free  (open 3 run(s), since 2026-11-20T02:11:25)
-  - standby, but the backend runs here (pid 2556 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-20T02:41:29)
-  - https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 1 run(s), since 2026-11-20T02:41:29)
-  + fixed since last run: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
-  + fixed since last run: https://alpha-ai.uk/ answers 530
-  + fixed since last run: CPU 99% is at or above Alpha's 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract
-  + fixed since last run: the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship
-  + fixed since last run: chat model 'llama3.2:3b' took 52.8s to load: the first chat after an idle spell waits that long
-  + fixed since last run: no coordinator answering at http://100.70.101.6:8787
+  this pass took 45s
+  - NEEDS A PERSON - only 0.5 of 15.8 GB RAM free  (open 4 run(s), since 2026-11-20T02:11:25)
+  - standby, but the backend runs here (pid 17268 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-20T02:41:29)
+  - https://alpha-ai.uk/ answers 502 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here  (open 2 run(s), since 2026-11-20T02:41:29)
+  - CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-20T03:00:05)
+  - standby, but the site runs here (pid 6188 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-20T03:00:05)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 3 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  2. [new] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
+  1. [open 4 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  2. [open 2 runs] An endpoint is down: compare section 1 (backend) and section 4 (public); if only public fails and the origin is fine, the connector is the fault.
   3. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   4. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   5. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
