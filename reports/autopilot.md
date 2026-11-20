@@ -1,9 +1,17 @@
-﻿# laptop41 autopilot 20261120-124846
+﻿# laptop41 autopilot 20261120-130346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261120-130346  data-sync (task 'Alpha Data Copy', run at 2026-11-20T13:00:42)  ->  0 (in step)   (2026-11-20T13:04:56, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-20 13:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 86 file(s), 27.5 MB written since 2026-11-20T12:31:35Z, to alpha-serv-01
+  PART of a backlog: 218 file(s), 86.3 MB still to send, from 2026-11-20T13:00:34Z; the next pass carries on
+```
 
 ## auto-deck-liveness-20261120-124846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T12:57:36, 22s)
 ```
@@ -267,13 +275,5 @@ receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\
 ## auto-home-wifi-20261120-113348  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-20T11:35:11, 4s)
 ```
 on 'Starlink V'; the backend listens on 192.168.2.151
-```
-
-## auto-data-sync-task-20261120-113348  data-sync (task 'Alpha Data Copy', run at 2026-11-20T11:30:41)  ->  1 (failed)   (2026-11-20T11:35:16, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-20 11:21 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  taildrop: 502 Bad Gateway: 
-  NOT SENT: 272 file(s) wait for the next pass (nothing is lost: the next send starts from 2026-11-20T10:51:49Z)
 ```
 
