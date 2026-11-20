@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261120-233845
+﻿# laptop41 autopilot 20261120-234345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261120-234345  data-sync (task 'Alpha Data Copy', run at 2026-11-20T23:40:41)  ->  0 (in step)   (2026-11-20T23:44:20, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-20 23:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 247 file(s), 12.9 MB written since 2026-11-20T23:30:46Z, to alpha-serv-01
+```
 
 ## auto-data-sync-task-20261120-233845  data-sync (task 'Alpha Data Copy', run at 2026-11-20T23:30:41)  ->  0 (in step)   (2026-11-20T23:39:24, 0s)
 ```
@@ -270,10 +277,5 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
 DATA SYNC DESKTOP-41HPLCN 2026-11-20 22:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   SENT 240 file(s), 93.5 MB written since 2026-11-20T22:11:07Z, to alpha-serv-01
-```
-
-## auto-deck-liveness-20261120-222845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-20T22:29:07, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
