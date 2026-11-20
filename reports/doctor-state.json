@@ -1,19 +1,44 @@
 {
     "cloudSeen":  "b25683e24485ab2c6f4194c70ba4fcf0a09156e7",
-    "lastRun":  "2026-11-20T02:11:25",
+    "lastRun":  "2026-11-20T02:29:18",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
+                 "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
+                                                                                                                                                         "since":  "2026-11-20T02:29:18",
+                                                                                                                                                         "runs":  1,
+                                                                                                                                                         "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
+                                                                                                                                                     },
                  "only #.# of #.# GB RAM free":  {
                                                      "since":  "2026-11-20T02:11:25",
-                                                     "runs":  1,
-                                                     "text":  "only 0.6 of 15.8 GB RAM free"
+                                                     "runs":  2,
+                                                     "text":  "only 0.2 of 15.8 GB RAM free"
                                                  },
-                 "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                          "since":  "2026-11-20T01:30:56",
-                                                                                                                                                          "runs":  4,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 19504 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                      }
+                 "https://alpha-ai.uk/ answers #":  {
+                                                        "since":  "2026-11-20T02:29:18",
+                                                        "runs":  1,
+                                                        "text":  "https://alpha-ai.uk/ answers 530"
+                                                    },
+                 "CPU #% is at or above Alpha\u0027s #% GPU-admission hold: local model calls time out with a # and every agent receipt reads evidence-contract":  {
+                                                                                                                                                                       "since":  "2026-11-20T02:29:18",
+                                                                                                                                                                       "runs":  1,
+                                                                                                                                                                       "text":  "CPU 99% is at or above Alpha\u0027s 90% GPU-admission hold: local model calls time out with a 502 and every agent receipt reads evidence-contract"
+                                                                                                                                                                   },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
+                                                                                                                                                                                    "since":  "2026-11-20T02:29:18",
+                                                                                                                                                                                    "runs":  1,
+                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
+                                                                                                                                                                                },
+                 "chat model \u0027llama#.#:#b\u0027 took #.#s to load: the first chat after an idle spell waits that long":  {
+                                                                                                                                  "since":  "2026-11-20T02:29:18",
+                                                                                                                                  "runs":  1,
+                                                                                                                                  "text":  "chat model \u0027llama3.2:3b\u0027 took 52.8s to load: the first chat after an idle spell waits that long"
+                                                                                                                              },
+                 "no coordinator answering at http://#.#.#.#:#":  {
+                                                                      "since":  "2026-11-20T02:29:18",
+                                                                      "runs":  1,
+                                                                      "text":  "no coordinator answering at http://100.70.101.6:8787"
+                                                                  }
              },
-    "lastPost":  "2026-11-20T02:11:25",
+    "lastPost":  "2026-11-20T02:29:18",
     "relay":  "relayed status/cloud b25683e"
 }
