@@ -1,30 +1,30 @@
-laptop41-doctor 20261120-182606 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261120-184114 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-20T18:19:52.9369799+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-20T18:40:35.3095093+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (2 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 0.6 of 15.8 GB RAM free
   ok: C: 79 GB free
-  ok: CPU 57% (Alpha holds GPU admission at 90%)
-  Memory Compression            2,984 MB  pid 3804
-  WindowsTerminal               2,731 MB  pid 21576
+  ok: CPU 77% (Alpha holds GPU admission at 90%)
+  Memory Compression            3,118 MB  pid 3804
+  WindowsTerminal               2,865 MB  pid 21576
   dwm                             470 MB  pid 3124
-  MsMpEng                         315 MB  pid 12440
-  ChatGPT                         233 MB  pid 26832
+  MsMpEng                         346 MB  pid 12440
+  ChatGPT                         239 MB  pid 26832
   explorer                        207 MB  pid 10840
-  ChatGPT                         148 MB  pid 10612
-  powershell                      133 MB  pid 17032
+  ChatGPT                         147 MB  pid 10612
+  powershell                      120 MB  pid 15832
 
 === SUMMARY ===
-  this pass took 13s
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T18:26:17)
-  + fixed since last run: only 0.7 of 15.8 GB RAM free
+  this pass took 17s
+  - only 0.6 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-20T18:41:29)
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
