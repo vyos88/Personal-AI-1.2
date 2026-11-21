@@ -1,29 +1,39 @@
-laptop41-doctor 20261121-195632 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261121-201128 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-21T19:51:17.8318421+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-21T20:07:55.2305590+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 21616 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  ok: no site here (port 4173 free)
+  PROBLEM: standby, but the backend runs here (pid 15964 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 2656 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3.8 of 15.8 GB RAM free
-  ok: C: 79.5 GB free
-  ok: CPU 79% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               1,087 MB  pid 16408
-  python                          448 MB  pid 21616
+  ok: 2.2 of 15.8 GB RAM free
+  ok: C: 78.2 GB free
+  PROBLEM: CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  WindowsTerminal               1,131 MB  pid 16408
+  python                          647 MB  pid 15964
+  Memory Compression              386 MB  pid 3804
   python                          334 MB  pid 8792
-  Memory Compression              321 MB  pid 3804
-  MsMpEng                         308 MB  pid 12440
-  explorer                        205 MB  pid 10840
-  msedge                          152 MB  pid 12204
-  powershell                      152 MB  pid 16476
+  MsMpEng                         313 MB  pid 12440
+  chrome                          284 MB  pid 16296
+  chrome                          238 MB  pid 21908
+  explorer                        204 MB  pid 10840
+  --- using the CPU, over 4.5s across 8 logical core(s): the processes it could measure account for 38.1% of the machine
+  chrome                        32.8% CPU  11.69s  pid 16296
+  WindowsTerminal                1.7% CPU   0.59s  pid 16408
+  chrome                         1.7% CPU   0.59s  pid 22248
+  powershell                     0.6% CPU   0.20s  pid 10032
+  powershell                     0.5% CPU   0.19s  pid 11140
+  node                           0.3% CPU   0.11s  pid 25928
+  173 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x85, conhost x12, powershell x7, python x4, node x4, cmd x3 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 30s
-  - standby, but the backend runs here (pid 21616 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-21T19:57:00)
+  this pass took 61s
+  - standby, but the backend runs here (pid 15964 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-21T19:57:00)
+  - CPU 96% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-21T20:12:25)
+  - standby, but the site runs here (pid 2656 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-21T20:12:25)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
