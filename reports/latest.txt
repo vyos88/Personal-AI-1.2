@@ -1,32 +1,32 @@
-laptop41-doctor 20261121-011104 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261121-012604 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-21T00:59:24.7015212+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-21T01:24:14.6033152+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 21052 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 11044 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
+  ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 7 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 3 of 15.8 GB RAM free
-  ok: C: 76.2 GB free
-  ok: CPU 62% (Alpha holds GPU admission at 90%)
-  Memory Compression              562 MB  pid 3804
-  python                          431 MB  pid 21052
-  MsMpEng                         384 MB  pid 12440
+  ok: 2.9 of 15.8 GB RAM free
+  ok: C: 79.2 GB free
+  ok: CPU 76% (Alpha holds GPU admission at 90%)
+  ChatGPT                         578 MB  pid 10612
+  MsMpEng                         419 MB  pid 12440
   ChatGPT                         322 MB  pid 21408
-  WindowsTerminal                 274 MB  pid 16408
-  explorer                        259 MB  pid 10840
-  ChatGPT                         205 MB  pid 10612
-  powershell                      146 MB  pid 13804
+  WindowsTerminal                 311 MB  pid 16408
+  explorer                        267 MB  pid 10840
+  msedge                          201 MB  pid 20252
+  powershell                      150 MB  pid 2620
+  dwm                             149 MB  pid 18008
 
 === SUMMARY ===
-  this pass took 31s
-  - standby, but the site runs here (pid 11044 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-21T00:59:35)
-  - automatic cover last ran 7 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 2 run(s), since 2026-11-21T00:59:35)
-  - standby, but the backend runs here (pid 21052 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-21T01:11:31)
-  + fixed since last run: CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 14s
+  ok: no problems found
+  + fixed since last run: automatic cover last ran 7 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  + fixed since last run: standby, but the site runs here (pid 11044 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  + fixed since last run: standby, but the backend runs here (pid 21052 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
