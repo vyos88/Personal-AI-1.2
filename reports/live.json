@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-21T11:19:44.4348301+00:00",
+    "at":  "2026-11-21T11:26:50.8577462+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (1 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 279 file(s) to alpha-serv-01 at 2026-11-21T11:10:43Z (9 min ago)"
+                 "detail":  "sent 279 file(s) to alpha-serv-01 at 2026-11-21T11:10:43Z (16 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1222,
+                     "age_min":  1229,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,9 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
-                               ],
-                  "checked_at":  "2026-11-21T10:44:24.206610+00:00"
+                  "summary":  "1 down, 1 static, 1 no feed",
+                  "not_live":  "all decks: backend (/health)",
+                  "checked_at":  "2026-11-21T11:25:57.936228+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
