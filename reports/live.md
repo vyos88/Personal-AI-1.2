@@ -1,4 +1,4 @@
-﻿# Alpha is STANDBY BUT SERVING - DESKTOP-41HPLCN, 2026-11-21 01:44 +00:00
+﻿# Alpha is STANDBY BUT SERVING - DESKTOP-41HPLCN, 2026-11-21 01:50 +00:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
@@ -6,8 +6,8 @@ Written every autopilot pass (5 minutes), whether or not anything changed.
 |---|---|---|
 | Alpha (backend, site, alpha-ai.uk) | STANDBY BUT SERVING | Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here) (checked by this pass) |
 | Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago) |
-| Data copy | ON | sent 266 file(s) to alpha-serv-01 at 2026-11-21T01:40:43Z (3 min ago) |
+| Data copy | ON | sent 266 file(s) to alpha-serv-01 at 2026-11-21T01:40:43Z (10 min ago) |
 | Repair agent (self-heal) | OFF (standby) | off on purpose: another machine serves Alpha |
-| Decks | 3 stale, 2 live, 1 static, 1 no feed | not live: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse); network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads) (checked 2026-11-21T01:20:59.856300+00:00 (23 min ago)) |
+| Decks | 3 stale, 2 live, 1 static, 1 no feed | not live: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse); network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads) (checked 2026-11-21T01:20:59.856300+00:00 (29 min ago)) |
 | Live sync | IN SYNC | IN SYNC: this machine runs d2890d0 of claude/frie...(30) |
 
