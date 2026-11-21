@@ -1,33 +1,32 @@
-laptop41-doctor 20261121-114135 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261121-115627 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-21T11:28:33.2299407+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-21T11:54:50.5853137+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 25564 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 18076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
+  ok: no site here (port 4173 free)
   ok: no connector here
-  PROBLEM: automatic cover last ran 6 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.7 of 15.8 GB RAM free
-  ok: C: 81.2 GB free
-  ok: CPU 77% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               1,670 MB  pid 16408
-  MsMpEng                         354 MB  pid 12440
-  python                          330 MB  pid 25564
-  Memory Compression              309 MB  pid 3804
-  ChatGPT                         290 MB  pid 21408
+  ok: 3 of 15.8 GB RAM free
+  ok: C: 81.1 GB free
+  ok: CPU 55% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               1,708 MB  pid 16408
+  MsMpEng                         369 MB  pid 12440
+  Memory Compression              289 MB  pid 3804
+  ChatGPT                         282 MB  pid 21408
   explorer                        281 MB  pid 10840
-  ChatGPT                         221 MB  pid 10612
+  ChatGPT                         220 MB  pid 10612
   msedge                          206 MB  pid 12204
+  dwm                             196 MB  pid 18008
 
 === SUMMARY ===
-  this pass took 100s
-  - NEEDS A PERSON - standby, but the backend runs here (pid 25564 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-21T10:41:11)
-  - standby, but the site runs here (pid 18076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-21T11:11:11)
-  - automatic cover last ran 6 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)  (open 1 run(s), since 2026-11-21T11:43:13)
-  + fixed since last run: only 0.6 of 15.8 GB RAM free
-  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  this pass took 31s
+  ok: no problems found
+  + fixed since last run: automatic cover last ran 6 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
+  + fixed since last run: standby, but the site runs here (pid 18076 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  + fixed since last run: standby, but the backend runs here (pid 25564 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
