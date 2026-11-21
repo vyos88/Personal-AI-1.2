@@ -1062,3 +1062,23 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   and V's standing rule is that Worker1 "covers only if V says 'cover'". So it waits for V's
   word, which is the same word as the two-Alpha decision: `alpha-standup` to serve here, or
   stand down and install the cover that keeps it down.
+
+- [ ] 2026-11-21 Claude (cloud): **the period, measured — the pair alternates on the
+  autopilot's own 5-minute cadence, not hourly.** Earlier relays describe this as a
+  stand-down "roughly hourly, each undone within minutes"; the live branch, which
+  `writeLive` rewrites every 5 minutes whether or not anything changed, says the flip is
+  far faster than that. Fourteen consecutive writes on `status/laptop41-live`, 12:27:53Z
+  to 13:29:17Z (≈61 min), read: clean, backend, backend, clean, backend+site,
+  backend+site, backend+site, clean, backend+site, clean, backend, clean, backend+site,
+  clean — **6 clean, 8 with Alpha running here, and the longest clean run is a single
+  write.** The doctor agrees that these are new processes rather than a flapping reading:
+  backend pid `25180` (11:27) → `17448` (12:11) → `17968` (13:26), site `17916` → `8048`
+  → `27456`, each with its run counter reset to 1. So anything started and stopped on a
+  ~5-10 minute rhythm is the shape to look for, which fits a supervisor on a short
+  interval rather than an hourly scheduled task — consistent with Alpha#159's reading that
+  Alpha's own watchdog restarts them and the stand-down never stops it.
+  **The practical consequence for whoever reads a report next:** a single clean pass here
+  means nothing. The 13:29 live page says `STANDBY` / "nothing of Alpha runs here" and the
+  13:26 doctor pass, three minutes earlier, had both pids open. Either one alone is a
+  trough or a crest of this wave, not a resolution; only several consecutive clean writes
+  are. Nothing in this note changes the ask above — it still waits for V's word.
