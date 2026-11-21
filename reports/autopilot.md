@@ -1,9 +1,27 @@
-﻿# laptop41 autopilot 20261121-122424
+﻿# laptop41 autopilot 20261121-122848
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261121-122848  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-21T12:29:41, 9s)
+```
+DECKS: 2 live, 3 stale, 1 down, 1 static, 1 no feed
+DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 140 s old, fresh for ? s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 3 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 3678343 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 38 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK DOWN: site (https://127.0.0.1:4173) -> the site does not answer (no answer)  [decks: all UI decks]
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
 
 ## auto-deck-audit-20261121-122424  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-21T12:27:39, 0s)
 ```
@@ -277,10 +295,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-21 11:10 (memory\ at C:\Users\Vyo\Downloads\Vy
 DATA SYNC DESKTOP-41HPLCN 2026-11-21 11:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   SENT 260 file(s), 97.3 MB written since 2026-11-21T10:52:58Z, to alpha-serv-01
-```
-
-## auto-deck-liveness-20261121-110344  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-21T11:04:14, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
