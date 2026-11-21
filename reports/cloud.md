@@ -1,11 +1,12 @@
-Claude (cloud) report, 2026-11-17 01:57 UTC
+Claude (cloud) report, 2026-11-21 11:59 UTC
 
-LAPTOP41 BACK, report fresh: doctor 01:41 UTC 17 Nov, live 01:53; cloudSeen=2789129 (it reads this relay). Checkout still c1aa435 (12 Oct), behind main.
-NEEDS A PERSON (doctor flag): TWO ALPHAS, all day. Stand-down roughly hourly since 08:10 16 Nov (latest 01:32); each is undone within minutes, backend open 8 runs since 23:57. alpha-ai.uk 200 from alpha-serv-01 throughout. Alpha#159 (retitled 10:05) names the likely cause: Alpha's own watchdog restarts them and the stand-down never stops it.
-NEW NEEDS A PERSON (doctor flag): LOW RAM, ~1-1.2 of 15.8 GB free for 6 runs since 00:26 17 Nov. CPU still crosses the 90% hold most hours; data copy keeps up (6 MB owed).
+LAPTOP41 report fresh: doctor 11:41 UTC 21 Nov, live 11:48; cloudSeen=b25683e. Checkout still c1aa435 (12 Oct), behind main.
+NEEDS A PERSON (doctor flag): TWO ALPHAS, unchanged since 16 Nov. Latest stand-down 11:28 21 Nov, undone within minutes. alpha-ai.uk 200 from alpha-serv-01. Alpha#159 (updated 11:06 21 Nov) still names Alpha's own watchdog as the likely cause.
+BRIEF OUTAGE 20 Nov ~15:00: alpha-ai.uk answered 530 (nobody serving); recovered next run.
+LOW RAM: needs-a-person through 20 Nov, cleared 21 Nov (2.7 GB free now). CPU 77%, still crosses the 90% hold some runs. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy owes 94 MB.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-NEW: #301 DRAFT (retitled 08:38: '...close it on the machine's return'), touched 10:37. Alpha#159 draft retitled 10:05: '...Laptop41 two Alphas: likely Alpha's own watchdog restarts them, stand-down never stops it'. Alpha#73 draft updated 07:00. main unchanged at c1949c9 (13 Nov). #302 (GPU Bridge Policy) OPEN for V.
+No merges or new PRs since 17 Nov; main unchanged at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) idle since 16 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 draft updated 21 Nov; Alpha#73 draft idle.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
