@@ -1,31 +1,30 @@
-laptop41-doctor 20261121-045602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261121-055603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-21T04:46:26.1930888+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-21T05:47:25.3196561+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 25676 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 14232 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 20376 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 19888 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
   ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.1 of 15.8 GB RAM free
-  ok: C: 80.3 GB free
-  ok: CPU 13% (Alpha holds GPU admission at 90%)
-  WindowsTerminal                 824 MB  pid 16408
-  MsMpEng                         398 MB  pid 12440
-  Memory Compression              339 MB  pid 3804
-  python                          333 MB  pid 25676
-  ChatGPT                         286 MB  pid 21408
+  ok: 1.9 of 15.8 GB RAM free
+  ok: C: 80.2 GB free
+  ok: CPU 1% (Alpha holds GPU admission at 90%)
+  WindowsTerminal                 970 MB  pid 16408
+  MsMpEng                         399 MB  pid 12440
+  Memory Compression              329 MB  pid 3804
+  ChatGPT                         284 MB  pid 21408
   explorer                        278 MB  pid 10840
-  msedge                          206 MB  pid 12204
-  ChatGPT                         198 MB  pid 10612
+  python                          224 MB  pid 20376
+  msedge                          208 MB  pid 12204
+  ChatGPT                         197 MB  pid 10612
 
 === SUMMARY ===
-  this pass took 9s
-  - standby, but the backend runs here (pid 25676 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-21T04:56:10)
-  - standby, but the site runs here (pid 14232 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-21T04:56:10)
-  + fixed since last run: CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  this pass took 8s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 20376 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-21T04:56:10)
+  - NEEDS A PERSON - standby, but the site runs here (pid 19888 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 5 run(s), since 2026-11-21T04:56:10)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
