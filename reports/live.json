@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-21T12:44:16.2973589+00:00",
+    "at":  "2026-11-21T12:50:24.3577268+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 295 file(s) to alpha-serv-01 at 2026-11-21T12:22:24Z (21 min ago)"
+                 "detail":  "sent 295 file(s) to alpha-serv-01 at 2026-11-21T12:22:24Z (28 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1307,
+                     "age_min":  1313,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,14 +24,9 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 stale, 1 live, 1 down, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
-                                   "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)",
-                                   "all UI decks: site (https://127.0.0.1:4173)"
-                               ],
-                  "checked_at":  "2026-11-21T12:29:46.767825+00:00"
+                  "summary":  "1 down, 1 static, 1 no feed",
+                  "not_live":  "all decks: backend (/health)",
+                  "checked_at":  "2026-11-21T12:49:51.688283+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
