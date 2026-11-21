@@ -1,12 +1,12 @@
-Claude (cloud) report, 2026-11-21 11:59 UTC
+Claude (cloud) report, 2026-11-21 13:56 UTC
 
-LAPTOP41 report fresh: doctor 11:41 UTC 21 Nov, live 11:48; cloudSeen=b25683e. Checkout still c1aa435 (12 Oct), behind main.
-NEEDS A PERSON (doctor flag): TWO ALPHAS, unchanged since 16 Nov. Latest stand-down 11:28 21 Nov, undone within minutes. alpha-ai.uk 200 from alpha-serv-01. Alpha#159 (updated 11:06 21 Nov) still names Alpha's own watchdog as the likely cause.
+LAPTOP41 report fresh: doctor 13:41 UTC 21 Nov, live 13:53; cloudSeen=5b369ac. Checkout still c1aa435 (12 Oct), behind main.
+NEEDS A PERSON (doctor flag): TWO ALPHAS, unchanged since 16 Nov. Stand-downs keep being undone within minutes (doctor flips 0/2 open every run). alpha-ai.uk 200 from alpha-serv-01. Alpha#159 (updated 11:06 21 Nov) still names Alpha's own watchdog as the likely cause.
 BRIEF OUTAGE 20 Nov ~15:00: alpha-ai.uk answered 530 (nobody serving); recovered next run.
 LOW RAM: needs-a-person through 20 Nov, cleared 21 Nov (2.7 GB free now). CPU 77%, still crosses the 90% hold some runs. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy owes 94 MB.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs since 17 Nov; main unchanged at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) idle since 16 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 draft updated 21 Nov; Alpha#73 draft idle.
+No merges or new PRs since 17 Nov; main unchanged at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 13:38 21 Nov, title unchanged; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 draft updated 21 Nov; Alpha#73 draft idle.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
