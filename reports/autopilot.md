@@ -1,9 +1,17 @@
-﻿# laptop41 autopilot 20261121-113855
+﻿# laptop41 autopilot 20261121-114846
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261121-114846  data-sync (task 'Alpha Data Copy', run at 2026-11-21T11:40:42)  ->  0 (in step)   (2026-11-21T11:49:22, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-21 11:41 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 69 file(s), 19.5 MB written since 2026-11-21T11:25:20Z, to alpha-serv-01
+  PART of a backlog: 248 file(s), 94.4 MB still to send, from 2026-11-21T11:42:49Z; the next pass carries on
+```
 
 ## auto-deck-liveness-20261121-113855  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-21T11:43:05, 12s)
 ```
@@ -299,10 +307,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-21 10:30 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 33 file(s), 99.6 MB written since 2026-11-21T10:19:13Z, to alpha-serv-01
   PART of a backlog: 280 file(s), 27.5 MB still to send, from 2026-11-21T10:23:12Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261121-102352  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-21T10:26:31, 1s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
