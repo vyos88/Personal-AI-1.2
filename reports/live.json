@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-21T11:34:42.1788477+00:00",
+    "at":  "2026-11-21T11:43:26.3732130+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover is NOT RUNNING (last pass 6 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 291 file(s) to alpha-serv-01 at 2026-11-21T11:21:30Z (13 min ago) (91 MB still to send)"
+                 "detail":  "sent 291 file(s) to alpha-serv-01 at 2026-11-21T11:21:30Z (21 min ago) (91 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1237,
+                     "age_min":  1246,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,9 +24,14 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 down, 1 static, 1 no feed",
-                  "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-21T11:25:57.936228+00:00"
+                  "summary":  "1 degraded, 3 stale, 1 live, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas: deck evidence (/hubs/pulse)",
+                                   "command: deck (/command-center/summary)",
+                                   "network, hardware, atlas: devices (/devices/network/topology)",
+                                   "CrowPanel: display (LAN reads)"
+                               ],
+                  "checked_at":  "2026-11-21T11:43:13.815288+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
