@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261121-054345
+﻿# laptop41 autopilot 20261121-055345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261121-055345  data-sync (task 'Alpha Data Copy', run at 2026-11-21T05:50:41)  ->  0 (in step)   (2026-11-21T05:54:04, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-21 05:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 282 file(s), 97.0 MB written since 2026-11-21T05:40:43Z, to alpha-serv-01
+```
 
 ## auto-deck-audit-20261121-054345  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-21T05:44:05, 0s)
 ```
@@ -304,10 +311,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-21 04:10 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 68 file(s), 38.0 MB written since 2026-11-21T03:52:49Z, to alpha-serv-01
   PART of a backlog: 259 file(s), 96.0 MB still to send, from 2026-11-21T04:07:15Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261121-040845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-21T04:09:04, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
