@@ -1,14 +1,14 @@
 {
-    "cloudSeen":  "c1580a5aef31948ecf68522fbd1d5ae40d89a78f",
-    "lastRun":  "2026-11-22T03:41:11",
+    "cloudSeen":  "d37349cf0c0c53fdc86b8507d8d527e232a3c8da",
+    "lastRun":  "2026-11-22T03:56:09",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-11-22T02:56:08",
-                                                     "runs":  4,
-                                                     "text":  "only 1.5 of 15.8 GB RAM free"
-                                                 }
+                 "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
+                                                                                                                                                                                                         "since":  "2026-11-22T03:56:09",
+                                                                                                                                                                                                         "runs":  1,
+                                                                                                                                                                                                         "text":  "automatic cover last ran 7 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
+                                                                                                                                                                                                     }
              },
-    "lastPost":  "2026-11-22T03:41:11",
-    "relay":  "relayed status/cloud c1580a5"
+    "lastPost":  "2026-11-22T03:56:09",
+    "relay":  "relayed status/cloud d37349c"
 }
