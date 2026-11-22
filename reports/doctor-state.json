@@ -1,19 +1,10 @@
 {
     "cloudSeen":  "1387aaf2eb7f81a768ba27936b1ee7d800d51244",
-    "lastRun":  "2026-11-22T21:26:11",
+    "lastRun":  "2026-11-22T21:41:11",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                     "since":  "2026-11-22T21:26:11",
-                                                                                                                                                     "runs":  1,
-                                                                                                                                                     "text":  "standby, but the site runs here (pid 14676 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                 },
-                 "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                          "since":  "2026-11-22T20:56:59",
-                                                                                                                                                          "runs":  3,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 20440 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                      }
+
              },
-    "lastPost":  "2026-11-22T21:26:11",
+    "lastPost":  "2026-11-22T21:41:11",
     "relay":  "relayed status/cloud 1387aaf"
 }
