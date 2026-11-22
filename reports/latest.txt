@@ -1,4 +1,4 @@
-laptop41-doctor 20261122-072602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-074102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-22T03:54:12.5781833+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,29 +6,28 @@ laptop41-doctor 20261122-072602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (1 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1.5 of 15.8 GB RAM free
+  PROBLEM: only 0.4 of 15.8 GB RAM free
   ok: C: 78 GB free
-  ok: CPU 5% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,782 MB  pid 16408
-  explorer                        385 MB  pid 10840
-  MsMpEng                         295 MB  pid 12440
-  dwm                             209 MB  pid 18008
+  ok: CPU 87% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,819 MB  pid 16408
+  explorer                        384 MB  pid 10840
+  MsMpEng                         335 MB  pid 12440
+  arduino-cli                     217 MB  pid 8772
+  Memory Compression              216 MB  pid 3804
   codex                           208 MB  pid 26664
-  powershell                      197 MB  pid 21160
+  dwm                             201 MB  pid 18008
   ChatGPT                         195 MB  pid 21408
-  ChatGPT                         190 MB  pid 10612
 
 === SUMMARY ===
-  this pass took 9s
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 1 run(s), since 2026-11-22T07:26:10)
-  - only 1.5 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-22T07:26:10)
+  this pass took 16s
+  - only 0.4 of 15.8 GB RAM free  (open 2 run(s), since 2026-11-22T07:26:10)
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 2 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
