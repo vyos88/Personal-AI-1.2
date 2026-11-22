@@ -1,9 +1,36 @@
-﻿# laptop41 autopilot 20261122-205409
+﻿# laptop41 autopilot 20261122-205845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261122-205845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-22T20:59:25, 12s)
+```
+DECKS: 2 live, 4 stale, 1 static, 1 no feed
+DECK STALE: deck evidence (/hubs/pulse) -> the probe loop is not running (no cadence published)  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 177 s old, fresh for ? s
+DECK STALE: command deck (/command-center/summary) -> stale: resource governor  [decks: command]
+    manager snapshot 36 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 3795325 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 1 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    7 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-data-sync-task-20261122-205845  data-sync (task 'Alpha Data Copy', run at 2026-11-22T20:50:41)  ->  0 (in step)   (2026-11-22T20:59:41, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-22 20:52 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 72 file(s), 30.7 MB written since 2026-11-22T20:41:12Z, to alpha-serv-01
+  PART of a backlog: 234 file(s), 87.9 MB still to send, from 2026-11-22T20:57:24Z; the next pass carries on
+```
 
 ## auto-home-wifi-20261122-205409  home-wifi (standing)  ->  0 (none)   (2026-11-22T20:57:49, 4s)
 ```
@@ -170,18 +197,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-22 20:00 (memory\ at C:\Users\Vyo\Downloads\Vy
 DATA SYNC DESKTOP-41HPLCN 2026-11-22 19:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-home-wifi-20261122-194845  home-wifi (standing)  ->  0 (none)   (2026-11-22T19:49:18, 3s)
-```
-on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
-```
-
-## auto-bridges-20261122-194345  bridges (standing)  ->  0 (restarted)   (2026-11-22T19:44:00, 0s)
-```
-'alpha-image bridge' task was Ready; last run 11/19/2026 01:39:56, last result 0xC000013A
-  log: 2026-11-19T01:40:05 starting the image bridge (machines: host,worker1)
-  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.70.101.6:8787 (machines: host,worker1)
-'alpha-image bridge' was not listening on 7861: restarted, it answers now
 ```
 
