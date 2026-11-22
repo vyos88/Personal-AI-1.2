@@ -1,35 +1,34 @@
-laptop41-doctor 20261122-231102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-234103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-22T23:07:25.9873661+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-22T23:35:26.3040697+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 14968 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 24996 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (1 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.9 of 15.8 GB RAM free
+  PROBLEM: only 1.1 of 15.8 GB RAM free
   ok: C: 76.9 GB free
-  ok: CPU 32% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,086 MB  pid 16408
-  python                          558 MB  pid 14968
-  MsMpEng                         321 MB  pid 12440
-  dwm                             242 MB  pid 18008
-  explorer                        229 MB  pid 10840
-  Memory Compression              212 MB  pid 3804
-  ChatGPT                         203 MB  pid 10612
-  ChatGPT                         200 MB  pid 21408
+  ok: CPU 65% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,758 MB  pid 16408
+  MsMpEng                         323 MB  pid 12440
+  python                          315 MB  pid 24996
+  Memory Compression              258 MB  pid 3804
+  dwm                             239 MB  pid 18008
+  explorer                        230 MB  pid 10840
+  ChatGPT                         202 MB  pid 21408
+  ChatGPT                         196 MB  pid 10612
 
 === SUMMARY ===
   this pass took 12s
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 3 run(s), since 2026-11-22T22:41:12)
-  - standby, but the backend runs here (pid 14968 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-22T23:11:13)
-  - only 0.9 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-22T23:11:13)
+  - standby, but the backend runs here (pid 24996 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-22T23:11:13)
+  - only 1.1 of 15.8 GB RAM free  (open 3 run(s), since 2026-11-22T23:11:13)
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 3 runs] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
