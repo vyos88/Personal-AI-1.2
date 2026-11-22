@@ -1169,3 +1169,56 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   it armed (it handed back correctly), or disarm it until you say 'cover'? The 19:57Z cloud
   relay files this window as *"Laptop41 dropped out of standby ... self-heal ran"*, read off
   the Alpha row; the Role row says it was a cover.
+
+## 2026-11-22 21:45 UTC — the two Alphas are back, and this time the chain is visible end to end
+
+- [~] 2026-11-22 Claude (cloud): **re-opening the closure above on its own terms.** A
+  dirty write appeared, so the symptom is back — and the cover I recorded an hour ago is
+  the front of it. Every line below is from `origin/status/laptop41-live:reports/live.md`
+  at the named time, or from `origin/status/laptop41:reports/latest.txt`.
+  **The chain, in order.**
+  1. **`20:16:13.391Z` — second automatic cover of the evening.** `alpha-ai.uk 530` in the
+     20:19:35Z Alpha row: nobody was serving, so the public-URL signal was legitimately
+     met, as it was for the 19:40 cover.
+  2. **The cover worked.** `backend 0 → 200` by `20:34:21Z`, `alpha-ai.uk 530 → 200` by
+     `20:39:16Z`. That answers what I left unproved in the entry above: a cover does start
+     Alpha on Laptop41 and does serve the public URL — it takes about 23 minutes.
+  3. **Hand-back looked clean.** `20:57:59Z`: Role `STANDBY`, Alpha row *"nothing of Alpha
+     runs here"*.
+  4. **Two Alphas `1 m 47 s` later.** `20:59:46Z`: *"running HERE too: backend, site (two
+     Alphas"*. Of the ten writes from 20:59:46Z to 21:34:27Z, **seven are dirty**
+     (20:59:46, 21:04:31, 21:09:18, 21:14:16, 21:24:12, 21:29:14, 21:34:27); the one clean
+     write, `21:19:44Z`, is a stand-down retry that did not hold. The doctor names the
+     processes: backend **pid 20440 python.exe** (`20:56:59`), site **pid 14676 node.exe**
+     (`21:26:11`), open 3 runs.
+  5. **And it is counting toward covering again.** The Role note from 20:59 on alternates
+     between *"standby, but Alpha serves here while alpha-serv-01..."* and
+     *"alpha-serv-01's Alpha did not answer (1 of 3)"*, reaching **(2 of 3)** at
+     `21:24:12Z`. With `failures: 3` (`scripts/alpha-standby.mjs:59`) the next missed
+     primary probe covers again.
+  **So the `:8001` item is load-bearing, not cosmetic.** The doctor has reported for weeks
+  that automatic cover cannot see `alpha-serv-01`'s Alpha at `100.70.101.6:8001`. That
+  probe is signal 1 of 3, and it is failing *constantly* — the only thing standing between
+  Laptop41 and a cover loop is alpha-ai.uk staying 200, and 530s happen (20:16 tonight,
+  and the 20 Nov blip the cloud relay recorded).
+  **What I am not claiming.** Covers are not the origin of the 16–22 Nov wave. There were
+  **nine** covers since 16 Nov — 11-19 `01:36:14.773Z`, `02:06:16.396Z`; 11-20
+  `02:22:14.142Z`, `02:43:14.151Z`, `03:05:13.366Z`, `11:30:14.883Z`, `14:42:13.946Z`;
+  11-22 `19:40:14.822Z`, `20:16:13.391Z` — only 16 COVERING writes out of 1517 before
+  tonight, and none at all between 11-20 14:42 and 11-22 19:40 while the wave was running.
+  What is established is narrower and still useful: **a cover leaves an Alpha running on
+  Laptop41 that the hand-back does not keep down**, and that is sufficient on its own to
+  produce the two-Alpha pattern.
+  **Correcting my own report.** At 20:34:55Z I reported *"200 consecutive clean live
+  writes ... nothing worth doing"*. The write I had just read, `20:34:21Z`, said Role
+  `COVERING` with `backend 200` — Laptop41 was serving Alpha at that moment. My count
+  greps for *"running HERE too"*, which a cover does not print, and I had written that
+  blind spot down an hour earlier in the entry above. The number was right about its own
+  question and the sentence I hung on it was wrong. Every count I report from here states
+  covers and two-Alpha writes separately.
+  **For V, one decision, which is the same one as an hour ago and now urgent:** the
+  automatic cover is armed on Worker1 against your rule that it covers only if you say
+  'cover' (`status/cloud:reports/cloud.md:20`). It fired twice tonight, it leaves an Alpha
+  behind each time, and it is two of three signals away from firing again. Disarm it on
+  Laptop41, or fix `100.70.101.6:8001` so signal 1 stops failing — either breaks the loop;
+  neither is mine to do from here.
