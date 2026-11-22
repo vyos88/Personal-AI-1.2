@@ -1,10 +1,19 @@
 {
     "cloudSeen":  "05bf99f5fb4bda5f4a4e0ba4fa804a8a0e15e4d6",
-    "lastRun":  "2026-11-22T07:11:11",
+    "lastRun":  "2026-11-22T07:26:10",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-
+                 "only #.# of #.# GB RAM free":  {
+                                                     "since":  "2026-11-22T07:26:10",
+                                                     "runs":  1,
+                                                     "text":  "only 1.5 of 15.8 GB RAM free"
+                                                 },
+                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
+                                                                                                                                                                                                                                                                             "since":  "2026-11-22T07:26:10",
+                                                                                                                                                                                                                                                                             "runs":  1,
+                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
+                                                                                                                                                                                                                                                                         }
              },
-    "lastPost":  "2026-11-22T04:11:13",
+    "lastPost":  "2026-11-22T07:26:10",
     "relay":  "relayed status/cloud 05bf99f"
 }
