@@ -1,14 +1,10 @@
 {
     "cloudSeen":  "05bf99f5fb4bda5f4a4e0ba4fa804a8a0e15e4d6",
-    "lastRun":  "2026-11-22T08:11:09",
+    "lastRun":  "2026-11-22T08:26:08",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-11-22T08:11:09",
-                                                     "runs":  1,
-                                                     "text":  "only 1.5 of 15.8 GB RAM free"
-                                                 }
+
              },
-    "lastPost":  "2026-11-22T08:11:09",
+    "lastPost":  "2026-11-22T08:26:08",
     "relay":  "relayed status/cloud 05bf99f"
 }
