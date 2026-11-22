@@ -1,9 +1,29 @@
-﻿# laptop41 autopilot 20261122-193345
+﻿# laptop41 autopilot 20261122-194345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-bridges-20261122-194345  bridges (standing)  ->  0 (restarted)   (2026-11-22T19:44:00, 0s)
+```
+'alpha-image bridge' task was Ready; last run 11/19/2026 01:39:56, last result 0xC000013A
+  log: 2026-11-19T01:40:05 starting the image bridge (machines: host,worker1)
+  log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.70.101.6:8787 (machines: host,worker1)
+'alpha-image bridge' was not listening on 7861: restarted, it answers now
+```
+
+## auto-home-wifi-20261122-194345  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-22T19:44:19, 3s)
+```
+on 'Starlink V'; the backend listens on 192.168.2.151
+```
+
+## auto-data-sync-task-20261122-194345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T19:40:41)  ->  0 (in step)   (2026-11-22T19:44:24, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-22 19:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261122-193345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T19:30:41)  ->  0 (in step)   (2026-11-22T19:34:12, 0s)
 ```
@@ -120,27 +140,6 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-22 17:00 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-data-sync-task-20261122-165345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T16:50:41)  ->  0 (in step)   (2026-11-22T16:54:09, 0s)
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-11-22 16:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261122-164345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T16:40:42)  ->  0 (in step)   (2026-11-22T16:44:07, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-22 16:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261122-163345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T16:30:41)  ->  0 (in step)   (2026-11-22T16:34:08, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-22 16:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261122-162345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T16:20:41)  ->  0 (in step)   (2026-11-22T16:24:08, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-22 16:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
 ```
