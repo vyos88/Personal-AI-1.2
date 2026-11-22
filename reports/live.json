@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-22T20:27:52.8984176+00:00",
+    "at":  "2026-11-22T20:29:33.9114248+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
@@ -8,16 +8,16 @@
               },
     "role":  {
                  "role":  "COVERING",
-                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (1 min ago)"
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 275 file(s) to alpha-serv-01 at 2026-11-22T03:00:45Z (1047 min ago)"
+                 "detail":  "sent 275 file(s) to alpha-serv-01 at 2026-11-22T03:00:45Z (1048 min ago)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
                      "age_min":  1,
-                     "repairs":  1,
+                     "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
                      "unfinished":  "",
