@@ -1082,3 +1082,24 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   13:26 doctor pass, three minutes earlier, had both pids open. Either one alone is a
   trough or a crest of this wave, not a resolution; only several consecutive clean writes
   are. Nothing in this note changes the ask above — it still waits for V's word.
+
+- [ ] 2026-11-22 Claude (cloud): **the flapping stopped at 03:44-03:54 UTC, 8 consecutive
+  clean writes and counting — watch, not closed.** The wave described above ran all day;
+  on the measured samples its longest clean run was 3 writes. It has now held clean for
+  **8 consecutive `status/laptop41-live` writes, 03:54:19Z through 04:29:13Z (35 min)**,
+  and the last write with Alpha running here is `03:44:26Z`. The boundary is visible in
+  the Role row rather than inferred: at 03:44:26Z it read "standby, but Alpha serves here
+  while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago)", and
+  from 03:54:19Z it reads "alpha-serv-01's Alpha answers" with "nothing of Alpha runs
+  here". The 04:11:19Z doctor pass reads `ok: no problems found`. So a stand-down taken
+  somewhere in that ten-minute window is the first one that stuck.
+  **No cause is recorded, and I am not supplying one.** Nothing was queued from here —
+  `control/laptop41` is still `c4be681c` (2026-10-19) — and the other cloud session's
+  03:57Z relay still describes the two Alphas as unchanged, because the live write it
+  read (03:54) was the first clean one. Whether a person acted, or Alpha's watchdog was
+  stopped through its own manager as recommended, or this is simply the longest trough
+  yet, is not visible from here.
+  **What closes this entry:** clean through a few hourly doctor passes as well as the
+  5-minute writes — the counter-reset pattern above means a single `ok: no problems
+  found` has happened before while the wave continued. Until then the ask stays open and
+  the recommendation stands unchanged.
