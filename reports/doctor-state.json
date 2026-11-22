@@ -1,10 +1,39 @@
 {
     "cloudSeen":  "38fe26fc3196daa4147119f4c18d997153639a9b",
-    "lastRun":  "2026-11-22T20:11:11",
+    "lastRun":  "2026-11-22T20:42:12",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-
+                 "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
+                                                                                                                                                         "since":  "2026-11-22T20:42:12",
+                                                                                                                                                         "runs":  1,
+                                                                                                                                                         "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
+                                                                                                                                                     },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
+                                                                                                                                                                                    "since":  "2026-11-22T20:28:00",
+                                                                                                                                                                                    "runs":  2,
+                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
+                                                                                                                                                                                },
+                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
+                                                                                                  "since":  "2026-11-22T20:28:00",
+                                                                                                  "runs":  2,
+                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
+                                                                                              },
+                 "the public site serves \u003cbundle\u003e, which this machine\u0027s # does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk":  {
+                                                                                                                                                                                    "since":  "2026-11-22T20:42:12",
+                                                                                                                                                                                    "runs":  1,
+                                                                                                                                                                                    "text":  "the public site serves /assets/main-DYPj9uIA.js, which this machine\u0027s 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk"
+                                                                                                                                                                                },
+                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
+                                                                                                                                         "since":  "2026-11-22T20:28:00",
+                                                                                                                                         "runs":  2,
+                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
+                                                                                                                                     },
+                 "no machine offers alpha.music: a queued track waits forever":  {
+                                                                                     "since":  "2026-11-22T20:28:00",
+                                                                                     "runs":  2,
+                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
+                                                                                 }
              },
-    "lastPost":  "2026-11-22T19:56:10",
+    "lastPost":  "2026-11-22T20:42:12",
     "relay":  "relayed status/cloud 38fe26f"
 }

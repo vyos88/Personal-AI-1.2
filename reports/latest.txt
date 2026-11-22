@@ -1,36 +1,138 @@
-laptop41-doctor 20261122-201103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-204102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
-=== 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-22T19:45:26.3209090+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
-  ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  ok: no backend here (port 8001 free)
-  ok: no site here (port 4173 free)
-  ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
+=== 0. Covering for alpha-serv-01 ===
+  role.json says covering since 2026-11-22T20:16:13.391Z: alpha-serv-01's Alpha did not answer, so this machine serves Alpha; it hands back when alpha-serv-01's Alpha answers again
+  ok: automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (1 min ago)
+
+=== 0. Where Alpha lives under C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software ===
+  top level: agents, alpha-core, alpha-game, android-app, android-worker, backend, beta-core, common, frontend, memory, tools, windows-worker, __pycache__, .dockerignore, __init__.py
+  port 8001 : pid 12660 python.exe: 
+  ok: backend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\backend\main.py
+  task Alpha runs: cmd.exe /c "C:\ProgramData\AlphaBoot\run-alpha.cmd"
+              in: 
+              wrapper: C:\ProgramData\AlphaBoot\run-alpha.cmd
+  port 4173 : pid 6436 node.exe: 
+  frontend candidate: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend  dist:True  named-by-task:True
+  ok: frontend: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software\frontend
+
+=== 1. Backend (port 8001) ===
+  ok: /health answers 200
+  ok: chat fix (dictionary 500) is in the live main.py
+  main.py edited 2026-10-22 00:49; backend started 
+
+=== 2. Chat ===
+  ok: backend ready (phase ready)
+  ok: /chat is mounted and asks for a login (HTTP 401)
+  Ollama models: qwen2.5-coder:1.5b, llama3.2:3b
+  ok: chat model 'llama3.2:3b' answered in 11.5s (load 0.1s, 0.9 tokens/s): OK
+  ok: Ollama keeps 'llama3.2:3b' loaded for 24 h after each use
+  not logged in, so chat itself was not tried. Add -ChatUser <your Alpha login> to send real messages.
+
+=== 3. Is Alpha stale, and at which layer? ===
+  dist built     2026-11-14 02:20
+  newest source  2026-11-15 00:25  src\components\SupervisedCodexExecutor.jsx
+  PROBLEM: the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship
+  frontend probed at https://127.0.0.1:4173/
+  bundle in dist     /assets/index-DIYFzSa6.js
+  bundle on :4173   /assets/index-DIYFzSa6.js
+  bundle public      /assets/main-DYPj9uIA.js
+  public headers: Server: cloudflare
+  ok: 4173 serves the build in dist
+  PROBLEM: the public site serves /assets/main-DYPj9uIA.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
+
+=== 4. Public alpha-ai.uk and the boot tasks ===
+  ok: https://alpha-ai.uk/ answers 200
+  task Alpha            Running  last run 2026-11-22 20:16 result 0x00041301 (still running)
+  task Alpha Backend    Running  last run 2026-11-22 20:23 result 0x00041301 (still running)
+  ok: self-heal runs (task is SYSTEM, not visible here; its log was written 1 min ago)
+  cloudflared service: Running
+  cloudflared processes on this machine: 1
+  last self-heal entries:
+    {"at":"2026-11-22T20:36:54.329Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":false,"status":530,"reason":"cloudflare 1033"},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+    {"at":"2026-11-22T20:38:54.372Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":["self-heal: public healthy again after 11 failed pass(es)"]}
+    {"at":"2026-11-22T20:40:54.333Z","probes":{"backend":{"ok":true,"status":200},"frontend":{"ok":true,"status":200},"public":{"ok":true,"status":200},"control":{"ok":true,"status":200},"chat":{"ok":true,"status":200}},"actions":[],"events":[]}
+
+=== 5. alpha-tunnel coordinator (http://100.70.101.6:8787) ===
+  ok: healthz: {"ok":true,"protocolVersion":1,"version":"1.7.0"}
+  the coordinator runs on another machine; none should listen here
+  --- agents
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- stats
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- keys
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+  --- tasks
+    Not signed in. Run `node src/admin/run.js login --email <your email>` once (or set ALPHA_ADMIN_TOKEN, or ALPHA_BOOTSTRAP_TOKEN on a fresh install).
+
+=== 5b. Music Creator ===
+  ok: music bridge answers on 127.0.0.1:8790
+  ok: the site routes /music to the bridge (port 4173)
+  PROBLEM: no machine offers alpha.music: a queued track waits forever
+
+=== 5c. Image creator ===
+  ok: image bridge answers on 127.0.0.1:7861
+  PROBLEM: no machine offers alpha.image: the image bridge has nowhere to send work
+
+=== 5d. Brain topology (neurological deck) ===
+  ok: brain deck: the backend's anatomy map: 9 regions, 11 links, every one joins two regions
+  ok: brain deck: the deck's source draws the links the backend sends and checks them (Region links)
+  ok: brain deck: the site serves the fixed deck (BrainNeuralModel-BPCqw7sA.js)
+
+=== 6. CrowPanel ===
+    no serial ports on this machine.
+    The board shows up as one when it is plugged in and its driver is there ΓÇö
+    a CH340 on Windows needs the CH341SER driver.
+  --- devices by address (USB: port, VID:PID, instance; LAN: IP, MAC)
+  self 192.168.2.151   30:c9:ab:54:31:71  Wi-Fi
+  lan  192.168.2.1     74:24:9f:59:99:d6  Reachable
+  lan  192.168.2.157   64:d8:1b:e8:89:14  Stale
+  the tunnel's panel firmware (firmware/crowpanel) is live only if its agents:read key in the keys list above was used in the last few seconds
+  --- Alpha's deck feed (/panel/crowpanel/public-state)
+  ok: Alpha's deck feed is live (assistant heartbeat 4s old)
+  backend listens on: ::1, 100.69.243.25, 127.0.0.1, 192.168.2.151
+  ok: the panel's way in answers: http://192.168.2.151:8001/health 200 (Wi-Fi)
+  PROBLEM: no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine
 
 === 7. Memory, disk, heaviest processes ===
   ok: 1.9 of 15.8 GB RAM free
-  ok: C: 76.9 GB free
-  ok: CPU 10% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,345 MB  pid 16408
-  MsMpEng                         289 MB  pid 12440
-  explorer                        272 MB  pid 10840
-  dwm                             239 MB  pid 18008
-  ChatGPT                         202 MB  pid 21408
-  Memory Compression              202 MB  pid 3804
-  ChatGPT                         195 MB  pid 10612
-  powershell                      188 MB  pid 23236
+  ok: C: 76.8 GB free
+  ok: CPU 12% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,686 MB  pid 16408
+  llama-server                    924 MB  pid 7460
+  MsMpEng                         282 MB  pid 12440
+  Memory Compression              245 MB  pid 3804
+  dwm                             240 MB  pid 18008
+  explorer                        207 MB  pid 10840
+  ChatGPT                         199 MB  pid 21408
+  ChatGPT                         186 MB  pid 10612
+
+=== 8. Image generation ===
+  IMAGE_GEN_URL = http://127.0.0.1:7861/sdapi/v1/txt2img  (from .env.local)
+  port 7861 : pid 17284 node.exe: "C:\Program Files\nodejs\node.exe" C:\services\alpha-tunnel\scripts\image-bridge.mjs
+  PROBLEM: image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)
 
 === SUMMARY ===
-  this pass took 9s
-  ok: no problems found
+  this pass took 71s
+  - no machine offers alpha.music: a queued track waits forever  (open 2 run(s), since 2026-11-22T20:28:00)
+  - image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)  (open 2 run(s), since 2026-11-22T20:28:00)
+  - no machine offers alpha.image: the image bridge has nowhere to send work  (open 2 run(s), since 2026-11-22T20:28:00)
+  - the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship  (open 2 run(s), since 2026-11-22T20:28:00)
+  - no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine  (open 1 run(s), since 2026-11-22T20:42:12)
+  - the public site serves /assets/main-DYPj9uIA.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk  (open 1 run(s), since 2026-11-22T20:42:12)
+  + fixed since last run: only 0.8 of 15.8 GB RAM free
+  + fixed since last run: backend /ready does not answer (HTTP 0)
+  + fixed since last run: https://alpha-ai.uk/ answers 530
+  + fixed since last run: backend /health answered 000
+  + fixed since last run: /chat without a login answers HTTP 0, expected 401 (route missing or failing)
+  + fixed since last run: Alpha's deck feed answered 000
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [open 2 runs] Make music on each laptop: queue {"do":"enable-music"} on its autopilot (installs MusicGen, enables alpha-music, restarts the agent).
+  2. [open 2 runs] Start Stable Diffusion WebUI with --api (COMMANDLINE_ARGS in webui-user.bat) and wait for "Model loaded"; section 8 then shows the API answering 200.
+  3. [open 2 runs] Make images on each laptop: queue {"do":"enable-image"} (Worker1) and {"do":"enable-image","installComfy":true} (Host).
+  4. [open 2 runs] Build and serve the frontend: repair-alpha-host.ps1 does it with rollback; by hand it is npm ci; npm run build in the frontend folder, then Start-ScheduledTask Alpha.
+  5. [new] The deck panel is not reaching this machine. Over USB serial send STATUS (it reports wifi_ssid, wifi_set and alpha_base, no secrets), then re-provision: WIFI "<ssid>" <passphrase>, then ALPHA http://<address from section 6>:8001. Hardware Hub > CrowPanel Alpha Deck > "Connect this panel to Wi-Fi" does the same.
+  6. [new] alpha-ai.uk is not served by this machine: if section 3 shows cf-cache-status HIT, purge the Cloudflare cache; otherwise stop the other cloudflared connector for this tunnel (a standby laptop started with --cloudflared).
+  7. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  8. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  9. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
