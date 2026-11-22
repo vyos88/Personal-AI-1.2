@@ -1,32 +1,32 @@
-laptop41-doctor 20261122-024103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-025601 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-22T02:35:21.8556562+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-22T02:55:22.4290753+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 18836 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 18576 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
+  ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 1.5 of 15.8 GB RAM free
   ok: C: 78.5 GB free
-  ok: CPU 55% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,135 MB  pid 16408
-  python                          392 MB  pid 18836
+  ok: CPU 1% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,192 MB  pid 16408
   explorer                        388 MB  pid 10840
-  MsMpEng                         354 MB  pid 12440
+  MsMpEng                         344 MB  pid 12440
   python                          335 MB  pid 8792
-  Memory Compression              299 MB  pid 3804
   ChatGPT                         193 MB  pid 21408
-  ChatGPT                         184 MB  pid 10612
+  ChatGPT                         182 MB  pid 10612
+  dwm                             181 MB  pid 18008
+  node                            168 MB  pid 17908
 
 === SUMMARY ===
-  this pass took 13s
-  - NEEDS A PERSON - standby, but the backend runs here (pid 18836 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 9 run(s), since 2026-11-22T00:41:15)
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-22T02:41:14)
-  - standby, but the site runs here (pid 18576 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-22T02:41:14)
-  + fixed since last run: only 1.1 of 15.8 GB RAM free
+  this pass took 8s
+  - only 1.5 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-22T02:56:08)
+  + fixed since last run: only 1 of 15.8 GB RAM free
+  + fixed since last run: standby, but the site runs here (pid 18576 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  + fixed since last run: standby, but the backend runs here (pid 18836 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
