@@ -1,9 +1,14 @@
-﻿# laptop41 autopilot 20261122-204845
+﻿# laptop41 autopilot 20261122-205409
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-home-wifi-20261122-205409  home-wifi (standing)  ->  0 (none)   (2026-11-22T20:57:49, 4s)
+```
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
 
 ## auto-data-sync-task-20261122-204845  data-sync (task 'Alpha Data Copy', run at 2026-11-22T20:40:41)  ->  0 (in step)   (2026-11-22T20:50:33, 0s)
 ```
@@ -178,10 +183,5 @@ on 'Starlink V'; standby: Alpha serves from the primary, so the backend here sta
   log: 2026-11-19T01:40:05 starting the image bridge (machines: host,worker1)
   log: image bridge on http://127.0.0.1:7861/sdapi/v1/ -> http://100.70.101.6:8787 (machines: host,worker1)
 'alpha-image bridge' was not listening on 7861: restarted, it answers now
-```
-
-## auto-home-wifi-20261122-194345  home-wifi (standing)  ->  0 (on the home network, backend reachable)   (2026-11-22T19:44:19, 3s)
-```
-on 'Starlink V'; the backend listens on 192.168.2.151
 ```
 
