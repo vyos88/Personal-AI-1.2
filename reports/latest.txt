@@ -1,4 +1,4 @@
-laptop41-doctor 20261122-195602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-201103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-22T19:45:26.3209090+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,30 +9,21 @@ laptop41-doctor 20261122-195602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 1.8 of 15.8 GB RAM free
-  ok: C: 77 GB free
-  ok: CPU 7% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,425 MB  pid 16408
-  MsMpEng                         294 MB  pid 12440
-  explorer                        237 MB  pid 10840
-  dwm                             232 MB  pid 18008
-  ChatGPT                         206 MB  pid 10612
-  powershell                      204 MB  pid 23236
-  ChatGPT                         203 MB  pid 21408
-  codex                           190 MB  pid 26664
+  ok: 1.9 of 15.8 GB RAM free
+  ok: C: 76.9 GB free
+  ok: CPU 10% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,345 MB  pid 16408
+  MsMpEng                         289 MB  pid 12440
+  explorer                        272 MB  pid 10840
+  dwm                             239 MB  pid 18008
+  ChatGPT                         202 MB  pid 21408
+  Memory Compression              202 MB  pid 3804
+  ChatGPT                         195 MB  pid 10612
+  powershell                      188 MB  pid 23236
 
 === SUMMARY ===
-  this pass took 8s
+  this pass took 9s
   ok: no problems found
-  + fixed since last run: no machine offers alpha.music: a queued track waits forever
-  + fixed since last run: the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\ are tests, which a build does not ship
-  + fixed since last run: image bridge is not running on 127.0.0.1:7861: images are not shared between machines
-  + fixed since last run: backend /ready does not answer (HTTP 0)
-  + fixed since last run: the public site serves /assets/main-CP6gQbXV.js, which this machine's 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk
-  + fixed since last run: backend /health answered 000
-  + fixed since last run: /chat without a login answers HTTP 0, expected 401 (route missing or failing)
-  + fixed since last run: image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)
-  + fixed since last run: Alpha's deck feed answered 000
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
