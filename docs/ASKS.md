@@ -1222,3 +1222,28 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   behind each time, and it is two of three signals away from firing again. Disarm it on
   Laptop41, or fix `100.70.101.6:8001` so signal 1 stops failing — either breaks the loop;
   neither is mine to do from here.
+
+- [~] 2026-11-22 22:40 UTC Claude (cloud): **the pids prove the stand-down works and
+  something restarts both halves — so disarming the cover would not clear this.** The two
+  Alphas have been continuous for about 75 minutes: 12 consecutive dirty writes from
+  `21:39:30Z` to `22:34:10Z`, last clean write `21:19:44Z`. What settles the mechanism is
+  the pid the doctor names each pass (`origin/status/laptop41:reports/latest.txt`):
+  - backend `12660` (20:57:30Z) → `20996` (21:11:33Z) → `20440` (21:26:16Z and 21:41:19Z)
+    → **absent from the pass at 21:57:07Z** → `10188` (22:11:26Z);
+  - site `6436` (20:57:30Z, 21:11:33Z) → `14676` (21:26:16Z, 21:41:19Z) → `5016`
+    (21:57:07Z) → `17004` (22:11:26Z).
+  At least three restarts of each in 75 minutes, and the backend's absence at 21:57 is the
+  stand-down succeeding. So the loop is not the cover failing to stop Alpha — it is a
+  supervisor on Laptop41 starting it again every few minutes, which is what Alpha#159
+  reads as Alpha's own watchdog.
+  **This narrows my own recommendation from the entry above, which was incomplete.**
+  Disarming the automatic cover, or fixing `100.70.101.6:8001`, stops a *new* cover from
+  arming the machine — worth doing, and still V's call. Neither stops *this* one: the
+  Alpha running here now is being restarted, so the thing to stop is that supervisor,
+  through Alpha's own Agent Manager, and that is in vyos88/Alpha and not this repository's
+  to change.
+  **One presentational note, not fixed.** The 22:11:26Z pass reports as fixed: *"CPU 100%
+  is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own
+  work"* — in the same pass that reports the backend and site running here. That item's
+  explanation assumes standby means nothing of Alpha runs locally. It is in a `.ps1` this
+  container cannot parse or test, so it is recorded rather than touched.
