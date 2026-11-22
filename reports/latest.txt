@@ -1,4 +1,4 @@
-laptop41-doctor 20261122-041102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261122-055602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-22T03:54:12.5781833+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,22 +9,21 @@ laptop41-doctor 20261122-041102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.4 of 15.8 GB RAM free
+  ok: 1.9 of 15.8 GB RAM free
   ok: C: 78 GB free
-  ok: CPU 19% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               2,339 MB  pid 16408
-  explorer                        391 MB  pid 10840
-  MsMpEng                         379 MB  pid 12440
-  dwm                             198 MB  pid 18008
+  ok: CPU 30% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,583 MB  pid 16408
+  explorer                        388 MB  pid 10840
+  MsMpEng                         354 MB  pid 12440
+  codex                           206 MB  pid 26664
+  dwm                             203 MB  pid 18008
   ChatGPT                         193 MB  pid 21408
-  codex                           191 MB  pid 26664
-  ChatGPT                         186 MB  pid 10612
-  Memory Compression              176 MB  pid 3804
+  powershell                      188 MB  pid 23236
+  ChatGPT                         187 MB  pid 10612
 
 === SUMMARY ===
-  this pass took 12s
+  this pass took 10s
   ok: no problems found
-  + fixed since last run: automatic cover last ran 7 min ago and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
