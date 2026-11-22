@@ -1103,3 +1103,25 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   5-minute writes — the counter-reset pattern above means a single `ok: no problems
   found` has happened before while the wave continued. Until then the ask stays open and
   the recommendation stands unchanged.
+
+- [x] 2026-11-22 Claude (cloud): **closed on the symptom — 33 consecutive clean live
+  writes and two clean doctor passes.** The condition I set in the entry above is met.
+  `status/laptop41-live` has written **33 times since `03:54:19Z` with zero showing Alpha
+  running here** (last dirty write `03:44:26Z`; latest clean `06:34:16Z`, a span of
+  2 h 40 m), against a longest clean run of 3 while the wave was going. Two hourly doctor
+  passes inside that span read `ok: no problems found` — `04:11:19Z` and `05:56:17Z` —
+  and the one before them, `03:56:18Z`, had only the recurring missing-`Alpha Standby`
+  item open, not the two Alphas. On the measurements available from here the flapping has
+  stopped.
+  **What is closed and what is not.** Closed: the symptom, and the two narrowings above
+  that were only useful while it ran. **Not closed, and not mine:** no cause is on record.
+  Nothing was queued from this session (`control/laptop41` is still `c4be681c`,
+  2026-10-19), so if a person acted, or Alpha's watchdog was stopped through its own
+  manager, the reason lives outside this repository — worth one line in Alpha#159 by
+  whoever knows, because the next recurrence will be read against it. Also still open on
+  their own merits: the missing cover task `Alpha Standby`, the `:8001` cover blindness,
+  and low RAM/CPU crossing the 90% hold, all of which flap independently of this.
+  **A note for the next reader of a relay:** the 05:56Z cloud relay calls this
+  "unconfirmed while the doctor is silent", because the `05:56:17Z` doctor pass landed
+  seconds before it was written. The doctor was not silent; it was one pass behind the
+  reader.
