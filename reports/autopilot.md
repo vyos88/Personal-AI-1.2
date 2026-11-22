@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261122-065345
+﻿# laptop41 autopilot 20261122-070345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261122-070345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T07:00:42)  ->  0 (in step)   (2026-11-22T07:04:07, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-22 07:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261122-065345  data-sync (task 'Alpha Data Copy', run at 2026-11-22T06:50:41)  ->  0 (in step)   (2026-11-22T06:54:16, 0s)
 ```
@@ -134,14 +141,5 @@ DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 DATA SYNC DESKTOP-41HPLCN 2026-11-22 04:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-deck-liveness-20261122-034846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-22T03:51:38, 98s)
-```
-DECKS: 1 down, 1 static, 1 no feed
-DECK DOWN: backend (/health) -> the backend does not answer (no answer)  [decks: all decks]
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
