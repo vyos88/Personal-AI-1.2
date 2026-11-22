@@ -1,23 +1,23 @@
 ﻿{
-    "at":  "2026-11-22T20:19:25.4199495+00:00",
+    "at":  "2026-11-22T20:27:52.8984176+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
                   "detail":  "backend 0, site 200, alpha-ai.uk 530; not answering: backend, alpha-ai.uk",
-                  "checked_by":  "self-heal, 0 min ago"
+                  "checked_by":  "self-heal, 1 min ago"
               },
     "role":  {
                  "role":  "COVERING",
-                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (0 min ago)"
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (1 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 275 file(s) to alpha-serv-01 at 2026-11-22T03:00:45Z (1038 min ago)"
+                 "detail":  "sent 275 file(s) to alpha-serv-01 at 2026-11-22T03:00:45Z (1047 min ago)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  0,
-                     "repairs":  0,
+                     "age_min":  1,
+                     "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
                      "unfinished":  "",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "1 down, 1 static, 1 no feed",
                   "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-22T03:53:01.246166+00:00"
+                  "checked_at":  "2026-11-22T20:27:17.149595+00:00"
               },
     "sync":  "IN SYNC: this machine runs d2890d0 of claude/frie...(30)"
 }
