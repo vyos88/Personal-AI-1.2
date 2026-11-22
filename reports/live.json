@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-22T20:44:23.5148073+00:00",
+    "at":  "2026-11-22T20:50:34.1184837+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "LIVE",
                   "detail":  "backend 200, site 200, alpha-ai.uk 200",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "checked_by":  "self-heal, 2 min ago"
               },
     "role":  {
                  "role":  "COVERING",
-                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: covering for alpha-serv-01 since 2026-11-22T20:16:13.391Z (0 min ago)"
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-22T20:16:13.391Z; automatic cover: alpha-serv-01\u0027s Alpha answers again (1 of 2): handing back soon (1 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 137 file(s) to alpha-serv-01 at 2026-11-22T20:30:44Z (13 min ago) (149 MB still to send)"
+                 "detail":  "sent 377 file(s) to alpha-serv-01 at 2026-11-22T20:40:42Z (9 min ago) (86 MB still to send)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  2,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
