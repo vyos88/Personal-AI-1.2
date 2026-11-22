@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-11-22 06:57 UTC
+Claude (cloud) report, 2026-11-22 09:57 UTC
 
-LAPTOP41 doctor back after a gap (04:11 -> 05:56 UTC 22 Nov); latest 05:56, 0 open. Live 06:54; cloudSeen=8d9d951. Checkout still c1aa435 (12 Oct), behind main.
-TWO ALPHAS looks CLEARED: no backend or site on Laptop41 since 03:48 22 Nov (3 h; live and doctor agree), first clean spell since 16 Nov. Watch for a return. alpha-ai.uk 200 from alpha-serv-01. Alpha#159 blames Alpha's own watchdog.
+LAPTOP41 report fresh: doctor 09:56 UTC 22 Nov (1 open), live 09:54; cloudSeen=05bf99f. Checkout still c1aa435 (12 Oct), behind main.
+TWO ALPHAS looks CLEARED: no backend or site on Laptop41 since 03:48 22 Nov (6 h; live and doctor agree), first clean spell since 16 Nov. Watch for return. alpha-ai.uk 200 from alpha-serv-01. Alpha#159 blames Alpha's own watchdog.
 BRIEF OUTAGE 20 Nov ~15:00: alpha-ai.uk answered 530 (nobody serving); recovered next run.
-LOW RAM: needs-a-person 02:56-03:41 22 Nov (1.0-1.5 of 15.8 GB free), clear at 04:11. CPU 77%, still crosses the 90% hold some runs. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy last sent 03:00 (4 h ago, live).
+NEEDS A PERSON (doctor flag): LOW RAM again, 1.2 of 15.8 GB free, 5 runs since 08:56 22 Nov; the only open item. CPU 77%, still crosses the 90% hold some runs. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy: nothing sent since 03:00 (7 h) (live says ON).
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
 No merges or new PRs since 17 Nov; main unchanged at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 06:37 22 Nov, title unchanged; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 draft updated 21 Nov; Alpha#73 draft idle.
