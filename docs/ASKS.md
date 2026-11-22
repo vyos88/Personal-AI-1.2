@@ -1125,3 +1125,47 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   "unconfirmed while the doctor is silent", because the `05:56:17Z` doctor pass landed
   seconds before it was written. The doctor was not silent; it was one pass behind the
   reader.
+
+## 2026-11-22 20:40 UTC — the automatic cover fired on Worker1, and handed back nine minutes later
+
+- [ ] 2026-11-22 Claude (cloud): **`alpha-standby.mjs` covered on Laptop41 at
+  `19:40:14.822Z` by itself, and was back to standby by `19:49:26Z`.** First firing on
+  record here. It matters because V's standing rule is the opposite:
+  `status/cloud:reports/cloud.md:20` (`38fe26fc`) — *"Worker1 stays a worker (covers only
+  if V says 'cover')"*. Nothing in code enforces that; the three-signal cover is armed on
+  that machine and it triggered.
+  **The three writes that show it**, all `origin/status/laptop41-live:reports/live.md`:
+  - `48268ae9` (19:39:20Z) Role `STANDBY` — *"alpha-serv-01's Alpha does not answer over
+    the tailnet, but alpha-ai.uk is served (200): not covering, that would be two
+    Alphas"*. So the tailnet probe was **already** failing and the public URL was the only
+    signal holding the cover off.
+  - `0369023c` (19:44:27Z) Role `COVERING` — *"this machine serves Alpha for alpha-serv-01
+    since 2026-11-22T19:40:14.822Z; automatic cover: alpha-serv-01's Alpha answers again
+    (1 of 2): handing back soon"*. Alpha row the same pass: `backend 0, site 200,
+    alpha-ai.uk 0`.
+  - `ef490590` (19:49:26Z) Role `STANDBY` — *"alpha-serv-01's Alpha answers (0 min ago)"*.
+  With `failures: 3` and one pass a minute (`scripts/alpha-standby.mjs:59-60`), the first
+  missed primary probe was around 19:37; `recover: 2` is the hand-back, and it took it.
+  **What that proves, and what it does not.** Proved: between 19:39:20Z and 19:40:14Z the
+  standby's `publicUrl` probe stopped seeing alpha-ai.uk served — the 19:39 row names that
+  signal as the sole holdout, so it is what released the cover. Proved: the hand-back
+  path works end to end, unattended, in about nine minutes. **Not proved:** whether Alpha
+  ever served from Laptop41 during those nine minutes (`backend 0` at 19:44 is four
+  minutes into a cover and a backend that is still starting looks the same), and whether
+  alpha-serv-01 had actually stopped — `alpha-ai.uk 0` in that row is measured *from
+  Laptop41 while its own connector was starting*, so it is not evidence about the primary.
+  I am not supplying either.
+  **It corrects half of a recurring doctor item.** The doctor says of `:8001`: *"it would
+  cover in an outage and never hand back"* (open again at `19:26:16Z`). The first half
+  held — it covered. The second did not: it handed back inside nine minutes, so
+  `100.70.101.6:8001` answers **intermittently** rather than never, and the item should
+  say so. Making that backend answer reliably is still the fix, and still V's call.
+  **And it is a blind spot in my own measure.** The clean-write count I have been
+  reporting greps `live.md` for *"running HERE too"*, which is the two-Alpha symptom; a
+  cover is a sanctioned single Alpha here, so all six writes across this window counted
+  **clean**. The 200-clean run since `03:54:19Z` is still true of what it measures, and
+  says nothing about covers.
+  **For V, one question:** the automatic cover is armed on Worker1 against your rule. Leave
+  it armed (it handed back correctly), or disarm it until you say 'cover'? The 19:57Z cloud
+  relay files this window as *"Laptop41 dropped out of standby ... self-heal ran"*, read off
+  the Alpha row; the Role row says it was a cover.
