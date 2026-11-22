@@ -1,12 +1,12 @@
-Claude (cloud) report, 2026-11-22 19:57 UTC
+Claude (cloud) report, 2026-11-22 20:57 UTC
 
-LAPTOP41 report fresh: doctor 19:56 UTC 22 Nov (0 open), live 19:54; cloudSeen=3ac1e46. Checkout still c1aa435 (12 Oct), behind main.
-TWO ALPHAS looks CLEARED: no second Alpha on Laptop41 since 03:48 22 Nov (16 h), first clean spell since 16 Nov. alpha-ai.uk 200 from alpha-serv-01. Alpha#159 blames Alpha's own watchdog.
-BLIPS: 20 Nov ~15:00 alpha-ai.uk 530, recovered. 22 Nov 19:41-19:48 Laptop41 dropped out of standby (live: Alpha DOWN, self-heal ran; backend 000), back to standby by 19:48.
-LOW RAM (needs a person off and on all day, 0.7-1.5 of 15.8 GB free); clear at 19:56. CPU crosses the 90% hold some runs. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy: nothing sent since 03:00 (17 h) (live says ON).
+LAPTOP41 IS COVERING: automatic cover has served Alpha from Laptop41 since 20:16 UTC 22 Nov (alpha-serv-01 stopped answering); live 20:48: all 200; alpha-serv-01 answers again, hand-back pending. Doctor 20:41: 6 open (no music/image agent, image 503, stale dist, deck silent, public JS differs); cloudSeen=38fe26f. Checkout still c1aa435 (12 Oct), behind main.
+TWO ALPHAS was clear 03:48-20:16 22 Nov; after hand-back, check it stays clear.
+BLIPS: 20 Nov ~15:00 alpha-ai.uk 530; 22 Nov 19:41-19:48 brief standby exit.
+LOW RAM (needs a person off and on all day, 0.7-1.5 of 15.8 GB free); clear at 19:56. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy restarted: 377 files sent 20:40, 86 MB owed.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs since 17 Nov; main unchanged at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 06:37 22 Nov, title unchanged; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 draft updated 21 Nov; Alpha#73 draft idle.
+No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 20:39 22 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
