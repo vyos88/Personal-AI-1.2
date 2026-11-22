@@ -1,54 +1,10 @@
 {
     "cloudSeen":  "3ac1e46bbe1e4d189af0c7ef82b2b9f04dacd62b",
-    "lastRun":  "2026-11-22T19:42:40",
+    "lastRun":  "2026-11-22T19:56:10",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "no machine offers alpha.music: a queued track waits forever":  {
-                                                                                     "since":  "2026-11-22T19:42:40",
-                                                                                     "runs":  1,
-                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
-                                                                                 },
-                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
-                                                                                                                                                                                    "since":  "2026-11-22T19:42:40",
-                                                                                                                                                                                    "runs":  1,
-                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
-                                                                                                                                                                                },
-                 "image bridge is not running on #.#.#.#:#: images are not shared between machines":  {
-                                                                                                          "since":  "2026-11-22T19:42:40",
-                                                                                                          "runs":  1,
-                                                                                                          "text":  "image bridge is not running on 127.0.0.1:7861: images are not shared between machines"
-                                                                                                      },
-                 "backend /ready does not answer (HTTP #)":  {
-                                                                 "since":  "2026-11-22T19:42:40",
-                                                                 "runs":  1,
-                                                                 "text":  "backend /ready does not answer (HTTP 0)"
-                                                             },
-                 "the public site serves \u003cbundle\u003e, which this machine\u0027s # does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk":  {
-                                                                                                                                                                                    "since":  "2026-11-22T19:42:40",
-                                                                                                                                                                                    "runs":  1,
-                                                                                                                                                                                    "text":  "the public site serves /assets/main-CP6gQbXV.js, which this machine\u0027s 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk"
-                                                                                                                                                                                },
-                 "backend /health answered #":  {
-                                                    "since":  "2026-11-22T19:42:40",
-                                                    "runs":  1,
-                                                    "text":  "backend /health answered 000"
-                                                },
-                 "/chat without a login answers HTTP #, expected # (route missing or failing)":  {
-                                                                                                     "since":  "2026-11-22T19:42:40",
-                                                                                                     "runs":  1,
-                                                                                                     "text":  "/chat without a login answers HTTP 0, expected 401 (route missing or failing)"
-                                                                                                 },
-                 "image backend not running: nothing answers on http://#.#.#.#:# (chat images fail)":  {
-                                                                                                           "since":  "2026-11-22T19:42:40",
-                                                                                                           "runs":  1,
-                                                                                                           "text":  "image backend not running: nothing answers on http://127.0.0.1:7861 (chat images fail)"
-                                                                                                       },
-                 "Alpha\u0027s deck feed answered #":  {
-                                                           "since":  "2026-11-22T19:42:40",
-                                                           "runs":  1,
-                                                           "text":  "Alpha\u0027s deck feed answered 000"
-                                                       }
+
              },
-    "lastPost":  "2026-11-22T19:42:40",
+    "lastPost":  "2026-11-22T19:56:10",
     "relay":  "relayed status/cloud 3ac1e46"
 }
