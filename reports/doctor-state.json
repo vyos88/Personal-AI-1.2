@@ -1,14 +1,10 @@
 {
     "cloudSeen":  "d37349cf0c0c53fdc86b8507d8d527e232a3c8da",
-    "lastRun":  "2026-11-22T03:56:09",
+    "lastRun":  "2026-11-22T04:11:13",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
-                                                                                                                                                                                                         "since":  "2026-11-22T03:56:09",
-                                                                                                                                                                                                         "runs":  1,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 7 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
-                                                                                                                                                                                                     }
+
              },
-    "lastPost":  "2026-11-22T03:56:09",
+    "lastPost":  "2026-11-22T04:11:13",
     "relay":  "relayed status/cloud d37349c"
 }
