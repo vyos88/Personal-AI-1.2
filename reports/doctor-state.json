@@ -1,39 +1,39 @@
 {
-    "cloudSeen":  "38fe26fc3196daa4147119f4c18d997153639a9b",
-    "lastRun":  "2026-11-22T20:42:12",
+    "cloudSeen":  "1387aaf2eb7f81a768ba27936b1ee7d800d51244",
+    "lastRun":  "2026-11-22T20:56:59",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
-                                                                                                                                                         "since":  "2026-11-22T20:42:12",
-                                                                                                                                                         "runs":  1,
-                                                                                                                                                         "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
-                                                                                                                                                     },
-                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
-                                                                                                                                                                                    "since":  "2026-11-22T20:28:00",
-                                                                                                                                                                                    "runs":  2,
-                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
-                                                                                                                                                                                },
-                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
-                                                                                                  "since":  "2026-11-22T20:28:00",
-                                                                                                  "runs":  2,
-                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
-                                                                                              },
-                 "the public site serves \u003cbundle\u003e, which this machine\u0027s # does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk":  {
-                                                                                                                                                                                    "since":  "2026-11-22T20:42:12",
-                                                                                                                                                                                    "runs":  1,
-                                                                                                                                                                                    "text":  "the public site serves /assets/main-DYPj9uIA.js, which this machine\u0027s 4173 does not: Cloudflare cache or another origin/connector is answering for alpha-ai.uk"
-                                                                                                                                                                                },
-                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
-                                                                                                                                         "since":  "2026-11-22T20:28:00",
-                                                                                                                                         "runs":  2,
-                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
-                                                                                                                                     },
-                 "no machine offers alpha.music: a queued track waits forever":  {
-                                                                                     "since":  "2026-11-22T20:28:00",
-                                                                                     "runs":  2,
-                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
-                                                                                 }
+                 "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                          "since":  "2026-11-22T20:56:59",
+                                                                                                                                                          "runs":  1,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 12660 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                      },
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-11-22T20:56:59",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 100% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              },
+                 "only # of #.# GB RAM free":  {
+                                                   "since":  "2026-11-22T20:56:59",
+                                                   "runs":  1,
+                                                   "text":  "only 1 of 15.8 GB RAM free"
+                                               },
+                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
+                                                                                                                                                                                                                                                                             "since":  "2026-11-22T20:56:59",
+                                                                                                                                                                                                                                                                             "runs":  1,
+                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
+                                                                                                                                                                                                                                                                         },
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-22T20:56:59",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 6436 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 },
+                 "standby, but # cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines":  {
+                                                                                                                                   "since":  "2026-11-22T20:56:59",
+                                                                                                                                   "runs":  1,
+                                                                                                                                   "text":  "standby, but 1 cloudflared process(es) run here: alpha-ai.uk\u0027s traffic is split between two machines"
+                                                                                                                               }
              },
-    "lastPost":  "2026-11-22T20:42:12",
-    "relay":  "relayed status/cloud 38fe26f"
+    "lastPost":  "2026-11-22T20:56:59",
+    "relay":  "relayed status/cloud 1387aaf"
 }
