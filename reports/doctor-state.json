@@ -1,19 +1,39 @@
 {
     "cloudSeen":  "fa946d00c52281023321e9d5ab957ef4892a0354",
-    "lastRun":  "2026-11-23T00:11:20",
+    "lastRun":  "2026-11-23T00:27:13",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-11-23T00:11:20",
-                                                     "runs":  1,
-                                                     "text":  "only 1.1 of 15.8 GB RAM free"
-                                                 },
-                 "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
-                                                                                                                                                          "since":  "2026-11-22T23:11:13",
-                                                                                                                                                          "runs":  5,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 21188 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
-                                                                                                                                                      }
+                 "https://alpha-ai.uk/ answers #":  {
+                                                        "since":  "2026-11-23T00:27:13",
+                                                        "runs":  1,
+                                                        "text":  "https://alpha-ai.uk/ answers 000"
+                                                    },
+                 "the build is older than the source: the site shows the old Alpha until dist is rebuilt; # newer file(s) under src\\ are tests, which a build does not ship":  {
+                                                                                                                                                                                    "since":  "2026-11-23T00:27:13",
+                                                                                                                                                                                    "runs":  1,
+                                                                                                                                                                                    "text":  "the build is older than the source: the site shows the old Alpha until dist is rebuilt; 1 newer file(s) under src\\ are tests, which a build does not ship"
+                                                                                                                                                                                },
+                 "no machine offers alpha.image: the image bridge has nowhere to send work":  {
+                                                                                                  "since":  "2026-11-23T00:27:13",
+                                                                                                  "runs":  1,
+                                                                                                  "text":  "no machine offers alpha.image: the image bridge has nowhere to send work"
+                                                                                              },
+                 "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine":  {
+                                                                                                                                                         "since":  "2026-11-23T00:27:13",
+                                                                                                                                                         "runs":  1,
+                                                                                                                                                         "text":  "no device on the home network has called the backend in the last couple of minutes: the deck panel is not reaching this machine"
+                                                                                                                                                     },
+                 "image backend on http://#.#.#.#:# answers # to /sdapi/v#/sd-models: still loading, or broken (chat images fail)":  {
+                                                                                                                                         "since":  "2026-11-23T00:27:13",
+                                                                                                                                         "runs":  1,
+                                                                                                                                         "text":  "image backend on http://127.0.0.1:7861 answers 503 to /sdapi/v1/sd-models: still loading, or broken (chat images fail)"
+                                                                                                                                     },
+                 "no machine offers alpha.music: a queued track waits forever":  {
+                                                                                     "since":  "2026-11-23T00:27:13",
+                                                                                     "runs":  1,
+                                                                                     "text":  "no machine offers alpha.music: a queued track waits forever"
+                                                                                 }
              },
-    "lastPost":  "2026-11-23T00:11:20",
+    "lastPost":  "2026-11-23T00:27:13",
     "relay":  "relayed status/cloud fa946d0"
 }
