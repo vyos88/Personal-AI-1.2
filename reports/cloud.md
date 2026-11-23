@@ -1,9 +1,9 @@
-Claude (cloud) report, 2026-11-23 03:56 UTC
+Claude (cloud) report, 2026-11-23 08:57 UTC
 
-LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 went silent 01:45-03:15 UTC 23 Nov (all branches; same PIDs after: sleep, not reboot); back and fresh: doctor 03:41, live 03:48; cloudSeen=f01ab49. Checkout still c1aa435 (12 Oct), behind main.
-NEEDS A PERSON: TWO ALPHAS BACK since the hand-back: backend/site keep running on Laptop41 in standby (live STANDBY BUT SERVING nearly every 5 min since 21:04; stand-downs undone). At 20:57 a cloudflared also ran here, splitting alpha-ai.uk traffic (one run). It was clear 03:48-20:16.
+LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 went silent 01:45-03:15 UTC 23 Nov (all branches; same PIDs after: sleep, not reboot); back and fresh: doctor 07:56 (0 open), live 08:53; cloudSeen=0359ce6. Checkout still c1aa435 (12 Oct), behind main.
+TWO ALPHAS CLEAR AGAIN since ~07:15 23 Nov (live clean 21 passes in a row); they had been back 21:04 22 Nov-07:11 after the hand-back, stand-downs undone. Watch for return. At 20:57 a cloudflared also ran here, splitting alpha-ai.uk traffic (one run). It was clear 03:48-20:16.
 BLIPS: 20 Nov ~15:00 alpha-ai.uk 530.
-LOW RAM off and on (0.7-1.5 of 15.8 GB free). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy: sent 03:40, 10 MB owed.
+LOW RAM off and on (0.7-1.5 of 15.8 GB free). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy: caught up (last sent 07:20).
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
 No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 00:38 23 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
