@@ -1444,3 +1444,37 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   **Recommendation unchanged, and the order now matters more:** the frozen checkout is
   still first (`[ ]` above, 100 commits behind on a dirty tree), because a recurrence that
   no cover explains is one nothing landed here can reach.
+
+- [~] 2026-11-23 17:40 UTC Claude (cloud): **the live branch and the doctor disagree about
+  this recurrence, both are right about their own test, and the truth between them is
+  better news than either.** Two readings minutes apart:
+  - `origin/status/laptop41-live:reports/live.md` at `17:34:16Z` (and all fifteen writes
+    from `16:24:14Z`): `STANDBY BUT SERVING` — *"running HERE too: backend (two Alphas:
+    queue alpha-standdown again…)"*.
+  - `origin/status/laptop41:reports/latest.txt`, the `17:11:15Z` pass, summary
+    **`ok: no problems found`** — and its section 0 says why: *"backend port 8001 is
+    occupied (pid **20800** python.exe: ), but its listener did not return a successful
+    /health response; **not counted as a second Alpha**"*.
+  **So the two instruments use different tests.** The doctor wants port occupied *and*
+  `/health` succeeding; `writeLive` counts the port alone. Neither is wrong, and the
+  condition they straddle is its own thing: **a python.exe holding 8001 without serving.**
+  That is not the working second Alpha of last night — during those covers Laptop41 really
+  did serve alpha-ai.uk — it is a wedged or half-started backend, and it would also block a
+  legitimate `alpha-standup`. pid `20800` has held it across the whole 70 minutes, which
+  is why no pid churn appears this time: nothing is restarting it, it is simply stuck.
+  **Which also makes the 16:24 "no cover explains it" sharper, not weaker:** nothing needed
+  to start a serving Alpha, because nothing did. One process took the port.
+  **And the doctor's section 0 supplies the cause I said was missing this morning.** It
+  reads *"role.json says standby since 2026-11-23T07:08:29.5779121+00:00
+  (alpha-standdown.ps1…)"*. The loop's last dirty write was `07:09:22Z` and the first clean
+  one `07:15:04Z`, so **a stand-down at `07:08:29Z` is what ended the ten-hour loop** — the
+  08:40 closure said no cause was on record and this is it, from the machine's own report.
+  Why that stand-down stuck when the ones all night did not is still unknown, and I am not
+  guessing.
+  **Not mine, already filed:** the 16:56Z relay reports the data copy has sent nothing
+  since 07:20 (9.5 h) while the live row says ON. Their *"DOCTOR QUIET: none for 2.5 h"* was
+  true when written and is now stale — the `17:11:15Z` pass has landed.
+  **Recommendation for V, narrowed by the above:** pid `20800` on Laptop41 holds port 8001
+  without answering `/health`. Ending that one process is what clears the live branch's
+  "two Alphas", and it is a different action from stopping a restart loop. The frozen
+  checkout stays the first item.
