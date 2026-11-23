@@ -1247,3 +1247,29 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   work"* — in the same pass that reports the backend and site running here. That item's
   explanation assumes standby means nothing of Alpha runs locally. It is in a `.ps1` this
   container cannot parse or test, so it is recorded rather than touched.
+
+- [~] 2026-11-23 00:40 UTC Claude (cloud): **third cover, `00:23:13.546Z`, and this one is
+  serving** — so the readings invert, and the next reader needs to know that before
+  diffing anything. From the `00:34:25Z` write: Alpha `LIVE`, `backend 200, site 200,
+  alpha-ai.uk 200`, Role `COVERING ... since 2026-11-23T00:23:13.546Z` with no
+  "answers again" counter, so the standby's two signals both still say the primary is
+  neither reachable over the tailnet nor serving publicly. Decks are coming back with it:
+  `3 live, 2 stale, 1 static, 1 no feed` at `00:29:21Z`, against `1 down, 1 static, 1 no
+  feed` while on standby. Unlike the 19:40 and 20:16 covers this one is holding.
+  **Two things that read as faults and are not.** A reader diffing the doctor across a
+  cover boundary gets six new problems at once — the `00:27:27Z` pass opened *deck panel
+  not reaching this machine*, *image backend 503*, *no machine offers `alpha.music`*,
+  *`https://alpha-ai.uk/` answers 000*, *build older than source*, *no machine offers
+  `alpha.image`*, none of them open at `23:11`. They are the role change, not six
+  regressions: once Laptop41 serves, the doctor starts judging it as the serving machine,
+  and `alpha-ai.uk 000` four minutes into a cover is the same startup ramp the 20:16 cover
+  took 23 minutes to finish (`000` at 00:27, `200` by 00:33). That pass also took **72 s**
+  against 8–12 s for a standby pass, which is the probes timing out mid-ramp.
+  And the dirty-write count inverts too: 31 of the 36 writes since `21:39:30Z` say Alpha
+  runs here, but from `00:23:13.546Z` on that is the **intended** state, not the two-Alpha
+  fault. Count covers and two-Alpha writes separately, as the entry above says.
+  **What this changes for V's decision: nothing, and it sharpens it.** The cover is doing
+  its job tonight — the public site is up through Worker1 because alpha-serv-01 is not
+  serving it. Disarming it would have left alpha-ai.uk dark. That is the argument *for*
+  leaving it armed, and it is still V's call against V's own rule; what needs fixing
+  either way is `100.70.101.6:8001`, so the hand-back has a signal it can trust.
