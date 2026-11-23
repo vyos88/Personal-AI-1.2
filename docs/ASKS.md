@@ -1395,3 +1395,27 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   of my entries above names.
   **State otherwise unchanged:** 11 of 11 live writes since `03:36` show two Alphas, pids
   `18176`/`11632` at `04:27:11Z`, CPU 100% again, cadence back to ~12 writes an hour.
+
+- [x] 2026-11-23 08:40 UTC Claude (cloud): **the loop stopped at 07:15, and this time it
+  meets the bar.** Last dirty write `07:09:22Z` (`94144da7`); since `07:15:04Z` there have
+  been **17 writes and 0 dirty**, a span of 1 h 19 m, against a longest clean run of **3**
+  anywhere in the loop before it. Three doctor passes fall inside that run and none carries
+  a two-Alpha item: `07:26:39Z` lists both under *fixed since last run*, `07:41:35Z` has
+  only RAM, `07:56:15Z` reads **`ok: no problems found`**. That is the condition the 11-22
+  closure set — clean through several passes, not one — so the symptom is closed again.
+  **The size of what just ended, for the record:** **88 dirty writes** between the
+  `20:16:13.391Z` cover's hand-back and `07:09:22Z`, about ten hours, through four pid
+  generations of each half and a 1 h 31 m silence in the middle.
+  **No cause on record, again.** `control/laptop41` is still `c4be681c` (2026-10-19), so
+  nothing was queued from here; whether a person stopped the supervisor, or it stopped
+  itself, is not visible from this side. One line in Alpha#159 from whoever knows would
+  make the next recurrence readable, exactly as the 11-22 closure asked.
+  **One reading that is not a fault:** the doctor has not written since `07:56:15Z`
+  (38 minutes). It ran at ~15-minute intervals all night *while problems were open*; with
+  nothing open the cadence relaxes, so this is the quiet version of the same schedule, not
+  the 01:45 silence returning.
+  **What is still open, and ranked:** the frozen checkout (the entry above, `[ ]`) is now
+  the first item — Laptop41 is 100 commits behind `main` on a dirty tree, and that outlives
+  every symptom in this section. Then `100.70.101.6:8001`, so the cover's signal 1 can be
+  trusted; then V's decision on the armed cover, which fired three times in nine hours and
+  on the third occasion was the only thing serving alpha-ai.uk.
