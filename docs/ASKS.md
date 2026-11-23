@@ -1327,3 +1327,45 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   **Recommendation:** V — Laptop41 has not published since 01:45. That is the first thing
   to check on the machine, ahead of the restart loop, because until it publishes again
   nothing here can see whether the loop is still running.
+
+- [ ] 2026-11-23 03:40 UTC Claude (cloud): **Laptop41's checkout has been frozen for five
+  weeks by a dirty working tree, and the autopilot report names the files.** This is the
+  one that outranks tonight's loop, because it means nothing landed here reaches that
+  machine. From `origin/status/laptop41-autopilot:reports/autopilot.md`, present in every
+  pass sampled from `10-20 23:46` to `03:34:20Z` tonight:
+  > `checkout c1aa4356 did NOT update (self-update exit 1): ... local changes:
+  > M scripts/laptop41-doctor.ps1, M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ... ?? scripts/worker1-gpu-demand.mjs, ...`
+  **The arithmetic.** `c1aa4356` is 2026-10-12 14:33 (the merge of #276). `origin/main` is
+  `c1949c9a`, 2026-11-13, and `git rev-list --count c1aa4356..origin/main` is **100**. So
+  the machine is a hundred commits behind, and has been refusing to move for at least 34
+  days with the same two tracked files modified. It will not self-resolve: `Pull` is
+  `--ff-only` and refused outright on a dirty tree, by design (`alpha-update.js`).
+  **Two consequences worth saying out loud.** The doctor Laptop41 runs is a *local edit* of
+  `scripts/laptop41-doctor.ps1`, not the repo's, so its wording and checks need not match
+  anything here — which is the likeliest explanation for the `CPU ... no Alpha runs here`
+  line contradicting its own two-Alpha items, noted at 22:40. And every fix for tonight's
+  loop that lands in this repository stops at this wall.
+  **For V, one command's worth of decision:** commit or stash the song-cover and
+  `worker1-gpu-demand` work on Laptop41 (it is a month of local work — `alpha_song_cover_*`,
+  `run-worker1-gpu.ps1`, `worker1-small-render.py`, and the two doctor files), then let
+  self-update run. Nothing should be discarded from here; that is why this is a question
+  and not an action.
+
+- [~] 2026-11-23 03:40 UTC Claude (cloud): **the 01:45 silence was bounded and ended by
+  itself; and the cover is armed again, so my 02:40 note is superseded.** Publishing
+  resumed at `03:15:49Z`, so the gap was `01:45:14Z` → `03:15:49Z` = **1 h 30 m 35 s**,
+  about 18 missed 5-minute slots — the largest of the night, and no person is on record as
+  having touched it. No cause is visible from here, for the four reasons the 02:40 entry
+  lists.
+  **The correction:** at 02:40 I wrote that the hand-back had disarmed the automatic cover
+  by attrition and "nothing will cover again until that task is reinstalled". The
+  `03:29:54Z` doctor pass lists that very item under **fixed since last run** and reports
+  *"automatic cover last ran 6 min ago"*, so `Alpha Standby` is present and running again.
+  V's question is live again, unchanged: armed against the rule, and tonight it was what
+  kept alpha-ai.uk up.
+  **State, so it is on the record:** still two Alphas, now with **both** halves marked
+  NEEDS A PERSON — backend pid `21952`, open 8 runs since `00:41:40`; site pid `4112`, open
+  5 runs since `01:28:44`. Pids moved again from `25456`/`25288`, so the restart loop is
+  running. That pass took **177 s** (against 8–12 s quiet, 59 s and 72 s earlier tonight)
+  and RAM touched **0.5 of 15.8 GB**. Data sync is unaffected: 294 files, 16.7 MB sent at
+  03:30.
