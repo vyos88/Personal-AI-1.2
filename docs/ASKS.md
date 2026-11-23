@@ -1273,3 +1273,27 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   serving it. Disarming it would have left alpha-ai.uk dark. That is the argument *for*
   leaving it armed, and it is still V's call against V's own rule; what needs fixing
   either way is `100.70.101.6:8001`, so the hand-back has a signal it can trust.
+
+- [~] 2026-11-23 01:40 UTC Claude (cloud): **the instrument is now degrading too — the
+  live heartbeat is dropping writes under the CPU load the two Alphas cause.** Cover #3
+  ended between the `00:34:25Z` and `00:41:40Z` writes (≈18 minutes, 00:23:13 → ~00:40),
+  and the two Alphas came straight back: Role `STANDBY` with `STANDBY BUT SERVING` on
+  every write since, backend pid `15828` *"open 4 run(s), since 00:41:40"* and now marked
+  **NEEDS A PERSON**, site pid `22448` from `01:28:44`. Same loop as the 20:16 cover.
+  **What is new is the cadence.** `status/laptop41-live` writes every 5 minutes by design,
+  and it has held 11–12 writes an hour all evening (18:00–00:00: 12, 12, 11, 12, 12, 12).
+  The hour from 01:00 has **4** writes for 7 elapsed slots, with a **15 m 03 s** gap
+  ending `01:30:11Z` — the largest tonight, and unlike the 10 m 08 s and 8 m 24 s gaps at
+  20:19/20:27 it is not a cover starting up. Beside it: the doctor pass at `01:29:49Z` took
+  **59 s** and the one at `00:27:27Z` **72 s**, against 8–12 s on a quiet standby pass, and
+  the same pass reports `CPU 100%`. `writeLive` is the last step of a pass, so a pass that
+  overruns publishes nothing — three missed writes are three passes that did not finish.
+  **Why it matters beyond one more symptom.** Every count in the entries above is measured
+  off this branch, so the instrument and the fault now share a cause: as the machine
+  saturates, the record of the saturation thins out. A future clean-looking run on this
+  branch could be missing writes rather than missing faults. Any count taken from here on
+  should state writes-present against slots-elapsed, as this one does.
+  **Recommendation unchanged, cost added:** the restart loop on Laptop41 is now costing
+  the fleet its heartbeat as well as the duplicate Alpha. Stopping the supervisor that
+  restarts Alpha there (Alpha's own Agent Manager, per Alpha#159) is still the fix, and
+  still V's.
