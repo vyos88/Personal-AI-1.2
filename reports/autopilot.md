@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261123-101345
+﻿# laptop41 autopilot 20261123-102346
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261123-102346  data-sync (task 'Alpha Data Copy', run at 2026-11-23T10:20:41)  ->  0 (in step)   (2026-11-23T10:24:10, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-23 10:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-data-sync-task-20261123-101345  data-sync (task 'Alpha Data Copy', run at 2026-11-23T10:10:41)  ->  0 (in step)   (2026-11-23T10:14:07, 0s)
 ```
@@ -137,10 +144,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-23 07:10 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 270 file(s), 103.1 MB written since 2026-11-23T07:00:45Z, to alpha-serv-01
   PART of a backlog: 47 file(s), 1.9 MB still to send, from 2026-11-23T07:09:32Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261123-070846  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-23T07:09:13, 0s)
-```
-DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
 ```
 
