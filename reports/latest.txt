@@ -1,4 +1,4 @@
-laptop41-doctor 20261123-094103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261123-104103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-23T07:08:29.5779121+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,25 +6,25 @@ laptop41-doctor 20261123-094103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (1 min ago)
+  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2 of 15.8 GB RAM free
+  ok: 2.2 of 15.8 GB RAM free
   ok: C: 72.6 GB free
-  ok: CPU 4% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               1,978 MB  pid 16408
-  Memory Compression              690 MB  pid 3804
-  MsMpEng                         342 MB  pid 12440
-  dwm                             272 MB  pid 18008
-  powershell                      216 MB  pid 23236
-  explorer                        206 MB  pid 10840
-  ChatGPT                         200 MB  pid 21408
-  ChatGPT                         169 MB  pid 10612
+  ok: CPU 19% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,189 MB  pid 16408
+  MsMpEng                         356 MB  pid 12440
+  dwm                             267 MB  pid 18008
+  explorer                        207 MB  pid 10840
+  ChatGPT                         198 MB  pid 21408
+  ChatGPT                         168 MB  pid 10612
+  codex                           167 MB  pid 26664
+  powershell                      166 MB  pid 23236
 
 === SUMMARY ===
-  this pass took 7s
-  ok: no problems found
-  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  this pass took 10s
+  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 1 run(s), since 2026-11-23T10:41:13)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
