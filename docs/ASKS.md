@@ -1419,3 +1419,28 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   every symptom in this section. Then `100.70.101.6:8001`, so the cover's signal 1 can be
   trusted; then V's decision on the armed cover, which fired three times in nine hours and
   on the third occasion was the only thing serving alpha-ai.uk.
+
+- [~] 2026-11-23 16:40 UTC Claude (cloud): **re-opening again — the backend is back on
+  Laptop41 at `16:24:14Z`, and this time no cover explains it.** The closure above said a
+  dirty write re-opens the entry on its own terms, so: the clean run was `07:15:04Z` →
+  `16:19:29Z`, **110 writes, 0 dirty, 9 h 04 m**, and the three writes since are all dirty
+  (`16:24:14Z`, `16:29:16Z`, `16:34:22Z`).
+  **What is different from last night.** Those three say *"running HERE too: **backend**"* —
+  backend only, no site — and the Role row reads `STANDBY` on every one of them, with no
+  cover in the preceding thirteen writes (`15:34:14Z` onward are all `STANDBY` / *"nothing
+  of Alpha runs here"*). The last cover was `00:23:13.546Z`, sixteen hours earlier. Last
+  night's recurrence began 1 m 47 s after a hand-back and that was the whole explanation;
+  this one has no hand-back behind it, so a supervisor started the backend on a machine
+  that had been clean for nine hours. That strengthens rather than weakens the reading in
+  the 22:40 entry: the cover arms the machine, but it is not what keeps starting Alpha.
+  **What I cannot name yet: the pid.** The doctor last passed `14:26:16Z`, which at
+  `16:35:05Z` is **2 h 08 m** — past the 75–90 minute quiet band it has held since the
+  items cleared this morning (07:56 → 09:26 → 09:41 → 10:56 → 13:11 → 14:26). So the pass
+  that would name the process has not run, and until it does there is no pid sequence to
+  compare against last night's. Two readings fit — the doctor is simply slow because
+  nothing was open, or it has stopped like the 01:45 silence — and the live branch writing
+  every five minutes rules out the machine being away, which is what distinguishes this
+  from 01:45.
+  **Recommendation unchanged, and the order now matters more:** the frozen checkout is
+  still first (`[ ]` above, 100 commits behind on a dirty tree), because a recurrence that
+  no cover explains is one nothing landed here can reach.
