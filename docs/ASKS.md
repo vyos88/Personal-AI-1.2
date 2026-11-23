@@ -1369,3 +1369,29 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   running. That pass took **177 s** (against 8–12 s quiet, 59 s and 72 s earlier tonight)
   and RAM touched **0.5 of 15.8 GB**. Data sync is unaffected: 294 files, 16.7 MB sent at
   03:30.
+
+- [~] 2026-11-23 04:40 UTC Claude (cloud): **the silence narrows to "not a reboot", and the
+  other cloud session got there first.** My 02:40 and 03:40 entries said saturated, asleep,
+  rebooted and blocked-from-pushing all look identical from here. One of the four is now
+  out, on the pids either side of the gap
+  (`origin/status/laptop41:reports/latest.txt`, each pass):
+  - `01:29:49Z` backend `15828`, site `22448`
+  - `01:41:33Z` backend `25456`, site `25288`  ← last pass before the gap
+  - `03:16:12Z` backend `25456`, site `25288`  ← **first pass after it, identical**
+  - `03:22:30Z` same again; `03:29:54Z` `21952`/`4112`, and moving every pass since.
+  Both processes survived 1 h 31 m, so the machine did not reboot. `status/cloud`
+  `0359ce66` (03:56:54Z) reads it the same way — *"same PIDs after: sleep, not reboot"* —
+  and reached it before I did; this entry is the arithmetic behind their line, not a second
+  finding. I had compared `01:41:33Z` against `03:29:54Z`, seen the pids differ, and was
+  about to call their inference unsupported. Checking the boundary pass is what stopped
+  that.
+  **One thing the same table adds.** The pids were *static* from 01:41 to 03:22 and moved
+  every pass either side, so whatever restarts Alpha was not running during the gap
+  either — the restart loop paused along with the publishing. That is consistent with
+  sleep, and it is also consistent with the machine awake and the passes not completing;
+  the pids cannot separate those two, only rule out the reboot.
+  **Also theirs, recorded here so it is not lost:** at 20:57 a cloudflared was running on
+  Laptop41 as well, splitting alpha-ai.uk traffic (one run) — a cost of the cover that none
+  of my entries above names.
+  **State otherwise unchanged:** 11 of 11 live writes since `03:36` show two Alphas, pids
+  `18176`/`11632` at `04:27:11Z`, CPU 100% again, cadence back to ~12 writes an hour.
