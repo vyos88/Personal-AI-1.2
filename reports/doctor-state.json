@@ -1,14 +1,14 @@
 {
     "cloudSeen":  "f8b15150e675451e2fe2e19421be7b844c4ea4ec",
-    "lastRun":  "2026-11-23T21:11:13",
+    "lastRun":  "2026-11-23T21:26:15",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only # of #.# GB RAM free":  {
-                                                   "since":  "2026-11-23T21:11:13",
-                                                   "runs":  1,
-                                                   "text":  "only 1 of 15.8 GB RAM free"
-                                               }
+                 "only #.# of #.# GB RAM free":  {
+                                                     "since":  "2026-11-23T21:26:15",
+                                                     "runs":  1,
+                                                     "text":  "only 0.9 of 15.8 GB RAM free"
+                                                 }
              },
-    "lastPost":  "2026-11-23T21:11:13",
+    "lastPost":  "2026-11-23T21:26:15",
     "relay":  "relayed status/cloud f8b1515"
 }
