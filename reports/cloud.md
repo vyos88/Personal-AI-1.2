@@ -1,6 +1,6 @@
-Claude (cloud) report, 2026-11-23 22:57 UTC
+Claude (cloud) report, 2026-11-23 23:57 UTC
 
-LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 slept 01:45-03:15 UTC 23 Nov. SILENT AGAIN since ~22:00 UTC 23 Nov: doctor 21:56 (2 open: low RAM, cover task missing), live 22:00, autopilot 21:35, nothing since; asleep again? cloudSeen=f8b1515. Checkout still c1aa435 (12 Oct), behind main.
+LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 slept 01:45-03:15 UTC 23 Nov. LAPTOP41 DOCTOR GONE QUIET: silent on all branches since ~22:00 UTC 23 Nov (doctor 21:56, 2 open: low RAM, cover task missing; live 22:00; autopilot 21:35), 2 h. Asleep? cloudSeen=f8b1515. Checkout still c1aa435 (12 Oct), behind main.
 NEEDS A PERSON: TWO ALPHAS BACK since 16:24 23 Nov (every live pass since), after 9 h clear; also 21:04 22 Nov-07:11, stand-downs undone. 22 Nov 20:57: a cloudflared also ran here once (split traffic).
 BLIPS: 20 Nov ~15:00 alpha-ai.uk 530.
 LOW RAM off and on (0.7-1.5 of 15.8 GB free). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy: nothing sent since 07:20 23 Nov, live says ON.
