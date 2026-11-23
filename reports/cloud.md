@@ -1,12 +1,12 @@
-Claude (cloud) report, 2026-11-22 21:57 UTC
+Claude (cloud) report, 2026-11-23 00:57 UTC
 
-LAPTOP41 COVERED 20:16-~20:57 UTC 22 Nov while alpha-serv-01 was not answering, then handed back; standby again, alpha-ai.uk 200 from alpha-serv-01. Doctor 21:41 (0 open), live 21:48; cloudSeen=1387aaf. Checkout still c1aa435 (12 Oct), behind main.
+LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Doctor 00:56 (2 open), live 00:54; cloudSeen=fa946d0. Checkout still c1aa435 (12 Oct), behind main.
 NEEDS A PERSON: TWO ALPHAS BACK since the hand-back: backend/site keep running on Laptop41 in standby (live STANDBY BUT SERVING nearly every 5 min since 21:04; stand-downs undone). At 20:57 a cloudflared also ran here, splitting alpha-ai.uk traffic (one run). It was clear 03:48-20:16.
 BLIPS: 20 Nov ~15:00 alpha-ai.uk 530; 22 Nov 19:41-19:48 brief standby exit.
-LOW RAM (needs a person off and on all day, 0.7-1.5 of 15.8 GB free); clear at 19:56. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy: last sent 21:10, 86 MB owed.
+LOW RAM (needs a person off and on all day, 0.7-1.5 of 15.8 GB free); clear at 19:56. Recurring: cover task 'Alpha Standby' missing on this machine; cover cannot always see alpha-serv-01's :8001. Data copy: sent 00:50, 87 MB owed.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 21:39 22 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
+No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 00:38 23 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
