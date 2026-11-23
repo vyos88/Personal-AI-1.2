@@ -1,30 +1,29 @@
-laptop41-doctor 20261123-142602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261123-171102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-23T07:08:29.5779121+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  ok: no backend here (port 8001 free)
+  backend port 8001 is occupied (pid 20800 python.exe: ), but its listener did not return a successful /health response; not counted as a second Alpha
   ok: no site here (port 4173 free)
   ok: no connector here
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 2.2 of 15.8 GB RAM free
-  ok: C: 72.3 GB free
-  ok: CPU 9% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               1,739 MB  pid 16408
-  Memory Compression              326 MB  pid 3804
-  MsMpEng                         319 MB  pid 12440
-  dwm                             259 MB  pid 18008
-  explorer                        198 MB  pid 10840
-  ChatGPT                         196 MB  pid 21408
-  powershell                      174 MB  pid 19972
-  powershell                      167 MB  pid 23236
+  ok: 1.6 of 15.8 GB RAM free
+  ok: C: 72.2 GB free
+  ok: CPU 5% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               2,349 MB  pid 16408
+  MsMpEng                         353 MB  pid 12440
+  dwm                             293 MB  pid 18008
+  ChatGPT                         225 MB  pid 21408
+  explorer                        202 MB  pid 10840
+  ChatGPT                         173 MB  pid 10612
+  powershell                      173 MB  pid 23236
+  powershell                      126 MB  pid 14136
 
 === SUMMARY ===
-  this pass took 9s
+  this pass took 8s
   ok: no problems found
-  + fixed since last run: only 1.3 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
