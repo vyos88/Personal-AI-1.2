@@ -1297,3 +1297,33 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   the fleet its heartbeat as well as the duplicate Alpha. Stopping the supervisor that
   restarts Alpha there (Alpha's own Agent Manager, per Alpha#159) is still the fix, and
   still V's.
+
+- [~] 2026-11-23 02:40 UTC Claude (cloud): **both of Laptop41's channels stopped
+  publishing at ~01:45, and that is the thing to look at now.** The previous entry said a
+  future count could be missing writes rather than missing faults; this is the next step
+  past that — there is nothing to count.
+  - `status/laptop41-live`: last write `01:45:14Z` (`81e819cb`). At `02:35:25Z` that is
+    **50 m 11 s**, about ten missed 5-minute slots, against 12 writes an hour through 22,
+    23 and 00 and 7 in the 01 hour.
+  - `status/laptop41`: last pass `01:41:33Z` (`158af14f`), **53 m 52 s** ago. Its observed
+    interval since 20:00 is ~15 minutes (two 30 m gaps, i.e. one missed slot each); 54
+    minutes is more than three times that and longer than any gap in the preceding six and
+    a half hours. So the hourly-doctor description understates it — this is overdue on the
+    machine's own cadence, not on a nominal one.
+  **Last known state, from that final pass.** Two Alphas still, and still restarting:
+  backend pid `25456` (was `15828` at 01:28:44), site `25288` (was `22448`), the backend
+  item marked **NEEDS A PERSON**, open 5 runs since `00:41:40`.
+  **And one thing resolved itself.** That pass opened *"automatic cover last ran 10 min ago
+  and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue
+  standby-install, or stand this machine down)"*. That is the documented behaviour —
+  `alpha-standdown.ps1` disables the task, and `repair-alpha-host` re-registers it — so
+  the hand-back from cover #3 disarmed the automatic cover by attrition. V's question from
+  the entries above is answered for now without V having to answer it: nothing will cover
+  again until that task is reinstalled. Whether it *should* be is still V's call, and the
+  argument from 00:40 stands — tonight the cover was what kept alpha-ai.uk up.
+  **What I cannot tell from here, and am not guessing.** Saturated and failing its passes,
+  off or asleep, rebooted, or publishing blocked — all four look identical on a git branch.
+  "Stopped publishing" is the whole of what is established.
+  **Recommendation:** V — Laptop41 has not published since 01:45. That is the first thing
+  to check on the machine, ahead of the restart loop, because until it publishes again
+  nothing here can see whether the loop is still running.
