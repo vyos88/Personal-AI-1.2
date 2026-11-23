@@ -1,4 +1,4 @@
-laptop41-doctor 20261123-074103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261123-075602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-23T07:08:29.5779121+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -6,33 +6,32 @@ laptop41-doctor 20261123-074103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
+  ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  ok: 2.5 of 15.8 GB RAM free
   ok: C: 72.6 GB free
-  ok: CPU 53% (Alpha holds GPU admission at 90%)
-  powershell                    2,068 MB  pid 17012
-  WindowsTerminal               1,616 MB  pid 16408
-  MsMpEng                         386 MB  pid 12440
-  dwm                             247 MB  pid 18008
-  Memory Compression              212 MB  pid 3804
-  explorer                        203 MB  pid 10840
-  codex                           198 MB  pid 26664
-  ChatGPT                         165 MB  pid 10612
+  ok: CPU 16% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               1,623 MB  pid 16408
+  Memory Compression              672 MB  pid 3804
+  MsMpEng                         366 MB  pid 12440
+  dwm                             259 MB  pid 18008
+  explorer                        206 MB  pid 10840
+  codex                           186 MB  pid 26664
+  powershell                      170 MB  pid 23236
+  ChatGPT                         164 MB  pid 10612
 
 === SUMMARY ===
-  this pass took 20s
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-23T07:41:22)
-  + fixed since last run: only 1.4 of 15.8 GB RAM free
+  this pass took 8s
+  ok: no problems found
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
-  2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
-  3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
-  4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
-  5. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
-  6. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
-  7. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
-  8. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
-  9. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
+  1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
+  2. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
+  3. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
+  4. [hardening] Keep laptop 41 on AC with sleep off (repair-alpha-host step 5); a sleeping host is an outage that no checker can fix.
+  5. [hardening] Test a reboot once everything is green: every check here should pass again within 5 minutes with nobody logged in.
+  6. [hardening] Rotate the panel and agent keys after the coordinator move: keys issued by the old coordinator are void and should be revoked.
+  7. [hardening] Set Windows Update active hours around when Alpha is used, so a forced restart lands when nobody needs it.
+  8. [hardening] Remove what does not belong on the host once it is green: the ChatGPT app and other heavy tools in section 7 compete with Alpha for the same 16 GB.
