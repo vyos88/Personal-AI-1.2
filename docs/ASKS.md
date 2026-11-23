@@ -1478,3 +1478,23 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   without answering `/health`. Ending that one process is what clears the live branch's
   "two Alphas", and it is a different action from stopping a restart loop. The frozen
   checkout stays the first item.
+
+- [~] 2026-11-23 22:40 UTC Claude (cloud): **Laptop41 has stopped publishing a second
+  time, starting `22:00:06Z`.** Last live write `22:00:06Z` (`706707f9`); at `22:34:28Z`
+  that is **34 m 22 s**, six missed 5-minute slots. Last doctor pass `21:56:34Z`
+  (`9c784b12`), 38 minutes. The first silence was `01:45:14Z` → `03:15:49Z`, 1 h 30 m 35 s,
+  so this is the same shape at a shorter length so far.
+  **What the last pass left on the record.** pid `20800` still holding port 8001 without
+  answering `/health` (same wording since `17:11:15Z`, so 68 of 68 live writes from
+  `16:24:14Z` said "two Alphas"); RAM `0.9 of 15.8 GB` at 3 runs; and the cover task
+  `Alpha Standby` missing again as of `21:56:23`, so the automatic cover has disarmed
+  itself a second time by the stand-down's documented behaviour.
+  **One correlation worth checking on the machine, not a cause.** Both silences were
+  preceded by low-RAM passes — `1.2 of 15.8 GB` at `01:28:44` before the first, `0.9` at
+  `21:26:15` and again at `21:56:34` before this one — and both happened while the two-Alpha
+  condition was live. Two for two is a coincidence worth one look, nothing more; the
+  obvious alternative is simply that the machine sleeps when it is idle at night.
+  **The check that distinguished the first silence is available again when it resumes:** the
+  pids either side. Unchanged pids across the gap ruled out a reboot last time. If they are
+  unchanged again, and pid `20800` is still on 8001 after, then nothing about this sleeps
+  the wedged process either.
