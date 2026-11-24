@@ -1,4 +1,4 @@
-﻿# Alpha is STANDBY - DESKTOP-41HPLCN, 2026-11-24 20:29 +00:00
+﻿# Alpha is STANDBY - DESKTOP-41HPLCN, 2026-11-24 20:34 +00:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
@@ -6,8 +6,8 @@ Written every autopilot pass (5 minutes), whether or not anything changed.
 |---|---|---|
 | Alpha (backend, site, alpha-ai.uk) | STANDBY | Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here (checked by this pass) |
 | Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01's Alpha answers (0 min ago) |
-| Data copy | ON | sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (518 min ago) |
+| Data copy | ON | sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (523 min ago) |
 | Repair agent (self-heal) | OFF (standby) | off on purpose: another machine serves Alpha |
-| Decks | 2 live, 2 stale, 1 down, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads); all UI decks: site (https://127.0.0.1:4173) (checked 2026-11-24T11:44:31.888243+00:00 (524 min ago)) |
+| Decks | 2 live, 2 stale, 1 down, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads); all UI decks: site (https://127.0.0.1:4173) (checked 2026-11-24T11:44:31.888243+00:00 (529 min ago)) |
 | Live sync | IN SYNC | IN SYNC: this machine runs 904e705 of claude/frie...(30) |
 
