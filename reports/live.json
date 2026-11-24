@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-24T03:39:06.0595421+00:00",
+    "at":  "2026-11-24T03:44:20.9921859+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (1 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 297 file(s) to alpha-serv-01 at 2026-11-23T07:20:46Z (1218 min ago)"
+                 "detail":  "sent 297 file(s) to alpha-serv-01 at 2026-11-23T07:20:46Z (1223 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1622,
+                     "age_min":  1627,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -26,7 +26,7 @@
     "decks":  {
                   "summary":  "1 down, 1 static, 1 no feed",
                   "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-24T03:24:26.753880+00:00"
+                  "checked_at":  "2026-11-24T03:44:16.032547+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
