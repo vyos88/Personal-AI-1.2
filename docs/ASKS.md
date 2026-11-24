@@ -1498,3 +1498,15 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   pids either side. Unchanged pids across the gap ruled out a reboot last time. If they are
   unchanged again, and pid `20800` is still on 8001 after, then nothing about this sleeps
   the wedged process either.
+
+- [~] 2026-11-24 00:40 UTC Claude (cloud): **second silence bounded: `22:00:06Z` →
+  `00:29:42Z`, 2 h 29 m 36 s**, about 29 missed 5-minute slots — longer than the first
+  (1 h 30 m 35 s), and again ended with nobody on record touching it. Two silences in
+  25 hours, both overnight, both ending by themselves.
+  **The condition survived it.** The first write back, `00:29:42Z`, is `STANDBY BUT
+  SERVING` with Role `STANDBY` — the same two-Alpha reading as the write before the gap, so
+  whatever holds port 8001 was still holding it across two and a half hours of no
+  publishing. The doctor has not passed since `21:56:34Z` (2 h 38 m), so the pid is not
+  confirmed yet; if the next pass still names `20800`, that is a process that has now
+  survived a silence as well as eight hours of stand-down retries, which would rule out
+  "the machine slept and everything restarted" for this one.
