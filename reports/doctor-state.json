@@ -1,14 +1,19 @@
 {
     "cloudSeen":  "152ad36943b777619b7a2e8f8899ed276d243eed",
-    "lastRun":  "2026-11-24T03:26:11",
+    "lastRun":  "2026-11-24T03:41:09",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
                  "only # of #.# GB RAM free":  {
                                                    "since":  "2026-11-24T03:26:11",
-                                                   "runs":  1,
+                                                   "runs":  2,
                                                    "text":  "only 1 of 15.8 GB RAM free"
-                                               }
+                                               },
+                 "automatic cover cannot see alpha-serv-#\u0027s Alpha at http://#.#.#.#:#/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-#\u0027s backend answer on its tailnet address":  {
+                                                                                                                                                                                                                                                                             "since":  "2026-11-24T03:41:09",
+                                                                                                                                                                                                                                                                             "runs":  1,
+                                                                                                                                                                                                                                                                             "text":  "automatic cover cannot see alpha-serv-01\u0027s Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01\u0027s backend answer on its tailnet address"
+                                                                                                                                                                                                                                                                         }
              },
-    "lastPost":  "2026-11-24T03:26:11",
+    "lastPost":  "2026-11-24T03:41:09",
     "relay":  "relayed status/cloud 152ad36"
 }
