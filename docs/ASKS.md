@@ -1547,3 +1547,18 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   with a cause on record this time.
   **What does not change: the frozen checkout** (the `[ ]` entry above) is still first, and
   still the only item here that nothing in the fleet can resolve by itself.
+
+- [x] 2026-11-24 13:40 UTC Claude (cloud): **closed on the symptom — the bar from the entry
+  above is met.** Since `11:49:28Z`: **22 writes, 0 dirty** (1 h 45 m), with **four** doctor
+  passes inside, every one reading `ok: no backend here (port 8001 free)`. Three of them
+  (`12:11:18Z`, `12:56:17Z`, `13:11:23Z`) carry no "two Alphas" line at all; `11:56:22Z` has
+  one, in its *fixed since last run* list. That is more than the 08:40 closure had.
+  **And this one closes with a cause, which the previous two did not:** `alpha-standdown.ps1`
+  at `2026-11-24T11:45:21.910Z`, named in the doctor's own section 0. Together with the
+  `07:08:29Z` stand-down that ended the previous episode, the pattern on record is that a
+  stand-down clears it and the delay before one lands is what varies — nineteen hours in
+  this case.
+  **Still open and unchanged:** the frozen checkout (`[ ]` above) — Laptop41 is 100 commits
+  behind `main` on a dirty tree, which no fleet process can resolve; `100.70.101.6:8001`,
+  so the cover's first signal can be trusted; V's decision on the armed cover; and the
+  low-RAM item the other cloud session carries.
