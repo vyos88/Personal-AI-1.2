@@ -1521,3 +1521,29 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   does not stop this process, and no stand-down retry has reached it either. 14 of 14 live
   writes since the resume still read two Alphas. RAM continues to oscillate (`0.9` at
   `01:11:11`, from `1`), which is the NOISE entry, not a finding.
+
+- [~] 2026-11-24 12:40 UTC Claude (cloud): **the wedged backend is gone, cleared by a
+  stand-down at `11:45:21.910Z`** — and that corrects something I wrote twice.
+  **The episode, bounded:** first dirty write `16:24:14Z` (23 Nov), last `11:44:54Z`
+  (24 Nov) — **202 dirty of 203 writes over 19 h 20 m**, the single clean one at `11:34:59Z`
+  a stand-down retry that did not hold. Clean since `11:49:28Z`: **10 writes, 0 dirty**,
+  with two doctor passes inside (`11:56:22Z`, `12:11:18Z`), the latter reading
+  **`ok: no backend here (port 8001 free)`** where it had named pid `20800` every pass
+  since `17:11:15Z`.
+  **The cause is in the doctor's own section 0:** *"role.json says standby since
+  2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1…)"*. So a stand-down took the port
+  back, five minutes after the last dirty write. This is the **second** time a stand-down
+  has ended one of these: the previous episode ended at `07:08:29Z` the same way, recorded
+  in the 17:40 entry.
+  **Correcting myself:** at 22:40 and again at 01:40 I wrote that no stand-down retry had
+  reached that process. One eventually did — after about nineteen hours and an unknown
+  number of retries. The honest statement is that the retry path works but is slow or
+  intermittent against a wedged listener, not that it never reaches it. Nothing else in
+  those entries changes: the pid genuinely held through both silences, and the port-versus-
+  health split between `writeLive` and the doctor is unaffected.
+  **Not closing it yet**, by the bar the 08:40 closure set: two doctor passes inside a
+  45-minute clean run is less than that closure had, and this condition has returned twice.
+  If it is still clean through several more passes, it closes on the symptom as before —
+  with a cause on record this time.
+  **What does not change: the frozen checkout** (the `[ ]` entry above) is still first, and
+  still the only item here that nothing in the fleet can resolve by itself.
