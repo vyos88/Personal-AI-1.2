@@ -1,4 +1,4 @@
-laptop41-doctor 20261124-062602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261124-064102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-23T07:08:29.5779121+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,22 +9,22 @@ laptop41-doctor 20261124-062602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 0.8 of 15.8 GB RAM free
   ok: C: 71 GB free
-  ok: CPU 7% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,794 MB  pid 16408
-  MsMpEng                         363 MB  pid 12440
-  dwm                             327 MB  pid 18008
+  ok: CPU 11% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,835 MB  pid 16408
+  MsMpEng                         364 MB  pid 12440
+  dwm                             328 MB  pid 18008
   explorer                        281 MB  pid 10840
   codex                           226 MB  pid 26664
-  ChatGPT                         214 MB  pid 21408
+  ChatGPT                         213 MB  pid 21408
+  Memory Compression              200 MB  pid 3804
   msedge                          199 MB  pid 11920
-  ChatGPT                         195 MB  pid 10612
 
 === SUMMARY ===
   this pass took 8s
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-24T06:26:10)
-  + fixed since last run: only 0.7 of 15.8 GB RAM free
+  - only 0.8 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-24T06:41:09)
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
