@@ -1,4 +1,4 @@
-laptop41-doctor 20261124-115603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261124-121103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,25 +9,24 @@ laptop41-doctor 20261124-115603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.7 of 15.8 GB RAM free
+  PROBLEM: only 0.6 of 15.8 GB RAM free
   ok: C: 71.5 GB free
-  ok: CPU 11% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,574 MB  pid 16408
-  MsMpEng                         381 MB  pid 12440
-  dwm                             335 MB  pid 18008
+  ok: CPU 8% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               4,616 MB  pid 16408
+  MsMpEng                         398 MB  pid 12440
+  dwm                             336 MB  pid 18008
   explorer                        285 MB  pid 10840
-  Memory Compression              260 MB  pid 3804
-  powershell                      244 MB  pid 19972
   codex                           226 MB  pid 26664
-  ChatGPT                         212 MB  pid 21408
+  ChatGPT                         213 MB  pid 21408
+  msedge                          200 MB  pid 11920
+  ChatGPT                         197 MB  pid 10612
 
 === SUMMARY ===
   this pass took 9s
-  - NEEDS A PERSON - only 0.7 of 15.8 GB RAM free  (open 4 run(s), since 2026-11-24T11:11:11)
-  + fixed since last run: standby, but the backend runs here (pid 28508 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  - NEEDS A PERSON - only 0.6 of 15.8 GB RAM free  (open 5 run(s), since 2026-11-24T11:11:11)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 4 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 5 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
