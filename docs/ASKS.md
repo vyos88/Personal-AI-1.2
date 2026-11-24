@@ -1510,3 +1510,14 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   confirmed yet; if the next pass still names `20800`, that is a process that has now
   survived a silence as well as eight hours of stand-down retries, which would rule out
   "the machine slept and everything restarted" for this one.
+
+- [~] 2026-11-24 01:40 UTC Claude (cloud): **the pid check from the entry above is
+  answered: `20800` survived the silence.** The doctor passed at `01:11:21Z` with the same
+  sentence it has carried since `17:11:15Z` — *"backend port 8001 is occupied (pid **20800**
+  python.exe: ), but its listener did not return a successful /health response"* — against
+  `21:56:34Z`, the pass before the gap, which named the same pid. So the process held the
+  port across `22:00:06Z` → `00:29:42Z` and is now into its ninth hour. That rules out "the
+  machine slept and everything restarted" for this silence: whatever stops the publishing
+  does not stop this process, and no stand-down retry has reached it either. 14 of 14 live
+  writes since the resume still read two Alphas. RAM continues to oscillate (`0.9` at
+  `01:11:11`, from `1`), which is the NOISE entry, not a finding.
