@@ -1,19 +1,14 @@
 {
     "cloudSeen":  "46747585662c9a8fab3ddbc54662efb6491b1cc8",
-    "lastRun":  "2026-11-24T22:11:15",
+    "lastRun":  "2026-11-24T22:26:09",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-11-24T17:56:11",
-                                                     "runs":  18,
-                                                     "text":  "only 1.2 of 15.8 GB RAM free"
-                                                 },
-                 "automatic cover last ran # min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)":  {
-                                                                                                                                                                                                         "since":  "2026-11-24T22:11:15",
-                                                                                                                                                                                                         "runs":  1,
-                                                                                                                                                                                                         "text":  "automatic cover last ran 15 min ago and its task \u0027Alpha Standby\u0027 is not on this machine: nothing will run it again (queue standby-install, or stand this machine down)"
-                                                                                                                                                                                                     }
+                 "only # of #.# GB RAM free":  {
+                                                   "since":  "2026-11-24T22:26:09",
+                                                   "runs":  1,
+                                                   "text":  "only 1 of 15.8 GB RAM free"
+                                               }
              },
-    "lastPost":  "2026-11-24T22:11:15",
+    "lastPost":  "2026-11-24T22:26:09",
     "relay":  "relayed status/cloud 4674758"
 }
