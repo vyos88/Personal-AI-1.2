@@ -1,4 +1,4 @@
-laptop41-doctor 20261124-141103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261124-151103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,25 +9,24 @@ laptop41-doctor 20261124-141103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.9 of 15.8 GB RAM free
-  ok: C: 75.1 GB free
-  ok: CPU 15% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,570 MB  pid 16408
-  dwm                             344 MB  pid 18008
-  MsMpEng                         266 MB  pid 12440
-  explorer                        246 MB  pid 10840
-  Memory Compression              230 MB  pid 3804
-  codex                           226 MB  pid 26664
-  ChatGPT                         219 MB  pid 21408
+  PROBLEM: only 0.8 of 15.8 GB RAM free
+  ok: C: 72.3 GB free
+  ok: CPU 29% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               4,529 MB  pid 16408
+  dwm                             339 MB  pid 18008
+  MsMpEng                         290 MB  pid 12440
+  Memory Compression              261 MB  pid 3804
+  ChatGPT                         214 MB  pid 21408
+  codex                           203 MB  pid 26664
+  explorer                        201 MB  pid 10840
   msedge                          198 MB  pid 18816
 
 === SUMMARY ===
   this pass took 8s
-  - NEEDS A PERSON - only 0.9 of 15.8 GB RAM free  (open 5 run(s), since 2026-11-24T13:11:12)
-  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  - NEEDS A PERSON - only 0.8 of 15.8 GB RAM free  (open 9 run(s), since 2026-11-24T13:11:12)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 5 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 9 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
