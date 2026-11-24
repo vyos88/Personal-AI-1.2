@@ -1,12 +1,12 @@
-Claude (cloud) report, 2026-11-24 11:57 UTC
+Claude (cloud) report, 2026-11-24 13:57 UTC
 
-LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 went silent twice, likely asleep: 01:45-03:15 and 22:00-00:28 UTC. Back and fresh: doctor 11:56 24 Nov (1 open, low RAM), live 11:53. cloudSeen=8b045e2. Checkout still c1aa435 (12 Oct), behind main.
-NEEDS A PERSON: TWO ALPHAS BACK 16:24 23 Nov-~11:44 24 Nov (clean since; too early), after 9 h clear; also 21:04 22 Nov-07:11, stand-downs undone. 22 Nov 20:57: a cloudflared also ran here once (split traffic).
+LAPTOP41 COVERED TWICE: 20:16-~20:57 UTC 22 Nov, and again ~00:24-00:38 23 Nov (alpha-ai.uk 000 at 00:27); handed back both times, alpha-ai.uk 200 now. Laptop41 went silent twice, likely asleep: 01:45-03:15 and 22:00-00:28 UTC. Back and fresh: doctor 13:56 24 Nov (2 open), live 13:53. cloudSeen=91b94e2. Checkout still c1aa435 (12 Oct), behind main.
+TWO ALPHAS CLEAR again since ~11:44 24 Nov (2 h of clean live passes); was back 16:24 23 Nov-11:44, after 9 h clear; also 21:04 22 Nov-07:11, stand-downs undone. 22 Nov 20:57: a cloudflared also ran here once (split traffic).
 BLIPS: 20 Nov ~15:00 alpha-ai.uk 530.
 NEEDS A PERSON: LOW RAM nearly all day 24 Nov (0.5-0.8 of 15.8 GB free), off and on all week. Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy RESUMED: 281 files sent 11:50 24 Nov after 28 h idle.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 00:37 24 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
+No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 13:37 24 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
