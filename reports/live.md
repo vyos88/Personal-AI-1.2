@@ -1,13 +1,13 @@
-﻿# Alpha is STANDBY BUT SERVING - DESKTOP-41HPLCN, 2026-11-24 11:29 +00:00
+﻿# Alpha is STANDBY - DESKTOP-41HPLCN, 2026-11-24 11:34 +00:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
 | Check | State | Detail |
 |---|---|---|
-| Alpha (backend, site, alpha-ai.uk) | STANDBY BUT SERVING | Alpha serves from alpha-serv-01: alpha-ai.uk no answer; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here) (checked by this pass) |
-| Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01's Alpha does not answer over the tailnet, but alpha-ai.uk is served (200): not covering, that would be two Alphas (0 min ago) |
-| Data copy | ON | sent 297 file(s) to alpha-serv-01 at 2026-11-23T07:20:46Z (1688 min ago) |
+| Alpha (backend, site, alpha-ai.uk) | STANDBY | Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here (checked by this pass) |
+| Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01's Alpha answers again (1 of 2): handing back soon (2 min ago) |
+| Data copy | ON | sent 297 file(s) to alpha-serv-01 at 2026-11-23T07:20:46Z (1694 min ago) |
 | Repair agent (self-heal) | OFF (standby) | off on purpose: another machine serves Alpha |
-| Decks | 1 down, 1 static, 1 no feed | not live: all decks: backend (/health) (checked 2026-11-24T11:29:14.521353+00:00 (0 min ago)) |
+| Decks | 1 down, 1 static, 1 no feed | not live: all decks: backend (/health) (checked 2026-11-24T11:29:14.521353+00:00 (5 min ago)) |
 | Live sync | IN SYNC | IN SYNC: this machine runs 904e705 of claude/frie...(30) |
 
