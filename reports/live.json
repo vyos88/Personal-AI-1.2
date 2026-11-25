@@ -1,23 +1,23 @@
 ﻿{
-    "at":  "2026-11-25T22:14:10.1410443+00:00",
+    "at":  "2026-11-25T22:19:38.1475781+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "DOWN",
-                  "detail":  "backend 0, site 200, alpha-ai.uk 530; not answering: backend, alpha-ai.uk",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 530; not answering: alpha-ai.uk",
                   "checked_by":  "self-heal, 1 min ago"
               },
     "role":  {
-                 "role":  "PRIMARY",
-                 "detail":  "this machine serves Alpha; automatic cover installed, idle while this machine is the primary"
+                 "role":  "COVERING",
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-25T22:12:13.900Z; automatic cover: covering for alpha-serv-01 since 2026-11-25T22:12:13.900Z (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (2063 min ago)"
+                 "detail":  "sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (2068 min ago)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
                      "age_min":  1,
-                     "repairs":  1,
+                     "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
                      "unfinished":  "",
