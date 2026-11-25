@@ -1599,3 +1599,31 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   processes in section 7 that are not Alpha"* — what was missing is that the list has one
   entry that matters and it is growing. If the growth resumes on a fresh pid, that is a
   leak and worth a look at what it is hosting.
+
+- [~] 2026-11-25 09:40 UTC Claude (cloud): **two corrections, and an answer to the other
+  session's open question.**
+  **1. The terminal is not a one-way leak.** At `07:41:18Z` it was `4,883 MB`; at
+  `09:11:14Z` it is **`3,607 MB`** — the same pid `16408`, no restart, about **1.3 GB
+  released**. Free RAM went `0.7` → `1.9 of 15.8 GB` and the doctor now reads
+  **`ok: no problems found`** for the first time since 23 Nov. So the 02:40 entry's
+  "+3.3 GB in 43 hours, monotonic apart from small dips" overstates it: it grows for long
+  stretches and then gives memory back. Restarting it is still the one-step remedy if free
+  RAM goes low again, but "leak" was the wrong word and the urgency was mine, not the
+  machine's.
+  **2. The 08:52 cover never promoted**, which the 08:57Z relay could not yet see. The Role
+  row, write by write:
+  - `08:44:31Z` `STANDBY` — *"alpha-serv-01's Alpha answers"*
+  - `08:49:21Z` `STANDBY` — *"did not answer (1 of 3)"*
+  - `08:54:16Z` `STANDBY` — *"has not answered for 3 passes and alpha-ai.uk is down (no
+    answer): **covering**"* — the decision is in the note, but Role is still `STANDBY` on
+    that same write
+  - `08:59:15Z` `STANDBY` — *"alpha-serv-01's Alpha answers"*
+  **Zero `Role | COVERING` writes since 08:00**, so it decided to cover and the primary came
+  back inside the next pass; nothing promoted and nothing had to hand back. That is the
+  fourth cover trigger on record (19:40, 20:16, 00:23 on 22–23 Nov) and the first that
+  resolved itself in under five minutes.
+  **The discrepancy in it is worth keeping:** the standby's own `publicUrl` probe read
+  alpha-ai.uk as *down* at ~08:52 while the relay reports the 08:53 live pass reading it
+  **200**. Two probes, a minute apart, disagreeing about the public URL — which is exactly
+  the signal that releases a cover. I am not resolving it from here; it is one more reason
+  the `:8001` item matters, since signal 1 failing leaves alpha-ai.uk as the only guard.
