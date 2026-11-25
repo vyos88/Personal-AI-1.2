@@ -1,9 +1,42 @@
-﻿# laptop41 autopilot 20261125-222346
+﻿# laptop41 autopilot 20261125-222845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261125-222845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-25T22:29:19, 15s)
+```
+DECKS: 4 live, 2 stale, 1 static, 1 no feed
+DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
+    22/22 hub checks ok, report 84 s old, fresh for 150 s
+DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
+    manager snapshot 18 s old
+DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
+    39 device(s), newest heartbeat 4059921 s old, fresh for 90 s
+DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
+    assistant heartbeat 16 s old, live within 420 s
+DECK STALE: CrowPanel display (LAN reads) -> the last read came from this machine, not a panel  [decks: CrowPanel]
+    last read 160 s ago
+DECK LIVE: site (https://127.0.0.1:4173) -> the page and every asset it names load  [decks: all UI decks]
+    7 asset(s) checked
+DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
+DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
+receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
+```
+
+## auto-home-wifi-20261125-222845  home-wifi (standing)  ->  0 (none)   (2026-11-25T22:29:33, 4s)
+```
+on 'Starlink V'; standby: Alpha serves from the primary, so the backend here stays off
+```
+
+## auto-data-sync-task-20261125-222845  data-sync (task 'Alpha Data Copy', run at 2026-11-25T22:20:41)  ->  0 (in step)   (2026-11-25T22:29:40, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-25 22:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 417 file(s), 96.4 MB written since 2026-11-24T11:50:45Z, to alpha-serv-01
+  PART of a backlog: 12 file(s), 9.0 MB still to send, from 2026-11-25T22:20:58Z; the next pass carries on
+```
 
 ## auto-deck-audit-20261125-222346  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-25T22:24:18, 0s)
 ```
@@ -137,27 +170,6 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-25 20:00 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-data-sync-task-20261125-195345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T19:50:41)  ->  0 (in step)   (2026-11-25T19:54:12, 0s)
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-11-25 19:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261125-194345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T19:40:41)  ->  0 (in step)   (2026-11-25T19:44:04, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-25 19:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261125-193345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T19:30:41)  ->  0 (in step)   (2026-11-25T19:34:31, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-25 19:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261125-192345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T19:20:41)  ->  0 (in step)   (2026-11-25T19:24:11, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-25 19:20 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
 ```
