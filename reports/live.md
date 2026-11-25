@@ -1,13 +1,13 @@
-﻿# Alpha is STANDBY - DESKTOP-41HPLCN, 2026-11-25 22:09 +00:00
+﻿# Alpha is DOWN - DESKTOP-41HPLCN, 2026-11-25 22:14 +00:00
 
 Written every autopilot pass (5 minutes), whether or not anything changed.
 
 | Check | State | Detail |
 |---|---|---|
-| Alpha (backend, site, alpha-ai.uk) | STANDBY | Alpha serves from alpha-serv-01: alpha-ai.uk 530; nothing of Alpha runs here (checked by this pass) |
-| Role | STANDBY | alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01's Alpha answers (0 min ago) |
-| Data copy | ON | sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (2058 min ago) |
-| Repair agent (self-heal) | OFF (standby) | off on purpose: another machine serves Alpha |
-| Decks | 2 live, 2 stale, 1 down, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads); all UI decks: site (https://127.0.0.1:4173) (checked 2026-11-24T11:44:31.888243+00:00 (2064 min ago)) |
+| Alpha (backend, site, alpha-ai.uk) | DOWN | backend 0, site 200, alpha-ai.uk 530; not answering: backend, alpha-ai.uk (checked by self-heal, 1 min ago) |
+| Role | PRIMARY | this machine serves Alpha; automatic cover installed, idle while this machine is the primary |
+| Data copy | ON | sent 281 file(s) to alpha-serv-01 at 2026-11-24T11:50:45Z (2063 min ago) |
+| Repair agent (self-heal) | RUNNING | last pass 1 min ago, 1 repair(s) in it |
+| Decks | 2 live, 2 stale, 1 down, 1 static, 1 no feed | not live: network, hardware, atlas: devices (/devices/network/topology); CrowPanel: display (LAN reads); all UI decks: site (https://127.0.0.1:4173) (checked 2026-11-24T11:44:31.888243+00:00 (2069 min ago)) |
 | Live sync | IN SYNC | IN SYNC: this machine runs 904e705 of claude/frie...(30) |
 
