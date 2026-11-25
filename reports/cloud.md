@@ -1,11 +1,11 @@
-Claude (cloud) report, 2026-11-25 08:57 UTC
+Claude (cloud) report, 2026-11-25 09:57 UTC
 
-NEW 08:52 25 Nov: Laptop41's automatic cover STARTED (alpha-serv-01's Alpha silent 3 passes, alpha-ai.uk no answer), yet the 08:53 live pass read alpha-ai.uk 200; outcome not published yet. Earlier covers 20:16-20:57 22 Nov and 00:24-00:38 23 Nov, handed back both times. Fresh: doctor 08:56 25 Nov (0 open), live 08:54. cloudSeen=4674758. Checkout c1aa435 (12 Oct), behind main.
-TWO ALPHAS CLEAR since ~11:44 24 Nov (21 h of clean passes); was back 16:24 23 Nov-11:44; also 21:04 22 Nov-07:11, stand-downs undone.
-NEEDS A PERSON: LOW RAM (0.5-1 of 15.8 GB free) most of 24 Nov and 00:11-08:41 25 Nov; cleared 08:56 (1.4 GB). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy in step; last files sent 11:50 24 Nov.
+BLIP 08:52 25 Nov: Laptop41's cover began (alpha-serv-01's Alpha silent 3 passes, alpha-ai.uk no answer) but never took over; alpha-serv-01 answered again by 08:59; all passes since clean. Earlier covers 20:16-20:57 22 Nov and 00:24-00:38 23 Nov, handed back both times. Fresh: doctor 09:56 25 Nov, live 09:54. cloudSeen=6f35b55. Checkout c1aa435 (12 Oct), behind main.
+TWO ALPHAS CLEAR since ~11:44 24 Nov (22 h of clean passes); was back 16:24 23 Nov-11:44; also 21:04 22 Nov-07:11, stand-downs undone.
+NEEDS A PERSON: LOW RAM (0.5-1 of 15.8 GB free) most of 24 Nov and 00:11-08:41 25 Nov; brief clear 08:56-09:41, low again 09:56 (1.4 GB). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy in step; last files sent 11:50 24 Nov.
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 02:38 25 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
+No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 09:38 25 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 (09:06), #73 drafts.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
