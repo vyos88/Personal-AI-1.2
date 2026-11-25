@@ -1,14 +1,14 @@
 {
     "cloudSeen":  "63293bee0227d22f03c886100361943cba93140c",
-    "lastRun":  "2026-11-25T21:26:10",
+    "lastRun":  "2026-11-25T22:11:09",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
-                 "only #.# of #.# GB RAM free":  {
-                                                     "since":  "2026-11-25T16:11:10",
-                                                     "runs":  22,
-                                                     "text":  "only 0.6 of 15.8 GB RAM free"
-                                                 }
+                 "https://alpha-ai.uk/ answers # and this machine is standby: nobody serves Alpha. If alpha-serv-# stays down, queue alpha-standup here":  {
+                                                                                                                                                               "since":  "2026-11-25T22:11:09",
+                                                                                                                                                               "runs":  1,
+                                                                                                                                                               "text":  "https://alpha-ai.uk/ answers 530 and this machine is standby: nobody serves Alpha. If alpha-serv-01 stays down, queue alpha-standup here"
+                                                                                                                                                           }
              },
-    "lastPost":  "2026-11-25T21:26:10",
+    "lastPost":  "2026-11-25T22:11:09",
     "relay":  "relayed status/cloud 63293be"
 }
