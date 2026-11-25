@@ -1,4 +1,4 @@
-laptop41-doctor 20261125-125602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261125-131103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,22 +9,22 @@ laptop41-doctor 20261125-125602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
+  PROBLEM: only 0.7 of 15.8 GB RAM free
   ok: C: 70.3 GB free
-  ok: CPU 7% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,743 MB  pid 16408
-  dwm                             381 MB  pid 18008
-  MsMpEng                         355 MB  pid 12440
-  Memory Compression              266 MB  pid 3804
-  ChatGPT                         198 MB  pid 21408
-  ChatGPT                         193 MB  pid 10612
-  powershell                      178 MB  pid 23236
+  ok: CPU 16% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               4,787 MB  pid 16408
+  dwm                             382 MB  pid 18008
+  MsMpEng                         365 MB  pid 12440
+  Memory Compression              309 MB  pid 3804
+  ChatGPT                         200 MB  pid 21408
+  ChatGPT                         192 MB  pid 10612
+  powershell                      179 MB  pid 23236
   explorer                        174 MB  pid 10840
 
 === SUMMARY ===
   this pass took 8s
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-25T12:56:09)
-  + fixed since last run: only 0.8 of 15.8 GB RAM free
+  - only 0.7 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-25T13:11:10)
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
