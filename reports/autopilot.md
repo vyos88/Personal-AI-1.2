@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261125-224846
+﻿# laptop41 autopilot 20261125-225845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261125-225845  data-sync (task 'Alpha Data Copy', run at 2026-11-25T22:50:41)  ->  0 (in step)   (2026-11-25T22:59:17, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-25 22:50 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 297 file(s), 95.4 MB written since 2026-11-25T22:41:40Z, to alpha-serv-01
+```
 
 ## auto-data-sync-task-20261125-224846  data-sync (task 'Alpha Data Copy', run at 2026-11-25T22:40:41)  ->  0 (in step)   (2026-11-25T22:50:14, 0s)
 ```
@@ -181,13 +188,6 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-25 20:50 (memory\ at C:\Users\Vyo\Downloads\Vy
 ## auto-data-sync-task-20261125-204345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T20:40:41)  ->  0 (in step)   (2026-11-25T20:44:10, 0s)
 ```
 DATA SYNC DESKTOP-41HPLCN 2026-11-25 20:40 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  not serving here, and nothing unsent from when it did: nothing to send
-```
-
-## auto-data-sync-task-20261125-203345  data-sync (task 'Alpha Data Copy', run at 2026-11-25T20:30:41)  ->  0 (in step)   (2026-11-25T20:34:08, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-25 20:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   not serving here, and nothing unsent from when it did: nothing to send
 ```
