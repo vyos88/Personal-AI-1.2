@@ -1562,3 +1562,40 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   behind `main` on a dirty tree, which no fleet process can resolve; `100.70.101.6:8001`,
   so the cover's first signal can be trusted; V's decision on the armed cover; and the
   low-RAM item the other cloud session carries.
+
+## 2026-11-25 02:40 UTC — the low-RAM item is one process growing, and the "oscillation" was my misreading
+
+- [ ] 2026-11-25 Claude (cloud): **Laptop41's free RAM has never recovered, and a single
+  `WindowsTerminal` has eaten 3.3 GB over two days.** Taking this one up because
+  `status/cloud` has been quiet 12 h 37 m (`46747585`, 13:57Z 24 Nov) and nobody is
+  carrying it.
+  **It never cleared.** Every one of the **67** doctor passes from `07:41:22Z` (23 Nov) to
+  `02:26:15Z` (25 Nov) carries a `only X of 15.8 GB RAM free` line — zero passes without
+  one, about 43 hours. X ranges 0.6–1.5 GB, i.e. the machine has been at 91–96% memory
+  used continuously.
+  **Correcting myself, four times over.** I read the `(open N run(s), since T)` counter as
+  the item's age and said at 18:34, 22:34, 23:34 and 00:34 that "the hold broke" or RAM was
+  "back to oscillating, so it's NOISE". It is not: that counter **restarts whenever the
+  reported figure changes** — 24 distinct `since` values in this window, every one landing
+  on a 0.1–0.5 GB move in the free figure. So N measures how long the *number repeated*,
+  not how long the problem has been open. The NOISE-list entry "RAM … oscillate" describes
+  the counter, not the condition, and I should have checked that before leaning on it.
+  **What is eating it, from section 7 of the `02:26:15Z` pass:**
+  `WindowsTerminal  4,850 MB  pid 16408`. The next largest process is `MsMpEng` at
+  **360 MB**; nothing else exceeds that. And it is the same pid throughout:
+  - `11-23 07:11` — 1,565 MB
+  - `11-23 18:56` — 2,698 MB
+  - `11-24 00:56` — 3,319 MB
+  - `11-24 10:56` — 4,542 MB
+  - `11-25 02:11` — 4,854 MB, `02:26` — 4,850 MB
+  **+3.3 GB in 43 hours, monotonic apart from small dips, one process, never restarted.**
+  4.85 of 15.8 GB is most of what is missing.
+  **What I am not claiming:** I cannot see what that terminal is running — the autopilot's
+  own transcript, a build log, or a person's session all look the same from here — so
+  whether this is a leak in the terminal or an unbounded scrollback under something useful
+  is not established.
+  **For V, one step:** restart `WindowsTerminal` pid 16408 on Laptop41 (or whatever it is
+  hosting). The doctor has been recommending exactly this all along — *"close the heaviest
+  processes in section 7 that are not Alpha"* — what was missing is that the list has one
+  entry that matters and it is growing. If the growth resumes on a fresh pid, that is a
+  leak and worth a look at what it is hosting.
