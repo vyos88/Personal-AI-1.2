@@ -952,3 +952,678 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
     `C:\Alpha\agents\codex-directives\queue\` (`01-game-creator`, `03-persia-engine-redo`,
     `04-...`, `21-...`, `22-...`), which are what ran on 10-31. Only the old `scripts/overnight/`
     paths are gone; nothing needs restoring, only codex-run needs to work again.
+
+## 2026-11-01 23:35 UTC — both machines have been off the wire for twelve days, and nothing on either side of the tunnel says so
+
+- [x] 2026-11-16 Claude (cloud): **closed — the task account can fetch again.** From
+  `2026-11-16T06:59:59Z` all three scheduled identities on DESKTOP-41HPLCN are pushing again
+  (`laptop41-autopilot` on `status/laptop41-live`, `laptop41-doctor` on `status/laptop41`, and
+  `status/laptop41-autopilot` for ran ids), which is the receipt this ask asked for: a push by
+  the *scheduled-task* account, not an interactive one. Total outage, by committer date on
+  `status/laptop41-live`: `2026-10-21T00:04:21Z` (`8e737bb1`) to `2026-11-16T06:59:59Z`
+  (`dbf8b794`) = **630 h 55 m** (26 d 6 h 55 m), ~7570 missed 5-minute writes. The credential
+  fault named below is therefore fixed or moot; nothing here says which, and that is V's
+  machine to tell. **What came back with it is not this ask:** the live page reports
+  `STANDBY BUT SERVING` — alpha-serv-01 serves alpha-ai.uk while Laptop41's own backend and
+  site run too — and CPU over the 90% hold. Both are in
+  `status/cloud:reports/cloud.md` (`2026-11-16T07:57:58Z`) as NEEDS-A-PERSON items and are not
+  reopened here. The original ask, for the record:
+  23 minutes of each other on 2026-10-21, and has not moved since.** Measured against
+  `2026-11-01T23:34:46Z`, by committer date on each ref:
+  - `status/laptop41-live` — `8e737bb1`, `2026-10-21T00:04:21Z`, **287 h 30 m** (11 d 23 h 30 m).
+    `writeLive` rewrites this every 5 minutes whether or not anything changed, so that is
+    **~3450 consecutive missed writes**.
+  - `status/laptop41` (hourly doctor) — `cf5490d7`, `2026-10-20T23:41:44Z`, 287 h 53 m.
+  - `status/laptop41-autopilot` — `ef0712ea`, `2026-10-20T23:46:01Z`, 287 h 48 m. Silence here
+    alone would be ordinary (`autopilot.ps1:733` pushes only when a queued id ran); silence here
+    *and* on the two above is not.
+  - `status/host-autopilot` — `f2eaea82`, `2026-10-09T15:24:17Z`, 560 h. `status/host-live` has
+    never existed.
+  - Neither queue has been drained: `control/laptop41` (`c4be681c`, 319 h) holds 110 ids, last
+    `20261019-c1-port-8001-holder`; `control/host` (`d993cfb7`, 360 h) holds 31, last
+    `20261011-h32-enable-image`.
+  **Why this is in ASKS.md and not just a chat line:** the control plane is the only way a cloud
+  session can act on either machine, and it is push-driven in both directions — so with both
+  machines off the wire there is no action any cloud session can queue, and no standing check can
+  report the outage, because every check that would report it runs *on* the machines that are
+  quiet. This has been reported once an hour in a session log for twelve days; a session log is
+  not somewhere V reads.
+  **Superseded 2026-11-13 — the cause is named, and it is not a powered-off machine.**
+  `status/cloud:reports/cloud.md` (rewritten `2026-11-13T03:57:54Z`, and carrying the same
+  sentence already at `2026-11-07T08:58:06Z`) records that Laptop41's last `git fetch` failed
+  with **credential store 'wincredman' unusable**, and that the autopilot stopped right after.
+  So the original framing of this ask — "powered off and credential failure look identical from
+  here, run `git push` by hand to tell them apart" — was wrong on both halves. It is the
+  credential failure, and a by-hand push would not even test it: run interactively it uses the
+  logged-in user's credentials and would succeed while the **scheduled-task account** still
+  cannot fetch. What V needs on DESKTOP-41HPLCN is Git Credential Manager's store *for the
+  account the scheduled tasks run under*, then the doctor task. `laptop-gj8dfmlk`'s autopilot
+  is a separate open item (#286), not the same fault. Change this to `[x]` once the task
+  account can fetch again. As of `2026-11-13T04:34:28Z` the live branch is **556 h 30 m**
+  (23 d 4 h 30 m) dark, ~6680 missed writes.
+  **Closed 2026-11-16** by the receipt in the `[x]` line at the top of this entry.
+  **Not blocking the Alpha 2.0 entry above** — steps 2-4 there are assigned to a session with
+  hardware access anyway. But worth reading alongside it: whoever goes to a keyboard for step 2
+  is already most of the way to answering this.
+
+## 2026-11-16 09:34 UTC — the CrowPanel moved machines with Alpha, so neither panel action may be queued on Laptop41
+
+- [!] needs V — 2026-11-16 Claude (cloud) -> V: **do not queue `panel-host` or
+  `panel-endpoint` on DESKTOP-41HPLCN while alpha-serv-01 serves Alpha.** Both read *this
+  machine's* address and act on *this machine's* Alpha, which was right while Worker1 served
+  Alpha and is wrong now:
+  - `scripts/panel-endpoint.ps1:116-121` enumerates this machine's own IPv4 addresses
+    (Tailscale and virtual adapters excluded) and sends the board `ALPHA http://<that>:8001`.
+    Its `param` block (`:41-46`) takes `Port`, `ParseStatus`, `DescribeHeard` — there is no
+    address argument, so it cannot point the panel at another machine.
+  - `scripts/fix-panel-host.mjs:405` edits this machine's `.env.local` with `homeAddresses()`,
+    and `docs/AUTOPILOT.md:65` records that it then **restarts the backend** and fails unless
+    the deck feed answers. On a standby machine that starts a second Alpha — which is exactly
+    the problem the doctor has open right now ("standby, but the backend runs here").
+  So the standing recommendation carried since 2026-10-07 — "the panel is dark because
+  Worker1's WiFi address moved; queue `fix-panel-host`" — no longer describes the fleet.
+  (It is also out of date on its own terms: the action **is** on the menu, as `panel-host`,
+  `docs/AUTOPILOT.md:65`.) The panel is on Laptop41's USB while Alpha serves from
+  alpha-serv-01, so the panel has to be told alpha-serv-01's home-network address, and nothing
+  in this repo can do that from Laptop41.
+  **What would settle it, and it is V's to choose:** either Alpha comes back to Worker1
+  (`alpha-standup`, which is the same decision as the two-Alpha item) and the old recipe
+  applies unchanged, or the panel is pointed at alpha-serv-01 — which needs either an address
+  argument added to `panel-endpoint.ps1` (a `.ps1` edit, so it needs a `pwsh` run before
+  merge; there is no PowerShell in a cloud container) or the board moved to alpha-serv-01's
+  USB. No session should pick between those on V's behalf.
+
+## 2026-11-16 10:34 UTC — the two Alphas on Laptop41: automatic cover is not what restarts them, and what has been knocking them down is about to stop
+
+- [!] needs V — 2026-11-16 Claude (cloud) -> V: two narrowings on the open "two Alphas"
+  item, so the search does not go to the wrong place.
+  **1. Automatic cover is not the restarter.** It is the opposite: while `role.json` says
+  standby and the primary answers, `scripts/alpha-standby.mjs:138` returns the action
+  **`standdown`** ("standby, but Alpha serves here while *primary* answers: two Alphas,
+  standing down again") — never `cover`. The doctor's own role line shows that happening on a
+  cadence: standby since `2026-11-16T09:06:26Z` in the 09:11 pass, since
+  `2026-11-16T10:09:31Z` in the 10:27 pass. Cover only promotes after `failures: 3`
+  consecutive passes in which the primary's Alpha does not answer
+  (`scripts/alpha-standby.mjs:59`), and alpha-ai.uk has answered 200 from alpha-serv-01
+  throughout. So "boot task **or cover**" should be read as boot task.
+  **2. What the restarter is not, by name.** `scripts/alpha-standdown.ps1:71-72` disables
+  `Alpha Self-Heal`, `Alpha Server - Health Guard`, `Alpha Backend` and `Alpha`, and `:311`
+  kills the `C:\ProgramData\AlphaBoot\run-alpha*` wrapper trees. The backend and site come
+  back anyway, with a new pid almost every pass — backend `17668` (07:29) → `11276`
+  (07:41, 07:59, 08:11) → absent (08:26) → `12568` (08:41) → `22184` (08:57) → `26872`
+  (09:11) → `24448` (09:41) → `13620` (09:59) → `14220` (10:11, 10:27) — so whatever starts
+  them is outside those four task names and outside those wrappers.
+  **3. New at 10:27, and it is the one that makes this urgent:** "automatic cover last ran
+  8 min ago and its task `Alpha Standby` is not on this machine: nothing will run it again".
+  The repeated stand-downs above are what has kept the second Alpha suppressed; with no task
+  to run them, that stops. **Why no session should fix this unasked:** the doctor's remedy is
+  `standby-install` (`docs/AUTOPILOT.md:73`), and by the policy above it would, today, only
+  stand this machine down. But it also arms the promote path for a real alpha-serv-01 outage,
+  and V's standing rule is that Worker1 "covers only if V says 'cover'". So it waits for V's
+  word, which is the same word as the two-Alpha decision: `alpha-standup` to serve here, or
+  stand down and install the cover that keeps it down.
+
+- [ ] 2026-11-21 Claude (cloud): **the period, measured — the pair alternates on the
+  autopilot's own 5-minute cadence, not hourly.** Earlier relays describe this as a
+  stand-down "roughly hourly, each undone within minutes"; the live branch, which
+  `writeLive` rewrites every 5 minutes whether or not anything changed, says the flip is
+  far faster than that. Fourteen consecutive writes on `status/laptop41-live`, 12:27:53Z
+  to 13:29:17Z (≈61 min), read: clean, backend, backend, clean, backend+site,
+  backend+site, backend+site, clean, backend+site, clean, backend, clean, backend+site,
+  clean — **6 clean, 8 with Alpha running here, and the longest clean run is a single
+  write.** The doctor agrees that these are new processes rather than a flapping reading:
+  backend pid `25180` (11:27) → `17448` (12:11) → `17968` (13:26), site `17916` → `8048`
+  → `27456`, each with its run counter reset to 1. So anything started and stopped on a
+  ~5-10 minute rhythm is the shape to look for, which fits a supervisor on a short
+  interval rather than an hourly scheduled task — consistent with Alpha#159's reading that
+  Alpha's own watchdog restarts them and the stand-down never stops it.
+  **The practical consequence for whoever reads a report next:** a single clean pass here
+  means nothing. The 13:29 live page says `STANDBY` / "nothing of Alpha runs here" and the
+  13:26 doctor pass, three minutes earlier, had both pids open. Either one alone is a
+  trough or a crest of this wave, not a resolution; only several consecutive clean writes
+  are. Nothing in this note changes the ask above — it still waits for V's word.
+
+- [ ] 2026-11-22 Claude (cloud): **the flapping stopped at 03:44-03:54 UTC, 8 consecutive
+  clean writes and counting — watch, not closed.** The wave described above ran all day;
+  on the measured samples its longest clean run was 3 writes. It has now held clean for
+  **8 consecutive `status/laptop41-live` writes, 03:54:19Z through 04:29:13Z (35 min)**,
+  and the last write with Alpha running here is `03:44:26Z`. The boundary is visible in
+  the Role row rather than inferred: at 03:44:26Z it read "standby, but Alpha serves here
+  while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago)", and
+  from 03:54:19Z it reads "alpha-serv-01's Alpha answers" with "nothing of Alpha runs
+  here". The 04:11:19Z doctor pass reads `ok: no problems found`. So a stand-down taken
+  somewhere in that ten-minute window is the first one that stuck.
+  **No cause is recorded, and I am not supplying one.** Nothing was queued from here —
+  `control/laptop41` is still `c4be681c` (2026-10-19) — and the other cloud session's
+  03:57Z relay still describes the two Alphas as unchanged, because the live write it
+  read (03:54) was the first clean one. Whether a person acted, or Alpha's watchdog was
+  stopped through its own manager as recommended, or this is simply the longest trough
+  yet, is not visible from here.
+  **What closes this entry:** clean through a few hourly doctor passes as well as the
+  5-minute writes — the counter-reset pattern above means a single `ok: no problems
+  found` has happened before while the wave continued. Until then the ask stays open and
+  the recommendation stands unchanged.
+
+- [x] 2026-11-22 Claude (cloud): **closed on the symptom — 33 consecutive clean live
+  writes and two clean doctor passes.** The condition I set in the entry above is met.
+  `status/laptop41-live` has written **33 times since `03:54:19Z` with zero showing Alpha
+  running here** (last dirty write `03:44:26Z`; latest clean `06:34:16Z`, a span of
+  2 h 40 m), against a longest clean run of 3 while the wave was going. Two hourly doctor
+  passes inside that span read `ok: no problems found` — `04:11:19Z` and `05:56:17Z` —
+  and the one before them, `03:56:18Z`, had only the recurring missing-`Alpha Standby`
+  item open, not the two Alphas. On the measurements available from here the flapping has
+  stopped.
+  **What is closed and what is not.** Closed: the symptom, and the two narrowings above
+  that were only useful while it ran. **Not closed, and not mine:** no cause is on record.
+  Nothing was queued from this session (`control/laptop41` is still `c4be681c`,
+  2026-10-19), so if a person acted, or Alpha's watchdog was stopped through its own
+  manager, the reason lives outside this repository — worth one line in Alpha#159 by
+  whoever knows, because the next recurrence will be read against it. Also still open on
+  their own merits: the missing cover task `Alpha Standby`, the `:8001` cover blindness,
+  and low RAM/CPU crossing the 90% hold, all of which flap independently of this.
+  **A note for the next reader of a relay:** the 05:56Z cloud relay calls this
+  "unconfirmed while the doctor is silent", because the `05:56:17Z` doctor pass landed
+  seconds before it was written. The doctor was not silent; it was one pass behind the
+  reader.
+
+## 2026-11-22 20:40 UTC — the automatic cover fired on Worker1, and handed back nine minutes later
+
+- [ ] 2026-11-22 Claude (cloud): **`alpha-standby.mjs` covered on Laptop41 at
+  `19:40:14.822Z` by itself, and was back to standby by `19:49:26Z`.** First firing on
+  record here. It matters because V's standing rule is the opposite:
+  `status/cloud:reports/cloud.md:20` (`38fe26fc`) — *"Worker1 stays a worker (covers only
+  if V says 'cover')"*. Nothing in code enforces that; the three-signal cover is armed on
+  that machine and it triggered.
+  **The three writes that show it**, all `origin/status/laptop41-live:reports/live.md`:
+  - `48268ae9` (19:39:20Z) Role `STANDBY` — *"alpha-serv-01's Alpha does not answer over
+    the tailnet, but alpha-ai.uk is served (200): not covering, that would be two
+    Alphas"*. So the tailnet probe was **already** failing and the public URL was the only
+    signal holding the cover off.
+  - `0369023c` (19:44:27Z) Role `COVERING` — *"this machine serves Alpha for alpha-serv-01
+    since 2026-11-22T19:40:14.822Z; automatic cover: alpha-serv-01's Alpha answers again
+    (1 of 2): handing back soon"*. Alpha row the same pass: `backend 0, site 200,
+    alpha-ai.uk 0`.
+  - `ef490590` (19:49:26Z) Role `STANDBY` — *"alpha-serv-01's Alpha answers (0 min ago)"*.
+  With `failures: 3` and one pass a minute (`scripts/alpha-standby.mjs:59-60`), the first
+  missed primary probe was around 19:37; `recover: 2` is the hand-back, and it took it.
+  **What that proves, and what it does not.** Proved: between 19:39:20Z and 19:40:14Z the
+  standby's `publicUrl` probe stopped seeing alpha-ai.uk served — the 19:39 row names that
+  signal as the sole holdout, so it is what released the cover. Proved: the hand-back
+  path works end to end, unattended, in about nine minutes. **Not proved:** whether Alpha
+  ever served from Laptop41 during those nine minutes (`backend 0` at 19:44 is four
+  minutes into a cover and a backend that is still starting looks the same), and whether
+  alpha-serv-01 had actually stopped — `alpha-ai.uk 0` in that row is measured *from
+  Laptop41 while its own connector was starting*, so it is not evidence about the primary.
+  I am not supplying either.
+  **It corrects half of a recurring doctor item.** The doctor says of `:8001`: *"it would
+  cover in an outage and never hand back"* (open again at `19:26:16Z`). The first half
+  held — it covered. The second did not: it handed back inside nine minutes, so
+  `100.70.101.6:8001` answers **intermittently** rather than never, and the item should
+  say so. Making that backend answer reliably is still the fix, and still V's call.
+  **And it is a blind spot in my own measure.** The clean-write count I have been
+  reporting greps `live.md` for *"running HERE too"*, which is the two-Alpha symptom; a
+  cover is a sanctioned single Alpha here, so all six writes across this window counted
+  **clean**. The 200-clean run since `03:54:19Z` is still true of what it measures, and
+  says nothing about covers.
+  **For V, one question:** the automatic cover is armed on Worker1 against your rule. Leave
+  it armed (it handed back correctly), or disarm it until you say 'cover'? The 19:57Z cloud
+  relay files this window as *"Laptop41 dropped out of standby ... self-heal ran"*, read off
+  the Alpha row; the Role row says it was a cover.
+
+## 2026-11-22 21:45 UTC — the two Alphas are back, and this time the chain is visible end to end
+
+- [~] 2026-11-22 Claude (cloud): **re-opening the closure above on its own terms.** A
+  dirty write appeared, so the symptom is back — and the cover I recorded an hour ago is
+  the front of it. Every line below is from `origin/status/laptop41-live:reports/live.md`
+  at the named time, or from `origin/status/laptop41:reports/latest.txt`.
+  **The chain, in order.**
+  1. **`20:16:13.391Z` — second automatic cover of the evening.** `alpha-ai.uk 530` in the
+     20:19:35Z Alpha row: nobody was serving, so the public-URL signal was legitimately
+     met, as it was for the 19:40 cover.
+  2. **The cover worked.** `backend 0 → 200` by `20:34:21Z`, `alpha-ai.uk 530 → 200` by
+     `20:39:16Z`. That answers what I left unproved in the entry above: a cover does start
+     Alpha on Laptop41 and does serve the public URL — it takes about 23 minutes.
+  3. **Hand-back looked clean.** `20:57:59Z`: Role `STANDBY`, Alpha row *"nothing of Alpha
+     runs here"*.
+  4. **Two Alphas `1 m 47 s` later.** `20:59:46Z`: *"running HERE too: backend, site (two
+     Alphas"*. Of the ten writes from 20:59:46Z to 21:34:27Z, **seven are dirty**
+     (20:59:46, 21:04:31, 21:09:18, 21:14:16, 21:24:12, 21:29:14, 21:34:27); the one clean
+     write, `21:19:44Z`, is a stand-down retry that did not hold. The doctor names the
+     processes: backend **pid 20440 python.exe** (`20:56:59`), site **pid 14676 node.exe**
+     (`21:26:11`), open 3 runs.
+  5. **And it is counting toward covering again.** The Role note from 20:59 on alternates
+     between *"standby, but Alpha serves here while alpha-serv-01..."* and
+     *"alpha-serv-01's Alpha did not answer (1 of 3)"*, reaching **(2 of 3)** at
+     `21:24:12Z`. With `failures: 3` (`scripts/alpha-standby.mjs:59`) the next missed
+     primary probe covers again.
+  **So the `:8001` item is load-bearing, not cosmetic.** The doctor has reported for weeks
+  that automatic cover cannot see `alpha-serv-01`'s Alpha at `100.70.101.6:8001`. That
+  probe is signal 1 of 3, and it is failing *constantly* — the only thing standing between
+  Laptop41 and a cover loop is alpha-ai.uk staying 200, and 530s happen (20:16 tonight,
+  and the 20 Nov blip the cloud relay recorded).
+  **What I am not claiming.** Covers are not the origin of the 16–22 Nov wave. There were
+  **nine** covers since 16 Nov — 11-19 `01:36:14.773Z`, `02:06:16.396Z`; 11-20
+  `02:22:14.142Z`, `02:43:14.151Z`, `03:05:13.366Z`, `11:30:14.883Z`, `14:42:13.946Z`;
+  11-22 `19:40:14.822Z`, `20:16:13.391Z` — only 16 COVERING writes out of 1517 before
+  tonight, and none at all between 11-20 14:42 and 11-22 19:40 while the wave was running.
+  What is established is narrower and still useful: **a cover leaves an Alpha running on
+  Laptop41 that the hand-back does not keep down**, and that is sufficient on its own to
+  produce the two-Alpha pattern.
+  **Correcting my own report.** At 20:34:55Z I reported *"200 consecutive clean live
+  writes ... nothing worth doing"*. The write I had just read, `20:34:21Z`, said Role
+  `COVERING` with `backend 200` — Laptop41 was serving Alpha at that moment. My count
+  greps for *"running HERE too"*, which a cover does not print, and I had written that
+  blind spot down an hour earlier in the entry above. The number was right about its own
+  question and the sentence I hung on it was wrong. Every count I report from here states
+  covers and two-Alpha writes separately.
+  **For V, one decision, which is the same one as an hour ago and now urgent:** the
+  automatic cover is armed on Worker1 against your rule that it covers only if you say
+  'cover' (`status/cloud:reports/cloud.md:20`). It fired twice tonight, it leaves an Alpha
+  behind each time, and it is two of three signals away from firing again. Disarm it on
+  Laptop41, or fix `100.70.101.6:8001` so signal 1 stops failing — either breaks the loop;
+  neither is mine to do from here.
+
+- [~] 2026-11-22 22:40 UTC Claude (cloud): **the pids prove the stand-down works and
+  something restarts both halves — so disarming the cover would not clear this.** The two
+  Alphas have been continuous for about 75 minutes: 12 consecutive dirty writes from
+  `21:39:30Z` to `22:34:10Z`, last clean write `21:19:44Z`. What settles the mechanism is
+  the pid the doctor names each pass (`origin/status/laptop41:reports/latest.txt`):
+  - backend `12660` (20:57:30Z) → `20996` (21:11:33Z) → `20440` (21:26:16Z and 21:41:19Z)
+    → **absent from the pass at 21:57:07Z** → `10188` (22:11:26Z);
+  - site `6436` (20:57:30Z, 21:11:33Z) → `14676` (21:26:16Z, 21:41:19Z) → `5016`
+    (21:57:07Z) → `17004` (22:11:26Z).
+  At least three restarts of each in 75 minutes, and the backend's absence at 21:57 is the
+  stand-down succeeding. So the loop is not the cover failing to stop Alpha — it is a
+  supervisor on Laptop41 starting it again every few minutes, which is what Alpha#159
+  reads as Alpha's own watchdog.
+  **This narrows my own recommendation from the entry above, which was incomplete.**
+  Disarming the automatic cover, or fixing `100.70.101.6:8001`, stops a *new* cover from
+  arming the machine — worth doing, and still V's call. Neither stops *this* one: the
+  Alpha running here now is being restarted, so the thing to stop is that supervisor,
+  through Alpha's own Agent Manager, and that is in vyos88/Alpha and not this repository's
+  to change.
+  **One presentational note, not fixed.** The 22:11:26Z pass reports as fixed: *"CPU 100%
+  is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own
+  work"* — in the same pass that reports the backend and site running here. That item's
+  explanation assumes standby means nothing of Alpha runs locally. It is in a `.ps1` this
+  container cannot parse or test, so it is recorded rather than touched.
+
+- [~] 2026-11-23 00:40 UTC Claude (cloud): **third cover, `00:23:13.546Z`, and this one is
+  serving** — so the readings invert, and the next reader needs to know that before
+  diffing anything. From the `00:34:25Z` write: Alpha `LIVE`, `backend 200, site 200,
+  alpha-ai.uk 200`, Role `COVERING ... since 2026-11-23T00:23:13.546Z` with no
+  "answers again" counter, so the standby's two signals both still say the primary is
+  neither reachable over the tailnet nor serving publicly. Decks are coming back with it:
+  `3 live, 2 stale, 1 static, 1 no feed` at `00:29:21Z`, against `1 down, 1 static, 1 no
+  feed` while on standby. Unlike the 19:40 and 20:16 covers this one is holding.
+  **Two things that read as faults and are not.** A reader diffing the doctor across a
+  cover boundary gets six new problems at once — the `00:27:27Z` pass opened *deck panel
+  not reaching this machine*, *image backend 503*, *no machine offers `alpha.music`*,
+  *`https://alpha-ai.uk/` answers 000*, *build older than source*, *no machine offers
+  `alpha.image`*, none of them open at `23:11`. They are the role change, not six
+  regressions: once Laptop41 serves, the doctor starts judging it as the serving machine,
+  and `alpha-ai.uk 000` four minutes into a cover is the same startup ramp the 20:16 cover
+  took 23 minutes to finish (`000` at 00:27, `200` by 00:33). That pass also took **72 s**
+  against 8–12 s for a standby pass, which is the probes timing out mid-ramp.
+  And the dirty-write count inverts too: 31 of the 36 writes since `21:39:30Z` say Alpha
+  runs here, but from `00:23:13.546Z` on that is the **intended** state, not the two-Alpha
+  fault. Count covers and two-Alpha writes separately, as the entry above says.
+  **What this changes for V's decision: nothing, and it sharpens it.** The cover is doing
+  its job tonight — the public site is up through Worker1 because alpha-serv-01 is not
+  serving it. Disarming it would have left alpha-ai.uk dark. That is the argument *for*
+  leaving it armed, and it is still V's call against V's own rule; what needs fixing
+  either way is `100.70.101.6:8001`, so the hand-back has a signal it can trust.
+
+- [~] 2026-11-23 01:40 UTC Claude (cloud): **the instrument is now degrading too — the
+  live heartbeat is dropping writes under the CPU load the two Alphas cause.** Cover #3
+  ended between the `00:34:25Z` and `00:41:40Z` writes (≈18 minutes, 00:23:13 → ~00:40),
+  and the two Alphas came straight back: Role `STANDBY` with `STANDBY BUT SERVING` on
+  every write since, backend pid `15828` *"open 4 run(s), since 00:41:40"* and now marked
+  **NEEDS A PERSON**, site pid `22448` from `01:28:44`. Same loop as the 20:16 cover.
+  **What is new is the cadence.** `status/laptop41-live` writes every 5 minutes by design,
+  and it has held 11–12 writes an hour all evening (18:00–00:00: 12, 12, 11, 12, 12, 12).
+  The hour from 01:00 has **4** writes for 7 elapsed slots, with a **15 m 03 s** gap
+  ending `01:30:11Z` — the largest tonight, and unlike the 10 m 08 s and 8 m 24 s gaps at
+  20:19/20:27 it is not a cover starting up. Beside it: the doctor pass at `01:29:49Z` took
+  **59 s** and the one at `00:27:27Z` **72 s**, against 8–12 s on a quiet standby pass, and
+  the same pass reports `CPU 100%`. `writeLive` is the last step of a pass, so a pass that
+  overruns publishes nothing — three missed writes are three passes that did not finish.
+  **Why it matters beyond one more symptom.** Every count in the entries above is measured
+  off this branch, so the instrument and the fault now share a cause: as the machine
+  saturates, the record of the saturation thins out. A future clean-looking run on this
+  branch could be missing writes rather than missing faults. Any count taken from here on
+  should state writes-present against slots-elapsed, as this one does.
+  **Recommendation unchanged, cost added:** the restart loop on Laptop41 is now costing
+  the fleet its heartbeat as well as the duplicate Alpha. Stopping the supervisor that
+  restarts Alpha there (Alpha's own Agent Manager, per Alpha#159) is still the fix, and
+  still V's.
+
+- [~] 2026-11-23 02:40 UTC Claude (cloud): **both of Laptop41's channels stopped
+  publishing at ~01:45, and that is the thing to look at now.** The previous entry said a
+  future count could be missing writes rather than missing faults; this is the next step
+  past that — there is nothing to count.
+  - `status/laptop41-live`: last write `01:45:14Z` (`81e819cb`). At `02:35:25Z` that is
+    **50 m 11 s**, about ten missed 5-minute slots, against 12 writes an hour through 22,
+    23 and 00 and 7 in the 01 hour.
+  - `status/laptop41`: last pass `01:41:33Z` (`158af14f`), **53 m 52 s** ago. Its observed
+    interval since 20:00 is ~15 minutes (two 30 m gaps, i.e. one missed slot each); 54
+    minutes is more than three times that and longer than any gap in the preceding six and
+    a half hours. So the hourly-doctor description understates it — this is overdue on the
+    machine's own cadence, not on a nominal one.
+  **Last known state, from that final pass.** Two Alphas still, and still restarting:
+  backend pid `25456` (was `15828` at 01:28:44), site `25288` (was `22448`), the backend
+  item marked **NEEDS A PERSON**, open 5 runs since `00:41:40`.
+  **And one thing resolved itself.** That pass opened *"automatic cover last ran 10 min ago
+  and its task 'Alpha Standby' is not on this machine: nothing will run it again (queue
+  standby-install, or stand this machine down)"*. That is the documented behaviour —
+  `alpha-standdown.ps1` disables the task, and `repair-alpha-host` re-registers it — so
+  the hand-back from cover #3 disarmed the automatic cover by attrition. V's question from
+  the entries above is answered for now without V having to answer it: nothing will cover
+  again until that task is reinstalled. Whether it *should* be is still V's call, and the
+  argument from 00:40 stands — tonight the cover was what kept alpha-ai.uk up.
+  **What I cannot tell from here, and am not guessing.** Saturated and failing its passes,
+  off or asleep, rebooted, or publishing blocked — all four look identical on a git branch.
+  "Stopped publishing" is the whole of what is established.
+  **Recommendation:** V — Laptop41 has not published since 01:45. That is the first thing
+  to check on the machine, ahead of the restart loop, because until it publishes again
+  nothing here can see whether the loop is still running.
+
+- [ ] 2026-11-23 03:40 UTC Claude (cloud): **Laptop41's checkout has been frozen for five
+  weeks by a dirty working tree, and the autopilot report names the files.** This is the
+  one that outranks tonight's loop, because it means nothing landed here reaches that
+  machine. From `origin/status/laptop41-autopilot:reports/autopilot.md`, present in every
+  pass sampled from `10-20 23:46` to `03:34:20Z` tonight:
+  > `checkout c1aa4356 did NOT update (self-update exit 1): ... local changes:
+  > M scripts/laptop41-doctor.ps1, M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ... ?? scripts/worker1-gpu-demand.mjs, ...`
+  **The arithmetic.** `c1aa4356` is 2026-10-12 14:33 (the merge of #276). `origin/main` is
+  `c1949c9a`, 2026-11-13, and `git rev-list --count c1aa4356..origin/main` is **100**. So
+  the machine is a hundred commits behind, and has been refusing to move for at least 34
+  days with the same two tracked files modified. It will not self-resolve: `Pull` is
+  `--ff-only` and refused outright on a dirty tree, by design (`alpha-update.js`).
+  **Two consequences worth saying out loud.** The doctor Laptop41 runs is a *local edit* of
+  `scripts/laptop41-doctor.ps1`, not the repo's, so its wording and checks need not match
+  anything here — which is the likeliest explanation for the `CPU ... no Alpha runs here`
+  line contradicting its own two-Alpha items, noted at 22:40. And every fix for tonight's
+  loop that lands in this repository stops at this wall.
+  **For V, one command's worth of decision:** commit or stash the song-cover and
+  `worker1-gpu-demand` work on Laptop41 (it is a month of local work — `alpha_song_cover_*`,
+  `run-worker1-gpu.ps1`, `worker1-small-render.py`, and the two doctor files), then let
+  self-update run. Nothing should be discarded from here; that is why this is a question
+  and not an action.
+
+- [~] 2026-11-23 03:40 UTC Claude (cloud): **the 01:45 silence was bounded and ended by
+  itself; and the cover is armed again, so my 02:40 note is superseded.** Publishing
+  resumed at `03:15:49Z`, so the gap was `01:45:14Z` → `03:15:49Z` = **1 h 30 m 35 s**,
+  about 18 missed 5-minute slots — the largest of the night, and no person is on record as
+  having touched it. No cause is visible from here, for the four reasons the 02:40 entry
+  lists.
+  **The correction:** at 02:40 I wrote that the hand-back had disarmed the automatic cover
+  by attrition and "nothing will cover again until that task is reinstalled". The
+  `03:29:54Z` doctor pass lists that very item under **fixed since last run** and reports
+  *"automatic cover last ran 6 min ago"*, so `Alpha Standby` is present and running again.
+  V's question is live again, unchanged: armed against the rule, and tonight it was what
+  kept alpha-ai.uk up.
+  **State, so it is on the record:** still two Alphas, now with **both** halves marked
+  NEEDS A PERSON — backend pid `21952`, open 8 runs since `00:41:40`; site pid `4112`, open
+  5 runs since `01:28:44`. Pids moved again from `25456`/`25288`, so the restart loop is
+  running. That pass took **177 s** (against 8–12 s quiet, 59 s and 72 s earlier tonight)
+  and RAM touched **0.5 of 15.8 GB**. Data sync is unaffected: 294 files, 16.7 MB sent at
+  03:30.
+
+- [~] 2026-11-23 04:40 UTC Claude (cloud): **the silence narrows to "not a reboot", and the
+  other cloud session got there first.** My 02:40 and 03:40 entries said saturated, asleep,
+  rebooted and blocked-from-pushing all look identical from here. One of the four is now
+  out, on the pids either side of the gap
+  (`origin/status/laptop41:reports/latest.txt`, each pass):
+  - `01:29:49Z` backend `15828`, site `22448`
+  - `01:41:33Z` backend `25456`, site `25288`  ← last pass before the gap
+  - `03:16:12Z` backend `25456`, site `25288`  ← **first pass after it, identical**
+  - `03:22:30Z` same again; `03:29:54Z` `21952`/`4112`, and moving every pass since.
+  Both processes survived 1 h 31 m, so the machine did not reboot. `status/cloud`
+  `0359ce66` (03:56:54Z) reads it the same way — *"same PIDs after: sleep, not reboot"* —
+  and reached it before I did; this entry is the arithmetic behind their line, not a second
+  finding. I had compared `01:41:33Z` against `03:29:54Z`, seen the pids differ, and was
+  about to call their inference unsupported. Checking the boundary pass is what stopped
+  that.
+  **One thing the same table adds.** The pids were *static* from 01:41 to 03:22 and moved
+  every pass either side, so whatever restarts Alpha was not running during the gap
+  either — the restart loop paused along with the publishing. That is consistent with
+  sleep, and it is also consistent with the machine awake and the passes not completing;
+  the pids cannot separate those two, only rule out the reboot.
+  **Also theirs, recorded here so it is not lost:** at 20:57 a cloudflared was running on
+  Laptop41 as well, splitting alpha-ai.uk traffic (one run) — a cost of the cover that none
+  of my entries above names.
+  **State otherwise unchanged:** 11 of 11 live writes since `03:36` show two Alphas, pids
+  `18176`/`11632` at `04:27:11Z`, CPU 100% again, cadence back to ~12 writes an hour.
+
+- [x] 2026-11-23 08:40 UTC Claude (cloud): **the loop stopped at 07:15, and this time it
+  meets the bar.** Last dirty write `07:09:22Z` (`94144da7`); since `07:15:04Z` there have
+  been **17 writes and 0 dirty**, a span of 1 h 19 m, against a longest clean run of **3**
+  anywhere in the loop before it. Three doctor passes fall inside that run and none carries
+  a two-Alpha item: `07:26:39Z` lists both under *fixed since last run*, `07:41:35Z` has
+  only RAM, `07:56:15Z` reads **`ok: no problems found`**. That is the condition the 11-22
+  closure set — clean through several passes, not one — so the symptom is closed again.
+  **The size of what just ended, for the record:** **88 dirty writes** between the
+  `20:16:13.391Z` cover's hand-back and `07:09:22Z`, about ten hours, through four pid
+  generations of each half and a 1 h 31 m silence in the middle.
+  **No cause on record, again.** `control/laptop41` is still `c4be681c` (2026-10-19), so
+  nothing was queued from here; whether a person stopped the supervisor, or it stopped
+  itself, is not visible from this side. One line in Alpha#159 from whoever knows would
+  make the next recurrence readable, exactly as the 11-22 closure asked.
+  **One reading that is not a fault:** the doctor has not written since `07:56:15Z`
+  (38 minutes). It ran at ~15-minute intervals all night *while problems were open*; with
+  nothing open the cadence relaxes, so this is the quiet version of the same schedule, not
+  the 01:45 silence returning.
+  **What is still open, and ranked:** the frozen checkout (the entry above, `[ ]`) is now
+  the first item — Laptop41 is 100 commits behind `main` on a dirty tree, and that outlives
+  every symptom in this section. Then `100.70.101.6:8001`, so the cover's signal 1 can be
+  trusted; then V's decision on the armed cover, which fired three times in nine hours and
+  on the third occasion was the only thing serving alpha-ai.uk.
+
+- [~] 2026-11-23 16:40 UTC Claude (cloud): **re-opening again — the backend is back on
+  Laptop41 at `16:24:14Z`, and this time no cover explains it.** The closure above said a
+  dirty write re-opens the entry on its own terms, so: the clean run was `07:15:04Z` →
+  `16:19:29Z`, **110 writes, 0 dirty, 9 h 04 m**, and the three writes since are all dirty
+  (`16:24:14Z`, `16:29:16Z`, `16:34:22Z`).
+  **What is different from last night.** Those three say *"running HERE too: **backend**"* —
+  backend only, no site — and the Role row reads `STANDBY` on every one of them, with no
+  cover in the preceding thirteen writes (`15:34:14Z` onward are all `STANDBY` / *"nothing
+  of Alpha runs here"*). The last cover was `00:23:13.546Z`, sixteen hours earlier. Last
+  night's recurrence began 1 m 47 s after a hand-back and that was the whole explanation;
+  this one has no hand-back behind it, so a supervisor started the backend on a machine
+  that had been clean for nine hours. That strengthens rather than weakens the reading in
+  the 22:40 entry: the cover arms the machine, but it is not what keeps starting Alpha.
+  **What I cannot name yet: the pid.** The doctor last passed `14:26:16Z`, which at
+  `16:35:05Z` is **2 h 08 m** — past the 75–90 minute quiet band it has held since the
+  items cleared this morning (07:56 → 09:26 → 09:41 → 10:56 → 13:11 → 14:26). So the pass
+  that would name the process has not run, and until it does there is no pid sequence to
+  compare against last night's. Two readings fit — the doctor is simply slow because
+  nothing was open, or it has stopped like the 01:45 silence — and the live branch writing
+  every five minutes rules out the machine being away, which is what distinguishes this
+  from 01:45.
+  **Recommendation unchanged, and the order now matters more:** the frozen checkout is
+  still first (`[ ]` above, 100 commits behind on a dirty tree), because a recurrence that
+  no cover explains is one nothing landed here can reach.
+
+- [~] 2026-11-23 17:40 UTC Claude (cloud): **the live branch and the doctor disagree about
+  this recurrence, both are right about their own test, and the truth between them is
+  better news than either.** Two readings minutes apart:
+  - `origin/status/laptop41-live:reports/live.md` at `17:34:16Z` (and all fifteen writes
+    from `16:24:14Z`): `STANDBY BUT SERVING` — *"running HERE too: backend (two Alphas:
+    queue alpha-standdown again…)"*.
+  - `origin/status/laptop41:reports/latest.txt`, the `17:11:15Z` pass, summary
+    **`ok: no problems found`** — and its section 0 says why: *"backend port 8001 is
+    occupied (pid **20800** python.exe: ), but its listener did not return a successful
+    /health response; **not counted as a second Alpha**"*.
+  **So the two instruments use different tests.** The doctor wants port occupied *and*
+  `/health` succeeding; `writeLive` counts the port alone. Neither is wrong, and the
+  condition they straddle is its own thing: **a python.exe holding 8001 without serving.**
+  That is not the working second Alpha of last night — during those covers Laptop41 really
+  did serve alpha-ai.uk — it is a wedged or half-started backend, and it would also block a
+  legitimate `alpha-standup`. pid `20800` has held it across the whole 70 minutes, which
+  is why no pid churn appears this time: nothing is restarting it, it is simply stuck.
+  **Which also makes the 16:24 "no cover explains it" sharper, not weaker:** nothing needed
+  to start a serving Alpha, because nothing did. One process took the port.
+  **And the doctor's section 0 supplies the cause I said was missing this morning.** It
+  reads *"role.json says standby since 2026-11-23T07:08:29.5779121+00:00
+  (alpha-standdown.ps1…)"*. The loop's last dirty write was `07:09:22Z` and the first clean
+  one `07:15:04Z`, so **a stand-down at `07:08:29Z` is what ended the ten-hour loop** — the
+  08:40 closure said no cause was on record and this is it, from the machine's own report.
+  Why that stand-down stuck when the ones all night did not is still unknown, and I am not
+  guessing.
+  **Not mine, already filed:** the 16:56Z relay reports the data copy has sent nothing
+  since 07:20 (9.5 h) while the live row says ON. Their *"DOCTOR QUIET: none for 2.5 h"* was
+  true when written and is now stale — the `17:11:15Z` pass has landed.
+  **Recommendation for V, narrowed by the above:** pid `20800` on Laptop41 holds port 8001
+  without answering `/health`. Ending that one process is what clears the live branch's
+  "two Alphas", and it is a different action from stopping a restart loop. The frozen
+  checkout stays the first item.
+
+- [~] 2026-11-23 22:40 UTC Claude (cloud): **Laptop41 has stopped publishing a second
+  time, starting `22:00:06Z`.** Last live write `22:00:06Z` (`706707f9`); at `22:34:28Z`
+  that is **34 m 22 s**, six missed 5-minute slots. Last doctor pass `21:56:34Z`
+  (`9c784b12`), 38 minutes. The first silence was `01:45:14Z` → `03:15:49Z`, 1 h 30 m 35 s,
+  so this is the same shape at a shorter length so far.
+  **What the last pass left on the record.** pid `20800` still holding port 8001 without
+  answering `/health` (same wording since `17:11:15Z`, so 68 of 68 live writes from
+  `16:24:14Z` said "two Alphas"); RAM `0.9 of 15.8 GB` at 3 runs; and the cover task
+  `Alpha Standby` missing again as of `21:56:23`, so the automatic cover has disarmed
+  itself a second time by the stand-down's documented behaviour.
+  **One correlation worth checking on the machine, not a cause.** Both silences were
+  preceded by low-RAM passes — `1.2 of 15.8 GB` at `01:28:44` before the first, `0.9` at
+  `21:26:15` and again at `21:56:34` before this one — and both happened while the two-Alpha
+  condition was live. Two for two is a coincidence worth one look, nothing more; the
+  obvious alternative is simply that the machine sleeps when it is idle at night.
+  **The check that distinguished the first silence is available again when it resumes:** the
+  pids either side. Unchanged pids across the gap ruled out a reboot last time. If they are
+  unchanged again, and pid `20800` is still on 8001 after, then nothing about this sleeps
+  the wedged process either.
+
+- [~] 2026-11-24 00:40 UTC Claude (cloud): **second silence bounded: `22:00:06Z` →
+  `00:29:42Z`, 2 h 29 m 36 s**, about 29 missed 5-minute slots — longer than the first
+  (1 h 30 m 35 s), and again ended with nobody on record touching it. Two silences in
+  25 hours, both overnight, both ending by themselves.
+  **The condition survived it.** The first write back, `00:29:42Z`, is `STANDBY BUT
+  SERVING` with Role `STANDBY` — the same two-Alpha reading as the write before the gap, so
+  whatever holds port 8001 was still holding it across two and a half hours of no
+  publishing. The doctor has not passed since `21:56:34Z` (2 h 38 m), so the pid is not
+  confirmed yet; if the next pass still names `20800`, that is a process that has now
+  survived a silence as well as eight hours of stand-down retries, which would rule out
+  "the machine slept and everything restarted" for this one.
+
+- [~] 2026-11-24 01:40 UTC Claude (cloud): **the pid check from the entry above is
+  answered: `20800` survived the silence.** The doctor passed at `01:11:21Z` with the same
+  sentence it has carried since `17:11:15Z` — *"backend port 8001 is occupied (pid **20800**
+  python.exe: ), but its listener did not return a successful /health response"* — against
+  `21:56:34Z`, the pass before the gap, which named the same pid. So the process held the
+  port across `22:00:06Z` → `00:29:42Z` and is now into its ninth hour. That rules out "the
+  machine slept and everything restarted" for this silence: whatever stops the publishing
+  does not stop this process, and no stand-down retry has reached it either. 14 of 14 live
+  writes since the resume still read two Alphas. RAM continues to oscillate (`0.9` at
+  `01:11:11`, from `1`), which is the NOISE entry, not a finding.
+
+- [~] 2026-11-24 12:40 UTC Claude (cloud): **the wedged backend is gone, cleared by a
+  stand-down at `11:45:21.910Z`** — and that corrects something I wrote twice.
+  **The episode, bounded:** first dirty write `16:24:14Z` (23 Nov), last `11:44:54Z`
+  (24 Nov) — **202 dirty of 203 writes over 19 h 20 m**, the single clean one at `11:34:59Z`
+  a stand-down retry that did not hold. Clean since `11:49:28Z`: **10 writes, 0 dirty**,
+  with two doctor passes inside (`11:56:22Z`, `12:11:18Z`), the latter reading
+  **`ok: no backend here (port 8001 free)`** where it had named pid `20800` every pass
+  since `17:11:15Z`.
+  **The cause is in the doctor's own section 0:** *"role.json says standby since
+  2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1…)"*. So a stand-down took the port
+  back, five minutes after the last dirty write. This is the **second** time a stand-down
+  has ended one of these: the previous episode ended at `07:08:29Z` the same way, recorded
+  in the 17:40 entry.
+  **Correcting myself:** at 22:40 and again at 01:40 I wrote that no stand-down retry had
+  reached that process. One eventually did — after about nineteen hours and an unknown
+  number of retries. The honest statement is that the retry path works but is slow or
+  intermittent against a wedged listener, not that it never reaches it. Nothing else in
+  those entries changes: the pid genuinely held through both silences, and the port-versus-
+  health split between `writeLive` and the doctor is unaffected.
+  **Not closing it yet**, by the bar the 08:40 closure set: two doctor passes inside a
+  45-minute clean run is less than that closure had, and this condition has returned twice.
+  If it is still clean through several more passes, it closes on the symptom as before —
+  with a cause on record this time.
+  **What does not change: the frozen checkout** (the `[ ]` entry above) is still first, and
+  still the only item here that nothing in the fleet can resolve by itself.
+
+- [x] 2026-11-24 13:40 UTC Claude (cloud): **closed on the symptom — the bar from the entry
+  above is met.** Since `11:49:28Z`: **22 writes, 0 dirty** (1 h 45 m), with **four** doctor
+  passes inside, every one reading `ok: no backend here (port 8001 free)`. Three of them
+  (`12:11:18Z`, `12:56:17Z`, `13:11:23Z`) carry no "two Alphas" line at all; `11:56:22Z` has
+  one, in its *fixed since last run* list. That is more than the 08:40 closure had.
+  **And this one closes with a cause, which the previous two did not:** `alpha-standdown.ps1`
+  at `2026-11-24T11:45:21.910Z`, named in the doctor's own section 0. Together with the
+  `07:08:29Z` stand-down that ended the previous episode, the pattern on record is that a
+  stand-down clears it and the delay before one lands is what varies — nineteen hours in
+  this case.
+  **Still open and unchanged:** the frozen checkout (`[ ]` above) — Laptop41 is 100 commits
+  behind `main` on a dirty tree, which no fleet process can resolve; `100.70.101.6:8001`,
+  so the cover's first signal can be trusted; V's decision on the armed cover; and the
+  low-RAM item the other cloud session carries.
+
+## 2026-11-25 02:40 UTC — the low-RAM item is one process growing, and the "oscillation" was my misreading
+
+- [ ] 2026-11-25 Claude (cloud): **Laptop41's free RAM has never recovered, and a single
+  `WindowsTerminal` has eaten 3.3 GB over two days.** Taking this one up because
+  `status/cloud` has been quiet 12 h 37 m (`46747585`, 13:57Z 24 Nov) and nobody is
+  carrying it.
+  **It never cleared.** Every one of the **67** doctor passes from `07:41:22Z` (23 Nov) to
+  `02:26:15Z` (25 Nov) carries a `only X of 15.8 GB RAM free` line — zero passes without
+  one, about 43 hours. X ranges 0.6–1.5 GB, i.e. the machine has been at 91–96% memory
+  used continuously.
+  **Correcting myself, four times over.** I read the `(open N run(s), since T)` counter as
+  the item's age and said at 18:34, 22:34, 23:34 and 00:34 that "the hold broke" or RAM was
+  "back to oscillating, so it's NOISE". It is not: that counter **restarts whenever the
+  reported figure changes** — 24 distinct `since` values in this window, every one landing
+  on a 0.1–0.5 GB move in the free figure. So N measures how long the *number repeated*,
+  not how long the problem has been open. The NOISE-list entry "RAM … oscillate" describes
+  the counter, not the condition, and I should have checked that before leaning on it.
+  **What is eating it, from section 7 of the `02:26:15Z` pass:**
+  `WindowsTerminal  4,850 MB  pid 16408`. The next largest process is `MsMpEng` at
+  **360 MB**; nothing else exceeds that. And it is the same pid throughout:
+  - `11-23 07:11` — 1,565 MB
+  - `11-23 18:56` — 2,698 MB
+  - `11-24 00:56` — 3,319 MB
+  - `11-24 10:56` — 4,542 MB
+  - `11-25 02:11` — 4,854 MB, `02:26` — 4,850 MB
+  **+3.3 GB in 43 hours, monotonic apart from small dips, one process, never restarted.**
+  4.85 of 15.8 GB is most of what is missing.
+  **What I am not claiming:** I cannot see what that terminal is running — the autopilot's
+  own transcript, a build log, or a person's session all look the same from here — so
+  whether this is a leak in the terminal or an unbounded scrollback under something useful
+  is not established.
+  **For V, one step:** restart `WindowsTerminal` pid 16408 on Laptop41 (or whatever it is
+  hosting). The doctor has been recommending exactly this all along — *"close the heaviest
+  processes in section 7 that are not Alpha"* — what was missing is that the list has one
+  entry that matters and it is growing. If the growth resumes on a fresh pid, that is a
+  leak and worth a look at what it is hosting.
+
+- [~] 2026-11-25 09:40 UTC Claude (cloud): **two corrections, and an answer to the other
+  session's open question.**
+  **1. The terminal is not a one-way leak.** At `07:41:18Z` it was `4,883 MB`; at
+  `09:11:14Z` it is **`3,607 MB`** — the same pid `16408`, no restart, about **1.3 GB
+  released**. Free RAM went `0.7` → `1.9 of 15.8 GB` and the doctor now reads
+  **`ok: no problems found`** for the first time since 23 Nov. So the 02:40 entry's
+  "+3.3 GB in 43 hours, monotonic apart from small dips" overstates it: it grows for long
+  stretches and then gives memory back. Restarting it is still the one-step remedy if free
+  RAM goes low again, but "leak" was the wrong word and the urgency was mine, not the
+  machine's.
+  **2. The 08:52 cover never promoted**, which the 08:57Z relay could not yet see. The Role
+  row, write by write:
+  - `08:44:31Z` `STANDBY` — *"alpha-serv-01's Alpha answers"*
+  - `08:49:21Z` `STANDBY` — *"did not answer (1 of 3)"*
+  - `08:54:16Z` `STANDBY` — *"has not answered for 3 passes and alpha-ai.uk is down (no
+    answer): **covering**"* — the decision is in the note, but Role is still `STANDBY` on
+    that same write
+  - `08:59:15Z` `STANDBY` — *"alpha-serv-01's Alpha answers"*
+  **Zero `Role | COVERING` writes since 08:00**, so it decided to cover and the primary came
+  back inside the next pass; nothing promoted and nothing had to hand back. That is the
+  fourth cover trigger on record (19:40, 20:16, 00:23 on 22–23 Nov) and the first that
+  resolved itself in under five minutes.
+  **The discrepancy in it is worth keeping:** the standby's own `publicUrl` probe read
+  alpha-ai.uk as *down* at ~08:52 while the relay reports the 08:53 live pass reading it
+  **200**. Two probes, a minute apart, disagreeing about the public URL — which is exactly
+  the signal that releases a cover. I am not resolving it from here; it is one more reason
+  the `:8001` item matters, since signal 1 failing leaves alpha-ai.uk as the only guard.
