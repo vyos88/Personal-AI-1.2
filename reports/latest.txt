@@ -1,4 +1,4 @@
-laptop41-doctor 20261125-152603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261125-154102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-24T11:45:21.9102790+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,23 +9,22 @@ laptop41-doctor 20261125-152603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 1 of 15.8 GB RAM free
-  ok: C: 70.3 GB free
-  ok: CPU 24% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,818 MB  pid 16408
-  dwm                             389 MB  pid 18008
-  MsMpEng                         351 MB  pid 12440
-  Memory Compression              215 MB  pid 3804
+  PROBLEM: only 0.8 of 15.8 GB RAM free
+  ok: C: 70.2 GB free
+  ok: CPU 9% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               4,865 MB  pid 16408
+  dwm                             390 MB  pid 18008
+  MsMpEng                         353 MB  pid 12440
   ChatGPT                         206 MB  pid 21408
-  ChatGPT                         193 MB  pid 10612
-  powershell                      180 MB  pid 23236
-  explorer                        175 MB  pid 10840
+  ChatGPT                         194 MB  pid 10612
+  explorer                        177 MB  pid 10840
+  Memory Compression              176 MB  pid 3804
+  powershell                      168 MB  pid 19972
 
 === SUMMARY ===
   this pass took 8s
-  - only 1 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-25T15:26:10)
-  + fixed since last run: only 0.9 of 15.8 GB RAM free
-  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  - only 0.8 of 15.8 GB RAM free  (open 1 run(s), since 2026-11-25T15:41:10)
+  + fixed since last run: only 1 of 15.8 GB RAM free
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [new] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
