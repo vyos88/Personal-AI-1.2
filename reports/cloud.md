@@ -1,11 +1,11 @@
-Claude (cloud) report, 2026-11-25 09:57 UTC
+Claude (cloud) report, 2026-11-26 22:57 UTC
 
-BLIP 08:52 25 Nov: Laptop41's cover began (alpha-serv-01's Alpha silent 3 passes, alpha-ai.uk no answer) but never took over; alpha-serv-01 answered again by 08:59; all passes since clean. Earlier covers 20:16-20:57 22 Nov and 00:24-00:38 23 Nov, handed back both times. Fresh: doctor 09:56 25 Nov, live 09:54. cloudSeen=6f35b55. Checkout c1aa435 (12 Oct), behind main.
-TWO ALPHAS CLEAR since ~11:44 24 Nov (22 h of clean passes); was back 16:24 23 Nov-11:44; also 21:04 22 Nov-07:11, stand-downs undone.
-NEEDS A PERSON: LOW RAM (0.5-1 of 15.8 GB free) most of 24 Nov and 00:11-08:41 25 Nov; brief clear 08:56-09:41, low again 09:56 (1.4 GB). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy in step; last files sent 11:50 24 Nov.
+OUTAGE 25 Nov ~22:08: alpha-serv-01's Alpha down, alpha-ai.uk 530 then 502. Laptop41's cover took over 22:36, alpha-ai.uk 200 by ~22:58, handed back to alpha-serv-01 ~23:03. Earlier covers 22, 23 Nov. Fresh: doctor 22:56 26 Nov, live 22:54. cloudSeen=63293be. Checkout c1aa435 (12 Oct), behind main.
+TWO ALPHAS BACK since 23:04 25 Nov (24 h): after hand-back the backend (at times site) keeps running on Laptop41 while standby; each stand-down is undone within 5-10 min, so the state flaps every pass. Same pattern as 23-24 Nov (Alpha#159).
+NEEDS A PERSON: decide which Alpha serves (two Alphas). LOW RAM most of 25-26 Nov (0.3-1 of 15.8 GB free). Recurring: cover task 'Alpha Standby' missing; cover cannot always see alpha-serv-01. Data copy in step (248 files 22:50 26 Nov).
 Doctor hardening: admin key for scheduled runs; cloudflared Automatic; AC, sleep off; reboot test; rotate keys.
 
-No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 09:38 25 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159 (09:06), #73 drafts.
+No merges or new PRs; main at c1949c9 (13 Nov). #301 draft (Laptop41 outage record) touched 22:42 26 Nov; #302 (GPU Bridge Policy) OPEN for V; Alpha#159, #73 drafts.
 
 Worker1 ComfyUI on demand only; CPU work only on alpha-serv-01, the sole server. Owner: agents on, big changes asked.
 20 Oct, unverified: #287 self-update refuses local edits; #288 port 8001 = CrowPanel feed; #286 h32 blocked.
@@ -24,4 +24,4 @@ Still stands:
 
 Jack's laptop and the phones publish no status (JackRTX3050 is now in the GPU policy).
 
-Alpha/Codex: Alpha, read-only: say whether alpha-serv-01's Alpha was down at 08:52 25 Nov and why; confirm whether your watchdog restarts backend/site on DESKTOP-41HPLCN after stand-down (Alpha#159), and the top CPU users; do not stop or start Alpha there yourself, V decides. Codex: the 3 questions in HANDOFF_2026-10-17b; why codex-run fails (read-only).
+Alpha/Codex: Alpha, read-only: say why alpha-serv-01's Alpha went down ~22:08 25 Nov; confirm whether your watchdog restarts backend/site on DESKTOP-41HPLCN after stand-down (Alpha#159), and the top CPU users; do not stop or start Alpha there yourself, V decides. Codex: the 3 questions in HANDOFF_2026-10-17b; why codex-run fails (read-only).
