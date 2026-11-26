@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-26T23:29:26.6283265+00:00",
+    "at":  "2026-11-26T23:45:45.0053789+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -8,15 +8,15 @@
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: alpha-serv-01\u0027s Alpha answers (1 min ago)"
              },
     "data":  {
-                 "state":  "OWED",
-                 "detail":  "sent 260 file(s) to alpha-serv-01 at 2026-11-26T23:20:43Z (8 min ago) (9 MB still to send)"
+                 "state":  "ON",
+                 "detail":  "sent 274 file(s) to alpha-serv-01 at 2026-11-26T23:30:43Z (15 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1469,
+                     "age_min":  1485,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,9 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
-                  "not_live":  [
-                                   "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
-                               ],
-                  "checked_at":  "2026-11-26T23:19:13.450575+00:00"
+                  "summary":  "1 down, 1 static, 1 no feed",
+                  "not_live":  "all decks: backend (/health)",
+                  "checked_at":  "2026-11-26T23:44:42.445232+00:00"
               },
-    "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
+    "sync":  "STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)"
 }
