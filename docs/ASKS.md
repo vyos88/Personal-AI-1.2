@@ -1685,3 +1685,52 @@ restarting `python.exe` is a plausible contributor and I have no measurement tha
 backend needs a kill" but **"something restarts Alpha on Worker1 about once an hour while
 `role.json` says standby"**. The fleet's own remedy is in a loop with it.
 
+
+### 2026-11-26 23:36 UTC — narrowed: it is the hand-back that leaves the backend behind
+
+The entry above says the condition re-opened at `2026-11-25T22:29:47Z` and did not say why.
+The Role rows across that hour say it, and they are sharper than "something restarts Alpha":
+
+```
+22:09:16Z STANDBY   alpha-serv-01's Alpha answers (0 min ago)
+22:14:12Z PRIMARY   this machine serves Alpha; automatic cover installed, idle
+22:19:42Z COVERING  for alpha-serv-01 since 2026-11-25T22:12:13.900Z
+22:24:27Z COVERING  "
+22:29:47Z STANDBY   answers again (1 of 2): handing back     <- first dirty write
+22:34:19Z STANDBY   standby, but Alpha serves here ... two Alphas
+22:39:26Z COVERING  for alpha-serv-01 since 2026-11-25T22:36:14.066Z
+   ... five COVERING writes ...
+23:04:50Z STANDBY   standby, but Alpha serves here ... two Alphas
+```
+
+**Two covers, two hand-backs, and the backend is left running by both.** The dirty state does
+not begin while covering and it does not begin out of nowhere — it begins on the write that
+hands back. That makes **three hand-backs on record** that left a backend behind: this pair
+and `20:57:59Z` on 22 Nov (`e320e6b4`, two Alphas 1 m 47 s later).
+
+So the open item splits in two, and only the second half was in the entry above:
+
+1. **A hand-back does not stop the Alpha the cover started.** The cover's moves are
+   `alpha-standdown.ps1`'s, and a later retry of that same script *does* clear the backend
+   (`268836f8`: `2026-11-24T11:45:21.910Z`). Same tool, opposite outcome, so the question is
+   narrow: why does the stand-down taken as part of a hand-back leave port 8001 serving?
+2. **Once in that state the pair flaps**, which is the pid churn measured above.
+
+**Credit where it is due:** `status/cloud` `29c89472` (22:57Z 26 Nov) supplies the cause of
+the cover itself — *"alpha-serv-01's Alpha down, alpha-ai.uk 530 then 502"* at ~22:08 on
+25 Nov — and reaches the same flapping description independently. Its question to Alpha
+(does your watchdog restart backend/site after a stand-down?) covers half 2. Half 1 is not
+asked anywhere yet and is the one a person can answer from Laptop41 alone.
+
+One oddity kept rather than explained: the `22:14:12Z` write reads `Role | PRIMARY`, *"this
+machine serves Alpha; automatic cover installed, idle while this machine is the primary"*,
+while the cover it is inside began at `22:12:13.900Z`. One write read a promotion as this
+machine simply *being* the primary. It settled to `COVERING` on the next write and I am not
+building anything on a single sample.
+
+**Still true an hour on, so the state is current and not a snapshot:** `23:26:19Z` doctor
+has `pid 4684`, and the four passes since my last cycle carry four different pids
+(`8860`, `25252`, `26740`, `4684`); 10 of the 11 live writes since `22:35:10Z` are dirty.
+The `0.3 of 15.8 GB` RAM line has cleared on its own, and a *site* appeared and went too
+(`pid 5340 node.exe`, `fixed since last run`) — so the churn is not only the backend.
+
