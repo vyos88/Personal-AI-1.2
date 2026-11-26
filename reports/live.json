@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-26T08:04:04.5706334+00:00",
+    "at":  "2026-11-26T08:09:06.8503040+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 28 file(s) to alpha-serv-01 at 2026-11-26T08:00:48Z (3 min ago) (11 MB still to send)"
+                 "detail":  "sent 28 file(s) to alpha-serv-01 at 2026-11-26T08:00:48Z (8 min ago) (11 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  543,
+                     "age_min":  548,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
