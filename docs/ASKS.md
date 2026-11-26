@@ -1627,3 +1627,61 @@ disabled task cannot be started. Both bridge tasks read `Disabled`, last result
   **200**. Two probes, a minute apart, disagreeing about the public URL — which is exactly
   the signal that releases a cover. I am not resolving it from here; it is one more reason
   the `:8001` item matters, since signal 1 failing leaves alpha-ai.uk as the only guard.
+
+## 2026-11-26 22:38 UTC — the two Alphas came back, and this time it churns rather than wedges
+
+**Re-opened on its own terms.** The `3a18b215` closure said: if a dirty write appears, this
+re-opens. It did, at **`2026-11-25T22:29:47Z`** — 6 h 40 m after the closure's last clean
+write. Over the 341 live writes from `2026-11-25T17:59:18Z` to `2026-11-26T22:35:10Z`
+(28 h 36 m, 11.9/hour, on cadence — no silence; the three gaps are 13 m, 10 m, 10 m),
+**248 are dirty** and the newest is dirty:
+
+```
+| Alpha (backend, site, alpha-ai.uk) | STANDBY BUT SERVING | Alpha serves from
+alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue
+alpha-standdown again, or alpha-standup to serve here) |
+```
+
+**It is a different failure from the 19-hour episode, and the pids are the proof.** That one
+(`268836f8`: `16:24:14Z` 23 Nov → `11:44:54Z` 24 Nov, 202 dirty of 203) was **one** process,
+`pid 20800`, held across every write — a wedged listener that the stand-down retry could not
+clear for 19 h 20 m. This one is the opposite shape. Across the **71** doctor passes since
+`2026-11-25 22:00`, the backend pid is different on nearly every pass — over 45 distinct
+pids, **none appearing more than twice**. The last fourteen transitions:
+
+```
+17:26:30Z 9264   17:41:25Z 23036  18:26:58Z 28200  18:42:08Z 18128
+18:56:21Z 22120  19:26:19Z 21372  20:11:21Z 11896  20:27:11Z 26484
+20:42:09Z 22776  20:57:16Z 13964  21:26:30Z 16656  21:56:20Z 25332
+22:28:38Z 2112
+```
+
+And the live branch oscillates to match: **93 clean writes interleaved with the 248 dirty**,
+one to four clean in nearly every hour of the 24. So the stand-down is **working** — each
+clean run is a stand-down that took the backend down — and something puts it back within
+minutes. `role.json says standby since 2026-11-26T22:20:21.8214034+00:00
+(alpha-standdown.ps1)`, and eight minutes later the `22:28:38Z` pass already sees `pid 2112`
+serving. The `22:09`–`22:19` writes show the cover logic noticing by itself: *"two Alphas
+(stand-down triggered)"*.
+
+**Why the distinction matters for the remedy.** The doctor's own line asks for
+*"alpha-standdown again"*. Against a wedged listener that is the right ask and it eventually
+took. Against this it has been tried, by the machine, on the order of **45 times in 24
+hours**, and each time the backend is back inside one or two passes. Queueing another is not
+a fix; whatever restarts it is the thing to stop, and that is `alpha-standup`'s scheduled
+job or a supervisor I cannot see from here. **I am not naming the cause** — I can see the
+restarts, not who makes them.
+
+**Two things in the same pass that I will not attribute.** `PROBLEM: only 0.3 of 15.8 GB RAM
+free (open 72 run(s), since 2026-11-26T04:41:12)` and a *new* `PROBLEM: CPU 91% is at or
+above the 90% hold (open 1 run, since 2026-11-26T22:27:04)`. `WindowsTerminal pid 16408` is
+now **3,273 MB**, down from 5,115 MB on 25 Nov — so free RAM fell 0.7 → 0.3 GB *while* the
+terminal gave back 1.8 GB, and the growth is somewhere the doctor's top-eight does not show
+(its heaviest entry is `Memory Compression 3,839 MB`, which is the symptom of an exhausted
+machine, not a holder). The named processes account for ~8.5 of 15.8 GB. A repeatedly
+restarting `python.exe` is a plausible contributor and I have no measurement that says so.
+
+**For V, unchanged in substance and sharper in kind:** the open item is no longer "a wedged
+backend needs a kill" but **"something restarts Alpha on Worker1 about once an hour while
+`role.json` says standby"**. The fleet's own remedy is in a loop with it.
+
