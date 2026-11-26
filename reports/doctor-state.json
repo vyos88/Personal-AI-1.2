@@ -1,14 +1,19 @@
 {
-    "cloudSeen":  "63293bee0227d22f03c886100361943cba93140c",
-    "lastRun":  "2026-11-26T22:56:14",
+    "cloudSeen":  "29c89472be5a6808facc560da4e6339572d9ac89",
+    "lastRun":  "2026-11-26T23:11:17",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
+                 "standby, but the site runs here (pid # node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
+                                                                                                                                                     "since":  "2026-11-26T23:11:17",
+                                                                                                                                                     "runs":  1,
+                                                                                                                                                     "text":  "standby, but the site runs here (pid 5340 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                 },
                  "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                           "since":  "2026-11-26T22:27:04",
-                                                                                                                                                          "runs":  3,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 25252 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                          "runs":  4,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 26740 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                       }
              },
-    "lastPost":  "2026-11-26T22:56:14",
-    "relay":  "relayed status/cloud 63293be"
+    "lastPost":  "2026-11-26T23:11:17",
+    "relay":  "relayed status/cloud 29c8947"
 }
