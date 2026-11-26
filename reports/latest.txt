@@ -1,36 +1,35 @@
-laptop41-doctor 20261126-055602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261126-061102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-26T05:46:22.3689989+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-26T06:06:21.8237870+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 15808 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 23792 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 8956 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 24188 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (1 of 3) (1 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.6 of 15.8 GB RAM free
-  ok: C: 72.6 GB free
-  ok: CPU 11% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               4,369 MB  pid 16408
-  Memory Compression              505 MB  pid 3804
-  dwm                             407 MB  pid 18008
-  MsMpEng                         327 MB  pid 12440
-  python                          227 MB  pid 15808
-  ChatGPT                         201 MB  pid 21408
+  PROBLEM: only 0.4 of 15.8 GB RAM free
+  ok: C: 72.5 GB free
+  ok: CPU 43% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               4,413 MB  pid 16408
+  Memory Compression              599 MB  pid 3804
+  dwm                             408 MB  pid 18008
+  python                          399 MB  pid 8956
+  MsMpEng                         347 MB  pid 12440
+  ChatGPT                         195 MB  pid 21408
   ChatGPT                         155 MB  pid 10612
-  explorer                        130 MB  pid 10840
+  powershell                      132 MB  pid 27192
 
 === SUMMARY ===
-  this pass took 9s
-  - NEEDS A PERSON - standby, but the site runs here (pid 23792 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-26T04:41:12)
-  - NEEDS A PERSON - standby, but the backend runs here (pid 15808 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-26T04:41:12)
-  - NEEDS A PERSON - only 0.6 of 15.8 GB RAM free  (open 6 run(s), since 2026-11-26T04:41:12)
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 1 run(s), since 2026-11-26T05:56:10)
+  this pass took 10s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 8956 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 7 run(s), since 2026-11-26T04:41:12)
+  - NEEDS A PERSON - standby, but the site runs here (pid 24188 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 7 run(s), since 2026-11-26T04:41:12)
+  - NEEDS A PERSON - only 0.4 of 15.8 GB RAM free  (open 7 run(s), since 2026-11-26T04:41:12)
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 6 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 7 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
