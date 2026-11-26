@@ -1,34 +1,33 @@
-laptop41-doctor 20261126-215603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261126-221103 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-26T21:49:24.4258554+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-26T22:10:23.8335304+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 25332 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  ok: no backend here (port 8001 free)
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  PROBLEM: only 0.4 of 15.8 GB RAM free
-  ok: C: 72.2 GB free
-  ok: CPU 24% (Alpha holds GPU admission at 90%)
-  WindowsTerminal               3,306 MB  pid 16408
-  Memory Compression            3,284 MB  pid 3804
+  PROBLEM: only 0.5 of 15.8 GB RAM free
+  ok: C: 72.3 GB free
+  ok: CPU 21% (Alpha holds GPU admission at 90%)
+  WindowsTerminal               3,332 MB  pid 16408
+  Memory Compression            3,086 MB  pid 3804
   dwm                             451 MB  pid 18008
-  MsMpEng                         340 MB  pid 12440
-  ChatGPT                         202 MB  pid 21408
-  ChatGPT                         166 MB  pid 10612
+  MsMpEng                         339 MB  pid 12440
+  ChatGPT                         203 MB  pid 21408
+  ChatGPT                         167 MB  pid 10612
   explorer                        133 MB  pid 10840
-  python                          114 MB  pid 25332
+  powershell                      125 MB  pid 17200
 
 === SUMMARY ===
-  this pass took 10s
-  - NEEDS A PERSON - only 0.4 of 15.8 GB RAM free  (open 70 run(s), since 2026-11-26T04:41:12)
-  - standby, but the backend runs here (pid 25332 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-26T21:26:17)
-  + fixed since last run: standby, but the site runs here (pid 21004 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  this pass took 9s
+  - NEEDS A PERSON - only 0.5 of 15.8 GB RAM free  (open 71 run(s), since 2026-11-26T04:41:12)
+  + fixed since last run: standby, but the backend runs here (pid 25332 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
-  1. [open 70 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
+  1. [open 71 runs NEEDS A PERSON] Free memory or disk: close the heaviest processes in section 7 that are not Alpha, and clear old dist.prev-* / dist.failed-* folders once a build is known good.
   2. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
   3. [hardening] Set the cloudflared service to Automatic start so the public hostname survives a reboot.
   4. [hardening] Ask Alpha (chat) for a recap of the doctor posts weekly, and read the self-heal log (alpha-ops\logs\selfheal.jsonl) for repairs that repeat.
