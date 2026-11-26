@@ -1,5 +1,5 @@
 ﻿{
-    "at":  "2026-11-26T16:24:16.8292526+00:00",
+    "at":  "2026-11-26T16:29:37.8764769+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 257 file(s) to alpha-serv-01 at 2026-11-26T15:50:44Z (33 min ago) (8 MB still to send)"
+                 "detail":  "sent 257 file(s) to alpha-serv-01 at 2026-11-26T15:50:44Z (38 min ago) (8 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  1043,
+                     "age_min":  1049,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,12 +24,13 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
+                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
                   "not_live":  [
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)"
+                                   "CrowPanel: display (LAN reads)",
+                                   "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-26T16:09:30.551878+00:00"
+                  "checked_at":  "2026-11-26T16:29:17.296244+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
