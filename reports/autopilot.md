@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261127-072845
+﻿# laptop41 autopilot 20261127-073345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261127-073345  data-sync (task 'Alpha Data Copy', run at 2026-11-27T07:30:41)  ->  0 (in step)   (2026-11-27T07:34:12, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-27 07:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  SENT 308 file(s), 96.4 MB written since 2026-11-27T07:20:42Z, to alpha-serv-01
+```
 
 ## auto-deck-liveness-20261127-072845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-27T07:29:12, 13s)
 ```
@@ -296,12 +303,5 @@ WORKING crowpanel: answers with data (touch.bus.addresses 2, touch.firmware_diag
 DATA SYNC DESKTOP-41HPLCN 2026-11-27 06:10 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   SENT 301 file(s), 13.0 MB written since 2026-11-27T06:00:43Z, to alpha-serv-01
-```
-
-## auto-data-sync-task-20261127-060846  data-sync (task 'Alpha Data Copy', run at 2026-11-27T06:00:41)  ->  0 (in step)   (2026-11-27T06:09:33, 0s)
-```
-DATA SYNC DESKTOP-41HPLCN 2026-11-27 06:00 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
-  nothing received
-  SENT 298 file(s), 96.4 MB written since 2026-11-27T05:50:43Z, to alpha-serv-01
 ```
 
