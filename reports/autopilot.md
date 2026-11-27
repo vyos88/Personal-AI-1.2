@@ -1,9 +1,16 @@
-﻿# laptop41 autopilot 20261127-012345
+﻿# laptop41 autopilot 20261127-013345
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-data-sync-task-20261127-013345  data-sync (task 'Alpha Data Copy', run at 2026-11-27T01:30:41)  ->  0 (in step)   (2026-11-27T01:34:16, 0s)
+```
+DATA SYNC DESKTOP-41HPLCN 2026-11-27 01:30 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
+  nothing received
+  not serving here, and nothing unsent from when it did: nothing to send
+```
 
 ## auto-deck-audit-20261127-012345  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-27T01:24:08, 0s)
 ```
@@ -269,10 +276,5 @@ ALLOW WITH: scripts/alpha_autonomy_report_30_60_90.ps1:829,scripts/alpha_autonom
 DATA SYNC DESKTOP-41HPLCN 2026-11-26 23:42 (memory\ at C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory)
   nothing received
   SENT 269 file(s), 20.4 MB written since 2026-11-26T23:30:43Z, to alpha-serv-01
-```
-
-## auto-live-sync-20261126-233354  live-sync (standing)  ->  1 (could not run)   (2026-11-26T23:40:12, 135s)
-```
-STOP: could not fetch claude/frie...(30): git fetch --filter=blob:none https://github.com/vyos88/Alpha gave up after 120s (raise ALPHA_GIT_TIMEOUT_MS if that is too short)
 ```
 
