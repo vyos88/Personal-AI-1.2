@@ -1,4 +1,4 @@
-laptop41-doctor 20261127-171105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261127-191319 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-27T11:42:23.4096747+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -10,21 +10,21 @@ laptop41-doctor 20261127-171105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
 
 === 7. Memory, disk, heaviest processes ===
   ok: 8.1 of 15.8 GB RAM free
-  ok: C: 94.9 GB free
-  ok: CPU 28% (Alpha holds GPU admission at 90%)
-  MsMpEng                         489 MB  pid 5144
-  ChatGPT                         396 MB  pid 13328
-  ChatGPT                         360 MB  pid 13272
-  explorer                        231 MB  pid 8124
+  ok: C: 94.7 GB free
+  ok: CPU 65% (Alpha holds GPU admission at 90%)
+  MsMpEng                         475 MB  pid 5144
+  ChatGPT                         386 MB  pid 13328
+  ChatGPT                         367 MB  pid 13272
+  explorer                        239 MB  pid 8124
+  ChatGPT                         214 MB  pid 7812
   msedge                          197 MB  pid 7952
-  Memory Compression              196 MB  pid 3360
-  ChatGPT                         188 MB  pid 7812
+  Memory Compression              174 MB  pid 3360
   StartMenuExperienceHost         169 MB  pid 12440
 
 === SUMMARY ===
-  this pass took 17s
-  - NEEDS A PERSON - standby, but the site runs here (pid 11540 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 10 run(s), since 2026-11-27T11:41:14)
-  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 9 run(s), since 2026-11-27T15:11:11)
+  this pass took 10s
+  - NEEDS A PERSON - standby, but the site runs here (pid 11540 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 14 run(s), since 2026-11-27T11:41:14)
+  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 13 run(s), since 2026-11-27T15:11:11)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
