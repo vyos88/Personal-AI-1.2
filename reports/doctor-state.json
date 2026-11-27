@@ -1,14 +1,19 @@
 {
     "cloudSeen":  "29c89472be5a6808facc560da4e6339572d9ac89",
-    "lastRun":  "2026-11-27T21:56:12",
+    "lastRun":  "2026-11-27T22:11:26",
     "handoffSeen":  "932c8eb8a92d3e846c8b3ba8f74c3e2979facae9",
     "open":  {
+                 "CPU #% is at or above the #% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow":  {
+                                                                                                                                                                                                                                                                  "since":  "2026-11-27T22:11:26",
+                                                                                                                                                                                                                                                                  "runs":  1,
+                                                                                                                                                                                                                                                                  "text":  "CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine\u0027s own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot\u0027s passes and the data copy run slow"
+                                                                                                                                                                                                                                                              },
                  "standby, but the backend runs here (pid # python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here":  {
                                                                                                                                                           "since":  "2026-11-27T21:26:18",
-                                                                                                                                                          "runs":  3,
-                                                                                                                                                          "text":  "standby, but the backend runs here (pid 10820 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
+                                                                                                                                                          "runs":  4,
+                                                                                                                                                          "text":  "standby, but the backend runs here (pid 8096 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here"
                                                                                                                                                       }
              },
-    "lastPost":  "2026-11-27T21:56:12",
+    "lastPost":  "2026-11-27T22:11:26",
     "relay":  "relayed status/cloud 29c8947"
 }

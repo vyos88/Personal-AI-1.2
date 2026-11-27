@@ -1,30 +1,38 @@
-laptop41-doctor 20261127-215603 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261127-221106 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-27T21:49:31.0063756+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-27T22:09:26.7663384+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 10820 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 8096 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no site here (port 4173 free)
   ok: no connector here
-  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (1 min ago)
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 7 of 15.8 GB RAM free
+  ok: 6.6 of 15.8 GB RAM free
   ok: C: 94.4 GB free
-  ok: CPU 13% (Alpha holds GPU admission at 90%)
-  python                          575 MB  pid 10820
-  MsMpEng                         476 MB  pid 5144
-  ChatGPT                         394 MB  pid 13328
+  PROBLEM: CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow
+  python                          654 MB  pid 8096
+  MsMpEng                         523 MB  pid 5144
+  ChatGPT                         395 MB  pid 13328
   ChatGPT                         359 MB  pid 13272
   explorer                        241 MB  pid 8124
-  Memory Compression              215 MB  pid 3360
-  ChatGPT                         212 MB  pid 7812
+  Memory Compression              200 MB  pid 3360
   msedge                          196 MB  pid 7952
+  codex                           184 MB  pid 14292
+  --- using the CPU, over 2.8s across 8 logical core(s): the processes it could measure account for 14.2% of the machine
+  ChatGPT                        7.8% CPU   1.72s  pid 7812
+  python                         5.0% CPU   1.09s  pid 15760
+  powershell                     0.7% CPU   0.16s  pid 18840
+  ChatGPT                        0.3% CPU   0.06s  pid 13328
+  tailscale-ipn                  0.1% CPU   0.02s  pid 18940
+  msedge                         0.1% CPU   0.02s  pid 17072
+  177 process(es) could not be measured, so the rows above are a floor and not the whole machine: svchost x80, conhost x14, powershell x6, python x6, git x4, cmd x3 (run the doctor as Administrator to see other accounts' process times)
 
 === SUMMARY ===
-  this pass took 10s
-  - standby, but the backend runs here (pid 10820 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 3 run(s), since 2026-11-27T21:26:18)
-  + fixed since last run: standby, but the site runs here (pid 20576 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  this pass took 22s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 8096 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 4 run(s), since 2026-11-27T21:26:18)
+  - CPU 99% is at or above the 90% hold: no Alpha runs here, so what it costs is this machine's own work -- the agent stops asking for tunnel tasks over ALPHA_AGENT_MAX_LOAD, and the autopilot's passes and the data copy run slow  (open 1 run(s), since 2026-11-27T22:11:26)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
