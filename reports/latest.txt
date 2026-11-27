@@ -1,4 +1,4 @@
-laptop41-doctor 20261127-161105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261127-171105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
   role.json says standby since 2026-11-27T11:42:23.4096747+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
@@ -9,23 +9,22 @@ laptop41-doctor 20261127-161105 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Dow
   ok: automatic cover: alpha-serv-01's Alpha answers (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 8.3 of 15.8 GB RAM free
-  ok: C: 95 GB free
-  ok: CPU 3% (Alpha holds GPU admission at 90%)
-  MsMpEng                         484 MB  pid 5144
-  ChatGPT                         399 MB  pid 13328
-  ChatGPT                         358 MB  pid 13272
-  explorer                        233 MB  pid 8124
-  msedge                          196 MB  pid 7952
-  Memory Compression              192 MB  pid 3360
-  StartMenuExperienceHost         170 MB  pid 12440
-  ChatGPT                         165 MB  pid 7812
+  ok: 8.1 of 15.8 GB RAM free
+  ok: C: 94.9 GB free
+  ok: CPU 28% (Alpha holds GPU admission at 90%)
+  MsMpEng                         489 MB  pid 5144
+  ChatGPT                         396 MB  pid 13328
+  ChatGPT                         360 MB  pid 13272
+  explorer                        231 MB  pid 8124
+  msedge                          197 MB  pid 7952
+  Memory Compression              196 MB  pid 3360
+  ChatGPT                         188 MB  pid 7812
+  StartMenuExperienceHost         169 MB  pid 12440
 
 === SUMMARY ===
   this pass took 17s
-  - NEEDS A PERSON - standby, but the site runs here (pid 11540 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-27T11:41:14)
-  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 5 run(s), since 2026-11-27T15:11:11)
-  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  - NEEDS A PERSON - standby, but the site runs here (pid 11540 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 10 run(s), since 2026-11-27T11:41:14)
+  - NEEDS A PERSON - standby, but 1 cloudflared process(es) run here: alpha-ai.uk's traffic is split between two machines  (open 9 run(s), since 2026-11-27T15:11:11)
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
