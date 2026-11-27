@@ -1,32 +1,35 @@
 ﻿{
-    "at":  "2026-11-27T19:24:00.3927153+00:00",
+    "at":  "2026-11-27T19:29:26.2338394+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "DOWN",
-                  "detail":  "backend 0, site 200, alpha-ai.uk 0; not answering: backend, alpha-ai.uk",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site, connector (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "checked_by":  "this pass"
               },
     "role":  {
-                 "role":  "PRIMARY",
-                 "detail":  "this machine serves Alpha; automatic cover installed, idle while this machine is the primary"
+                 "role":  "STANDBY",
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 328 file(s) to alpha-serv-01 at 2026-11-27T11:57:43Z (446 min ago)"
+                 "detail":  "sent 328 file(s) to alpha-serv-01 at 2026-11-27T11:57:43Z (451 min ago)"
              },
     "selfheal":  {
-                     "state":  "RUNNING",
-                     "age_min":  1,
-                     "repairs":  0,
+                     "state":  "OFF (standby)",
+                     "age_min":  4,
+                     "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
                      "unfinished":  "",
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "1 down, 1 static, 1 no feed",
-                  "not_live":  "all decks: backend (/health)",
-                  "checked_at":  "2026-11-27T19:13:45.297563+00:00"
+                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
+                  "not_live":  [
+                                   "network, hardware, atlas: devices (/devices/network/topology)",
+                                   "CrowPanel: display (LAN reads)"
+                               ],
+                  "checked_at":  "2026-11-27T19:29:19.702295+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
