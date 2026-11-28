@@ -1,9 +1,14 @@
-﻿# laptop41 autopilot 20261128-144345
+﻿# laptop41 autopilot 20261128-144845
 
 Host: DESKTOP-41HPLCN   Alpha: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software
 
 checkout c1aa4356 did NOT update (self-update exit 1): node.exe : self-update: working copy has uncommitted changes /     + FullyQualifiedErrorId : NativeCommandError; local changes:  M scripts/laptop41-doctor.ps1,  M test/laptop41-doctor.test.js, ?? scripts/alpha_song_cover_file.mjs, ?? scripts/alpha_song_cover_jobs.py, ?? scripts/alpha_song_cover_preview.mjs, ?? scripts/alpha_song_cover_preview.py, ?? scripts/alpha_song_cover_render.py, ?? scripts/run-worker1-gpu.ps1, ?? scripts/song-cover-preview-input.png, ?? scripts/song-cover-preview-output/, ?? scripts/worker1-gpu-demand.mjs, ?? scripts/worker1-gpu-demand.mjs.before-cover-preview, ?? scripts/worker1-gpu-demand.mjs.before-song-cover-colours, ?? scripts/worker1-small-output/, ?? scripts/worker1-small-render.py
 queue: 110 action(s) on control/laptop41, all of them already run
+
+## auto-deck-liveness-20261128-144845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-28T14:49:06, 0s)
+```
+DECK DOWN: backend (/health) -> nothing listens on 8001  [decks: all decks]
+```
 
 ## auto-deck-audit-20261128-144345  deck-audit (Alpha)  ->  0 (20 working, 1 empty, 0 broken)   (2026-11-28T14:44:08, 0s)
 ```
@@ -296,23 +301,5 @@ DATA SYNC DESKTOP-41HPLCN 2026-11-28 13:20 (memory\ at C:\Users\Vyo\Downloads\Vy
   nothing received
   SENT 30 file(s), 95.0 MB written since 2026-11-28T13:10:43Z, to alpha-serv-01
   PART of a backlog: 435 file(s), 11.6 MB still to send, from 2026-11-28T13:16:46Z; the next pass carries on
-```
-
-## auto-deck-liveness-20261128-131845  deck-liveness (standing)  ->  2 (not every deck is live)   (2026-11-28T13:19:14, 13s)
-```
-DECKS: 3 live, 2 stale, 1 down, 1 static, 1 no feed
-DECK LIVE: deck evidence (/hubs/pulse) -> every hub check passed  [decks: alpha, terminal, spatial, embodiment, knowledge, core, reality, automation, apps, android, admin, atlas]
-    22/22 hub checks ok, report 45 s old, fresh for 150 s
-DECK LIVE: command deck (/command-center/summary) -> manager and resources fresh  [decks: command]
-    manager snapshot 12 s old
-DECK STALE: devices (/devices/network/topology) -> no device has reported within its window (status waiting-for-heartbeat)  [decks: network, hardware, atlas]
-    39 device(s), newest heartbeat 4286120 s old, fresh for 90 s
-DECK LIVE: CrowPanel feed (/panel/crowpanel/state) -> feed live  [decks: CrowPanel]
-    assistant heartbeat 40 s old, live within 420 s
-DECK STALE: CrowPanel display (LAN reads) -> no panel has read the feed since the backend started  [decks: CrowPanel]
-DECK DOWN: site (https://127.0.0.1:4173) -> the site does not answer (no answer)  [decks: all UI decks]
-DECK STATIC: static decks -> no live data by design  [decks: educational, image-creator, video-creator]
-DECK NO FEED: Alpha Lite Deck (COM6) -> USB serial only, no network feed; never opened by this check  [decks: Alpha Lite Deck]
-receipt: C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\memory\local\deck-liveness\latest.json
 ```
 
