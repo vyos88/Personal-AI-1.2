@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-28T03:44:18.3177852+00:00",
+    "at":  "2026-11-28T03:49:18.2153858+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "DOWN",
-                  "detail":  "backend 200, site 200, alpha-ai.uk 502; not answering: alpha-ai.uk",
-                  "checked_by":  "self-heal, 1 min ago"
+                  "verdict":  "LIVE",
+                  "detail":  "backend 200, site 200, alpha-ai.uk 200",
+                  "checked_by":  "self-heal, 0 min ago"
               },
     "role":  {
                  "role":  "COVERING",
-                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-28T03:42:13.676Z; automatic cover: covering for alpha-serv-01 since 2026-11-28T03:42:13.676Z (1 min ago)"
+                 "detail":  "this machine serves Alpha for alpha-serv-01 since 2026-11-28T03:42:13.676Z; automatic cover: alpha-serv-01\u0027s Alpha answers again (1 of 2): handing back soon (1 min ago)"
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 394 file(s) to alpha-serv-01 at 2026-11-28T03:40:46Z (3 min ago)"
+                 "detail":  "sent 394 file(s) to alpha-serv-01 at 2026-11-28T03:40:46Z (8 min ago)"
              },
     "selfheal":  {
                      "state":  "RUNNING",
-                     "age_min":  1,
+                     "age_min":  0,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,13 +24,12 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
                   "not_live":  [
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)",
-                                   "all UI decks: site (https://127.0.0.1:4173)"
+                                   "CrowPanel: display (LAN reads)"
                                ],
-                  "checked_at":  "2026-11-28T03:34:08.859572+00:00"
+                  "checked_at":  "2026-11-28T03:49:11.366967+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
