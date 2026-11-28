@@ -1,22 +1,22 @@
 ﻿{
-    "at":  "2026-11-28T13:34:14.6037832+00:00",
+    "at":  "2026-11-28T13:39:14.0696656+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
-                  "verdict":  "STANDBY",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; nothing of Alpha runs here",
+                  "verdict":  "STANDBY BUT SERVING",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
                  "role":  "STANDBY",
-                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas, standing down again (0 min ago)"
+                 "detail":  "alpha-serv-01 serves Alpha; automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)"
              },
     "data":  {
                  "state":  "OWED",
-                 "detail":  "sent 34 file(s) to alpha-serv-01 at 2026-11-28T13:30:43Z (3 min ago) (13 MB still to send)"
+                 "detail":  "sent 34 file(s) to alpha-serv-01 at 2026-11-28T13:30:43Z (8 min ago) (13 MB still to send)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  581,
+                     "age_min":  586,
                      "repairs":  0,
                      "restarted":  "",
                      "snapshot":  "",
@@ -30,7 +30,7 @@
                                    "CrowPanel: display (LAN reads)",
                                    "all UI decks: site (https://127.0.0.1:4173)"
                                ],
-                  "checked_at":  "2026-11-28T13:19:23.479567+00:00"
+                  "checked_at":  "2026-11-28T13:39:05.294056+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
