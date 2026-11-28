@@ -1,9 +1,9 @@
 ﻿{
-    "at":  "2026-11-28T01:34:21.4758668+00:00",
+    "at":  "2026-11-28T01:39:33.5846465+00:00",
     "machine":  "DESKTOP-41HPLCN",
     "alpha":  {
                   "verdict":  "STANDBY BUT SERVING",
-                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
+                  "detail":  "Alpha serves from alpha-serv-01: alpha-ai.uk 200; running HERE too: backend, site (two Alphas: queue alpha-standdown again, or alpha-standup to serve here)",
                   "checked_by":  "this pass"
               },
     "role":  {
@@ -12,11 +12,11 @@
              },
     "data":  {
                  "state":  "ON",
-                 "detail":  "sent 377 file(s) to alpha-serv-01 at 2026-11-28T01:30:45Z (3 min ago)"
+                 "detail":  "sent 377 file(s) to alpha-serv-01 at 2026-11-28T01:30:45Z (8 min ago)"
              },
     "selfheal":  {
                      "state":  "OFF (standby)",
-                     "age_min":  369,
+                     "age_min":  375,
                      "repairs":  1,
                      "restarted":  "",
                      "snapshot":  "",
@@ -24,13 +24,12 @@
                      "why":  ""
                  },
     "decks":  {
-                  "summary":  "2 live, 2 stale, 1 down, 1 static, 1 no feed",
+                  "summary":  "3 live, 2 stale, 1 static, 1 no feed",
                   "not_live":  [
                                    "network, hardware, atlas: devices (/devices/network/topology)",
-                                   "CrowPanel: display (LAN reads)",
-                                   "all UI decks: site (https://127.0.0.1:4173)"
+                                   "CrowPanel: display (LAN reads)"
                                ],
-                  "checked_at":  "2026-11-28T01:24:15.057514+00:00"
+                  "checked_at":  "2026-11-28T01:39:27.090597+00:00"
               },
     "sync":  "IN SYNC: this machine runs 904e705 of claude/frie...(30)"
 }
