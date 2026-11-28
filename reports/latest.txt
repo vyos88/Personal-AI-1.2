@@ -1,32 +1,31 @@
-laptop41-doctor 20261128-174102 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
+laptop41-doctor 20261128-175602 on DESKTOP-41HPLCN  (alpha root C:\Users\Vyo\Downloads\VyoS-advance-tech-ai\software, checkout C:\services\alpha-tunnel @ c1aa4356 2026-10-12)
 
 === 0. Standby: Alpha serves from alpha-serv-01 ===
-  role.json says standby since 2026-11-28T17:31:30.5923333+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
+  role.json says standby since 2026-11-28T17:52:25.3305237+00:00 (alpha-standdown.ps1; the alpha-standup job serves Alpha here again)
   ok: https://alpha-ai.uk/ answers 200, served from alpha-serv-01
-  PROBLEM: standby, but the backend runs here (pid 17916 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
-  PROBLEM: standby, but the site runs here (pid 14456 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the backend runs here (pid 21204 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
+  PROBLEM: standby, but the site runs here (pid 12708 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here
   ok: no connector here
-  ok: automatic cover: alpha-serv-01's Alpha did not answer (2 of 3) (1 min ago)
-  PROBLEM: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
+  ok: automatic cover: standby, but Alpha serves here while alpha-serv-01 answers: two Alphas (stand-down tried less than 10 min ago) (0 min ago)
 
 === 7. Memory, disk, heaviest processes ===
-  ok: 5.2 of 15.8 GB RAM free
+  ok: 4.9 of 15.8 GB RAM free
   ok: C: 102.5 GB free
-  ok: CPU 42% (Alpha holds GPU admission at 90%)
-  Memory Compression              712 MB  pid 3360
-  MsMpEng                         433 MB  pid 5144
-  ChatGPT                         281 MB  pid 13272
-  ChatGPT                         280 MB  pid 13328
-  python                          259 MB  pid 17916
+  ok: CPU 60% (Alpha holds GPU admission at 90%)
+  python                          657 MB  pid 21204
+  Memory Compression              506 MB  pid 3360
+  MsMpEng                         490 MB  pid 5144
+  ChatGPT                         283 MB  pid 13272
+  ChatGPT                         278 MB  pid 13328
   explorer                        229 MB  pid 8124
-  powershell                      198 MB  pid 14744
   codex                           185 MB  pid 14292
+  ChatGPT                         180 MB  pid 7812
 
 === SUMMARY ===
-  this pass took 15s
-  - NEEDS A PERSON - standby, but the backend runs here (pid 17916 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 6 run(s), since 2026-11-28T16:26:09)
-  - automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address  (open 1 run(s), since 2026-11-28T17:41:15)
-  - standby, but the site runs here (pid 14456 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 1 run(s), since 2026-11-28T17:41:15)
+  this pass took 18s
+  - NEEDS A PERSON - standby, but the backend runs here (pid 21204 python.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 7 run(s), since 2026-11-28T16:26:09)
+  - standby, but the site runs here (pid 12708 node.exe: ): two Alphas. Queue alpha-standdown again, or alpha-standup to serve here  (open 2 run(s), since 2026-11-28T17:41:15)
+  + fixed since last run: automatic cover cannot see alpha-serv-01's Alpha at http://100.70.101.6:8001/health (it answered nothing) though alpha-ai.uk is served: it would cover in an outage and never hand back. Make alpha-serv-01's backend answer on its tailnet address
 
 === RECOMMENDATIONS (ranked; re-ranked every run) ===
   1. [hardening] Store the coordinator admin key for your user so scheduled runs include agents/keys/tasks: [Environment]::SetEnvironmentVariable('ALPHA_ADMIN_TOKEN', (Read-Host 'key'), 'User').
